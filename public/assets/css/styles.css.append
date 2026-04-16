@@ -1,0 +1,27 @@
+/* Action buttons hover */
+.action-btn {
+  transition: all 0.2s;
+}
+
+.action-btn:hover {
+  transform: scale(1.05);
+  background: var(--border) !important;
+}
+
+.invoice-details {
+  padding: 1rem;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.invoice-details h4 {
+  margin-bottom: 1rem;
+  color: var(--primary);
+}
+
+.invoice-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border);
+}

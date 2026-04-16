@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>POS System - Caisse Professionnelle</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+  <!-- Login Page -->
+  <div id="login-page" class="login-page">
+    <div class="login-card">
+      <div class="login-header">
+        <div class="login-logo">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+            <line x1="8" y1="21" x2="16" y2="21"></line>
+            <line x1="12" y1="17" x2="12" y2="21"></line>
+          </svg>
+        </div>
+        <h1>POS System</h1>
+        <p>Connectez-vous pour acceder a la caisse</p>
+      </div>
+      <form id="login-form" class="login-form">
+        <div class="form-group">
+          <label for="username">Nom d'utilisateur</label>
+          <input type="text" id="username" placeholder="Entrez votre identifiant" required>
+        </div>
+        <div class="form-group">
+          <label for="password">Mot de passe</label>
+          <input type="password" id="password" placeholder="Entrez votre mot de passe" required>
+        </div>
+        <div id="login-error" class="login-error"></div>
+        <button type="submit" class="btn btn-primary btn-full">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
+            <polyline points="10 17 15 12 10 7"></polyline>
+            <line x1="15" y1="12" x2="3" y2="12"></line>
+          </svg>
+          Se connecter
+        </button>
+      </form>
+      <div class="login-footer">
+        <p>Comptes demo:</p>
+        <p><strong>admin</strong> / admin123 | <strong>vendeur1</strong> / vendeur123</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main App -->
+  <div id="main-app" class="main-app hidden">
+    <!-- Mobile Header -->
+    <header class="mobile-header">
+      <button id="menu-toggle" class="menu-toggle">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="3" y1="12" x2="21" y2="12"></line>
+          <line x1="3" y1="6" x2="21" y2="6"></line>
+          <line x1="3" y1="18" x2="21" y2="18"></line>
+        </svg>
+      </button>
+      <h1>POS System</h1>
+      <div id="mobile-user-info" class="mobile-user-info"></div>
+    </header>
+
+    <!-- Sidebar -->
+    <aside id="sidebar" class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+            <line x1="8" y1="21" x2="16" y2="21"></line>
+            <line x1="12" y1="17" x2="12" y2="21"></line>
+          </svg>
+        </div>
+        <span>POS System</span>
+        <button id="close-sidebar" class="close-sidebar">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      
+      <nav class="sidebar-nav">
+        <button class="nav-item active" data-page="dashboard">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="7" height="7"></rect>
+            <rect x="14" y="3" width="7" height="7"></rect>
+            <rect x="14" y="14" width="7" height="7"></rect>
+            <rect x="3" y="14" width="7" height="7"></rect>
+          </svg>
+          <span>Tableau de bord</span>
+        </button>
+        <button class="nav-item" data-page="caisse">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="12" y1="1" x2="12" y2="23"></line>
+            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+          </svg>
+          <span>Caisse</span>
+        </button>
+        <button class="nav-item" data-page="products">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <path d="M16 10a4 4 0 0 1-8 0"></path>
+          </svg>
+          <span>Produits</span>
+        </button>
+        <button class="nav-item admin-only" data-page="users">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+            <circle cx="9" cy="7" r="4"></circle>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+          </svg>
+          <span>Utilisateurs</span>
+        </button>
+        <button class="nav-item" data-page="history">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polyline points="12 6 12 12 16 14"></polyline>
+          </svg>
+          <span>Historique</span>
+        </button>
+        <button class="nav-item admin-only" data-page="settings">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+          <span>Parametres</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="user-info">
+          <div class="user-avatar" id="user-avatar">A</div>
+          <div class="user-details">
+            <span class="user-name" id="user-name">Admin</span>
+            <span class="user-role" id="user-role">Administrateur</span>
+          </div>
+        </div>
+        <button id="logout-btn" class="btn btn-logout">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+            <polyline points="16 17 21 12 16 7"></polyline>
+            <line x1="21" y1="12" x2="9" y2="12"></line>
+          </svg>
+          <span>Deconnexion</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Overlay for mobile -->
+    <div id="sidebar-overlay" class="sidebar-overlay"></div>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <!-- Dashboard Page -->
+      <div id="page-dashboard" class="page active">
+        <div class="page-header">
+          <h2>Tableau de bord</h2>
+          <p id="current-date"></p>
+        </div>
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-icon blue">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="1" x2="12" y2="23"></line>
+                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+              </svg>
+            </div>
+            <div class="stat-info">
+              <span class="stat-label">Ventes du jour</span>
+              <span class="stat-value" id="stat-today">0.00 Fc</span>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon green">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
+                <polyline points="17 6 23 6 23 12"></polyline>
+              </svg>
+            </div>
+            <div class="stat-info">
+              <span class="stat-label">Ventes semaine</span>
+              <span class="stat-value" id="stat-week">0.00 Fc</span>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon cyan">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+                <line x1="3" y1="6" x2="21" y2="6"></line>
+                <path d="M16 10a4 4 0 0 1-8 0"></path>
+              </svg>
+            </div>
+            <div class="stat-info">
+              <span class="stat-label">Produits</span>
+              <span class="stat-value" id="stat-products">0</span>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon orange">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                <line x1="12" y1="9" x2="12" y2="13"></line>
+                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+              </svg>
+            </div>
+            <div class="stat-info">
+              <span class="stat-label">Stock faible</span>
+              <span class="stat-value" id="stat-low-stock">0</span>
+            </div>
+          </div>
+        </div>
+        <div class="dashboard-grid">
+          <div class="card">
+            <div class="card-header">
+              <h3>Dernieres ventes</h3>
+            </div>
+            <div class="card-body">
+              <div id="recent-sales" class="recent-list"></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <h3>Alertes de stock</h3>
+            </div>
+            <div class="card-body">
+              <div id="stock-alerts" class="alert-list"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Caisse Page -->
+      <div id="page-caisse" class="page">
+        <div class="caisse-container">
+          <!-- Products Section -->
+          <div class="caisse-products">
+            <div class="search-bar">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+              <input type="text" id="product-search" placeholder="Rechercher un produit ou scanner...">
+            </div>
+            <div class="category-tabs">
+              <button class="category-tab active" data-category="all">Tous</button>
+              <button class="category-tab" data-category="Boissons">Boissons</button>
+              <button class="category-tab" data-category="Alimentation">Alimentation</button>
+              <button class="category-tab" data-category="Hygiene">Hygiene</button>
+              <button class="category-tab" data-category="Menage">Menage</button>
+            </div>
+            <div id="products-grid" class="products-grid"></div>
+          </div>
+
+          <!-- Cart Section -->
+          <div class="caisse-cart">
+            <div class="cart-header">
+              <h3>Panier</h3>
+              <button id="clear-cart" class="btn btn-ghost btn-small">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="3 6 5 6 21 6"></polyline>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                </svg>
+                Vider
+              </button>
+            </div>
+            <div id="cart-items" class="cart-items"></div>
+            <div class="cart-totals">
+              <div class="total-row">
+                <span>Sous-total</span>
+                <span id="subtotal">0.00 Fc</span>
+              </div>
+              <div class="total-row">
+                <span>TVA (20%)</span>
+                <span id="tax">0.00 Fc</span>
+              </div>
+              <div class="total-row total-final">
+                <span>TOTAL</span>
+                <span id="total">0.00 Fc</span>
+              </div>
+            </div>
+            <button id="validate-sale" class="btn btn-primary btn-full" disabled>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+              Valider la vente
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Products Management Page -->
+      <div id="page-products" class="page">
+        <div class="page-header">
+          <h2>Gestion des produits</h2>
+          <button id="add-product-btn" class="btn btn-primary admin-only">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            Ajouter
+          </button>
+        </div>
+        <div class="filters-bar">
+          <input type="text" id="products-filter" placeholder="Rechercher un produit...">
+          <select id="category-filter">
+            <option value="all">Toutes les categories</option>
+            <option value="Boissons">Boissons</option>
+            <option value="Alimentation">Alimentation</option>
+            <option value="Hygiene">Hygiene</option>
+            <option value="Menage">Menage</option>
+          </select>
+        </div>
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Image</th>
+                <th>Nom</th>
+                <th>Code-barres</th>
+                <th>Categorie</th>
+                <th>Prix</th>
+                <th class="admin-only">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="products-table"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Users Page -->
+      <div id="page-users" class="page admin-only">
+        <div class="page-header">
+          <h2>Gestion des utilisateurs</h2>
+          <button id="add-user-btn" class="btn btn-primary">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            Ajouter
+          </button>
+        </div>
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Utilisateur</th>
+                <th>Role</th>
+                <th>Statut</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="users-table"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- History Page -->
+      <div id="page-history" class="page">
+        <div class="page-header">
+          <h2>Historique des ventes</h2>
+        </div>
+        <div class="filters-bar">
+          <input type="date" id="date-filter">
+          <select id="seller-filter">
+            <option value="all">Tous les vendeurs</option>
+          </select>
+        </div>
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>N Facture</th>
+                <th>Date</th>
+                <th>Vendeur</th>
+                <th>Articles</th>
+                <th>Total</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="history-table"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Settings Page -->
+      <div id="page-settings" class="page admin-only">
+        <div class="page-header">
+          <h2>Parametres</h2>
+        </div>
+        <div class="settings-grid">
+          <div class="card">
+            <div class="card-header">
+              <h3>Informations magasin</h3>
+            </div>
+            <div class="card-body">
+              <form id="store-form" class="settings-form">
+                <div class="form-group">
+                  <label>Nom du magasin</label>
+                  <input type="text" id="store-name" value="SuperMarche Express">
+                </div>
+                <div class="form-group">
+                  <label>Adresse</label>
+                  <input type="text" id="store-address" value="123 Rue Mohammed V, Casablanca">
+                </div>
+                <div class="form-group">
+                  <label>Telephone</label>
+                  <input type="text" id="store-phone" value="+212 522 123 456">
+                </div>
+                <div class="form-group">
+                  <label>ICE</label>
+                  <input type="text" id="store-ice" value="001234567890123">
+                </div>
+                <button type="submit" class="btn btn-primary">Enregistrer</button>
+              </form>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <h3>Parametres TVA</h3>
+            </div>
+            <div class="card-body">
+              <form id="tax-form" class="settings-form">
+                <div class="form-group">
+                  <label>Taux TVA (%)</label>
+                  <input type="number" id="tax-rate" value="20" min="0" max="100">
+                </div>
+                <button type="submit" class="btn btn-primary">Enregistrer</button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Receipt Modal -->
+  <div id="receipt-modal" class="modal">
+    <div class="modal-content receipt-modal">
+      <div id="receipt-content" class="receipt"></div>
+      <div class="receipt-actions">
+        <button id="print-receipt" class="btn btn-primary">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="6 9 6 2 18 2 18 9"></polyline>
+            <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+            <rect x="6" y="14" width="12" height="8"></rect>
+          </svg>
+          Imprimer
+        </button>
+        <button id="close-receipt" class="btn btn-secondary">Fermer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Product Modal -->
+  <div id="product-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="product-modal-title">Ajouter un produit</h3>
+        <button class="close-modal">&times;</button>
+      </div>
+      <form id="product-form">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Code-barres</label>
+            <input type="text" id="product-barcode" required>
+          </div>
+          <div class="form-group">
+            <label>Nom</label>
+            <input type="text" id="product-name" required>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Categorie</label>
+            <select id="product-category" required>
+              <option value="Boissons">Boissons</option>
+              <option value="Alimentation">Alimentation</option>
+              <option value="Hygiene">Hygiene</option>
+              <option value="Menage">Menage</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Prix (Fc)</label>
+            <input type="number" id="product-price" step="0.01" min="0" required>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Stock</label>
+            <input type="number" id="product-stock" min="0" required>
+          </div>
+          <div class="form-group">
+            <label>Stock minimum</label>
+            <input type="number" id="product-min-stock" min="0" required>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary close-modal">Annuler</button>
+          <button type="submit" class="btn btn-primary">Enregistrer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- User Modal -->
+  <div id="user-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="user-modal-title">Ajouter un utilisateur</h3>
+        <button class="close-modal">&times;</button>
+      </div>
+      <form id="user-form">
+        <div class="form-group">
+          <label>Nom d'utilisateur</label>
+          <input type="text" id="user-username" required>
+        </div>
+        <div class="form-group">
+          <label>Mot de passe</label>
+          <input type="password" id="user-password">
+          <small id="password-hint">Laissez vide pour conserver l'ancien mot de passe</small>
+        </div>
+        <div class="form-group">
+          <label>Nom complet</label>
+          <input type="text" id="user-fullname" required>
+        </div>
+        <div class="form-group">
+          <label>Role</label>
+          <select id="user-role" required>
+            <option value="vendeur">Vendeur</option>
+            <option value="admin">Administrateur</option>
+          </select>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary close-modal">Annuler</button>
+          <button type="submit" class="btn btn-primary">Enregistrer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

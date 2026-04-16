@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "auxly": {
+      "command": "node",
+      "args": [
+        "c:\\Users\\MUFASA\\.vscode\\extensions\\tzamun-arabia.auxly-extension-0.1.8\\dist\\mcp-server\\index.js"
+      ],
+      "env": {
+        "AUXLY_WORKSPACE_PATH": "c:\\wamp64\\www\\pos",
+        "AUXLY_API_URL": "https://auxly.tzamun.com"
+      }
+    }
+  }
+}
