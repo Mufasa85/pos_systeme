@@ -1,4 +1,5 @@
 <?php
+
 // routes/web.php
 
 /** @var Router $router */
@@ -13,5 +14,7 @@ $router->get('/produits', 'PageController@produits');
 $router->get('/utilisateurs', 'PageController@utilisateurs');
 $router->get('/historique', 'PageController@historique');
 $router->get('/parametres', 'PageController@parametres');
+
+$router->post('/delete/user', 'UserController@delete');
 
 // Pour le moment on passe toutes les requêtes HTTP classiques vers PageController (comme un SPA pseudo-MPA)

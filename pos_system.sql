@@ -1,5 +1,9 @@
 -- Création de la base de données
-CREATE DATABASE IF NOT EXISTS `pos_system` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci;
+DROP DATABASE IF EXISTS `pos_system`;
+CREATE DATABASE IF NOT EXISTS `pos_system`
+DEFAULT CHARACTER SET utf8mb4
+COLLATE utf8mb4_unicode_ci;
+
 USE `pos_system`;
 
 -- Table : utilisateurs
@@ -64,3 +68,11 @@ CREATE TABLE IF NOT EXISTS `details_vente` (
   FOREIGN KEY (`vente_id`) REFERENCES `ventes`(`id`) ON DELETE CASCADE,
   FOREIGN KEY (`produit_id`) REFERENCES `produits`(`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE tokkens_csrf (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  tokken VARCHAR(65),
+  created_at DATETIME,
+  expired_at DATETIME
+);
+

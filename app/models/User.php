@@ -1,14 +1,20 @@
 <?php
+
+namespace App\Models;
+
 // app/models/User.php
 
-class User {
+class User
+{
     private $db;
 
-    public function __construct() {
-        $this->db = Database::getInstance();
+    public function __construct()
+    {
+        $this->db = \App\Core\Database::getInstance();
     }
 
-    public function login($username, $password) {
+    public function login($username, $password)
+    {
         $sql = "SELECT * FROM utilisateurs WHERE nom_utilisateur = :nom_utilisateur AND actif = 1";
         $user = $this->db->fetch($sql, [':nom_utilisateur' => $username]);
 
@@ -19,7 +25,18 @@ class User {
         return false;
     }
 
-    public function getAllUsers() {
+    public function getAllUsers()
+    {
         return $this->db->fetchAll("SELECT * FROM utilisateurs");
+    }
+
+    public function deleteUser($id)
+    {
+        $this->db->query("DELETE FROM utilisateurs WHERE id = ?", [$id]);
+    }
+
+    public function exist($id)
+    {
+        return $this->db->fetch("SELECT * FROM utilisateurs WHERE id = ?", [$id]);
     }
 }

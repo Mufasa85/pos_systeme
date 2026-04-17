@@ -1,21 +1,28 @@
 <?php
+
+namespace App\Core;
+
 // app/core/Router.php
 
-class Router {
+class Router
+{
     private $routes = [
         'GET'  => [],
         'POST' => []
     ];
 
-    public function get($uri, $action) {
+    public function get($uri, $action)
+    {
         $this->routes['GET'][$uri] = $action;
     }
 
-    public function post($uri, $action) {
+    public function post($uri, $action)
+    {
         $this->routes['POST'][$uri] = $action;
     }
 
-    public function dispatch($methode, $uri) {
+    public function dispatch($methode, $uri)
+    {
         // Nettoyer l'URI, ex: enlever les query strings
         $uri = parse_url($uri, PHP_URL_PATH);
         // Retirer le dossier de base si l'app est dans un sous dossier
@@ -32,10 +39,10 @@ class Router {
             $action = $this->routes[$methode][$uri];
             // Format "Controller@method"
             list($controller, $method) = explode('@', $action);
-            
+
             // Require Controller file
             require_once BASE_PATH . 'app/controllers/' . $controller . '.php';
-            
+
             $controllerInstance = new $controller();
             $controllerInstance->$method();
         } else {
