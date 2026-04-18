@@ -1,11 +1,12 @@
 <?php
+
 // public/index.php
 
 session_start();
+require dirname(__DIR__).DIRECTORY_SEPARATOR.'vendor'.DIRECTORY_SEPARATOR.'autoload.php';
 
-require_once '../config/config.php';
-require_once '../app/core/Database.php';
-require_once '../app/core/Router.php';
+use App\Core\{Database,Router};
+use App\Controllers\UserController;
 
 $router = new Router();
 
