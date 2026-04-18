@@ -12,13 +12,23 @@
           </button>
           <?php endif; ?>
         </div>
-        <div class="filters-bar" style="display:flex; gap:1rem; margin-bottom:1rem;">
-          <input type="text" id="products-filter" placeholder="Rechercher un produit..." style="padding:0.5rem; border:1px solid #ccc; border-radius:4px;">
+        <div class="filters-bar" style="display:flex; flex-direction:column; gap:1rem; margin-bottom:1rem;">
+          <div style="display:flex; gap:1rem;">
+            <input type="text" id="products-filter" placeholder="Rechercher un produit..." style="padding:0.5rem; border:1px solid #ccc; border-radius:4px; flex:1;">
+            <button id="refresh-products" class="btn btn-secondary">Actualiser</button>
+          </div>
+          <div class="category-tabs" style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+            <button class="category-tab active" data-category="all">Tous</button>
+            <button class="category-tab" data-category="Comestible">Comestible</button>
+            <button class="category-tab" data-category="Non Comestible">Non Comestible</button>
+            <button class="category-tab" data-category="Service">Service</button>
+          </div>
         </div>
         <div class="table-container">
           <table class="data-table" style="width:100%; border-collapse:collapse;">
             <thead style="background:var(--background); text-align:left;">
               <tr>
+                <th style="padding:0.75rem; width:60px;">Image</th>
                 <th style="padding:0.75rem;">Nom</th>
                 <th style="padding:0.75rem;">Code-barres</th>
                 <th style="padding:0.75rem;">Catégorie</th>
@@ -31,7 +41,10 @@
             </thead>
             <tbody id="products-table">
               <?php foreach($produits as $p): ?>
-              <tr style="border-bottom:1px solid #eee;">
+              <tr data-category="<?= htmlspecialchars($p['categorie']) ?>" style="border-bottom:1px solid #eee;">
+                <td style="padding:0.75rem;">
+                  <img src="<?= $p['image'] ?>" alt="<?= htmlspecialchars($p['nom']) ?>" style="width:40px;height:40px;object-fit:cover;border-radius:4px;" onerror="this.style.display='none'">
+                </td>
                 <td style="padding:0.75rem;"><strong><?= htmlspecialchars($p['nom']) ?></strong></td>
                 <td style="padding:0.75rem;"><code class="barcode-code"><?= htmlspecialchars($p['code_barres']) ?></code></td>
                 <td style="padding:0.75rem;"><span class="badge badge-primary"><?= htmlspecialchars($p['categorie']) ?></span></td>

@@ -17,7 +17,18 @@
               <span class="stat-value" id="stat-today"><?= number_format($ventes_jour ?? 0, 2) ?> Fc</span>
             </div>
           </div>
-          <!-- Other stats... -->
+          <div class="stat-card">
+            <div class="stat-icon green">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 3h18v8H3z"></path>
+                <path d="M3 12h18v7H3z"></path>
+              </svg>
+            </div>
+            <div class="stat-info">
+              <span class="stat-label">Ventes de la semaine</span>
+              <span class="stat-value" id="stat-week"><?= number_format($ventes_semaine ?? 0, 2) ?> Fc</span>
+            </div>
+          </div>
           <div class="stat-card">
             <div class="stat-icon cyan">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

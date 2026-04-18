@@ -28,10 +28,15 @@ class PageController {
         $produits = $productModel->getAll();
         
         $today = date('Y-m-d');
+        $semaine_start = date('Y-m-d', strtotime('-6 days'));
         $ventes_jour = 0;
+        $ventes_semaine = 0;
         foreach($ventes as $v) {
             if (strpos($v['date'], $today) === 0) {
                 $ventes_jour += $v['total'];
+            }
+            if (strpos($v['date'], $semaine_start) === 0) {
+                $ventes_semaine += $v['total'];
             }
         }
 
@@ -39,6 +44,7 @@ class PageController {
             'ventes' => $ventes,
             'produits_compte' => count($produits),
             'ventes_jour' => $ventes_jour,
+            'ventes_semaine' => $ventes_semaine,
             'stock_faible' => array_filter($produits, function($p) { return $p['stock'] <= $p['stock_minimum']; })
         ]);
     }

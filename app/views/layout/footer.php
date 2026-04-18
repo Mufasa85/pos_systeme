@@ -45,6 +45,10 @@
           <div class="form-group">
             <label>Catégorie</label>
             <select id="product-category" required>
+              <option value="">Sélectionner...</option>
+              <option value="Comestible">Comestible</option>
+              <option value="Non Comestible">Non Comestible</option>
+              <option value="Service">Service</option>
               <option value="Boissons">Boissons</option>
               <option value="Alimentation">Alimentation</option>
               <option value="Hygiène">Hygiène</option>
@@ -73,7 +77,7 @@
           </div>
         </div>
         <div class="modal-actions">
-          <button type="button" class="btn btn-secondary close-modal" onclick="document.getElementById('product-modal').classList.remove('active')">Annuler</button>
+          <button type="button" class="btn btn-secondary" onclick="closeProductModal()">Annuler</button>
           <button type="submit" class="btn btn-primary">Enregistrer</button>
         </div>
       </form>

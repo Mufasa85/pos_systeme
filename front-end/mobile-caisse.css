@@ -1,0 +1,124 @@
+/* CAISSE ULTRA MOBILE - PETITS TÉLÉPHONES (320px+) */
+
+@media (max-width: 360px) {
+  .caisse-container {
+    padding: 0.25rem !important;
+    gap: 0.5rem !important;
+  }
+  
+  .caisse-products {
+    min-height: 40vh !important;
+  }
+  
+  .caisse-cart {
+    height: 30vh !important;
+    min-height: 240px !important;
+  }
+  
+  /* Products 2 colonnes max + ultra compact */
+  .products-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.3rem !important;
+  }
+  
+  .product-card {
+    padding: 0.3rem !important;
+  }
+  
+  .product-image {
+    width: 42px !important;
+    height: 42px !important;
+  }
+  
+  .product-card .name {
+    font-size: 0.55rem !important;
+    -webkit-line-clamp: 1 !important;
+    line-height: 1.1 !important;
+  }
+  
+  .product-card .price {
+    font-size: 0.7rem !important;
+  }
+  
+  .barcode-display {
+    font-size: 0.45rem !important;
+    padding: 0.1rem 0.2rem !important;
+  }
+  
+  /* Search ultra compact */
+  .search-bar {
+    padding: 0.4rem 0.5rem !important;
+  }
+  
+  .search-bar svg {
+    width: 16px !important;
+    height: 16px !important;
+  }
+  
+  .search-bar input {
+    font-size: 0.75rem !important;
+  }
+  
+  /* Category tabs scroll + micro */
+  .category-tab {
+    padding: 0.3rem 0.4rem !important;
+    font-size: 0.65rem !important;
+  }
+  
+  /* Cart super compact */
+  .cart-header {
+    padding: 0.5rem 0.75rem !important;
+  }
+  
+  .cart-header h3 {
+    font-size: 0.8rem !important;
+  }
+  
+  .cart-items {
+    padding: 0.4rem !important;
+  }
+  
+  .cart-item {
+    padding: 0.4rem !important;
+    gap: 0.3rem !important;
+    margin-bottom: 0.3rem !important;
+  }
+  
+  .cart-item .name {
+    font-size: 0.65rem !important;
+  }
+  
+  .quantity-controls button {
+    width: 20px !important;
+    height: 20px !important;
+    font-size: 0.7rem !important;
+  }
+  
+  .cart-totals {
+    padding: 0.5rem 0.75rem !important;
+  }
+  
+  .total-row {
+    font-size: 0.7rem !important;
+  }
+  
+  .total-row.total-final {
+    font-size: 0.9rem !important;
+  }
+  
+  /* Boutons actions */
+  .btn {
+    padding: 0.5rem 0.75rem !important;
+    font-size: 0.8rem !important;
+  }
+  
+  .btn svg {
+    width: 16px !important;
+    height: 16px !important;
+  }
+  
+  /* Page padding minimal */
+  .main-content {
+    padding: 0.5rem !important;
+  }
+}

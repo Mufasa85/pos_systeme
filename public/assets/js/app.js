@@ -8,6 +8,7 @@ const posCart = {
     taxRate: 20,
 
     init() {
+        // Caisse tabs
         if ($('#product-search')) {
             this.loadProducts();
             $('#product-search').addEventListener('input', (e) => this.filterProducts(e.target.value));
@@ -18,6 +19,11 @@ const posCart = {
                     this.filterProducts($('#product-search').value, e.target.dataset.category);
                 });
             });
+        }
+
+        // Produits page tabs
+        if ($('#products-table')) {
+            initProductsTabs();
         }
 
         // Product Modal Logic
@@ -117,7 +123,16 @@ const posCart = {
         const cartItems = $('#cart-items');
         if (!cartItems) return;
         if (this.items.length === 0) {
-            cartItems.innerHTML = '<div class="cart-empty">Le panier est vide</div>';
+            cartItems.innerHTML = `
+              <div class="cart-empty">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity: 0.3;">
+                  <circle cx="9" cy="21" r="1"></circle>
+                  <circle cx="20" cy="21" r="1"></circle>
+                  <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+                </svg>
+                <span>Ajoutez des produits au panier</span>
+              </div>
+            `;
             $('#validate-sale').disabled = true;
         } else {
             cartItems.innerHTML = this.items.map(item => `
@@ -260,39 +275,189 @@ const posCart = {
         $('#validate-sale').disabled = false;
     },
 
-    async createProduct() {
-        const body = {
-            code_barres: $('#product-barcode').value,
-            nom: $('#product-name').value,
-            categorie: $('#product-category').value,
-            prix: $('#product-price').value,
-            stock: $('#product-stock').value,
-            stock_minimum: $('#product-min-stock').value
-        };
-        try {
-            const res = await fetch(APP_URL + '/api/produit', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body)
-            });
-            const data = await res.json();
+        async saveProduct() {
+            const isEdit = !!$('#product-id').value;
+            const url = isEdit ? APP_URL + '/api/produit/update' : APP_URL + '/api/produit';
+            const formData = new FormData();
+            formData.append('id', $('#product-id').value);
+            formData.append('code_barres', $('#product-barcode').value);
+            formData.append('nom', $('#product-name').value);
+            formData.append('categorie', $('#product-category').value);
+            formData.append('prix', $('#product-price').value);
+            formData.append('stock', $('#product-stock').value);
+            formData.append('stock_minimum', $('#product-min-stock').value);
+            if ($('#product-image').files[0]) {
+                formData.append('image', $('#product-image').files[0]);
+            }
+            
+            try {
+                const res = await fetch(url, {
+                    method: 'POST',
+                    body: formData  // Pas de Content-Type, let browser set multipart
+                });
+                const data = await res.json();
+                if (data.success) {
+                    alert(isEdit ? "Produit modifié !" : "Produit ajouté !");
+                    closeProductModal();
+                    window.location.reload();
+                } else {
+                    alert(data.error || "Erreur réseau");
+                }
+            } catch (e) {
+                alert('Erreur serveur');
+            }
+        }
+    };
+
+
+function editProduct(product) {
+    $('#product-id').value = product.id;
+    $('#product-modal-title').textContent = 'Modifier le produit';
+    $('#product-barcode').value = product.code_barres;
+    $('#product-name').value = product.nom;
+    $('#product-category').value = product.categorie;
+    $('#product-price').value = product.prix;
+    $('#product-stock').value = product.stock;
+    $('#product-min-stock').value = product.stock_minimum;
+    $('#product-image').value = '';
+    $('#product-modal').classList.add('active');
+}
+
+function deleteProduct(id) {
+    if (confirm('Supprimer définitivement ce produit ?')) {
+        fetch(APP_URL + '/api/produit/delete?id=' + id, {
+            method: 'POST'
+        })
+        .then(res => res.json())
+        .then(data => {
             if (data.success) {
-                alert("Produit ajouté !");
+                alert('Produit supprimé !');
                 window.location.reload();
             } else {
-                alert(data.error || "Erreur réseau");
+                alert(data.error || 'Erreur suppression');
             }
-        } catch (e) {
-            alert('Erreur serveur');
-        }
+        })
+        .catch(() => alert('Erreur serveur'));
     }
-};
+}
+
+function closeProductModal() {
+    $('#product-modal').classList.remove('active');
+    // Reset form
+    $('#product-form').reset();
+    $('#product-id').value = '';
+    $('#product-modal-title').textContent = 'Ajouter un produit';
+}
+
+
+function generateBarcode() {
+    const timestamp = Date.now().toString().slice(-8);
+    const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+    $('#product-barcode').value = timestamp + random;
+}
 
 function openProductModal() {
     $('#product-modal').classList.add('active');
 }
 
+// Product form submit
+document.addEventListener('DOMContentLoaded', () => {
+    const productForm = $('#product-form');
+    if (productForm) {
+        productForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await posCart.saveProduct();
+        });
+    }
+});
+
+// Mobile sidebar
+function initSidebar() {
+    const menuToggle = $('#menu-toggle');
+    const closeSidebar = $('#close-sidebar');
+    const sidebarOverlay = $('#sidebar-overlay');
+    
+    if (menuToggle) {
+        menuToggle.addEventListener('click', () => {
+            $('#sidebar').classList.add('active');
+            sidebarOverlay.classList.add('active');
+        });
+    }
+    
+    if (closeSidebar) {
+        closeSidebar.addEventListener('click', () => {
+            $('#sidebar').classList.remove('active');
+            sidebarOverlay.classList.remove('active');
+        });
+    }
+    
+    if (sidebarOverlay) {
+        sidebarOverlay.addEventListener('click', () => {
+            $('#sidebar').classList.remove('active');
+            sidebarOverlay.classList.remove('active');
+        });
+    }
+}
+
 // Attach init
+function initProductsTabs() {
+    const filterInput = $('#products-filter');
+    const refreshBtn = $('#refresh-products');
+    const tabs = $$('.category-tab');
+    
+    function filterProductsTable(search = '', activeCategory = 'all') {
+        const rows = $$('#products-table tr[data-category]');
+        let visibleCount = 0;
+        
+        rows.forEach(row => {
+            const category = row.dataset.category.toLowerCase();
+            const nom = row.cells[0].textContent.toLowerCase();
+            const code = row.cells[1].textContent.toLowerCase();
+            
+            const matchesSearch = !search || nom.includes(search.toLowerCase()) || code.includes(search.toLowerCase());
+            const matchesCategory = activeCategory === 'all' || category === activeCategory.toLowerCase();
+            
+            if (matchesSearch && matchesCategory) {
+                row.style.display = '';
+                visibleCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+        
+        // Update counter or empty state if needed
+        if (visibleCount === 0) {
+            // Could add empty state row if wanted
+        }
+    }
+    
+    // Tab click handlers
+    tabs.forEach(tab => {
+        tab.addEventListener('click', (e) => {
+            tabs.forEach(t => t.classList.remove('active'));
+            e.target.classList.add('active');
+            filterProductsTable(filterInput.value, e.target.dataset.category);
+        });
+    });
+    
+    // Search input
+    if (filterInput) {
+        filterInput.addEventListener('input', (e) => {
+            filterProductsTable(e.target.value, document.querySelector('.category-tab.active').dataset.category);
+        });
+    }
+    
+    // Refresh button
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', () => {
+            window.location.reload();
+        });
+    }
+    
+    // Initial filter
+    filterProductsTable();
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     posCart.init();
 

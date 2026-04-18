@@ -40,4 +40,32 @@ class Product {
         $sql = "UPDATE produits SET stock = stock - :quantite WHERE id = :id";
         return $this->db->query($sql, [':quantite' => $quantity, ':id' => $id]);
     }
+
+    public function update($id, $data) {
+        $sql = "UPDATE produits SET 
+                code_barres = :code_barres,
+                nom = :nom, 
+                categorie = :categorie,
+                prix = :prix,
+                stock = :stock,
+                stock_minimum = :stock_minimum,
+                image = :image
+                WHERE id = :id";
+        return $this->db->query($sql, [
+            ':id' => $id,
+            ':code_barres' => $data['code_barres'],
+            ':nom' => $data['nom'],
+            ':categorie' => $data['categorie'],
+            ':prix' => $data['prix'],
+            ':stock' => $data['stock'],
+            ':stock_minimum' => $data['stock_minimum'],
+            ':image' => $data['image'] ?? ''
+        ]);
+    }
+
+    public function delete($id) {
+        $sql = "DELETE FROM produits WHERE id = :id";
+        return $this->db->query($sql, [':id' => $id]);
+    }
 }
+
