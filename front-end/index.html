@@ -131,7 +131,13 @@
             <circle cx="12" cy="12" r="3"></circle>
             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
           </svg>
-          <span>Parametres</span>
+          <span>Paramètres</span>
+        </button>
+        <button class="nav-item admin-only" data-page="categories">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M4 6h16M4 10h16M4 14h7M4 18h10"></path>
+          </svg>
+          <span>Catégories</span>
         </button>
       </nav>
 
@@ -140,7 +146,7 @@
           <div class="user-avatar" id="user-avatar">A</div>
           <div class="user-details">
             <span class="user-name" id="user-name">Admin</span>
-            <span class="user-role" id="user-role">Administrateur</span>
+            <span class="user-role" id="user-role-display">Administrateur</span>
           </div>
         </div>
         <button id="logout-btn" class="btn btn-logout">
@@ -242,19 +248,19 @@
         <div class="caisse-container">
           <!-- Products Section -->
           <div class="caisse-products">
-            <div class="search-bar">
+<div class="search-bar">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="11" cy="11" r="8"></circle>
                 <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
               </svg>
               <input type="text" id="product-search" placeholder="Rechercher un produit ou scanner...">
             </div>
-            <div class="category-tabs">
+            <div id="products-loading" class="loading-spinner hidden">
+              <div class="spinner"></div>
+              <span>Chargement des produits...</span>
+            </div>
+            <div class="category-tabs" id="caisse-category-tabs">
               <button class="category-tab active" data-category="all">Tous</button>
-              <button class="category-tab" data-category="Boissons">Boissons</button>
-              <button class="category-tab" data-category="Alimentation">Alimentation</button>
-              <button class="category-tab" data-category="Hygiene">Hygiene</button>
-              <button class="category-tab" data-category="Menage">Menage</button>
             </div>
             <div id="products-grid" class="products-grid"></div>
           </div>
@@ -311,11 +317,7 @@
         <div class="filters-bar">
           <input type="text" id="products-filter" placeholder="Rechercher un produit...">
           <select id="category-filter">
-            <option value="all">Toutes les categories</option>
-            <option value="Boissons">Boissons</option>
-            <option value="Alimentation">Alimentation</option>
-            <option value="Hygiene">Hygiene</option>
-            <option value="Menage">Menage</option>
+            <option value="all">Toutes les catégories</option>
           </select>
         </div>
         <div class="table-container">
@@ -390,10 +392,40 @@
         </div>
       </div>
 
+      <!-- Categories Page -->
+      <div id="page-categories" class="page admin-only">
+        <div class="page-header">
+          <h2>Gestion des catégories</h2>
+          <button id="add-category-btn" class="btn btn-primary admin-only">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            Ajouter
+          </button>
+        </div>
+        <div class="filters-bar">
+          <input type="text" id="categories-filter" placeholder="Rechercher une catégorie...">
+        </div>
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Nom</th>
+                <th>Couleur</th>
+                <th>Produits</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="categories-table"></tbody>
+          </table>
+        </div>
+      </div>
+
       <!-- Settings Page -->
       <div id="page-settings" class="page admin-only">
         <div class="page-header">
-          <h2>Parametres</h2>
+          <h2>Paramètres</h2>
         </div>
         <div class="settings-grid">
           <div class="card">
@@ -480,11 +512,8 @@
         <div class="form-row">
           <div class="form-group">
             <label>Categorie</label>
-            <select id="product-category" required>
-              <option value="Boissons">Boissons</option>
-              <option value="Alimentation">Alimentation</option>
-              <option value="Hygiene">Hygiene</option>
-              <option value="Menage">Menage</option>
+        <select id="product-category" required>
+              <option value="">Sélectionner une catégorie...</option>
             </select>
           </div>
           <div class="form-group">
@@ -537,6 +566,34 @@
             <option value="vendeur">Vendeur</option>
             <option value="admin">Administrateur</option>
           </select>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary close-modal">Annuler</button>
+          <button type="submit" class="btn btn-primary">Enregistrer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Category Modal -->
+  <div id="category-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="category-modal-title">Ajouter une catégorie</h3>
+        <button class="close-modal">&times;</button>
+      </div>
+      <form id="category-form">
+        <div class="form-group" style="margin-bottom:1rem;">
+          <label for="category-name">Nom de la catégorie</label>
+          <input type="text" id="category-name" placeholder="Ex: Comestible" required>
+        </div>
+        <div class="form-group" style="margin-bottom:1rem;">
+          <label>Couleur</label>
+          <div style="display:flex;align-items:center;gap:0.75rem;">
+            <input type="color" id="category-color" value="#0B5E88"
+              style="width:48px;height:40px;padding:2px;border:1px solid var(--border);border-radius:var(--radius);cursor:pointer;background:none;">
+            <span id="category-color-hex" style="font-family:'JetBrains Mono',monospace;font-size:0.8rem;color:var(--muted);">#0B5E88</span>
+          </div>
         </div>
         <div class="modal-actions">
           <button type="button" class="btn btn-secondary close-modal">Annuler</button>

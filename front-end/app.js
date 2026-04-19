@@ -13,28 +13,35 @@ const Store = {
     { id: 3, username: 'vendeur2', password: 'vendeur456', fullName: 'Fatima Benali', role: 'vendeur', active: true }
   ],
 
+  // Categories
+  categories: [
+    { id: 1, name: 'Comestible', color: '#10b981' },
+    { id: 2, name: 'Non Comestible', color: '#0B5E88' },
+    { id: 3, name: 'Service', color: '#f59e0b' }
+  ],
+
   // Products
   products: [
-    { id: 1, barcode: '6111245001', name: 'Coca-Cola 1.5L', category: 'Boissons', price: 12.000, stock: 50, minStock: 10, image: 'https://images.unsplash.com/photo-1629203851122-3726ecdf080e?w=200&h=200&fit=crop' },
-    { id: 2, barcode: '6111245002', name: 'Fanta Orange 1.5L', category: 'Boissons', price: 11.000, stock: 45, minStock: 10, image: 'https://images.unsplash.com/photo-1624517452488-04869289c4ca?w=200&h=200&fit=crop' },
-    { id: 3, barcode: '6111245003', name: 'Eau Sidi Ali 1.5L', category: 'Boissons', price: 5.000, stock: 100, minStock: 20, image: 'https://images.unsplash.com/photo-1548839140-29a749e1cf4d?w=200&h=200&fit=crop' },
-    { id: 4, barcode: '6111245004', name: 'Jus Orange 1L', category: 'Boissons', price: 15.000, stock: 30, minStock: 10, image: 'https://images.unsplash.com/photo-1621506289937-a8e4df240d0b?w=200&h=200&fit=crop' },
-    { id: 5, barcode: '6111245005', name: 'Lait Frais 1L', category: 'Alimentation', price: 8.500, stock: 60, minStock: 15, image: 'https://images.unsplash.com/photo-1563636619-e9143da7973b?w=200&h=200&fit=crop' },
-    { id: 6, barcode: '6111245006', name: 'Pain de Mie', category: 'Alimentation', price: 12.000, stock: 25, minStock: 10, image: 'https://images.unsplash.com/photo-1598373182133-52452f7691ef?w=200&h=200&fit=crop' },
-    { id: 7, barcode: '6111245007', name: 'Fromage Portion', category: 'Alimentation', price: 25.000, stock: 40, minStock: 10, image: 'https://images.unsplash.com/photo-1486297678162-eb2a19b0a32d?w=200&h=200&fit=crop' },
-    { id: 8, barcode: '6111245008', name: 'Oeufs (Pack 6)', category: 'Alimentation', price: 15.000, stock: 35, minStock: 10, image: 'https://images.unsplash.com/photo-1582722872445-44dc5f7e3c8f?w=200&h=200&fit=crop' },
-    { id: 9, barcode: '6111245009', name: 'Riz 1kg', category: 'Alimentation', price: 18.000, stock: 55, minStock: 15, image: 'https://images.unsplash.com/photo-1586201375761-83865001e31c?w=200&h=200&fit=crop' },
-    { id: 10, barcode: '6111245010', name: 'Huile Vegetale 1L', category: 'Alimentation', price: 22.000, stock: 40, minStock: 10, image: 'https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?w=200&h=200&fit=crop' },
-    { id: 11, barcode: '6111245011', name: 'Sucre 1kg', category: 'Alimentation', price: 8.000, stock: 70, minStock: 20, image: 'https://images.unsplash.com/photo-1558642452-9d2a7deb7f62?w=200&h=200&fit=crop' },
-    { id: 12, barcode: '6111245012', name: 'Cafe Moulu 250g', category: 'Alimentation', price: 35.000, stock: 25, minStock: 8, image: 'https://images.unsplash.com/photo-1559056199-641a0ac8b55e?w=200&h=200&fit=crop' },
-    { id: 13, barcode: '6111245013', name: 'Savon de Toilette', category: 'Hygiene', price: 18.000, stock: 30, minStock: 10, image: 'https://images.unsplash.com/photo-1600857544200-b2f666a9a2ec?w=200&h=200&fit=crop' },
-    { id: 14, barcode: '6111245014', name: 'Shampoing 400ml', category: 'Hygiene', price: 45.000, stock: 20, minStock: 8, image: 'https://images.unsplash.com/photo-1631729371254-42c2892f0e6e?w=200&h=200&fit=crop' },
-    { id: 15, barcode: '6111245015', name: 'Dentifrice', category: 'Hygiene', price: 22.00, stock: 35, minStock: 10, image: 'https://images.unsplash.com/photo-1559013368-8c3c5619b92a?w=200&h=200&fit=crop' },
-    { id: 16, barcode: '6111245016', name: 'Papier Toilette x4', category: 'Hygiene', price: 25.000, stock: 40, minStock: 15, image: 'https://images.unsplash.com/photo-1584556812952-905ffd0c611a?w=200&h=200&fit=crop' },
-    { id: 17, barcode: '6111245017', name: 'Eau de Javel 1L', category: 'Menage', price: 12.000, stock: 5, minStock: 10, image: 'https://images.unsplash.com/photo-1585421514284-efb74c2b69ba?w=200&h=200&fit=crop' },
-    { id: 18, barcode: '6111245018', name: 'Lessive Poudre 3kg', category: 'Menage', price: 65.000, stock: 20, minStock: 8, image: 'https://images.unsplash.com/photo-1582735689369-4fe89db7114c?w=200&h=200&fit=crop' },
-    { id: 19, barcode: '6111245019', name: 'Liquide Vaisselle', category: 'Menage', price: 18.000, stock: 8, minStock: 10, image: 'https://images.unsplash.com/photo-1622560480654-d96214fdc887?w=200&h=200&fit=crop' },
-    { id: 20, barcode: '6111245020', name: 'Sacs Poubelle x20', category: 'Menage', price: 15.000, stock: 25, minStock: 10, image: 'https://images.unsplash.com/photo-1610141805296-1fc723fce8f9?w=200&h=200&fit=crop' }
+    { id: 1, barcode: '6111245001', name: 'Coca-Cola 1.5L', category: 'Comestible', price: 12.000, stock: 50, minStock: 10, image: 'https://images.unsplash.com/photo-1629203851122-3726ecdf080e?w=200&h=200&fit=crop' },
+    { id: 2, barcode: '6111245002', name: 'Fanta Orange 1.5L', category: 'Comestible', price: 11.000, stock: 45, minStock: 10, image: 'https://images.unsplash.com/photo-1624517452488-04869289c4ca?w=200&h=200&fit=crop' },
+    { id: 3, barcode: '6111245003', name: 'Eau Sidi Ali 1.5L', category: 'Comestible', price: 5.000, stock: 100, minStock: 20, image: 'https://images.unsplash.com/photo-1548839140-29a749e1cf4d?w=200&h=200&fit=crop' },
+    { id: 4, barcode: '6111245004', name: 'Jus Orange 1L', category: 'Comestible', price: 15.000, stock: 30, minStock: 10, image: 'https://images.unsplash.com/photo-1621506289937-a8e4df240d0b?w=200&h=200&fit=crop' },
+    { id: 5, barcode: '6111245005', name: 'Lait Frais 1L', category: 'Comestible', price: 8.500, stock: 60, minStock: 15, image: 'https://images.unsplash.com/photo-1563636619-e9143da7973b?w=200&h=200&fit=crop' },
+    { id: 6, barcode: '6111245006', name: 'Pain de Mie', category: 'Comestible', price: 12.000, stock: 25, minStock: 10, image: 'https://images.unsplash.com/photo-1598373182133-52452f7691ef?w=200&h=200&fit=crop' },
+    { id: 7, barcode: '6111245007', name: 'Fromage Portion', category: 'Comestible', price: 25.000, stock: 40, minStock: 10, image: 'https://images.unsplash.com/photo-1486297678162-eb2a19b0a32d?w=200&h=200&fit=crop' },
+    { id: 8, barcode: '6111245008', name: 'Oeufs (Pack 6)', category: 'Comestible', price: 15.000, stock: 35, minStock: 10, image: 'https://images.unsplash.com/photo-1582722872445-44dc5f7e3c8f?w=200&h=200&fit=crop' },
+    { id: 9, barcode: '6111245009', name: 'Riz 1kg', category: 'Comestible', price: 18.000, stock: 55, minStock: 15, image: 'https://images.unsplash.com/photo-1586201375761-83865001e31c?w=200&h=200&fit=crop' },
+    { id: 10, barcode: '6111245010', name: 'Huile Vegetale 1L', category: 'Comestible', price: 22.000, stock: 40, minStock: 10, image: 'https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?w=200&h=200&fit=crop' },
+    { id: 11, barcode: '6111245011', name: 'Sucre 1kg', category: 'Comestible', price: 8.000, stock: 70, minStock: 20, image: 'https://images.unsplash.com/photo-1558642452-9d2a7deb7f62?w=200&h=200&fit=crop' },
+    { id: 12, barcode: '6111245012', name: 'Cafe Moulu 250g', category: 'Comestible', price: 35.000, stock: 25, minStock: 8, image: 'https://images.unsplash.com/photo-1559056199-641a0ac8b55e?w=200&h=200&fit=crop' },
+    { id: 13, barcode: '6111245013', name: 'Savon de Toilette', category: 'Non Comestible', price: 18.000, stock: 30, minStock: 10, image: 'https://images.unsplash.com/photo-1600857544200-b2f666a9a2ec?w=200&h=200&fit=crop' },
+    { id: 14, barcode: '6111245014', name: 'Shampoing 400ml', category: 'Non Comestible', price: 45.000, stock: 20, minStock: 8, image: 'https://images.unsplash.com/photo-1631729371254-42c2892f0e6e?w=200&h=200&fit=crop' },
+    { id: 15, barcode: '6111245015', name: 'Dentifrice', category: 'Non Comestible', price: 22.00, stock: 35, minStock: 10, image: 'https://images.unsplash.com/photo-1559013368-8c3c5619b92a?w=200&h=200&fit=crop' },
+    { id: 16, barcode: '6111245016', name: 'Papier Toilette x4', category: 'Non Comestible', price: 25.000, stock: 40, minStock: 15, image: 'https://images.unsplash.com/photo-1584556812952-905ffd0c611a?w=200&h=200&fit=crop' },
+    { id: 17, barcode: '6111245017', name: 'Eau de Javel 1L', category: 'Non Comestible', price: 12.000, stock: 5, minStock: 10, image: 'https://images.unsplash.com/photo-1585421514284-efb74c2b69ba?w=200&h=200&fit=crop' },
+    { id: 18, barcode: '6111245018', name: 'Lessive Poudre 3kg', category: 'Non Comestible', price: 65.000, stock: 20, minStock: 8, image: 'https://images.unsplash.com/photo-1582735689369-4fe89db7114c?w=200&h=200&fit=crop' },
+    { id: 19, barcode: '6111245019', name: 'Liquide Vaisselle', category: 'Non Comestible', price: 18.000, stock: 8, minStock: 10, image: 'https://images.unsplash.com/photo-1622560480654-d96214fdc887?w=200&h=200&fit=crop' },
+    { id: 20, barcode: '6111245020', name: 'Sacs Poubelle x20', category: 'Non Comestible', price: 15.000, stock: 25, minStock: 10, image: 'https://images.unsplash.com/photo-1610141805296-1fc723fce8f9?w=200&h=200&fit=crop' }
   ],
 
   // Sales
@@ -64,6 +71,7 @@ const Store = {
     localStorage.setItem('pos_products', JSON.stringify(this.products));
     localStorage.setItem('pos_sales', JSON.stringify(this.sales));
     localStorage.setItem('pos_settings', JSON.stringify(this.settings));
+    localStorage.setItem('pos_categories', JSON.stringify(this.categories));
     localStorage.setItem('pos_invoice_counter', this.invoiceCounter.toString());
   },
 
@@ -73,12 +81,14 @@ const Store = {
     const products = localStorage.getItem('pos_products');
     const sales = localStorage.getItem('pos_sales');
     const settings = localStorage.getItem('pos_settings');
+    const categories = localStorage.getItem('pos_categories');
     const counter = localStorage.getItem('pos_invoice_counter');
 
     if (users) this.users = JSON.parse(users);
     if (products) this.products = JSON.parse(products);
     if (sales) this.sales = JSON.parse(sales);
     if (settings) this.settings = JSON.parse(settings);
+    if (categories) this.categories = JSON.parse(categories);
     if (counter) this.invoiceCounter = parseInt(counter);
   }
 };
@@ -175,7 +185,7 @@ function updateUserInfo() {
   if (!user) return;
 
   $('#user-name').textContent = user.fullName;
-  $('#user-role').textContent = user.role === 'admin' ? 'Administrateur' : 'Vendeur';
+  $('#user-role-display').textContent = user.role === 'admin' ? 'Administrateur' : 'Vendeur';
   $('#user-avatar').textContent = user.fullName.charAt(0).toUpperCase();
   $('#mobile-user-info').textContent = user.fullName;
 }
@@ -221,6 +231,9 @@ function navigateTo(page) {
       break;
     case 'settings':
       loadSettings();
+      break;
+    case 'categories':
+      loadCategories();
       break;
   }
 }
@@ -284,7 +297,30 @@ function loadDashboard() {
 // ============================================
 let currentCategory = 'all';
 
+function renderCategoryTabs() {
+  const container = $('#caisse-category-tabs');
+  if (!container) return;
+
+  const tabs = ['<button class="category-tab active" data-category="all">Tous</button>'];
+  Store.categories.forEach(cat => {
+    tabs.push(`<button class="category-tab" data-category="${cat.name}">${cat.name}</button>`);
+  });
+  container.innerHTML = tabs.join('');
+
+  // Event delegation on the container
+  container.addEventListener('click', (e) => {
+    const tab = e.target.closest('.category-tab');
+    if (!tab) return;
+    container.querySelectorAll('.category-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    currentCategory = tab.dataset.category;
+    renderProducts();
+  });
+}
+
 function loadCaisse() {
+  currentCategory = 'all';
+  renderCategoryTabs();
   renderProducts();
   renderCart();
 }
@@ -532,6 +568,14 @@ function printReceipt() {
 let editingProductId = null;
 
 function loadProducts() {
+  // Populate category filter dynamically from Store.categories
+  const filterSelect = $('#category-filter');
+  if (filterSelect) {
+    const current = filterSelect.value;
+    filterSelect.innerHTML = '<option value="all">Toutes les catégories</option>' +
+      Store.categories.map(cat => `<option value="${cat.name}">${cat.name}</option>`).join('');
+    if (current && current !== 'all') filterSelect.value = current;
+  }
   renderProductsTable();
 }
 
@@ -587,7 +631,13 @@ function openProductModal(product = null) {
   $('#product-modal-title').textContent = product ? 'Modifier le produit' : 'Ajouter un produit';
   $('#product-barcode').value = product?.barcode || '';
   $('#product-name').value = product?.name || '';
-  $('#product-category').value = product?.category || 'Boissons';
+
+  // Populate category select dynamically
+  const catSelect = $('#product-category');
+  catSelect.innerHTML = '<option value="">Sélectionner une catégorie...</option>' +
+    Store.categories.map(cat => `<option value="${cat.name}">${cat.name}</option>`).join('');
+  catSelect.value = product?.category || '';
+
   $('#product-price').value = product?.price || '';
   $('#product-stock').value = product?.stock || '';
   $('#product-min-stock').value = product?.minStock || 10;
@@ -835,6 +885,121 @@ function viewSaleReceipt(saleId) {
 }
 
 // ============================================
+// CATEGORIES MANAGEMENT
+// ============================================
+let editingCategoryId = null;
+
+function loadCategories() {
+  renderCategoriesTable();
+}
+
+function renderCategoriesTable() {
+  const search = ($('#categories-filter')?.value || '').toLowerCase();
+
+  const filtered = Store.categories.filter(cat =>
+    cat.name.toLowerCase().includes(search)
+  );
+
+  const html = filtered.map(cat => {
+    const productCount = Store.products.filter(p => p.category === cat.name).length;
+    return `
+      <tr>
+        <td>
+          <div style="display:flex;align-items:center;gap:0.75rem;">
+            <span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:${cat.color};flex-shrink:0;box-shadow:0 0 0 2px ${cat.color}33;"></span>
+            <strong>${cat.name}</strong>
+          </div>
+        </td>
+        <td>
+          <div style="display:flex;align-items:center;gap:0.5rem;">
+            <span style="display:inline-block;width:30px;height:24px;border-radius:6px;background:${cat.color};border:1px solid var(--border);flex-shrink:0;"></span>
+            <code style="font-size:0.8rem;color:var(--muted);">${cat.color}</code>
+          </div>
+        </td>
+        <td>
+          <span class="badge badge-primary">${productCount} produit${productCount !== 1 ? 's' : ''}</span>
+        </td>
+        <td>
+          <div class="actions">
+            <button class="btn btn-ghost btn-small" onclick="editCategory(${cat.id})" title="Modifier">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+              </svg>
+            </button>
+            <button class="btn btn-ghost btn-small" onclick="deleteCategory(${cat.id})" title="Supprimer"
+              style="color:var(--danger);">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+              </svg>
+            </button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  $('#categories-table').innerHTML = html ||
+    '<tr><td colspan="4" class="empty-state">Aucune catégorie trouvée</td></tr>';
+}
+
+function openCategoryModal(category = null) {
+  editingCategoryId = category?.id || null;
+  $('#category-modal-title').textContent = category ? 'Modifier la catégorie' : 'Ajouter une catégorie';
+  $('#category-name').value = category?.name || '';
+  const color = category?.color || '#0B5E88';
+  $('#category-color').value = color;
+  $('#category-color-hex').textContent = color;
+  $('#category-modal').classList.add('active');
+}
+
+function editCategory(id) {
+  const cat = Store.categories.find(c => c.id === id);
+  if (cat) openCategoryModal(cat);
+}
+
+function saveCategoryFn(e) {
+  e.preventDefault();
+  const name = $('#category-name').value.trim();
+  const color = $('#category-color').value;
+  if (!name) return;
+
+  if (editingCategoryId) {
+    const cat = Store.categories.find(c => c.id === editingCategoryId);
+    if (cat) {
+      const oldName = cat.name;
+      cat.name = name;
+      cat.color = color;
+      // Update products that belonged to the old category name
+      Store.products.forEach(p => { if (p.category === oldName) p.category = name; });
+    }
+  } else {
+    Store.categories.push({ id: Date.now(), name, color });
+  }
+
+  Store.save();
+  closeModal('category-modal');
+  renderCategoriesTable();
+}
+
+function deleteCategory(id) {
+  const cat = Store.categories.find(c => c.id === id);
+  if (!cat) return;
+
+  const productCount = Store.products.filter(p => p.category === cat.name).length;
+  const msg = productCount > 0
+    ? `Cette catégorie contient ${productCount} produit(s). Voulez-vous quand même la supprimer ?`
+    : 'Êtes-vous sûr de vouloir supprimer cette catégorie ?';
+
+  if (confirm(msg)) {
+    Store.categories = Store.categories.filter(c => c.id !== id);
+    Store.save();
+    renderCategoriesTable();
+  }
+}
+
+// ============================================
 // SETTINGS
 // ============================================
 function loadSettings() {
@@ -927,16 +1092,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Caisse
   $('#product-search').addEventListener('input', renderProducts);
-
-  $$('.category-tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-      $$('.category-tab').forEach(t => t.classList.remove('active'));
-      tab.classList.add('active');
-      currentCategory = tab.dataset.category;
-      renderProducts();
-    });
-  });
-
   $('#clear-cart').addEventListener('click', clearCart);
   $('#validate-sale').addEventListener('click', validateSale);
 
@@ -957,6 +1112,16 @@ document.addEventListener('DOMContentLoaded', () => {
   // History
   $('#date-filter').addEventListener('change', renderHistoryTable);
   $('#seller-filter').addEventListener('change', renderHistoryTable);
+
+  // Categories
+  $('#add-category-btn').addEventListener('click', () => openCategoryModal());
+  $('#category-form').addEventListener('submit', saveCategoryFn);
+  $('#categories-filter').addEventListener('input', renderCategoriesTable);
+
+  // Category color picker live preview
+  $('#category-color').addEventListener('input', (e) => {
+    $('#category-color-hex').textContent = e.target.value;
+  });
 
   // Settings
   $('#store-form').addEventListener('submit', saveStoreSettings);

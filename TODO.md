@@ -1,18 +1,16 @@
-# Nouveau Tableau Produits (Image + Actions Popups)
+# TODO - Système d'onglets catégories POS (front-end/index.html)
 
-Colonnes : Image | Nom | Code-barres | Catégorie | Stock | Prix | Actions
+## Plan approuvé - Étapes à compléter :
 
-## Étapes :
-- [x] 1. Modifier colonnes tableau dans produits.php ✅
-- [ ] 2. Créer API update/delete dans ProductController.php
-- [ ] 3. Ajouter fonctions JS editProduct/deleteProduct avec popups
-- [ ] 4. Test complet
-- [ ] 5. Terminé 🎉
+### 1. [ ] Créer TODO.md (fait)
+### 2. [ ] Éditer front-end/index.html : Ajouter loading spinner dans caisse-products
+### 3. [ ] Éditer front-end/app.js : 
+   - Ajouter loadProductsFromAPI() async fetch('/api/produits')
+   - Modifier renderProducts() pour utiliser caisseProducts + filtre catégorie
+   - Mettre à jour loadCaisse() et events tabs pour charger dynamiquement
+   - Ajouter produits échantillons avec catégories Comestible/Non Comestible/Service
+   - Loading state + fallback local
+### 4. [ ] Tester : Ouvrir front-end/index.html → Caisse → Changer onglets
+### 5. [ ] Marquer complet + attempt_completion
 
-## TOUS ✅
-
-**Tableau PRODUITS complet :**
-- [x] Colonnes Image/Nom/Code/Cat/Stock/Prix/Actions
-- [x] API update/delete
-- [x] JS editProduct() + deleteProduct() avec popup
-- [x] Test OK - fonctionne parfaitement ! 🎉
+Progrès : 1/5
