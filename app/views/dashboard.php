@@ -1,5 +1,5 @@
       <!-- Dashboard Page -->
-      <div class="page active" style="display:block;">
+      <div id="page-dashboard" class="page <?= $page == 'dashboard' ? 'active' : '' ?>">
         <div class="page-header">
           <h2>Tableau de bord</h2>
           <p id="current-date"><?= date('d/m/Y') ?></p>
@@ -18,14 +18,14 @@
             </div>
           </div>
           <div class="stat-card">
-            <div class="stat-icon green">
+          <div class="stat-icon green">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M3 3h18v8H3z"></path>
-                <path d="M3 12h18v7H3z"></path>
+                <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
+                <polyline points="17 6 23 6 23 12"></polyline>
               </svg>
             </div>
             <div class="stat-info">
-              <span class="stat-label">Ventes de la semaine</span>
+              <span class="stat-label">Ventes semaine</span>
               <span class="stat-value" id="stat-week"><?= number_format($ventes_semaine ?? 0, 2) ?> Fc</span>
             </div>
           </div>

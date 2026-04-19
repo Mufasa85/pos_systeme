@@ -1,89 +1,112 @@
--- Création de la base de données
-DROP DATABASE IF EXISTS `pos_system`;
-CREATE DATABASE IF NOT EXISTS `pos_system`
-DEFAULT CHARACTER SET utf8mb4
-COLLATE utf8mb4_unicode_ci;
+-- ==============================
+-- RESET (optionnel si tu recommences)
+-- ==============================
+DROP TABLE IF EXISTS details_vente;
+DROP TABLE IF EXISTS ventes;
+DROP TABLE IF EXISTS produits;
+DROP TABLE IF EXISTS categories;
+DROP TABLE IF EXISTS utilisateurs;
 
-USE `pos_system`;
-
--- Table : utilisateurs
+-- ==============================
+-- TABLE : utilisateurs
+-- ==============================
 CREATE TABLE IF NOT EXISTS `utilisateurs` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `nom_utilisateur` varchar(50) NOT NULL UNIQUE,
-  `mot_de_passe` varchar(255) NOT NULL,
-  `nom_complet` varchar(100) NOT NULL,
-  `role` enum('admin','vendeur') NOT NULL DEFAULT 'vendeur',
-  `actif` tinyint(1) NOT NULL DEFAULT 1,
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `nom_utilisateur` VARCHAR(50) NOT NULL UNIQUE,
+  `mot_de_passe` VARCHAR(255) NOT NULL,
+  `nom_complet` VARCHAR(100) NOT NULL,
+  `role` ENUM('admin','vendeur') NOT NULL DEFAULT 'vendeur',
+  `actif` TINYINT(1) NOT NULL DEFAULT 1,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Table : catégories
-CREATE TABLE categories (
-  id INT PRIMARY KEY AUTO_INCREMENT,
-  category varchar(120),
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  update_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
+-- ==============================
+-- TABLE : categories
+-- ==============================
+CREATE TABLE IF NOT EXISTS `categories` (
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `category` VARCHAR(120) NOT NULL,
+  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Insertion des catégories de base
-INSERT INTO categories (category) VALUES
+-- ==============================
+-- INSERT categories
+-- ==============================
+INSERT INTO `categories` (`category`) VALUES
 ('Comestible'),
 ('Non Comestible'),
 ('Service');
 
--- Insertion de l'utilisateur par défaut
-INSERT INTO `utilisateurs` (`nom_utilisateur`, `mot_de_passe`, `nom_complet`, `role`, `actif`) VALUES
-('admin', '$2y$10$tZ9c2QZ5Ie6o9.UqX9tPpeR6Y4Qk/5O0vU9Tj6H1V9H5Xk0qYwFkO', 'Administrateur', 'admin', 1),
-('vendeur1', '$2y$10$G0NZZ6vE/8x9Tq6M8R2Iq.6Z5/O1k5N6J1H1v0V5P1C9D6B8X2W5q', 'Mohammed Alami', 'vendeur', 1);
+-- ==============================
+-- INSERT utilisateurs
+-- ==============================
+INSERT INTO `utilisateurs`
+(`nom_utilisateur`, `mot_de_passe`, `nom_complet`, `role`, `actif`)
+VALUES
+('Musafa', '$2y$10$C.Wn4hGDdFfYcPSiAQM9q.FqLTbqgFC4OvH02VYqdikF/y9gckVPG', 'Administrateur', 'admin', 1),
+('vendeur1', '$2y$10$ryKoYm12Fcr7aOUPFowW.u/doihYwl9u8DRPAwyx6wX2Laqu0m64i', 'Mohammed Alami', 'vendeur', 1);
 
--- Table : produits
+-- ==============================
+-- TABLE : produits
+-- ==============================
 CREATE TABLE IF NOT EXISTS `produits` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `code_barres` varchar(50) NOT NULL UNIQUE,
-  `nom` varchar(100) NOT NULL,
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `code_barres` VARCHAR(50) NOT NULL UNIQUE,
+  `nom` VARCHAR(100) NOT NULL,
   `category_id` INT NOT NULL,
-  `prix` decimal(10,2) NOT NULL,
-  `stock` int(11) NOT NULL DEFAULT 0,
-  `stock_minimum` int(11) NOT NULL DEFAULT 10,
-  `image` varchar(255) DEFAULT NULL,
+  `prix` DECIMAL(10,2) NOT NULL,
+  `stock` INT NOT NULL DEFAULT 0,
+  `stock_minimum` INT NOT NULL DEFAULT 10,
+  `image` VARCHAR(255) DEFAULT NULL,
   PRIMARY KEY (`id`),
-  FOREIGN KEY(`category_id`) REFERENCES `categories`(`id`) 
+  FOREIGN KEY (`category_id`) REFERENCES `categories`(`id`)
     ON DELETE CASCADE
     ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Insertion de produits initiaux avec category_id
--- Ici on suppose :
--- 1 = Comestible, 2 = Non Comestible, 3 = Service
-INSERT INTO `produits` (`code_barres`, `nom`, `category_id`, `prix`, `stock`, `stock_minimum`, `image`) VALUES
-('6111245001', 'Coca-Cola 1.5L', 1, 12.00, 50, 10, 'https://images.unsplash.com/photo-1629203851122-3726ecdf080e?w=200&h=200&fit=crop'),
-('6111245002', 'Fanta Orange 1.5L', 1, 11.00, 45, 10, 'https://images.unsplash.com/photo-1624517452488-04869289c4ca?w=200&h=200&fit=crop'),
-('6111245005', 'Lait Frais 1L', 1, 8.50, 60, 15, 'https://images.unsplash.com/photo-1563636619-e9143da7973b?w=200&h=200&fit=crop'),
-('6111245013', 'Savon de Toilette', 2, 18.00, 30, 10, 'https://images.unsplash.com/photo-1600857544200-b2f666a9a2ec?w=200&h=200&fit=crop'),
-('6111245017', 'Eau de Javel 1L', 2, 12.00, 5, 10, 'https://images.unsplash.com/photo-1585421514284-efb74c2b69ba?w=200&h=200&fit=crop');
+-- ==============================
+-- INSERT produits
+-- ==============================
+INSERT INTO `produits`
+(`code_barres`, `nom`, `category_id`, `prix`, `stock`, `stock_minimum`, `image`)
+VALUES
+('6111245001', 'Coca-Cola 1.5L', 1, 12.00, 50, 10, 'https://images.unsplash.com/photo-1629203851122-3726ecdf080e?w=200'),
+('6111245002', 'Fanta Orange 1.5L', 1, 11.00, 45, 10, 'https://images.unsplash.com/photo-1624517452488-04869289c4ca?w=200'),
+('6111245005', 'Lait Frais 1L', 1, 8.50, 60, 15, 'https://images.unsplash.com/photo-1563636619-e9143da7973b?w=200'),
+('6111245013', 'Savon de Toilette', 2, 18.00, 30, 10, 'https://images.unsplash.com/photo-1600857544200-b2f666a9a2ec?w=200'),
+('6111245017', 'Eau de Javel 1L', 2, 12.00, 5, 10, 'https://images.unsplash.com/photo-1585421514284-efb74c2b69ba?w=200');
 
--- Table : ventes
+-- ==============================
+-- TABLE : ventes
+-- ==============================
 CREATE TABLE IF NOT EXISTS `ventes` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `numero_facture` varchar(50) NOT NULL UNIQUE,
-  `sous_total_ht` decimal(10,2) NOT NULL,
-  `tva` decimal(10,2) NOT NULL,
-  `total` decimal(10,2) NOT NULL,
-  `vendeur_id` int(11) NOT NULL,
-  `date` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `numero_facture` VARCHAR(50) NOT NULL UNIQUE,
+  `sous_total_ht` DECIMAL(10,2) NOT NULL,
+  `tva` DECIMAL(10,2) NOT NULL,
+  `total` DECIMAL(10,2) NOT NULL,
+  `vendeur_id` INT NOT NULL,
+  `date` DATETIME DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   FOREIGN KEY (`vendeur_id`) REFERENCES `utilisateurs`(`id`)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Table : details_vente
+-- ==============================
+-- TABLE : details_vente
+-- ==============================
 CREATE TABLE IF NOT EXISTS `details_vente` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `vente_id` int(11) NOT NULL,
-  `produit_id` int(11) NOT NULL,
-  `quantite` int(11) NOT NULL,
-  `prix` decimal(10,2) NOT NULL,
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `vente_id` INT NOT NULL,
+  `produit_id` INT NOT NULL,
+  `quantite` INT NOT NULL,
+  `prix` DECIMAL(10,2) NOT NULL,
   PRIMARY KEY (`id`),
-  FOREIGN KEY (`vente_id`) REFERENCES `ventes`(`id`) ON DELETE CASCADE,
+  FOREIGN KEY (`vente_id`) REFERENCES `ventes`(`id`)
+    ON DELETE CASCADE,
   FOREIGN KEY (`produit_id`) REFERENCES `produits`(`id`)
+    ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-

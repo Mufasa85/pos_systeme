@@ -7,6 +7,11 @@ use App\App;
 class Router
 {
     private static string $route_name = "";
+    
+    public static function getInstance(): \AltoRouter
+    {
+        return \App\App::getInstanceRouter();
+    }
 
     public static function name(string $name)
     {
@@ -63,4 +68,4 @@ class Router
     }
 
 }
-?>                        }
+?>

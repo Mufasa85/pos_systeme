@@ -1,5 +1,5 @@
       <!-- Caisse Page -->
-      <div class="page active" style="display:block;">
+      <div id="page-caisse" class="page <?= $page == 'caisse' ? 'active' : '' ?>">
         <div class="caisse-container">
           <!-- Products Section -->
           <div class="caisse-products">
@@ -10,12 +10,8 @@
               </svg>
               <input type="text" id="product-search" placeholder="Rechercher un produit ou scanner le code-barres..." autofocus>
             </div>
-            <div class="category-tabs">
+            <div class="category-tabs" id="caisse-category-tabs">
               <button class="category-tab active" data-category="all">Tous</button>
-              <button class="category-tab" data-category="Boissons">Boissons</button>
-              <button class="category-tab" data-category="Alimentation">Alimentation</button>
-              <button class="category-tab" data-category="Hygiene">Hygiène</button>
-              <button class="category-tab" data-category="Menage">Ménage</button>
             </div>
             <div id="products-grid" class="products-grid">
                 <div class="empty-state">Chargement des produits...</div>

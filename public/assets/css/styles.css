@@ -381,16 +381,19 @@ body {
   transition: all 0.2s;
   text-align: left;
   width: 100%;
+  text-decoration: none;
 }
 
 .nav-item:hover {
   background: var(--sidebar-hover);
   color: white;
+  text-decoration: none;
 }
 
 .nav-item.active {
   background: var(--accent);
   color: white;
+  text-decoration: none;
 }
 
 .sidebar-footer {
@@ -1592,7 +1595,7 @@ body {
   .receipt {
     position: absolute;
     left: 0;
-    top: 0;
+    top: 0;s
     width: 80mm;
     padding: 5mm;
     font-size: 10px;

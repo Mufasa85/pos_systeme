@@ -98,4 +98,48 @@ class PageController
         }
         $this->render('parametres');
     }
+
+    public function categories()
+    {
+        if ($_SESSION['role'] !== 'admin') {
+            header('Location: ' . APP_URL . '/dashboard');
+            exit;
+        }
+        $productModel = new Product();
+        
+        // Get all products to count by category
+        $produits = $productModel->getAll();
+        $categories = [];
+        $categoryCounts = [];
+        
+        foreach ($produits as $p) {
+            $cat = $p['categorie'];
+            if (!isset($categoryCounts[$cat])) {
+                $categoryCounts[$cat] = 0;
+            }
+            $categoryCounts[$cat]++;
+        }
+        
+        // Define default categories with colors
+        $defaultCategories = [
+            'Comestible' => '#0B5E88',
+            'Non Comestible' => '#8B5E3C',
+            'Service' => '#5E8B3C',
+            'Boissons' => '#3C8B8B',
+            'Alimentation' => '#8B3C5E',
+            'Hygiène' => '#5E3C8B',
+            'Ménage' => '#8B8B3C'
+        ];
+        
+        foreach ($defaultCategories as $name => $color) {
+            $categories[] = [
+                'id' => array_search($name, array_keys($defaultCategories)) + 1,
+                'nom' => $name,
+                'couleur' => $color,
+                'nombre_produits' => $categoryCounts[$name] ?? 0
+            ];
+        }
+        
+        $this->render('categories', ['categories' => $categories]);
+    }
 }

@@ -13,6 +13,7 @@ Router::get("/caisse", [PageController::class, 'caisse']);
 Router::get("/produits", [PageController::class, 'produits']);
 Router::get("/utilisateurs", [PageController::class, 'utilisateurs']);
 Router::get("/historique", [PageController::class, 'historique']);
+Router::get("/categories", [PageController::class, 'categories']);
 Router::get("/parametres", [PageController::class, 'parametres']);
 /*
 $router->get('/', 'AuthController@showLogin');
@@ -28,5 +29,3 @@ $router->get('/parametres', 'PageController@parametres');
 
 $router->post('/delete/user', 'UserController@delete');*/
 
-// Pour le moment on passe toutes les requêtes HTTP classiques vers PageController (comme un SPA pseudo-MPA)
-//

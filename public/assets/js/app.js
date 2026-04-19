@@ -369,6 +369,9 @@ document.addEventListener('DOMContentLoaded', () => {
             await posCart.saveProduct();
         });
     }
+    
+    // Initialiser sidebar mobile
+    initSidebar();
 });
 
 // Mobile sidebar
@@ -379,24 +382,32 @@ function initSidebar() {
     
     if (menuToggle) {
         menuToggle.addEventListener('click', () => {
-            $('#sidebar').classList.add('active');
+            $('#sidebar').classList.add('open');
             sidebarOverlay.classList.add('active');
         });
     }
     
     if (closeSidebar) {
         closeSidebar.addEventListener('click', () => {
-            $('#sidebar').classList.remove('active');
+            $('#sidebar').classList.remove('open');
             sidebarOverlay.classList.remove('active');
         });
     }
     
     if (sidebarOverlay) {
         sidebarOverlay.addEventListener('click', () => {
-            $('#sidebar').classList.remove('active');
+            $('#sidebar').classList.remove('open');
             sidebarOverlay.classList.remove('active');
         });
     }
+
+    // Close sidebar when nav item is clicked (for mobile)
+    $$('.nav-item').forEach(item => {
+        item.addEventListener('click', () => {
+            $('#sidebar').classList.remove('open');
+            sidebarOverlay.classList.remove('active');
+        });
+    });
 }
 
 // Attach init

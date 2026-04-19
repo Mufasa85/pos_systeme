@@ -1,5 +1,5 @@
       <!-- Products Management Page -->
-      <div class="page active" style="display:block;">
+      <div id="page-products" class="page <?= $page == 'produits' ? 'active' : '' ?>">
         <div class="page-header">
           <h2>Gestion des produits</h2>
           <?php if(isset($_SESSION['role']) && $_SESSION['role'] === 'admin'): ?>
@@ -12,31 +12,22 @@
           </button>
           <?php endif; ?>
         </div>
-        <div class="filters-bar" style="display:flex; flex-direction:column; gap:1rem; margin-bottom:1rem;">
-          <div style="display:flex; gap:1rem;">
-            <input type="text" id="products-filter" placeholder="Rechercher un produit..." style="padding:0.5rem; border:1px solid #ccc; border-radius:4px; flex:1;">
-            <button id="refresh-products" class="btn btn-secondary">Actualiser</button>
-          </div>
-          <div class="category-tabs" style="display:flex; gap:0.5rem; flex-wrap:wrap;">
-            <button class="category-tab active" data-category="all">Tous</button>
-            <button class="category-tab" data-category="Comestible">Comestible</button>
-            <button class="category-tab" data-category="Non Comestible">Non Comestible</button>
-            <button class="category-tab" data-category="Service">Service</button>
-          </div>
+        <div class="filters-bar">
+          <input type="text" id="products-filter" placeholder="Rechercher un produit...">
+          <select id="category-filter">
+            <option value="all">Toutes les catégories</option>
+          </select>
         </div>
         <div class="table-container">
           <table class="data-table" style="width:100%; border-collapse:collapse;">
-            <thead style="background:var(--background); text-align:left;">
+            <thead>
               <tr>
-                <th style="padding:0.75rem; width:60px;">Image</th>
-                <th style="padding:0.75rem;">Nom</th>
-                <th style="padding:0.75rem;">Code-barres</th>
-                <th style="padding:0.75rem;">Catégorie</th>
-                <th style="padding:0.75rem;">Stock</th>
-                <th style="padding:0.75rem;">Prix</th>
-                <?php if(isset($_SESSION['role']) && $_SESSION['role'] === 'admin'): ?>
-                <th style="padding:0.75rem; text-align:right;">Actions</th>
-                <?php endif; ?>
+                <th>Image</th>
+                <th>Nom</th>
+                <th>Code-barres</th>
+                <th>Categorie</th>
+                <th>Prix</th>
+                <th class="admin-only">Actions</th>
               </tr>
             </thead>
             <tbody id="products-table">

@@ -124,6 +124,34 @@
     </div>
   </div>
 
+  <!-- Category Modal -->
+  <div id="category-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="category-modal-title">Ajouter une catégorie</h3>
+        <button class="close-modal" onclick="document.getElementById('category-modal').classList.remove('active')">&times;</button>
+      </div>
+      <form id="category-form">
+        <div class="form-group" style="margin-bottom:1rem;">
+          <label for="category-name">Nom de la catégorie</label>
+          <input type="text" id="category-name" placeholder="Ex: Comestible" required>
+        </div>
+        <div class="form-group" style="margin-bottom:1rem;">
+          <label>Couleur</label>
+          <div style="display:flex;align-items:center;gap:0.75rem;">
+            <input type="color" id="category-color" value="#0B5E88"
+              style="width:48px;height:40px;padding:2px;border:1px solid var(--border);border-radius:var(--radius);cursor:pointer;background:none;">
+            <span id="category-color-hex" style="font-family:'JetBrains Mono',monospace;font-size:0.8rem;color:var(--muted);">#0B5E88</span>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary close-modal" onclick="document.getElementById('category-modal').classList.remove('active')">Annuler</button>
+          <button type="submit" class="btn btn-primary">Enregistrer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <script src="./assets/js/app.js"></script>
 </body>
 </html>

@@ -1,16 +1,24 @@
       <!-- History Page -->
-      <div class="page active" style="display:block;">
+      <div id="page-history" class="page <?= $page == 'historique' ? 'active' : '' ?>">
         <div class="page-header">
           <h2>Historique des ventes</h2>
         </div>
+        <div class="filters-bar">
+          <input type="date" id="date-filter">
+          <select id="seller-filter">
+            <option value="all">Tous les vendeurs</option>
+          </select>
+        </div>
         <div class="table-container">
           <table class="data-table" style="width:100%; border-collapse:collapse;">
-            <thead style="background:var(--background); text-align:left;">
+            <thead>
               <tr>
-                <th style="padding:0.75rem;">N° Facture</th>
-                <th style="padding:0.75rem;">Date</th>
-                <th style="padding:0.75rem;">Vendeur</th>
-                <th style="padding:0.75rem;">Total</th>
+                <th>N Facture</th>
+                <th>Date</th>
+                <th>Vendeur</th>
+                <th>Articles</th>
+                <th>Total</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>

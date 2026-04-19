@@ -1,5 +1,5 @@
       <!-- Users Page -->
-      <div class="page active" style="display:block;">
+      <div id="page-users" class="page <?= $page == 'utilisateurs' ? 'active' : '' ?>">
         <div class="page-header">
           <h2>Gestion des utilisateurs</h2>
           <button id="add-user-btn" class="btn btn-primary" onclick="alert('Fonctionnalité d\'ajout en construction')">
@@ -12,11 +12,12 @@
         </div>
         <div class="table-container">
           <table class="data-table" style="width:100%; border-collapse:collapse;">
-            <thead style="background:var(--background); text-align:left;">
+            <thead>
               <tr>
-                <th style="padding:0.75rem;">Utilisateur</th>
-                <th style="padding:0.75rem;">Rôle</th>
-                <th style="padding:0.75rem;">Statut</th>
+                <th>Utilisateur</th>
+                <th>Role</th>
+                <th>Statut</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
