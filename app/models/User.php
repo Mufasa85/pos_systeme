@@ -15,8 +15,8 @@ class User
 
     public function login($username, $password)
     {
-        $sql = "SELECT * FROM utilisateurs WHERE nom_utilisateur = :nom_utilisateur AND actif = 1";
-        $user = $this->db->fetch($sql, [':nom_utilisateur' => $username]);
+        $sql = "SELECT * FROM utilisateurs WHERE nom_utilisateur = :name AND actif = 1";
+        $user = $this->db->fetch($sql, [':name' => $username]);
 
         if ($user && password_verify($password, $user['mot_de_passe'])) {
             return $user;

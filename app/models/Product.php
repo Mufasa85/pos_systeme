@@ -1,26 +1,34 @@
 <?php
-// app/models/Product.php
 
-class Product {
+namespace App\Models;
+
+class Product
+{
     private $db;
 
-    public function __construct() {
-        $this->db = Database::getInstance();
+    public function __construct()
+    {
+        $this->db = \App\Core\Database::getInstance();
     }
 
-    public function getAll() {
-        return $this->db->fetchAll("SELECT * FROM produits ORDER BY nom ASC");
+    public function getAll()
+    {
+        return $this->db->fetchAll("SELECT p.* ,c.category as categorie FROM produits p INNER JOIN categories c 
+              ON p.category_id = c.id  ORDER BY nom ASC");
     }
 
-    public function findByBarcode($barcode) {
+    public function findByBarcode($barcode)
+    {
         return $this->db->fetch("SELECT * FROM produits WHERE code_barres = :code_barres", [':code_barres' => $barcode]);
     }
 
-    public function findById($id) {
+    public function findById($id)
+    {
         return $this->db->fetch("SELECT * FROM produits WHERE id = :id", [':id' => $id]);
     }
 
-    public function create($data) {
+    public function create($data)
+    {
         $sql = "INSERT INTO produits (code_barres, nom, categorie, prix, stock, stock_minimum, image)
                 VALUES (:code_barres, :nom, :categorie, :prix, :stock, :stock_minimum, :image)";
         $this->db->query($sql, [
@@ -35,13 +43,15 @@ class Product {
         return $this->db->getConnection()->lastInsertId();
     }
 
-    public function updateStock($id, $quantity) {
+    public function updateStock($id, $quantity)
+    {
         // Decrease stock
         $sql = "UPDATE produits SET stock = stock - :quantite WHERE id = :id";
         return $this->db->query($sql, [':quantite' => $quantity, ':id' => $id]);
     }
 
-    public function update($id, $data) {
+    public function update($id, $data)
+    {
         $sql = "UPDATE produits SET 
                 code_barres = :code_barres,
                 nom = :nom, 
@@ -63,9 +73,9 @@ class Product {
         ]);
     }
 
-    public function delete($id) {
+    public function delete($id)
+    {
         $sql = "DELETE FROM produits WHERE id = :id";
         return $this->db->query($sql, [':id' => $id]);
     }
 }
-

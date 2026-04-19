@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>POS System - Login</title>
-  <link rel="stylesheet" href="<?= APP_URL ?>/assets/css/styles.css">
+  <link rel="stylesheet" href="./assets/css/styles.css">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -21,7 +21,8 @@
         <h1>POS System</h1>
         <p>Connectez-vous pour accéder à la caisse</p>
       </div>
-      <form id="login-form" class="login-form" action="<?= APP_URL ?>/login" method="POST">
+<form id="login-form" class="login-form" action="/login" method="POST">
+       <?= App\Core\Security::csrf_tokken(); ?>
         <div class="form-group">
           <label for="username">Nom d'utilisateur</label>
           <input type="text" id="username" name="nom_utilisateur" placeholder="Entrez votre identifiant" required>
@@ -48,7 +49,7 @@
   </div>
 
   <script>
-    const APP_URL = "<?= APP_URL ?>";
+    const APP_URL = "http://localhost:8000";
     document.getElementById('login-form').addEventListener('submit', async (e) => {
         e.preventDefault();
         const fd = new FormData(e.target);

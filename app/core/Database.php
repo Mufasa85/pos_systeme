@@ -12,13 +12,13 @@ class Database
     private function __construct()
     {
         try {
-            $dsn = "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=utf8mb4";
+            $dsn = "mysql:host=localhost:3307;dbname=pos_system;charset=utf8mb4";
             $options = [
                 \PDO::ATTR_ERRMODE            => \PDO::ERRMODE_EXCEPTION,
                 \PDO::ATTR_DEFAULT_FETCH_MODE => \PDO::FETCH_ASSOC,
                 \PDO::ATTR_EMULATE_PREPARES   => false,
             ];
-            $this->pdo = new \PDO($dsn, DB_USER, DB_PASS, $options);
+            $this->pdo = new \PDO($dsn, 'root', '1234', $options);
         } catch (\PDOException $e) {
             die("Database Connection failed: " . $e->getMessage());
         }

@@ -1,18 +1,22 @@
 <?php
-// app/controllers/AuthController.php
 
-require_once BASE_PATH . 'app/models/User.php';
+namespace App\Controllers;
 
-class AuthController {
-    public function showLogin() {
+use App\Models\User;
+
+class AuthController
+{
+    public function showLogin()
+    {
         if (isset($_SESSION['user_id'])) {
-            header('Location: ' . APP_URL . '/dashboard');
+            #header('Location: ' . APP_URL . '/dashboard');
             exit;
         }
-        require_once BASE_PATH . 'app/views/login.php';
+        require_once dirname(__DIR__) . DIRECTORY_SEPARATOR. 'views/login.php';
     }
 
-    public function login() {
+    public function login()
+    {
         $username = trim($_POST['nom_utilisateur'] ?? '');
         $password = $_POST['mot_de_passe'] ?? '';
 
@@ -24,7 +28,7 @@ class AuthController {
             $_SESSION['nom_utilisateur'] = $user['nom_utilisateur'];
             $_SESSION['nom_complet'] = $user['nom_complet'];
             $_SESSION['role'] = $user['role'];
-            
+
             // Repondre en JSON pour l'AJAX
             header('Content-Type: application/json');
             echo json_encode(['success' => true]);
@@ -34,8 +38,9 @@ class AuthController {
         }
     }
 
-    public function logout() {
+    public function logout()
+    {
         session_destroy();
-        header('Location: ' . APP_URL . '/');
+        # header('Location: ' . APP_URL . '/');
     }
 }

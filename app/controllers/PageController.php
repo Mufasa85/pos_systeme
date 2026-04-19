@@ -1,37 +1,46 @@
 <?php
-// app/controllers/PageController.php
 
-require_once BASE_PATH . 'app/models/Product.php';
-require_once BASE_PATH . 'app/models/Sale.php';
-require_once BASE_PATH . 'app/models/User.php';
+namespace App\Controllers;
 
-class PageController {
-    public function __construct() {
-        if (!isset($_SESSION['user_id'])) {
-            header('Location: ' . APP_URL . '/');
-            exit;
-        }
+#require_once BASE_PATH . 'app/models/Product.php';
+#require_once BASE_PATH . 'app/models/Sale.php';
+#require_once BASE_PATH . 'app/models/User.php';
+
+use App\Models\User;
+use App\Models\Product;
+use App\Models\Sale;
+
+class PageController
+{
+    public function __construct()
+    {
+        // if (!isset($_SESSION['user_id'])) {
+        //   header('Location:/');
+        /// exit;
+        //}
     }
 
-    private function render($view, $data = []) {
+    private function render($view, $data = [])
+    {
         $page = $view;
         extract($data);
-        require_once BASE_PATH . 'app/views/layout/header.php';
-        require_once BASE_PATH . 'app/views/' . $view . '.php';
-        require_once BASE_PATH . 'app/views/layout/footer.php';
+        require_once dirname(__DIR__).DIRECTORY_SEPARATOR . 'views/layout/header.php';
+        require_once dirname(__DIR__).DIRECTORY_SEPARATOR . 'views/' . $view . '.php';
+        require_once  dirname(__DIR__).DIRECTORY_SEPARATOR . 'views/layout/footer.php';
     }
 
-    public function dashboard() {
+    public function dashboard()
+    {
         $saleModel = new Sale();
         $productModel = new Product();
         $ventes = $saleModel->getAllSales();
         $produits = $productModel->getAll();
-        
+
         $today = date('Y-m-d');
         $semaine_start = date('Y-m-d', strtotime('-6 days'));
         $ventes_jour = 0;
         $ventes_semaine = 0;
-        foreach($ventes as $v) {
+        foreach ($ventes as $v) {
             if (strpos($v['date'], $today) === 0) {
                 $ventes_jour += $v['total'];
             }
@@ -45,21 +54,26 @@ class PageController {
             'produits_compte' => count($produits),
             'ventes_jour' => $ventes_jour,
             'ventes_semaine' => $ventes_semaine,
-            'stock_faible' => array_filter($produits, function($p) { return $p['stock'] <= $p['stock_minimum']; })
+            'stock_faible' => array_filter($produits, function ($p) {
+                return $p['stock'] <= $p['stock_minimum'];
+            })
         ]);
     }
 
-    public function caisse() {
+    public function caisse()
+    {
         $this->render('caisse');
     }
 
-    public function produits() {
+    public function produits()
+    {
         $productModel = new Product();
         $produits = $productModel->getAll();
         $this->render('produits', ['produits' => $produits]);
     }
 
-    public function utilisateurs() {
+    public function utilisateurs()
+    {
         if ($_SESSION['role'] !== 'admin') {
             header('Location: ' . APP_URL . '/dashboard');
             exit;
@@ -69,13 +83,15 @@ class PageController {
         $this->render('utilisateurs', ['utilisateurs' => $utilisateurs]);
     }
 
-    public function historique() {
+    public function historique()
+    {
         $saleModel = new Sale();
         $ventes = $saleModel->getAllSales();
         $this->render('historique', ['ventes' => $ventes]);
     }
 
-    public function parametres() {
+    public function parametres()
+    {
         if ($_SESSION['role'] !== 'admin') {
             header('Location: ' . APP_URL . '/dashboard');
             exit;

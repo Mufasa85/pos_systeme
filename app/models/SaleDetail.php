@@ -1,14 +1,20 @@
 <?php
+
+namespace App\Models;
+
 // app/models/SaleDetail.php
 
-class SaleDetail {
+class SaleDetail
+{
     private $db;
 
-    public function __construct() {
+    public function __construct()
+    {
         $this->db = Database::getInstance();
     }
 
-    public function create($data) {
+    public function create($data)
+    {
         $sql = "INSERT INTO details_vente (vente_id, produit_id, quantite, prix) 
                 VALUES (:vente_id, :produit_id, :quantite, :prix)";
         return $this->db->query($sql, [

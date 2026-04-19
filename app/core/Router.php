@@ -2,58 +2,65 @@
 
 namespace App\Core;
 
-// app/core/Router.php
+use App\App;
 
 class Router
 {
-    private $routes = [
-        'GET'  => [],
-        'POST' => []
-    ];
+    private static string $route_name = "";
 
-    public function get($uri, $action)
+    public static function name(string $name)
     {
-        $this->routes['GET'][$uri] = $action;
+        self::$route_name = $name;
+    }
+    public static function get(string $route, $target)
+    {
+        App::getInstanceRouter()->map('GET', $route, $target, self::$route_name);
     }
 
-    public function post($uri, $action)
+    public static function post(string $route, $target)
     {
-        $this->routes['POST'][$uri] = $action;
+        App::getInstanceRouter()->map('POST', $route, $target, self::$route_name);
     }
 
-    public function dispatch($methode, $uri)
+    public static function delete(string $route, $target, string $name = '')
     {
-        // Nettoyer l'URI, ex: enlever les query strings
-        $uri = parse_url($uri, PHP_URL_PATH);
-        // Retirer le dossier de base si l'app est dans un sous dossier
-        // (WAMP default: /pos/public/)
-        $base = '/pos/public';
-        if (strpos($uri, $base) === 0) {
-            $uri = substr($uri, strlen($base));
-        }
-        if ($uri == '') {
-            $uri = '/';
-        }
+        App::getInstanceRouter()->map('DELETE', $route, $target, self::$route_name);
+    }
 
-        if (array_key_exists($uri, $this->routes[$methode])) {
-            $action = $this->routes[$methode][$uri];
-            // Format "Controller@method"
-            list($controller, $method) = explode('@', $action);
+    public static function put(string $route, $target)
+    {
+        App::getInstanceRouter()->map('PUT', $route, $target, self::$route_name);
+    }
 
-            // Require Controller file
-            require_once BASE_PATH . 'app/controllers/' . $controller . '.php';
+    public function origin($path)
+    {
+        App::getInstanceRouter()->setBasePath($path);
+    }
 
-            $controllerInstance = new $controller();
-            $controllerInstance->$method();
+    public static function matcher()
+    {
+        $match = App::getInstanceRouter()->match();
+
+        if ($match && is_callable($match['target'])) {
+            call_user_func($match['target'], $match['params']);
+        } elseif (is_array($match) && is_array($match['target'])) {
+            $controller = $match['target'][0];
+            $method = $match['target'][1];
+            $controller = new $controller();
+            $controller->$method($match['params']);
         } else {
-            // 404
-            http_response_code(404);
-            if (strpos($uri, '/api/') === 0) {
-                header('Content-Type: application/json');
-                echo json_encode(['error' => 'API Endpoint non trouve']);
-            } else {
-                echo "404 Page non trouvee";
-            }
+            self::respondNotFound();
         }
     }
+
+    private static function respondNotFound()
+    {
+        http_response_code(404);
+        echo json_encode([
+            'status' => 404,
+            'message' => 'Route introuvable'
+        ]);
+    }
+
 }
+?>                        }

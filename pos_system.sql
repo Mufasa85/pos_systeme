@@ -17,8 +17,21 @@ CREATE TABLE IF NOT EXISTS `utilisateurs` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Insertion de l'utilisateur par défaut (admin / admin123)
--- Le mot de passe ici est hashé avec password_hash() pour 'admin123'
+-- Table : catégories
+CREATE TABLE categories (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  category varchar(120),
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  update_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Insertion des catégories de base
+INSERT INTO categories (category) VALUES
+('Comestible'),
+('Non Comestible'),
+('Service');
+
+-- Insertion de l'utilisateur par défaut
 INSERT INTO `utilisateurs` (`nom_utilisateur`, `mot_de_passe`, `nom_complet`, `role`, `actif`) VALUES
 ('admin', '$2y$10$tZ9c2QZ5Ie6o9.UqX9tPpeR6Y4Qk/5O0vU9Tj6H1V9H5Xk0qYwFkO', 'Administrateur', 'admin', 1),
 ('vendeur1', '$2y$10$G0NZZ6vE/8x9Tq6M8R2Iq.6Z5/O1k5N6J1H1v0V5P1C9D6B8X2W5q', 'Mohammed Alami', 'vendeur', 1);
@@ -28,21 +41,26 @@ CREATE TABLE IF NOT EXISTS `produits` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `code_barres` varchar(50) NOT NULL UNIQUE,
   `nom` varchar(100) NOT NULL,
-  `categorie` varchar(50) NOT NULL,
+  `category_id` INT NOT NULL,
   `prix` decimal(10,2) NOT NULL,
   `stock` int(11) NOT NULL DEFAULT 0,
   `stock_minimum` int(11) NOT NULL DEFAULT 10,
   `image` varchar(255) DEFAULT NULL,
-  PRIMARY KEY (`id`)
+  PRIMARY KEY (`id`),
+  FOREIGN KEY(`category_id`) REFERENCES `categories`(`id`) 
+    ON DELETE CASCADE
+    ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Insertion de produits initiaux
-INSERT INTO `produits` (`code_barres`, `nom`, `categorie`, `prix`, `stock`, `stock_minimum`, `image`) VALUES
-('6111245001', 'Coca-Cola 1.5L', 'Boissons', 12.00, 50, 10, 'https://images.unsplash.com/photo-1629203851122-3726ecdf080e?w=200&h=200&fit=crop'),
-('6111245002', 'Fanta Orange 1.5L', 'Boissons', 11.00, 45, 10, 'https://images.unsplash.com/photo-1624517452488-04869289c4ca?w=200&h=200&fit=crop'),
-('6111245005', 'Lait Frais 1L', 'Alimentation', 8.50, 60, 15, 'https://images.unsplash.com/photo-1563636619-e9143da7973b?w=200&h=200&fit=crop'),
-('6111245013', 'Savon de Toilette', 'Hygiène', 18.00, 30, 10, 'https://images.unsplash.com/photo-1600857544200-b2f666a9a2ec?w=200&h=200&fit=crop'),
-('6111245017', 'Eau de Javel 1L', 'Ménage', 12.00, 5, 10, 'https://images.unsplash.com/photo-1585421514284-efb74c2b69ba?w=200&h=200&fit=crop');
+-- Insertion de produits initiaux avec category_id
+-- Ici on suppose :
+-- 1 = Comestible, 2 = Non Comestible, 3 = Service
+INSERT INTO `produits` (`code_barres`, `nom`, `category_id`, `prix`, `stock`, `stock_minimum`, `image`) VALUES
+('6111245001', 'Coca-Cola 1.5L', 1, 12.00, 50, 10, 'https://images.unsplash.com/photo-1629203851122-3726ecdf080e?w=200&h=200&fit=crop'),
+('6111245002', 'Fanta Orange 1.5L', 1, 11.00, 45, 10, 'https://images.unsplash.com/photo-1624517452488-04869289c4ca?w=200&h=200&fit=crop'),
+('6111245005', 'Lait Frais 1L', 1, 8.50, 60, 15, 'https://images.unsplash.com/photo-1563636619-e9143da7973b?w=200&h=200&fit=crop'),
+('6111245013', 'Savon de Toilette', 2, 18.00, 30, 10, 'https://images.unsplash.com/photo-1600857544200-b2f666a9a2ec?w=200&h=200&fit=crop'),
+('6111245017', 'Eau de Javel 1L', 2, 12.00, 5, 10, 'https://images.unsplash.com/photo-1585421514284-efb74c2b69ba?w=200&h=200&fit=crop');
 
 -- Table : ventes
 CREATE TABLE IF NOT EXISTS `ventes` (
@@ -68,11 +86,4 @@ CREATE TABLE IF NOT EXISTS `details_vente` (
   FOREIGN KEY (`vente_id`) REFERENCES `ventes`(`id`) ON DELETE CASCADE,
   FOREIGN KEY (`produit_id`) REFERENCES `produits`(`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-CREATE TABLE tokkens_csrf (
-  id INT PRIMARY KEY AUTO_INCREMENT,
-  tokken VARCHAR(65),
-  created_at DATETIME,
-  expired_at DATETIME
-);
 

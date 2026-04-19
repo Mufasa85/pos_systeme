@@ -4,12 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>POS System - Caisse Professionnelle</title>
-  <link rel="stylesheet" href="<?= APP_URL ?>/assets/css/styles.css">
+  <link rel="stylesheet" href="./assets/css/styles.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <script>
-    const APP_URL = "<?= APP_URL ?>";
+    const APP_URL = "http://localhost:8000";
     const CURRENT_USER = <?= json_encode([
         'id' => $_SESSION['user_id'] ?? null,
         'username' => $_SESSION['username'] ?? '',
@@ -55,7 +55,7 @@
       
       <nav class="sidebar-nav">
         <?php $currentPage = $page ?? 'dashboard'; ?>
-        <a href="<?= APP_URL ?>/dashboard" class="nav-item <?= $currentPage == 'dashboard' ? 'active' : '' ?>" style="text-decoration: none;">
+        <a href="/dashboard" class="nav-item <?= $currentPage == 'dashboard' ? 'active' : '' ?>" style="text-decoration: none;">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <rect x="3" y="3" width="7" height="7"></rect>
             <rect x="14" y="3" width="7" height="7"></rect>
@@ -64,14 +64,14 @@
           </svg>
           <span>Tableau de bord</span>
         </a>
-        <a href="<?= APP_URL ?>/caisse" class="nav-item <?= $currentPage == 'caisse' ? 'active' : '' ?>" style="text-decoration: none;">
+        <a href="/caisse" class="nav-item <?= $currentPage == 'caisse' ? 'active' : '' ?>" style="text-decoration: none;">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="12" y1="1" x2="12" y2="23"></line>
             <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
           </svg>
           <span>Caisse</span>
         </a>
-        <a href="<?= APP_URL ?>/produits" class="nav-item <?= $currentPage == 'produits' ? 'active' : '' ?>" style="text-decoration: none;">
+        <a href="/produits" class="nav-item <?= $currentPage == 'produits' ? 'active' : '' ?>" style="text-decoration: none;">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
             <line x1="3" y1="6" x2="21" y2="6"></line>
@@ -80,8 +80,8 @@
           <span>Produits</span>
         </a>
         
-        <?php if(isset($_SESSION['role']) && $_SESSION['role'] === 'admin'): ?>
-        <a href="<?= APP_URL ?>/utilisateurs" class="nav-item <?= $currentPage == 'utilisateurs' ? 'active' : '' ?>" style="text-decoration: none;">
+        <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin'): ?>
+        <a href="/utilisateurs" class="nav-item <?= $currentPage == 'utilisateurs' ? 'active' : '' ?>" style="text-decoration: none;">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
             <circle cx="9" cy="7" r="4"></circle>
@@ -92,7 +92,7 @@
         </a>
         <?php endif; ?>
 
-        <a href="<?= APP_URL ?>/historique" class="nav-item <?= $currentPage == 'historique' ? 'active' : '' ?>" style="text-decoration: none;">
+        <a href="/historique" class="nav-item <?= $currentPage == 'historique' ? 'active' : '' ?>" style="text-decoration: none;">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="10"></circle>
             <polyline points="12 6 12 12 16 14"></polyline>
@@ -100,8 +100,8 @@
           <span>Historique</span>
         </a>
 
-        <?php if(isset($_SESSION['role']) && $_SESSION['role'] === 'admin'): ?>
-        <a href="<?= APP_URL ?>/parametres" class="nav-item <?= $currentPage == 'parametres' ? 'active' : '' ?>" style="text-decoration: none;">
+        <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin'): ?>
+        <a href="/parametres" class="nav-item <?= $currentPage == 'parametres' ? 'active' : '' ?>" style="text-decoration: none;">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="3"></circle>
             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
@@ -119,7 +119,7 @@
             <span class="user-role" id="user-role"><?= ($_SESSION['role'] ?? '') === 'admin' ? 'Administrateur' : 'Vendeur' ?></span>
           </div>
         </div>
-        <a href="<?= APP_URL ?>/logout" class="btn btn-logout" style="text-decoration: none; display: flex; align-items: center;">
+        <a href="/logout" class="btn btn-logout" style="text-decoration: none; display: flex; align-items: center;">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
             <polyline points="16 17 21 12 16 7"></polyline>

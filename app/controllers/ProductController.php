@@ -1,17 +1,20 @@
 <?php
+
 // app/controllers/ProductController.php
 
 require_once BASE_PATH . 'app/models/Product.php';
 
-class ProductController {
-    
-    public function apiList() {
+class ProductController
+{
+    public function index()
+    {
         header('Content-Type: application/json');
         $productModel = new Product();
         echo json_encode($productModel->getAll());
     }
 
-    public function apiFind() {
+    public function find()
+    {
         header('Content-Type: application/json');
         $barcode = $_GET['code_barres'] ?? '';
         if (!$barcode) {
@@ -29,7 +32,8 @@ class ProductController {
         }
     }
 
-    public function apiCreate() {
+    public function create()
+    {
         header('Content-Type: application/json');
         if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
             http_response_code(403);
@@ -64,7 +68,8 @@ class ProductController {
         echo json_encode(['success' => true, 'id' => $id]);
     }
 
-    public function apiUpdate() {
+    public function udate()
+    {
         header('Content-Type: application/json');
         if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
             http_response_code(403);
@@ -106,7 +111,8 @@ class ProductController {
         echo json_encode(['success' => $success]);
     }
 
-    public function apiDelete() {
+    public function delete()
+    {
         header('Content-Type: application/json');
         if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
             http_response_code(403);
@@ -114,7 +120,7 @@ class ProductController {
             return;
         }
 
-        $id = $_POST['id'] ?? $_GET['id'] ?? 0;
+        $id = $_POST['id'] ??  0;
         if ($id) {
             $productModel = new Product();
             $success = $productModel->delete($id);
@@ -125,5 +131,3 @@ class ProductController {
         }
     }
 }
-
-

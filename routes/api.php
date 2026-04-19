@@ -1,12 +1,13 @@
 <?php
+
 // routes/api.php
 
-/** @var Router $router */
+use App\Core\Router;
 
-$router->get('/api/produits', 'ProductController@apiList');
-$router->get('/api/produit', 'ProductController@apiFind');
-$router->post('/api/produit', 'ProductController@apiCreate');
-$router->post('/api/produit/update', 'ProductController@apiUpdate');
-$router->post('/api/produit/delete', 'ProductController@apiDelete');
+Router::get("/api/produits", [ProductController::class, 'index']);
+Router::get("/api/produit", [ProductController::class, 'find']);
+Router::post("/api/produit", [ProductController::class, 'create']);
+Router::post("/api/produit/update", [ProductController::class, 'update']);
+Router::post("/api/produit/delete", [ProductController::class, 'delete']);
 
-$router->post('/api/vente', 'SaleController@apiCreate');
+Router::post("/api/vente", [SaleController::class, 'apiCreate']);
