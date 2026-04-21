@@ -10,7 +10,7 @@ class SaleDetail
 
     public function __construct()
     {
-        $this->db = Database::getInstance();
+        $this->db = \App\Core\Database::getInstance();
     }
 
     public function create($data)
@@ -23,5 +23,9 @@ class SaleDetail
             ':quantite'   => $data['quantite'],
             ':prix'       => $data['prix']
         ]);
+    }
+    public function exist($id)
+    {
+        return $this->db->fetch("SELECT * FROM details_vente WHERE id = ?", [$id]);
     }
 }

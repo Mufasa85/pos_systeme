@@ -3,6 +3,8 @@
 // routes/api.php
 
 use App\Controllers\CategoryController;
+use App\Controllers\ProductController;
+use App\Controllers\SaleController;
 use App\Controllers\UserController;
 use App\Core\Router;
 
@@ -22,6 +24,4 @@ Router::post("/api/delete/category", [CategoryController::class, 'delete']);
 
 // Suppression d'une vente
 Router::post("/api/delete/vente", [SaleController::class, 'delete']);
-
-
-Router::post("/api/vente", [SaleController::class, 'apiCreate']);
+Router::post("/api/vente", [SaleController::class, 'create']);

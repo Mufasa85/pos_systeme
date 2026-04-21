@@ -1,8 +1,12 @@
 <?php
 
+namespace App\Controllers;
+
+use App\Models\Product;
+
 // app/controllers/ProductController.php
 
-require_once BASE_PATH . 'app/models/Product.php';
+//require_once BASE_PATH . 'app/models/Product.php';
 
 class ProductController
 {
@@ -68,7 +72,7 @@ class ProductController
         echo json_encode(['success' => true, 'id' => $id]);
     }
 
-    public function udate()
+    public function update()
     {
         header('Content-Type: application/json');
         if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
@@ -95,7 +99,7 @@ class ProductController
 
         // Image upload
         if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
-            $uploadDir = BASE_PATH . 'public/assets/img/products/';
+            $uploadDir = dirname(__DIR__, 2) . 'public/assets/img/products/';
             if (!is_dir($uploadDir)) {
                 mkdir($uploadDir, 0755, true);
             }

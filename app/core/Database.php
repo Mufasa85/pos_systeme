@@ -4,6 +4,7 @@ namespace App\Core;
 
 // app/core/Database.php
 
+
 class Database
 {
     private static $instance = null;
@@ -20,7 +21,6 @@ class Database
             ];
             $this->pdo = new \PDO($dsn, 'root', '1234', $options);
         } catch (\PDOException $e) {
-
             die("Database Connection failed: " . $e->getMessage());
         }
     }
@@ -54,5 +54,21 @@ class Database
     public function fetch($sql, $params = [])
     {
         return $this->query($sql, $params)->fetch();
+    }
+
+    // 🔹 Gestion des transactions
+    public function beginTransaction()
+    {
+        return $this->pdo->beginTransaction();
+    }
+
+    public function commit()
+    {
+        return $this->pdo->commit();
+    }
+
+    public function rollBack()
+    {
+        return $this->pdo->rollBack();
     }
 }

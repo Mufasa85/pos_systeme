@@ -41,6 +41,6 @@ class AuthController
     public function logout()
     {
         session_destroy();
-        # header('Location: ' . APP_URL . '/');
+        header('Location:/');
     }
 }

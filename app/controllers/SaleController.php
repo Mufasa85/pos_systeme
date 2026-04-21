@@ -1,10 +1,10 @@
 <?php
 
-// app/controllers/SaleController.php
+namespace App\Controllers;
 
-require_once BASE_PATH . 'app/models/Sale.php';
-require_once BASE_PATH . 'app/models/SaleDetail.php';
-require_once BASE_PATH . 'app/models/Product.php';
+use App\Models\Product;
+use App\Models\Sale;
+use App\Models\SaleDetail;
 
 class SaleController
 {
@@ -29,7 +29,7 @@ class SaleController
         $productModel = new Product();
 
         try {
-            $db = Database::getInstance()->getConnection();
+            $db = \App\Core\Database::getInstance()->getConnection();
             $db->beginTransaction();
 
             $invoiceNum = $saleModel->generateInvoiceNumber();
@@ -59,7 +59,7 @@ class SaleController
             $db->commit();
             echo json_encode(['success' => true, 'numero_facture' => $invoiceNum, 'vente_id' => $saleId]);
 
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             $db->rollBack();
             http_response_code(500);
             echo json_encode(['error' => 'Erreur lors de la vente: ' . $e->getMessage()]);
@@ -67,8 +67,48 @@ class SaleController
 
     }
 
-    public function delete()
+    public function delete($id)
     {
+        header('Content-Type: application/json');
 
+        if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
+            http_response_code(403);
+            echo json_encode(['error' => 'Accès refusé']);
+            return;
+        }
+
+        if (!$id) {
+            http_response_code(400);
+            echo json_encode(['error' => 'ID de vente manquant']);
+            return;
+        }
+
+        $saleModel   = new Sale();
+        # $detailModel = new SaleDetail();
+
+        try {
+            $db = \App\Core\Database::getInstance()->getConnection();
+            $db->beginTransaction();
+
+            // Vérifier si la vente existe
+            $sale = $saleModel->exist($id);
+            if (!$sale) {
+                $db->rollBack();
+                http_response_code(404);
+                echo json_encode(['error' => 'Vente inexistante']);
+                return;
+            }
+
+            // Supprimer la vente
+            $db->prepare("DELETE FROM ventes WHERE id = ?")->execute([$id]);
+
+            $db->commit();
+            echo json_encode(['success' => true, 'message' => 'Vente supprimée avec succès']);
+
+        } catch (\Exception $e) {
+            $db->rollBack();
+            http_response_code(500);
+            echo json_encode(['error' => 'Erreur lors de la suppression: ' . $e->getMessage()]);
+        }
     }
 }

@@ -44,4 +44,8 @@ class Sale
         $nextId = ($max['max_id'] ? $max['max_id'] : 0) + 1000;
         return 'FAC-' . str_pad($nextId, 6, '0', STR_PAD_LEFT);
     }
+    public function exist($id)
+    {
+        return $this->db->fetch("SELECT * FROM ventes WHERE id = ?", [$id]);
+    }
 }

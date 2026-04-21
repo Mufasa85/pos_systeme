@@ -102,7 +102,10 @@ CREATE TABLE IF NOT EXISTS `details_vente` (
   `prix` DECIMAL(10,2) NOT NULL,
   PRIMARY KEY (`id`),
   FOREIGN KEY (`vente_id`) REFERENCES `ventes`(`id`)
-    ON DELETE CASCADE,
-  FOREIGN KEY (`produit_id`) REFERENCES `produits`(`id`)
     ON DELETE CASCADE
+    ON UPDATE CASCADE
+  ,
+  FOREIGN KEY (`produit_id`) REFERENCES `produits`(`id`)
+    ON DELETE CASCADE 
+    ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

@@ -6,7 +6,7 @@ use App\Controllers\PageController;
 
 Router::get("/", [AuthController::class,'showLogin']);
 Router::post("/login", [AuthController::class, 'login']);
-Router::post("/logout", [AuthController::class, 'logout']);
+Router::get("/logout", [AuthController::class, 'logout']);
 
 Router::get("/dashboard", [PageController::class, 'dashboard']);
 Router::get("/caisse", [PageController::class, 'caisse']);
@@ -28,4 +28,3 @@ $router->get('/historique', 'PageController@historique');
 $router->get('/parametres', 'PageController@parametres');
 
 $router->post('/delete/user', 'UserController@delete');*/
-

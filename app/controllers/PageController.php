@@ -80,7 +80,7 @@ class PageController
         //exit;
         //}
         $userModel = new User();
-        $utilisateurs = $userModel->getAllUsers();
+        $utilisateurs = $userModel->all();
         $this->render('utilisateurs', ['utilisateurs' => $utilisateurs]);
     }
 
