@@ -1,13 +1,15 @@
 <?php
+
 // app/controllers/SaleController.php
 
 require_once BASE_PATH . 'app/models/Sale.php';
 require_once BASE_PATH . 'app/models/SaleDetail.php';
 require_once BASE_PATH . 'app/models/Product.php';
 
-class SaleController {
-    
-    public function apiCreate() {
+class SaleController
+{
+    public function create()
+    {
         header('Content-Type: application/json');
         if (!isset($_SESSION['user_id'])) {
             http_response_code(403);
@@ -62,5 +64,11 @@ class SaleController {
             http_response_code(500);
             echo json_encode(['error' => 'Erreur lors de la vente: ' . $e->getMessage()]);
         }
+
+    }
+
+    public function delete()
+    {
+
     }
 }

@@ -6,6 +6,7 @@ namespace App\Controllers;
 #require_once BASE_PATH . 'app/models/Sale.php';
 #require_once BASE_PATH . 'app/models/User.php';
 
+//use App\Models\Category;
 use App\Models\User;
 use App\Models\Product;
 use App\Models\Sale;
@@ -15,7 +16,7 @@ class PageController
     public function __construct()
     {
         // if (!isset($_SESSION['user_id'])) {
-        //   header('Location:/');
+        //   header('Location:/');cw
         /// exit;
         //}
     }
@@ -74,10 +75,10 @@ class PageController
 
     public function utilisateurs()
     {
-        if ($_SESSION['role'] !== 'admin') {
-            header('Location: ' . APP_URL . '/dashboard');
-            exit;
-        }
+        //if ($_SESSION['role'] !== 'admin') {
+        //  header('Location: /dashboard');
+        //exit;
+        //}
         $userModel = new User();
         $utilisateurs = $userModel->getAllUsers();
         $this->render('utilisateurs', ['utilisateurs' => $utilisateurs]);
@@ -92,26 +93,26 @@ class PageController
 
     public function parametres()
     {
-        if ($_SESSION['role'] !== 'admin') {
-            header('Location: ' . APP_URL . '/dashboard');
-            exit;
-        }
+        /// if ($_SESSION['role'] !== 'admin') {
+        ///  header('Location: ' . APP_URL . '/dashboard');
+        //exit;
+        //}
         $this->render('parametres');
     }
 
     public function categories()
     {
-        if ($_SESSION['role'] !== 'admin') {
-            header('Location: ' . APP_URL . '/dashboard');
-            exit;
-        }
+        //  if ($_SESSION['role'] !== 'admin') {
+        ///    header('Location: ' . APP_URL . '/dashboard');
+        // exit;
+        //}
         $productModel = new Product();
-        
+
         // Get all products to count by category
         $produits = $productModel->getAll();
         $categories = [];
         $categoryCounts = [];
-        
+
         foreach ($produits as $p) {
             $cat = $p['categorie'];
             if (!isset($categoryCounts[$cat])) {
@@ -119,18 +120,18 @@ class PageController
             }
             $categoryCounts[$cat]++;
         }
-        
+
         // Define default categories with colors
         $defaultCategories = [
             'Comestible' => '#0B5E88',
             'Non Comestible' => '#8B5E3C',
             'Service' => '#5E8B3C',
-            'Boissons' => '#3C8B8B',
-            'Alimentation' => '#8B3C5E',
-            'Hygiène' => '#5E3C8B',
-            'Ménage' => '#8B8B3C'
+            //'Boissons' => '#3C8B8B',
+            //'Alimentation' => '#8B3C5E',
+            //'Hygiène' => '#5E3C8B',
+           // 'Ménage' => '#8B8B3C'
         ];
-        
+
         foreach ($defaultCategories as $name => $color) {
             $categories[] = [
                 'id' => array_search($name, array_keys($defaultCategories)) + 1,
@@ -139,7 +140,7 @@ class PageController
                 'nombre_produits' => $categoryCounts[$name] ?? 0
             ];
         }
-        
+
         $this->render('categories', ['categories' => $categories]);
     }
 }

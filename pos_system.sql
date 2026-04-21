@@ -1,11 +1,13 @@
--- ==============================
--- RESET (optionnel si tu recommences)
--- ==============================
-DROP TABLE IF EXISTS details_vente;
-DROP TABLE IF EXISTS ventes;
-DROP TABLE IF EXISTS produits;
-DROP TABLE IF EXISTS categories;
-DROP TABLE IF EXISTS utilisateurs;
+DROP DATABASE `pos_system`;
+
+CREATE DATABASE `pos_system`;
+USE `pos_system`;
+
+--mDROP TABLE IF EXISTS details_vente;
+--DROP TABLE IF EXISTS ventes;
+--DROP TABLE IF EXISTS produits;
+--DROP TABLE IF EXISTS categories;
+--DROP TABLE IF EXISTS utilisateurs;
 
 -- ==============================
 -- TABLE : utilisateurs
@@ -39,15 +41,17 @@ INSERT INTO `categories` (`category`) VALUES
 ('Non Comestible'),
 ('Service');
 
--- ==============================
--- INSERT utilisateurs
--- ==============================
-INSERT INTO `utilisateurs`
-(`nom_utilisateur`, `mot_de_passe`, `nom_complet`, `role`, `actif`)
-VALUES
+INSERT INTO `utilisateurs`(`nom_utilisateur`, `mot_de_passe`, `nom_complet`, `role`, `actif`) VALUES
 ('Musafa', '$2y$10$C.Wn4hGDdFfYcPSiAQM9q.FqLTbqgFC4OvH02VYqdikF/y9gckVPG', 'Administrateur', 'admin', 1),
-('vendeur1', '$2y$10$ryKoYm12Fcr7aOUPFowW.u/doihYwl9u8DRPAwyx6wX2Laqu0m64i', 'Mohammed Alami', 'vendeur', 1);
-
+('vendeur1', '$2y$10$C.Wn4hGDdFfYcPSiAQM9q.FqLTbqgFC4OvH02VYqdikF/y9gckVPG', 'Mohammed Alami', 'vendeur', 1),
+('vendeur2', '$2y$10$C.Wn4hGDdFfYcPSiAQM9q.FqLTbqgFC4OvH02VYqdikF/y9gckVPG', 'Amina Kaba', 'vendeur', 1),
+('vendeur3', '$2y$10$C.Wn4hGDdFfYcPSiAQM9q.FqLTbqgFC4OvH02VYqdikF/y9gckVPG', 'Jean-Pierre Moke', 'vendeur', 1),
+('vendeur4', '$2y$10$C.Wn4hGDdFfYcPSiAQM9q.FqLTbqgFC4OvH02VYqdikF/y9gckVPG', 'Fatou Diallo', 'vendeur', 1),
+('vendeur5', '$2y$10$C.Wn4hGDdFfYcPSiAQM9q.FqLTbqgFC4OvH02VYqdikF/y9gckVPG', 'David Nsimba', 'vendeur', 1),
+('vendeur6', '$2y$10$C.Wn4hGDdFfYcPSiAQM9q.FqLTbqgFC4OvH02VYqdikF/y9gckVPG', 'Sarah Mbala', 'vendeur', 1),
+('vendeur7', '$2y$10$C.Wn4hGDdFfYcPSiAQM9q.FqLTbqgFC4OvH02VYqdikF/y9gckVPG', 'Pauline Tshibanda', 'vendeur', 1),
+('vendeur8', '$2y$10$C.Wn4hGDdFfYcPSiAQM9q.FqLTbqgFC4OvH02VYqdikF/y9gckVPG', 'Marc Ilunga', 'vendeur', 1),
+('vendeur9', '$2y$10$C.Wn4hGDdFfYcPSiAQM9q.FqLTbqgFC4OvH02VYqdikF/y9gckVPG', 'Chantal Beya', 'vendeur', 1);
 -- ==============================
 -- TABLE : produits
 -- ==============================
@@ -66,9 +70,6 @@ CREATE TABLE IF NOT EXISTS `produits` (
     ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- ==============================
--- INSERT produits
--- ==============================
 INSERT INTO `produits`
 (`code_barres`, `nom`, `category_id`, `prix`, `stock`, `stock_minimum`, `image`)
 VALUES
@@ -78,9 +79,7 @@ VALUES
 ('6111245013', 'Savon de Toilette', 2, 18.00, 30, 10, 'https://images.unsplash.com/photo-1600857544200-b2f666a9a2ec?w=200'),
 ('6111245017', 'Eau de Javel 1L', 2, 12.00, 5, 10, 'https://images.unsplash.com/photo-1585421514284-efb74c2b69ba?w=200');
 
--- ==============================
--- TABLE : ventes
--- ==============================
+
 CREATE TABLE IF NOT EXISTS `ventes` (
   `id` INT NOT NULL AUTO_INCREMENT,
   `numero_facture` VARCHAR(50) NOT NULL UNIQUE,
@@ -95,9 +94,6 @@ CREATE TABLE IF NOT EXISTS `ventes` (
     ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- ==============================
--- TABLE : details_vente
--- ==============================
 CREATE TABLE IF NOT EXISTS `details_vente` (
   `id` INT NOT NULL AUTO_INCREMENT,
   `vente_id` INT NOT NULL,

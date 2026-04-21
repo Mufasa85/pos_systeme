@@ -8,7 +8,7 @@ require dirname(__DIR__).DIRECTORY_SEPARATOR.'vendor'.DIRECTORY_SEPARATOR.'autol
 use App\Core\Router;
 
 // Set base path for AltoRouter before loading routes
-Router::getInstance()->setBasePath('/pos/public');
+//Router::getInstance()->setBasePath('/pos/public');
 
 // Load routes
 require dirname(__DIR__) . DIRECTORY_SEPARATOR .'routes/web.php';

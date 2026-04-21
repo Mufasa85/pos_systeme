@@ -18,8 +18,9 @@ class Database
                 \PDO::ATTR_DEFAULT_FETCH_MODE => \PDO::FETCH_ASSOC,
                 \PDO::ATTR_EMULATE_PREPARES   => false,
             ];
-            $this->pdo = new \PDO($dsn, 'root', '', $options);
+            $this->pdo = new \PDO($dsn, 'root', '1234', $options);
         } catch (\PDOException $e) {
+
             die("Database Connection failed: " . $e->getMessage());
         }
     }
