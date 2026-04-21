@@ -14,7 +14,9 @@ Router::post("/api/produit/delete", [ProductController::class, 'delete']);
 
 Router::get('/api/categories', [CategoryController::class,'index']);
 
+Router::post('/api/create/user', [UserController::class,'create']);
 Router::post("/api/delete/user", [UserController::class,'delete']);
+
 // Suppression d'une catégorie
 Router::post("/api/delete/category", [CategoryController::class, 'delete']);
 

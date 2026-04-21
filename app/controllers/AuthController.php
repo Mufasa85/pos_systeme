@@ -17,8 +17,8 @@ class AuthController
 
     public function login()
     {
-        $username = trim($_POST['nom_utilisateur'] ?? '');
-        $password = $_POST['mot_de_passe'] ?? '';
+        $username = trim($_POST['username'] ?? '');
+        $password = $_POST['password'] ?? '';
 
         $userModel = new User();
         $user = $userModel->login($username, $password);
@@ -34,7 +34,7 @@ class AuthController
             echo json_encode(['success' => true]);
         } else {
             header('Content-Type: application/json');
-            echo json_encode(['success' => false, 'message' => 'Identifiants incorrects ou compte inactif.']);
+            echo json_encode(['success' => false, 'message' => 'Identifiants incorrects']);
         }
     }
 

@@ -25,11 +25,11 @@
        <?= App\Core\Security::csrf_tokken(); ?>
         <div class="form-group">
           <label for="username">Nom d'utilisateur</label>
-          <input type="text" id="username" name="nom_utilisateur" placeholder="Entrez votre identifiant" required>
+          <input type="text" id="username" name="username" placeholder="Entrez votre identifiant" required>
         </div>
         <div class="form-group">
           <label for="password">Mot de passe</label>
-          <input type="password" id="password" name="mot_de_passe" placeholder="Entrez votre mot de passe" required>
+          <input type="password" id="password" name="password" placeholder="Entrez votre mot de passe" required>
         </div>
         <div id="login-error" class="login-error"></div>
         <button type="submit" class="btn btn-primary btn-full">
