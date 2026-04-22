@@ -7,7 +7,7 @@ use App\App;
 class Router
 {
     private static string $route_name = "";
-    
+
     public static function getInstance(): \AltoRouter
     {
         return \App\App::getInstanceRouter();
@@ -61,11 +61,10 @@ class Router
     private static function respondNotFound()
     {
         http_response_code(404);
-        echo json_encode([
-            'status' => 404,
-            'message' => 'Route introuvable'
-        ]);
+        // echo json_encode([
+        //   'status' => 404,
+        // 'message' => 'Route introuvable'
+        //]);
     }
 
 }
-?>

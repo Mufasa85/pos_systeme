@@ -2,10 +2,6 @@
 
 namespace App\Controllers;
 
-#require_once BASE_PATH . 'app/models/Product.php';
-#require_once BASE_PATH . 'app/models/Sale.php';
-#require_once BASE_PATH . 'app/models/User.php';
-
 //use App\Models\Category;
 use App\Models\User;
 use App\Models\Product;
@@ -15,10 +11,11 @@ class PageController
 {
     public function __construct()
     {
-        // if (!isset($_SESSION['user_id'])) {
-        //   header('Location:/');cw
-        /// exit;
-        //}
+
+        if (!isset($_SESSION['user_id'])) {
+            header('Location: http://localhost:8000/');
+            exit;
+        }
     }
 
     private function render($view, $data = [])
@@ -75,10 +72,10 @@ class PageController
 
     public function utilisateurs()
     {
-        //if ($_SESSION['role'] !== 'admin') {
-        //  header('Location: /dashboard');
-        //exit;
-        //}
+        if ($_SESSION['role'] !== 'admin') {
+            header('Location: /dashboard');
+            exit;
+        }
         $userModel = new User();
         $utilisateurs = $userModel->all();
         $this->render('utilisateurs', ['utilisateurs' => $utilisateurs]);
@@ -93,19 +90,19 @@ class PageController
 
     public function parametres()
     {
-        /// if ($_SESSION['role'] !== 'admin') {
-        ///  header('Location: ' . APP_URL . '/dashboard');
-        //exit;
-        //}
+        if ($_SESSION['role'] !== 'admin') {
+            header('Location: ' . APP_URL . '/dashboard');
+            exit;
+        }
         $this->render('parametres');
     }
 
     public function categories()
     {
-        //  if ($_SESSION['role'] !== 'admin') {
-        ///    header('Location: ' . APP_URL . '/dashboard');
-        // exit;
-        //}
+        if ($_SESSION['role'] !== 'admin') {
+            header('Location: ' . APP_URL . '/dashboard');
+            exit;
+        }
         $productModel = new Product();
 
         // Get all products to count by category
