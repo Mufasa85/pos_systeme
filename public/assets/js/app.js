@@ -253,7 +253,33 @@ const posCart = {
         $('#validate-sale').innerHTML = '<span class="spinner"></span> Traitement...';
 
         try {
-            // Etape 1: Sauvegarder la vente en local
+            // Etape 1: Preparer les donnees pour DGI
+            const dgiPayload = {
+                invoiceNumber: 'FAC-' + Date.now(),
+                date: new Date().toISOString(),
+                totalHT: this.currentTotals.sous_total_ht,
+                tva: this.currentTotals.tva,
+                totalTTC: this.currentTotals.total,
+                articles: this.items.map(i => ({
+                    name: i.nom,
+                    quantity: i.quantite,
+                    price: i.prix,
+                    total: i.prix * i.quantite
+                }))
+            };
+
+            // Etape 2: Appeler l'API DGI d'abord
+            const dgiResponse = await this.validateWithDGI(dgiPayload);
+            this.dgiResponse = dgiResponse;
+
+            if (!dgiResponse.success) {
+                alert('Erreur DGI: ' + (dgiResponse.message || 'Impossible de valider la facture'));
+                $('#validate-sale').disabled = false;
+                $('#validate-sale').innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> Valider la vente';
+                return;
+            }
+
+            // Etape 3: Sauvegarder la vente en local avec les donnees DGI
             const saleRes = await fetch(APP_URL + '/api/vente', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -261,7 +287,15 @@ const posCart = {
                     articles: this.items,
                     sous_total_ht: this.currentTotals.sous_total_ht,
                     tva: this.currentTotals.tva,
-                    total: this.currentTotals.total
+                    total: this.currentTotals.total,
+                    // Donnees DGI a sauvegarder
+                    dgi_data: {
+                        dateDGI: dgiResponse.data ? dgiResponse.data.dateDGI : null,
+                        qrCode: dgiResponse.data ? dgiResponse.data.qrCode : '',
+                        codeDEFDGI: dgiResponse.data ? dgiResponse.data.codeDEFDGI : '',
+                        counters: dgiResponse.data ? dgiResponse.data.counters : null,
+                        nim: dgiResponse.data ? dgiResponse.data.nim : null
+                    }
                 })
             });
             const saleData = await saleRes.json();
@@ -281,44 +315,20 @@ const posCart = {
                 items: [...this.items]
             };
 
-            // Etape 2: Preparer les donnees pour DGI
-            const dgiPayload = {
-                invoiceNumber: saleData.numero_facture,
-                date: new Date().toISOString(),
-                totalHT: this.currentTotals.sous_total_ht,
-                tva: this.currentTotals.tva,
-                totalTTC: this.currentTotals.total,
-                articles: this.items.map(i => ({
-                    name: i.nom,
-                    quantity: i.quantite,
-                    price: i.prix,
-                    total: i.prix * i.quantite
-                }))
-            };
-
-            // Etape 3: Appeler l'API DGI
-            const dgiResponse = await this.validateWithDGI(dgiPayload);
-            this.dgiResponse = dgiResponse;
-
             // Construire le HTML du recap DGI
-            let dgiInfoHtml = '';
-            if (dgiResponse.success) {
-                dgiInfoHtml = '<div style="background: #e8f5e9; border: 1px solid #4caf50; border-radius: 8px; padding: 10px; margin: 10px 0; text-align: center;"><div style="color: #2e7d32; font-weight: bold; font-size: 11px;">VALIDE DGI - ' + (dgiResponse.message || 'Facture generee avec succes') + '</div>';
-                if (dgiResponse.data) {
-                    dgiInfoHtml += '<div style="font-size: 10px; color: #555; margin-top: 5px;">Date DGI: ' + (dgiResponse.data.dateDGI || 'N/A') + ' | Compteur: ' + (dgiResponse.data.counters || 'N/A') + '<br>';
-                    if (dgiResponse.data.codeDEFDGI) {
-                        dgiInfoHtml += 'DEF: ' + dgiResponse.data.codeDEFDGI;
-                    }
-                    dgiInfoHtml += '</div>';
-                }
+            let dgiInfoHtml = '<div style="background: #e8f5e9; border: 1px solid #4caf50; border-radius: 8px; padding: 10px; margin: 10px 0; text-align: center;"><div style="color: #2e7d32; font-weight: bold; font-size: 11px;">VALIDE DGI - ' + (dgiResponse.message || 'Facture generee avec succes') + '</div>';
+            if (dgiResponse.data) {
+                dgiInfoHtml += '<div style="font-size: 10px; color: #555; margin-top: 5px;">';
+                if (dgiResponse.data.dateDGI) dgiInfoHtml += 'Date: ' + dgiResponse.data.dateDGI + ' | ';
+                if (dgiResponse.data.counters) dgiInfoHtml += 'Compteur: ' + dgiResponse.data.counters;
+                if (dgiResponse.data.codeDEFDGI) dgiInfoHtml += '<br>DEF: ' + dgiResponse.data.codeDEFDGI;
                 dgiInfoHtml += '</div>';
-            } else {
-                dgiInfoHtml = '<div style="background: #ffebee; border: 1px solid #f44336; border-radius: 8px; padding: 10px; margin: 10px 0; text-align: center;"><div style="color: #c62828; font-weight: bold; font-size: 11px;">DGI Non disponible - ' + (dgiResponse.message || 'Erreur') + '</div></div>';
             }
+            dgiInfoHtml += '</div>';
 
-            // Contenu du QR code
+            // Contenu du QR code - utiliser qrCode de la reponse DGI
             const qrContainerId = 'dgi-qrcode-container';
-            const qrCodeContent = (dgiResponse.success && dgiResponse.data && dgiResponse.data.qrCode) ? dgiResponse.data.qrCode : saleData.numero_facture;
+            const qrCodeContent = (dgiResponse.data && dgiResponse.data.qrCode) ? dgiResponse.data.qrCode : saleData.numero_facture;
             const formattedDate = new Date().toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
             // Construire les lignes du tableau
@@ -332,7 +342,7 @@ const posCart = {
             // Afficher le recu complet
             $('#receipt-content').innerHTML = '<div style="font-family: monospace; font-size: 14px; max-width: 320px; margin: 0 auto; color: #000; padding: 20px; background: white;"><div style="text-align: center; margin-bottom: 15px;"><h2 style="font-size: 18px; margin: 0 0 5px 0;">SuperMarche Express</h2><div style="font-size: 12px; color: #333;">123 Rue Mohammed V, Casablanca<br>Tel: +212 522 123 456<br>ICE: 001234567890123</div></div><div style="border-top: 1px dashed #666; margin: 10px 0;"></div><div style="display: flex; justify-content: space-between; font-size: 12px;"><span>' + saleData.numero_facture + '</span><span>' + formattedDate + '</span></div><div style="border-top: 1px dashed #666; margin: 10px 0;"></div><table style="width: 100%; font-size: 12px; border-collapse: collapse;"><thead><tr style="border-bottom: 1px solid #333;"><th style="text-align: left; padding-bottom: 5px;">Article</th><th style="text-align: left; padding-bottom: 5px; padding-left: 10px; width: 60px;">PU</th><th style="text-align: center; padding-bottom: 5px; width: 40px;">Qte</th><th style="text-align: right; padding-bottom: 5px; width: 60px;">Total</th></tr></thead><tbody>' + itemsHtml + '</tbody></table><div style="border-top: 1px dashed #666; margin: 10px 0;"></div><div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px;"><span>Sous-total HT:</span><span>' + this.currentTotals.sous_total_ht.toFixed(2) + ' Fc</span></div><div style="display: flex; justify-content: space-between; font-size: 12px;"><span>TVA (20%):</span><span>' + this.currentTotals.tva.toFixed(2) + ' Fc</span></div><div style="border-top: 2px solid #000; margin: 10px 0 5px 0;"></div><div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 14px;"><span>TOTAL TTC:</span><span>' + this.currentTotals.total.toFixed(2) + ' Fc</span></div><div style="border-top: 2px solid #000; margin: 5px 0 10px 0;"></div>' + dgiInfoHtml + '<div style="text-align: center; font-size: 12px; margin-top: 10px;"><p style="margin: 0 0 10px 0;">Vendeur: POS System</p><div id="' + qrContainerId + '" style="display: flex; justify-content: center; margin: 10px auto; min-height: 200px;"></div><div style="letter-spacing: 2px; font-size: 16px; margin-bottom: 10px;">' + saleData.numero_facture + '</div><p style="font-weight: bold; margin: 0 0 5px 0;">Merci de votre visite!</p><p style="margin: 0; color: #555;">Conservez ce ticket pour tout echange</p></div></div>';
 
-            // Generer le QR code apres l'affichage du receipt
+            // Generer le QR code avec le contenu qrCode de DGI
             this.generateDGIQRCode(qrCodeContent, qrContainerId);
 
             // Afficher le modal
