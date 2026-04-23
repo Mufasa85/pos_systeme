@@ -4,8 +4,13 @@
     <!-- Receipt Modal -->
     <div id="receipt-modal" class="modal">
       <div class="modal-content receipt-modal">
-        <div id="receipt-content" class="receipt"></div>
+        <div class="receipt-scrollable">
+          <div id="receipt-content"></div>
+        </div>
         <div class="receipt-actions">
+          <button id="close-receipt" class="btn btn-secondary" onclick="document.getElementById('receipt-modal').classList.remove('active')">
+            Annuler
+          </button>
           <button id="print-receipt" class="btn btn-primary">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <polyline points="6 9 6 2 18 2 18 9"></polyline>
@@ -14,7 +19,28 @@
             </svg>
             Imprimer
           </button>
-          <button id="close-receipt" class="btn btn-secondary" onclick="document.getElementById('receipt-modal').classList.remove('active')">Fermer</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Preview Modal - Recapitulatif de la facture -->
+    <div id="preview-modal" class="modal">
+      <div class="modal-content preview-modal">
+        <div class="modal-header">
+          <h3>Récapitulatif de la vente</h3>
+          <button class="close-modal" onclick="posCart.closePreview()">&times;</button>
+        </div>
+        <div id="preview-content" class="preview-content">
+          <!-- Contenu généré par JS -->
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" onclick="posCart.closePreview()">Annuler</button>
+          <button type="button" id="confirm-sale" class="btn btn-primary" onclick="posCart.confirmSale()">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+            Valider la facture
+          </button>
         </div>
       </div>
     </div>
