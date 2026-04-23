@@ -13,8 +13,8 @@ class Product
 
     public function getAll()
     {
-        return $this->db->fetchAll("SELECT p.* ,c.category as categorie FROM produits p INNER JOIN categories c 
-              ON p.category_id = c.id  ORDER BY nom ASC");
+        return $this->db->fetchAll("SELECT p.*, c.category AS categorie FROM produits p INNER JOIN categories c 
+              ON p.category_id = c.id ORDER BY p.nom ASC");
     }
 
     public function findByBarcode($barcode)
@@ -29,12 +29,12 @@ class Product
 
     public function create($data)
     {
-        $sql = "INSERT INTO produits (code_barres, nom, categorie, prix, stock, stock_minimum, image)
-                VALUES (:code_barres, :nom, :categorie, :prix, :stock, :stock_minimum, :image)";
+        $sql = "INSERT INTO produits (code_barres, nom, category_id, prix, stock, stock_minimum, image)
+                VALUES (:code_barres, :nom, :category_id, :prix, :stock, :stock_minimum, :image)";
         $this->db->query($sql, [
             ':code_barres'   => $data['code_barres'],
             ':nom'           => $data['nom'],
-            ':categorie'     => $data['categorie'],
+            ':category_id'   => $data['category_id'],
             ':prix'          => $data['prix'],
             ':stock'         => $data['stock'],
             ':stock_minimum' => $data['stock_minimum'],
@@ -45,7 +45,6 @@ class Product
 
     public function updateStock($id, $quantity)
     {
-        // Decrease stock
         $sql = "UPDATE produits SET stock = stock - :quantite WHERE id = :id";
         return $this->db->query($sql, [':quantite' => $quantity, ':id' => $id]);
     }
@@ -55,7 +54,7 @@ class Product
         $sql = "UPDATE produits SET 
                 code_barres = :code_barres,
                 nom = :nom, 
-                categorie = :categorie,
+                category_id = :category_id,
                 prix = :prix,
                 stock = :stock,
                 stock_minimum = :stock_minimum,
@@ -65,7 +64,7 @@ class Product
             ':id' => $id,
             ':code_barres' => $data['code_barres'],
             ':nom' => $data['nom'],
-            ':categorie' => $data['categorie'],
+            ':category_id' => $data['category_id'],
             ':prix' => $data['prix'],
             ':stock' => $data['stock'],
             ':stock_minimum' => $data['stock_minimum'],
