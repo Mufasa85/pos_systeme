@@ -209,8 +209,8 @@ const posCart = {
         try {
             await this.loadQRCodeLibrary();
             const qrCode = new QRCodeStyling({
-                width: 280,
-                height: 280,
+                width: 180,
+                height: 180,
                 type: "svg",
                 data: qrCodeContent,
                 margin: 10,
@@ -249,52 +249,71 @@ const posCart = {
     showPreview() {
         if (this.items.length === 0) return;
 
-        let itemsHtml = '';
-        for (let i = 0; i < this.items.length; i++) {
-            const item = this.items[i];
-            itemsHtml += `
-                <div style="display:flex;justify-content:space-between;margin-bottom:3px;font-size:11px;padding:4px 0;border-bottom:1px dotted #ddd;">
-                    <span style="flex:1;font-weight:500;">${item.nom}</span>
-                    <span style="width:30px;text-align:center;color:#888;">x${item.quantite}</span>
-                    <span style="width:70px;text-align:right;font-weight:600;">${formatCurrency(item.prix * item.quantite)}</span>
-                </div>
-            `;
-        }
-
         const formattedDate = new Date().toLocaleString('fr-FR', {
             day: '2-digit', month: '2-digit', year: 'numeric',
             hour: '2-digit', minute: '2-digit'
         });
 
-        $('#preview-content').innerHTML = `
-            <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:12px;line-height:1.4;padding:20px;background:#fff;color:#1a1a1a;width:280px;border:1px solid #e0e0e0;">
-                <div style="text-align:center;margin-bottom:16px;padding-bottom:16px;border-bottom:2px dashed #333;">
-                    <div style="font-size:18px;font-weight:700;color:#0B5E88;margin-bottom:6px;">SUPER MARCHÉ</div>
-                    <div style="font-size:10px;color:#666;line-height:1.5;">123 Avenue Mohammed V<br>Casablanca, Maroc<br>+212 522 123 456</div>
+        const invoiceNum = 'FAC-' + Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
+
+        let itemsHtml = '';
+        this.items.forEach(item => {
+            itemsHtml += `
+                <div class="receipt-item">
+                    <span class="item-name">${item.nom}</span>
+                    <span class="item-qty">x${item.quantite}</span>
+                    <span class="item-pu">${item.prix.toFixed(2)}</span>
+                    <span class="item-price">${(item.prix * item.quantite).toFixed(2)}</span>
                 </div>
-                <div style="display:flex;justify-content:space-between;font-size:10px;color:#888;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid #eee;">
-                    <span style="font-weight:600;color:#333;">TICKET</span>
+            `;
+        });
+
+        $('#preview-content').innerHTML = `
+            <div class="receipt">
+                <div class="receipt-header">
+                    <div class="store-name">SuperMarche Express</div>
+                    <div class="store-info">
+                        123 Rue Mohammed V, Casablanca<br>
+                        Tel: +212 522 123 456<br>
+                        ICE: 001234567890123
+                    </div>
+                </div>
+
+                <div class="receipt-meta">
+                    <span>${invoiceNum}</span>
                     <span>${formattedDate}</span>
                 </div>
-                <div style="margin-bottom:12px;">
-                    <div style="display:flex;justify-content:space-between;font-size:9px;font-weight:600;color:#999;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;padding-bottom:6px;border-bottom:2px solid #333;">
-                        <span style="flex:1;">Article</span>
-                        <span style="width:30px;text-align:center;">Qté</span>
-                        <span style="width:70px;text-align:right;">Montant</span>
+
+                <div class="receipt-items">
+                    <div class="receipt-item" style="font-weight: 700; border-bottom: 1px solid #333; margin-bottom: 5px;">
+                        <span class="item-name">Article</span>
+                        <span class="item-qty">Qte</span>
+                        <span class="item-pu">PU</span>
+                        <span class="item-price">Total</span>
                     </div>
                     ${itemsHtml}
                 </div>
-                <div style="margin:12px 0;padding:12px 0;border-top:1px dashed #ccc;border-bottom:1px dashed #ccc;background:#f8f9fa;">
-                    <div style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:11px;"><span style="color:#666;">Sous-total HT</span><span>${formatCurrency(this.currentTotals.sous_total_ht)}</span></div>
-                    <div style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:11px;"><span style="color:#666;">TVA (20%)</span><span>${formatCurrency(this.currentTotals.tva)}</span></div>
+
+                <div class="receipt-totals">
+                    <div class="receipt-total-row">
+                        <span>Sous-total HT:</span>
+                        <span>${this.currentTotals.sous_total_ht.toFixed(2)} Fc</span>
+                    </div>
+                    <div class="receipt-total-row">
+                        <span>TVA (20%):</span>
+                        <span>${this.currentTotals.tva.toFixed(2)} Fc</span>
+                    </div>
+                    <div class="receipt-total-row grand-total">
+                        <span>TOTAL TTC:</span>
+                        <span>${this.currentTotals.total.toFixed(2)} Fc</span>
+                    </div>
                 </div>
-                <div style="display:flex;justify-content:space-between;font-size:16px;font-weight:700;padding:10px 0;border-top:2px solid #333;border-bottom:2px solid #333;background:#0B5E88;color:#fff;margin-bottom:16px;">
-                    <span>TOTAL</span>
-                    <span>${formatCurrency(this.currentTotals.total)}</span>
-                </div>
-                <div style="text-align:center;font-size:10px;color:#888;padding-top:12px;border-top:1px dashed #ccc;">
-                    <div style="font-weight:600;font-size:12px;color:#333;margin-bottom:4px;">Merci de votre confiance!</div>
-                    <div style="font-size:9px;color:#999;">Confirmez pour valider la vente</div>
+
+                <div class="receipt-footer">
+                    <div class="vendeur-info">Vendeur: Administrateur</div>
+                    <div class="barcode">||| ${invoiceNum} |||</div>
+                    <div class="thank-you">Merci de votre visite!</div>
+                    <div style="margin-top: 5px; font-size: 9px; font-style: italic;">Conservez ce ticket pour tout echange</div>
                 </div>
             </div>
         `;
@@ -320,7 +339,7 @@ const posCart = {
             if (!dgiResponse.success) {
                 alert('Erreur DGI: ' + (dgiResponse.message || 'Impossible de valider la facture'));
                 $('#confirm-sale').disabled = false;
-                $('#confirm-sale').innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> Confirmer la vente';
+                $('#confirm-sale').innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> Valider la facture';
                 return;
             }
 
@@ -347,7 +366,7 @@ const posCart = {
             if (!saleData.success) {
                 alert(saleData.error);
                 $('#confirm-sale').disabled = false;
-                $('#confirm-sale').innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> Confirmer la vente';
+                $('#confirm-sale').innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> Valider la facture';
                 return;
             }
 
@@ -382,12 +401,69 @@ const posCart = {
             let itemsHtml = '';
             for (let i = 0; i < this.items.length; i++) {
                 const item = this.items[i];
-                const displayName = item.nom.length > 16 ? item.nom.substring(0, 14) + '...' : item.nom;
-                itemsHtml += '<tr><td style="padding: 5px 0;">' + displayName + '</td><td style="text-align: left; padding: 5px 0; padding-left: 10px;">' + item.prix.toFixed(2) + '</td><td style="text-align: center; padding: 5px 0;">x' + item.quantite + '</td><td style="text-align: right; padding: 5px 0;">' + (item.prix * item.quantite).toFixed(2) + ' Fc</td></tr>';
+                itemsHtml += `
+                    <div class="receipt-item">
+                        <span class="item-name">${item.nom}</span>
+                        <span class="item-qty">x${item.quantite}</span>
+                        <span class="item-pu">${item.prix.toFixed(2)}</span>
+                        <span class="item-price">${(item.prix * item.quantite).toFixed(2)}</span>
+                    </div>
+                `;
             }
 
             // Afficher le recu complet
-            $('#receipt-content').innerHTML = '<div style="font-family: monospace; font-size: 14px; max-width: 320px; margin: 0 auto; color: #000; padding: 20px; background: white;"><div style="text-align: center; margin-bottom: 15px;"><h2 style="font-size: 18px; margin: 0 0 5px 0;">SuperMarche Express</h2><div style="font-size: 12px; color: #333;">123 Rue Mohammed V, Casablanca<br>Tel: +212 522 123 456<br>ICE: 001234567890123</div></div><div style="border-top: 1px dashed #666; margin: 10px 0;"></div><div style="display: flex; justify-content: space-between; font-size: 12px;"><span>' + saleData.numero_facture + '</span><span>' + formattedDate + '</span></div><div style="border-top: 1px dashed #666; margin: 10px 0;"></div><table style="width: 100%; font-size: 12px; border-collapse: collapse;"><thead><tr style="border-bottom: 1px solid #333;"><th style="text-align: left; padding-bottom: 5px;">Article</th><th style="text-align: left; padding-bottom: 5px; padding-left: 10px; width: 60px;">PU</th><th style="text-align: center; padding-bottom: 5px; width: 40px;">Qte</th><th style="text-align: right; padding-bottom: 5px; width: 60px;">Total</th></tr></thead><tbody>' + itemsHtml + '</tbody></table><div style="border-top: 1px dashed #666; margin: 10px 0;"></div><div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px;"><span>Sous-total HT:</span><span>' + this.currentTotals.sous_total_ht.toFixed(2) + ' Fc</span></div><div style="display: flex; justify-content: space-between; font-size: 12px;"><span>TVA (20%):</span><span>' + this.currentTotals.tva.toFixed(2) + ' Fc</span></div><div style="border-top: 2px solid #000; margin: 10px 0 5px 0;"></div><div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 14px;"><span>TOTAL TTC:</span><span>' + this.currentTotals.total.toFixed(2) + ' Fc</span></div><div style="border-top: 2px solid #000; margin: 5px 0 10px 0;"></div>' + dgiInfoHtml + '<div style="text-align: center; font-size: 12px; margin-top: 10px;"><p style="margin: 0 0 10px 0;">Vendeur: POS System</p><div id="' + qrContainerId + '" style="display: flex; justify-content: center; margin: 10px auto; min-height: 200px;"></div><div style="letter-spacing: 2px; font-size: 16px; margin-bottom: 10px;">' + saleData.numero_facture + '</div><p style="font-weight: bold; margin: 0 0 5px 0;">Merci de votre visite!</p><p style="margin: 0; color: #555;">Conservez ce ticket pour tout echange</p></div></div>';
+            $('#receipt-content').innerHTML = `
+                <div class="receipt">
+                    <div class="receipt-header">
+                        <div class="store-name">SuperMarche Express</div>
+                        <div class="store-info">
+                            123 Rue Mohammed V, Casablanca<br>
+                            Tel: +212 522 123 456<br>
+                            ICE: 001234567890123
+                        </div>
+                    </div>
+
+                    <div class="receipt-meta">
+                        <span>${saleData.numero_facture}</span>
+                        <span>${formattedDate}</span>
+                    </div>
+
+                    <div class="receipt-items">
+                        <div class="receipt-item" style="font-weight: 700; border-bottom: 1px solid #333; margin-bottom: 5px;">
+                            <span class="item-name">Article</span>
+                            <span class="item-qty">Qte</span>
+                            <span class="item-pu">PU</span>
+                            <span class="item-price">Total</span>
+                        </div>
+                        ${itemsHtml}
+                    </div>
+
+                    <div class="receipt-totals">
+                        <div class="receipt-total-row">
+                            <span>Sous-total HT:</span>
+                            <span>${this.currentTotals.sous_total_ht.toFixed(2)} Fc</span>
+                        </div>
+                        <div class="receipt-total-row">
+                            <span>TVA (20%):</span>
+                            <span>${this.currentTotals.tva.toFixed(2)} Fc</span>
+                        </div>
+                        <div class="receipt-total-row grand-total">
+                            <span>TOTAL TTC:</span>
+                            <span>${this.currentTotals.total.toFixed(2)} Fc</span>
+                        </div>
+                    </div>
+
+                    ${dgiInfoHtml}
+
+                    <div class="receipt-footer">
+                        <div class="vendeur-info">Vendeur: POS System</div>
+                        <div id="${qrContainerId}" class="qrcode-container"></div>
+                        <div class="barcode">||| ${saleData.numero_facture} |||</div>
+                        <div class="thank-you">Merci de votre visite!</div>
+                        <p style="margin-top: 5px; color: #555; font-size: 9px;">Conservez ce ticket pour tout echange</p>
+                    </div>
+                </div>
+            `;
 
             // Generer le QR code
             this.generateDGIQRCode(qrCodeContent, qrContainerId);
@@ -396,7 +472,7 @@ const posCart = {
             $('#receipt-modal').classList.add('active');
 
             // Reinitialiser le bouton
-            $('#confirm-sale').innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> Confirmer la vente';
+            $('#confirm-sale').innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> Valider la facture';
 
             // Vider le panier et rafraichir les produits
             this.clearCart();
@@ -603,16 +679,53 @@ document.addEventListener('DOMContentLoaded', () => {
         printBtn.addEventListener('click', () => {
             const content = $('#receipt-content').innerHTML;
             const printWindow = window.open('', '_blank', 'width=400,height=600');
-            printWindow.document.write('<html><head><title>Ticket de Caisse</title></head><body style="margin:0; padding:10px;">');
-            printWindow.document.write(content);
-            printWindow.document.write('</body></html>');
+            
+            const styles = `
+                <style>
+                    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap');
+                    @page { margin: 0; }
+                    body { margin: 0; padding: 10px; background: white; color: black; display: flex; justify-content: center; }
+                    .receipt { font-family: 'JetBrains Mono', 'Courier New', monospace; font-size: 12px; line-height: 1.4; width: 80mm; padding: 5mm; }
+                    .receipt-header { text-align: center; border-bottom: 1px dashed #000; padding-bottom: 15px; margin-bottom: 15px; }
+                    .receipt-header .store-name { font-size: 18px; font-weight: 700; margin-bottom: 5px; text-transform: uppercase; }
+                    .receipt-header .store-info { font-size: 11px; }
+                    .receipt-meta { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 15px; padding-bottom: 8px; border-bottom: 1px dashed #000; }
+                    .receipt-items { margin-bottom: 15px; }
+                    .receipt-item { display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 11px; }
+                    .receipt-item .item-name { flex: 3; min-width: 0; white-space: normal; overflow-wrap: break-word; }
+                    .receipt-item .item-qty { flex: 0.5; text-align: right; min-width: 30px; }
+                    .receipt-item .item-pu { flex: 1; text-align: center; min-width: 50px; }
+                    .receipt-item .item-price { flex: 1; text-align: right; font-weight: 600; min-width: 60px; }
+                    .receipt-totals { margin-bottom: 15px; }
+                    .receipt-total-row { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 11px; }
+                    .receipt-total-row.grand-total { font-size: 16px; font-weight: 700; border-top: 2px solid #000; border-bottom: 2px solid #000; padding: 10px 0; margin-top: 10px; }
+                    .receipt-footer { text-align: center; margin-top: 15px; padding-top: 15px; border-top: 1px dashed #000; font-size: 11px; }
+                    .barcode { font-size: 18px; letter-spacing: 3px; font-weight: 700; margin: 15px 0; }
+                    .qrcode-container { display: flex; justify-content: center; align-items: center; margin: 15px auto; width: 100%; }
+                    .qrcode-container > div { padding: 5px; }
+                    .qrcode-container svg, .qrcode-container img { max-width: 150px; height: auto; }
+                </style>
+            `;
+
+            printWindow.document.write(`
+                <html>
+                    <head>
+                        <title>Ticket de Caisse</title>
+                        ${styles}
+                    </head>
+                    <body>
+                        ${content}
+                    </body>
+                </html>
+            `);
             printWindow.document.close();
             printWindow.focus();
 
+            // Give the browser short time to parse the font and styles
             setTimeout(() => {
                 printWindow.print();
                 printWindow.close();
-            }, 250);
+            }, 500);
         });
     }
 });
