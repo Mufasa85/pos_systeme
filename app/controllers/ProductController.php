@@ -15,7 +15,6 @@ class ProductController extends Controller
 
     public function find()
     {
-
         $barcode = $this->sanitaze(trim($_GET['code_barres'] ?? ''));
         if (!$barcode) {
             $this->json(['error' => 'Code-barre manquant']);
@@ -41,10 +40,10 @@ class ProductController extends Controller
         $data = [
             'code_barres' => $this->sanitaze($_POST['code_barres']),
             'nom' => $this->sanitaze($_POST['nom']),
-            'categorie' => $this->sanitaze($_POST['categorie']),
-            'prix' => $this->sanitaze($_POST['prix']),
-            'stock' => $this->sanitaze($_POST['stock']),
-            'stock_minimum' => $this->sanitaze($_POST['stock_minimum'])
+            'category_id' => (int)$this->sanitaze($_POST['category_id']),
+            'prix' => (float)$this->sanitaze($_POST['prix']),
+            'stock' => (int)$this->sanitaze($_POST['stock']),
+            'stock_minimum' => (int)$this->sanitaze($_POST['stock_minimum'])
         ];
 
         // Image upload
@@ -67,7 +66,6 @@ class ProductController extends Controller
 
     public function update()
     {
-
         if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
             $this->status(403)->json(['error' => 'Accès refusé']);
             return;
@@ -82,10 +80,10 @@ class ProductController extends Controller
         $data = [
             'code_barres' => $this->sanitaze($_POST['code_barres']),
             'nom' => $this->sanitaze($_POST['nom']),
-            'categorie' => $this->sanitaze($_POST['categorie']),
-            'prix' => $this->sanitaze($_POST['prix']),
-            'stock' => $this->sanitaze($_POST['stock']),
-            'stock_minimum' => $this->sanitaze($_POST['stock_minimum'])
+            'category_id' => (int)$this->sanitaze($_POST['category_id']),
+            'prix' => (float)$this->sanitaze($_POST['prix']),
+            'stock' => (int)$this->sanitaze($_POST['stock']),
+            'stock_minimum' => (int)$this->sanitaze($_POST['stock_minimum'])
         ];
 
         // Image upload
