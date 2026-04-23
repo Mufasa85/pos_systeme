@@ -5,22 +5,20 @@ namespace App\Controllers;
 use App\Models\Product;
 use App\Models\Sale;
 use App\Models\SaleDetail;
+use App\controllers\Controller;
 
-class SaleController
+class SaleController extends Controller
 {
     public function create()
     {
-        header('Content-Type: application/json');
         if (!isset($_SESSION['user_id'])) {
-            http_response_code(403);
-            echo json_encode(['error' => 'Non authentifié']);
+            $this->status(403)->json(['error' => 'Non authentifié']);
             return;
         }
 
         $data = json_decode(file_get_contents('php://input'), true);
         if (empty($data) || empty($data['articles'])) {
-            http_response_code(400);
-            echo json_encode(['error' => 'Panier vide ou données invalides']);
+            $this->status(400)->json(['error' => 'Panier vide ou données invalides']);
             return;
         }
 
@@ -57,29 +55,25 @@ class SaleController
             }
 
             $db->commit();
-            echo json_encode(['success' => true, 'numero_facture' => $invoiceNum, 'vente_id' => $saleId]);
+            $this->json(['success' => true, 'numero_facture' => $invoiceNum, 'vente_id' => $saleId]);
 
         } catch (\Exception $e) {
             $db->rollBack();
-            http_response_code(500);
-            echo json_encode(['error' => 'Erreur lors de la vente: ' . $e->getMessage()]);
+            $this->status(500)->json(['error' => 'Erreur lors de la vente: ' . $e->getMessage()]);
         }
 
     }
 
     public function delete($id)
     {
-        header('Content-Type: application/json');
 
         if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
-            http_response_code(403);
-            echo json_encode(['error' => 'Accès refusé']);
+            $this->status(403)->json(['error' => 'Accès refusé']);
             return;
         }
 
         if (!$id) {
-            http_response_code(400);
-            echo json_encode(['error' => 'ID de vente manquant']);
+            $this->status(400)->json(['error' => 'ID de vente manquant']);
             return;
         }
 
@@ -94,8 +88,7 @@ class SaleController
             $sale = $saleModel->exist($id);
             if (!$sale) {
                 $db->rollBack();
-                http_response_code(404);
-                echo json_encode(['error' => 'Vente inexistante']);
+                $this->status(404)->json(['error' => 'Vente inexistante']);
                 return;
             }
 
@@ -103,12 +96,12 @@ class SaleController
             $db->prepare("DELETE FROM ventes WHERE id = ?")->execute([$id]);
 
             $db->commit();
-            echo json_encode(['success' => true, 'message' => 'Vente supprimée avec succès']);
+            $this->json(['success' => true, 'message' => 'Vente supprimée avec succès']);
 
         } catch (\Exception $e) {
             $db->rollBack();
             http_response_code(500);
-            echo json_encode(['error' => 'Erreur lors de la suppression: ' . $e->getMessage()]);
+            $this->status(500)->json(['error' => 'Erreur lors de la suppression: ' . $e->getMessage()]);
         }
     }
 }
