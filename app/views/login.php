@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="fr">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,6 +8,7 @@
   <link rel="stylesheet" href="./assets/css/styles.css">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
+
 <body>
   <div id="login-page" class="login-page">
     <div class="login-card">
@@ -21,8 +23,8 @@
         <h1>POS System</h1>
         <p>Connectez-vous pour accéder à la caisse</p>
       </div>
-<form id="login-form" class="login-form" action="/login" method="POST">
-       <?= App\Core\Security::csrf_tokken(); ?>
+      <form id="login-form" class="login-form" action="/login" method="POST">
+        <?= App\Core\Security::csrf_tokken(); ?>
         <div class="form-group">
           <label for="username">Nom d'utilisateur</label>
           <input type="text" id="username" name="username" placeholder="Entrez votre identifiant" required>
@@ -51,21 +53,25 @@
   <script>
     const APP_URL = "http://localhost:8000";
     document.getElementById('login-form').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const fd = new FormData(e.target);
-        
-        try {
-            const res = await fetch(e.target.action, { method: 'POST', body: fd });
-            const data = await res.json();
-            if (data.success) {
-                window.location.href = APP_URL + '/dashboard';
-            } else {
-                document.getElementById('login-error').textContent = data.message;
-            }
-        } catch(err) {
-            document.getElementById('login-error').textContent = "Erreur de connexion";
+      e.preventDefault();
+      const fd = new FormData(e.target);
+
+      try {
+        const res = await fetch(e.target.action, {
+          method: 'POST',
+          body: fd
+        });
+        const data = await res.json();
+        if (data.success) {
+          window.location.href = APP_URL + '/dashboard';
+        } else {
+          document.getElementById('login-error').textContent = data.message;
         }
+      } catch (err) {
+        document.getElementById('login-error').textContent = "Erreur de connexion";
+      }
     });
   </script>
 </body>
+
 </html>
