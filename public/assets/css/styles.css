@@ -1123,162 +1123,66 @@ body {
 }
 
 /* ============================================
-   RECEIPT - Style ticket de caisse
+   PREVIEW MODAL - Modern Ticket Style
    ============================================ */
-.receipt-modal {
-  max-width: 400px;
+#preview-modal {
+  max-width: 340px;
   padding: 0;
+  align-items: center;
+  justify-content: center;
 }
 
-.receipt {
-  font-family: 'JetBrains Mono', 'Courier New', monospace;
-  font-size: 12px;
-  line-height: 1.4;
-  padding: 1.5rem;
-  background: white;
-}
-
-.receipt-header {
-  text-align: center;
-  border-bottom: 1px dashed #333;
-  padding-bottom: 1rem;
-  margin-bottom: 1rem;
-}
-
-.receipt-header .store-name {
-  font-size: 16px;
-  font-weight: 700;
-  margin-bottom: 0.5rem;
-}
-
-.receipt-header .store-info {
-  font-size: 11px;
-  color: #555;
-}
-
-.receipt-meta {
+#preview-modal.modal.active {
   display: flex;
-  justify-content: space-between;
-  font-size: 11px;
-  margin-bottom: 1rem;
-  padding-bottom: 0.5rem;
-  border-bottom: 1px dashed #333;
 }
 
-.receipt-items {
-  margin-bottom: 1rem;
-}
-
-.receipt-item {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 0.25rem;
-  padding: 0.25rem 0;
-  gap: 0.5rem;
-}
-
-.receipt-item .item-name {
-  flex: 1;
-  white-space: nowrap;
+#preview-modal .modal-content {
+  max-width: 340px;
+  width: 100%;
+  padding: 0;
   overflow: hidden;
-  text-overflow: ellipsis;
+  background: #fff;
 }
 
-.receipt-item .item-qty {
-  width: 35px;
-  text-align: right;
+#preview-modal .modal-header {
+  display: none;
 }
 
-.receipt-item .item-pu {
-  width: 75px;
-  text-align: left;
-}
-
-.receipt-item .item-price {
-  width: 80px;
-  text-align: right;
-}
-
-.receipt-divider {
-  border-top: 1px dashed #333;
-  margin: 0.75rem 0;
-}
-
-.receipt-totals {
-  margin-bottom: 1rem;
-}
-
-.receipt-total-row {
+#preview-modal .modal-actions {
+  margin-top: 0;
+  padding: 16px;
+  border-top: 1px solid #e2e8f0;
+  background: #f8fafc;
   display: flex;
-  justify-content: space-between;
-  margin-bottom: 0.25rem;
+  gap: 10px;
 }
 
-.receipt-total-row.grand-total {
-  font-size: 14px;
-  font-weight: 700;
-  border-top: 2px solid #333;
-  border-bottom: 2px solid #333;
-  padding: 0.5rem 0;
-  margin-top: 0.5rem;
-}
-
-.receipt-footer {
-  text-align: center;
-  margin-top: 1rem;
-  padding-top: 1rem;
-  border-top: 1px dashed #333;
-  font-size: 11px;
-}
-
-.receipt-footer .barcode {
-  font-size: 20px;
-  letter-spacing: 2px;
-  margin: 0.75rem 0;
-}
-
-.receipt-footer .thank-you {
-  font-weight: 600;
-  margin-top: 0.5rem;
-}
-
-.receipt-actions {
-  display: flex;
-  gap: 0.75rem;
-  padding: 1rem;
-  border-top: 1px solid var(--border);
-  background: var(--background);
-}
-
-.receipt-actions .btn {
+#preview-modal .modal-actions .btn {
   flex: 1;
+  padding: 12px 16px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+#preview-content {
+  padding: 20px;
+  max-height: 80vh;
+  overflow-y: auto;
+  background: #f5f5f5;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  min-height: 100%;
+}
+
+#preview-content > div {
+  margin: auto;
 }
 
 /* ============================================
-   RESPONSIVE - TABLET
+   RECEIPT - Style ticket de caisse
    ============================================ */
-@media (max-width: 1024px) {
-  .stats-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .dashboard-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .caisse-container {
-    grid-template-columns: 1fr;
-    height: auto;
-  }
-
-  .caisse-products {
-    min-height: 50vh;
-  }
-
-  .caisse-cart {
-    height: auto;
-    max-height: 60vh;
-  }
+.receipt-modal {
 }
 
 /* ============================================
@@ -1595,7 +1499,7 @@ body {
   .receipt {
     position: absolute;
     left: 0;
-    top: 0;s
+    top: 0;
     width: 80mm;
     padding: 5mm;
     font-size: 10px;
