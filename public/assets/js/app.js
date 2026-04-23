@@ -3,8 +3,8 @@ const $$ = (s) => document.querySelectorAll(s);
 
 const formatCurrency = (amount) => amount.toFixed(2) + ' Fc';
 
-// DGI API Configuration
-const DGI_API_URL = 'https://osat-energie.com/dgi/';
+// DGI API Configuration - utilise le proxy local pour eviter CORS
+const DGI_API_URL = APP_URL + '/api/dgi';
 
 const posCart = {
     items: [],
@@ -138,7 +138,7 @@ const posCart = {
                 <span>Ajoutez des produits au panier</span>
               </div>
             `;
-            $('#validate-sale').disabled = true;
+            $('#show-preview').disabled = true;
         } else {
             cartItems.innerHTML = this.items.map(item => `
               <div class="cart-item">
@@ -160,7 +160,7 @@ const posCart = {
                 </button>
               </div>
             `).join('');
-            $('#validate-sale').disabled = false;
+            $('#show-preview').disabled = false;
         }
 
         const subtotal = this.items.reduce((s, i) => s + (i.prix * i.quantite), 0);
@@ -176,12 +176,11 @@ const posCart = {
     },
 
     // Appeler l'API DGI pour valider la facture
-    async validateWithDGI(invoiceData) {
+    async validateWithDGI() {
         try {
+            // DGI API GET simple - retourne les infos de la facture
             const res = await fetch(DGI_API_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(invoiceData)
+                method: 'GET'
             });
             return await res.json();
         } catch (e) {
@@ -246,40 +245,86 @@ const posCart = {
         }
     },
 
-    async validateSale() {
+    // Afficher le récapitulatif de la vente (style ticket thermique moderne)
+    showPreview() {
         if (this.items.length === 0) return;
 
-        $('#validate-sale').disabled = true;
-        $('#validate-sale').innerHTML = '<span class="spinner"></span> Traitement...';
+        let itemsHtml = '';
+        for (let i = 0; i < this.items.length; i++) {
+            const item = this.items[i];
+            itemsHtml += `
+                <div style="display:flex;justify-content:space-between;margin-bottom:3px;font-size:11px;padding:4px 0;border-bottom:1px dotted #ddd;">
+                    <span style="flex:1;font-weight:500;">${item.nom}</span>
+                    <span style="width:30px;text-align:center;color:#888;">x${item.quantite}</span>
+                    <span style="width:70px;text-align:right;font-weight:600;">${formatCurrency(item.prix * item.quantite)}</span>
+                </div>
+            `;
+        }
+
+        const formattedDate = new Date().toLocaleString('fr-FR', {
+            day: '2-digit', month: '2-digit', year: 'numeric',
+            hour: '2-digit', minute: '2-digit'
+        });
+
+        $('#preview-content').innerHTML = `
+            <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:12px;line-height:1.4;padding:20px;background:#fff;color:#1a1a1a;width:280px;border:1px solid #e0e0e0;">
+                <div style="text-align:center;margin-bottom:16px;padding-bottom:16px;border-bottom:2px dashed #333;">
+                    <div style="font-size:18px;font-weight:700;color:#0B5E88;margin-bottom:6px;">SUPER MARCHÉ</div>
+                    <div style="font-size:10px;color:#666;line-height:1.5;">123 Avenue Mohammed V<br>Casablanca, Maroc<br>+212 522 123 456</div>
+                </div>
+                <div style="display:flex;justify-content:space-between;font-size:10px;color:#888;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid #eee;">
+                    <span style="font-weight:600;color:#333;">TICKET</span>
+                    <span>${formattedDate}</span>
+                </div>
+                <div style="margin-bottom:12px;">
+                    <div style="display:flex;justify-content:space-between;font-size:9px;font-weight:600;color:#999;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;padding-bottom:6px;border-bottom:2px solid #333;">
+                        <span style="flex:1;">Article</span>
+                        <span style="width:30px;text-align:center;">Qté</span>
+                        <span style="width:70px;text-align:right;">Montant</span>
+                    </div>
+                    ${itemsHtml}
+                </div>
+                <div style="margin:12px 0;padding:12px 0;border-top:1px dashed #ccc;border-bottom:1px dashed #ccc;background:#f8f9fa;">
+                    <div style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:11px;"><span style="color:#666;">Sous-total HT</span><span>${formatCurrency(this.currentTotals.sous_total_ht)}</span></div>
+                    <div style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:11px;"><span style="color:#666;">TVA (20%)</span><span>${formatCurrency(this.currentTotals.tva)}</span></div>
+                </div>
+                <div style="display:flex;justify-content:space-between;font-size:16px;font-weight:700;padding:10px 0;border-top:2px solid #333;border-bottom:2px solid #333;background:#0B5E88;color:#fff;margin-bottom:16px;">
+                    <span>TOTAL</span>
+                    <span>${formatCurrency(this.currentTotals.total)}</span>
+                </div>
+                <div style="text-align:center;font-size:10px;color:#888;padding-top:12px;border-top:1px dashed #ccc;">
+                    <div style="font-weight:600;font-size:12px;color:#333;margin-bottom:4px;">Merci de votre confiance!</div>
+                    <div style="font-size:9px;color:#999;">Confirmez pour valider la vente</div>
+                </div>
+            </div>
+        `;
+
+        $('#preview-modal').classList.add('active');
+    },
+
+    // Fermer le modal de prévisualisation
+    closePreview() {
+        $('#preview-modal').classList.remove('active');
+    },
+
+    // Confirmer et traiter la vente (appel DGI + sauvegarde)
+    async confirmSale() {
+        $('#confirm-sale').disabled = true;
+        $('#confirm-sale').innerHTML = '<span class="spinner"></span> Traitement...';
 
         try {
-            // Etape 1: Preparer les donnees pour DGI
-            const dgiPayload = {
-                invoiceNumber: 'FAC-' + Date.now(),
-                date: new Date().toISOString(),
-                totalHT: this.currentTotals.sous_total_ht,
-                tva: this.currentTotals.tva,
-                totalTTC: this.currentTotals.total,
-                articles: this.items.map(i => ({
-                    name: i.nom,
-                    quantity: i.quantite,
-                    price: i.prix,
-                    total: i.prix * i.quantite
-                }))
-            };
-
-            // Etape 2: Appeler l'API DGI d'abord
-            const dgiResponse = await this.validateWithDGI(dgiPayload);
+            // Etape 1: Appeler l'API DGI
+            const dgiResponse = await this.validateWithDGI();
             this.dgiResponse = dgiResponse;
 
             if (!dgiResponse.success) {
                 alert('Erreur DGI: ' + (dgiResponse.message || 'Impossible de valider la facture'));
-                $('#validate-sale').disabled = false;
-                $('#validate-sale').innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> Valider la vente';
+                $('#confirm-sale').disabled = false;
+                $('#confirm-sale').innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> Confirmer la vente';
                 return;
             }
 
-            // Etape 3: Sauvegarder la vente en local avec les donnees DGI
+            // Etape 2: Sauvegarder la vente
             const saleRes = await fetch(APP_URL + '/api/vente', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -288,7 +333,6 @@ const posCart = {
                     sous_total_ht: this.currentTotals.sous_total_ht,
                     tva: this.currentTotals.tva,
                     total: this.currentTotals.total,
-                    // Donnees DGI a sauvegarder
                     dgi_data: {
                         dateDGI: dgiResponse.data ? dgiResponse.data.dateDGI : null,
                         qrCode: dgiResponse.data ? dgiResponse.data.qrCode : '',
@@ -302,10 +346,13 @@ const posCart = {
 
             if (!saleData.success) {
                 alert(saleData.error);
-                $('#validate-sale').disabled = false;
-                $('#validate-sale').innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> Valider la vente';
+                $('#confirm-sale').disabled = false;
+                $('#confirm-sale').innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> Confirmer la vente';
                 return;
             }
+
+            // Fermer le modal de prévisualisation
+            this.closePreview();
 
             // Stocker les donnees de vente
             this.currentSaleData = {
@@ -326,7 +373,7 @@ const posCart = {
             }
             dgiInfoHtml += '</div>';
 
-            // Contenu du QR code - utiliser qrCode de la reponse DGI
+            // Contenu du QR code
             const qrContainerId = 'dgi-qrcode-container';
             const qrCodeContent = (dgiResponse.data && dgiResponse.data.qrCode) ? dgiResponse.data.qrCode : saleData.numero_facture;
             const formattedDate = new Date().toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -342,25 +389,25 @@ const posCart = {
             // Afficher le recu complet
             $('#receipt-content').innerHTML = '<div style="font-family: monospace; font-size: 14px; max-width: 320px; margin: 0 auto; color: #000; padding: 20px; background: white;"><div style="text-align: center; margin-bottom: 15px;"><h2 style="font-size: 18px; margin: 0 0 5px 0;">SuperMarche Express</h2><div style="font-size: 12px; color: #333;">123 Rue Mohammed V, Casablanca<br>Tel: +212 522 123 456<br>ICE: 001234567890123</div></div><div style="border-top: 1px dashed #666; margin: 10px 0;"></div><div style="display: flex; justify-content: space-between; font-size: 12px;"><span>' + saleData.numero_facture + '</span><span>' + formattedDate + '</span></div><div style="border-top: 1px dashed #666; margin: 10px 0;"></div><table style="width: 100%; font-size: 12px; border-collapse: collapse;"><thead><tr style="border-bottom: 1px solid #333;"><th style="text-align: left; padding-bottom: 5px;">Article</th><th style="text-align: left; padding-bottom: 5px; padding-left: 10px; width: 60px;">PU</th><th style="text-align: center; padding-bottom: 5px; width: 40px;">Qte</th><th style="text-align: right; padding-bottom: 5px; width: 60px;">Total</th></tr></thead><tbody>' + itemsHtml + '</tbody></table><div style="border-top: 1px dashed #666; margin: 10px 0;"></div><div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px;"><span>Sous-total HT:</span><span>' + this.currentTotals.sous_total_ht.toFixed(2) + ' Fc</span></div><div style="display: flex; justify-content: space-between; font-size: 12px;"><span>TVA (20%):</span><span>' + this.currentTotals.tva.toFixed(2) + ' Fc</span></div><div style="border-top: 2px solid #000; margin: 10px 0 5px 0;"></div><div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 14px;"><span>TOTAL TTC:</span><span>' + this.currentTotals.total.toFixed(2) + ' Fc</span></div><div style="border-top: 2px solid #000; margin: 5px 0 10px 0;"></div>' + dgiInfoHtml + '<div style="text-align: center; font-size: 12px; margin-top: 10px;"><p style="margin: 0 0 10px 0;">Vendeur: POS System</p><div id="' + qrContainerId + '" style="display: flex; justify-content: center; margin: 10px auto; min-height: 200px;"></div><div style="letter-spacing: 2px; font-size: 16px; margin-bottom: 10px;">' + saleData.numero_facture + '</div><p style="font-weight: bold; margin: 0 0 5px 0;">Merci de votre visite!</p><p style="margin: 0; color: #555;">Conservez ce ticket pour tout echange</p></div></div>';
 
-            // Generer le QR code avec le contenu qrCode de DGI
+            // Generer le QR code
             this.generateDGIQRCode(qrCodeContent, qrContainerId);
 
-            // Afficher le modal
+            // Afficher le modal du ticket
             $('#receipt-modal').classList.add('active');
 
             // Reinitialiser le bouton
-            $('#validate-sale').innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> Valider la vente';
+            $('#confirm-sale').innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> Confirmer la vente';
 
             // Vider le panier et rafraichir les produits
             this.clearCart();
             this.loadProducts();
 
         } catch (e) {
-            console.error('Erreur validateSale:', e);
+            console.error('Erreur confirmSale:', e);
             alert('Erreur serveur: ' + e.message);
         }
 
-        $('#validate-sale').disabled = false;
+        $('#confirm-sale').disabled = false;
     },
 
     async saveProduct() {
@@ -370,7 +417,7 @@ const posCart = {
         formData.append('id', $('#product-id').value);
         formData.append('code_barres', $('#product-barcode').value);
         formData.append('nom', $('#product-name').value);
-        formData.append('categorie', $('#product-category').value);
+        formData.append('category_id', $('#product-category').value);
         formData.append('prix', $('#product-price').value);
         formData.append('stock', $('#product-stock').value);
         formData.append('stock_minimum', $('#product-min-stock').value);
@@ -402,7 +449,7 @@ function editProduct(product) {
     $('#product-modal-title').textContent = 'Modifier le produit';
     $('#product-barcode').value = product.code_barres;
     $('#product-name').value = product.nom;
-    $('#product-category').value = product.categorie;
+    $('#product-category').value = product.category_id;
     $('#product-price').value = product.prix;
     $('#product-stock').value = product.stock;
     $('#product-min-stock').value = product.stock_minimum;
