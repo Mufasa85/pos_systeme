@@ -3,8 +3,9 @@
 namespace App\Controllers;
 
 use App\Models\User;
+use App\controllers\Controller;
 
-class AuthController
+class AuthController extends Controller
 {
     public function showLogin()
     {
@@ -17,8 +18,8 @@ class AuthController
 
     public function login()
     {
-        $username = trim($_POST['username'] ?? '');
-        $password = $_POST['password'] ?? '';
+        $username = $this->sanitaze(trim($_POST['username'] ?? ''));
+        $password = $this->sanitaze(trim($_POST['password'] ?? ''));
 
         $userModel = new User();
         $user = $userModel->login($username, $password);
@@ -30,8 +31,7 @@ class AuthController
             $_SESSION['role'] = $user['role'];
 
             // Repondre en JSON pour l'AJAX
-            header('Content-Type: application/json');
-            echo json_encode(['success' => true]);
+            $this->json(['success' => true]);
         } else {
             header('Content-Type: application/json');
             echo json_encode(['success' => false, 'message' => 'Identifiants incorrects']);

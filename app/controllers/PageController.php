@@ -91,7 +91,7 @@ class PageController
     public function parametres()
     {
         if ($_SESSION['role'] !== 'admin') {
-            header('Location: ' . APP_URL . '/dashboard');
+            header('Location: /dashboard');
             exit;
         }
         $this->render('parametres');
@@ -100,7 +100,7 @@ class PageController
     public function categories()
     {
         if ($_SESSION['role'] !== 'admin') {
-            header('Location: ' . APP_URL . '/dashboard');
+            header('Location: /dashboard');
             exit;
         }
         $productModel = new Product();

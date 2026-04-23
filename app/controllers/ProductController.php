@@ -3,26 +3,22 @@
 namespace App\Controllers;
 
 use App\Models\Product;
+use App\controllers\Controller;
 
-// app/controllers/ProductController.php
-
-//require_once BASE_PATH . 'app/models/Product.php';
-
-class ProductController
+class ProductController extends Controller
 {
     public function index()
     {
-        header('Content-Type: application/json');
         $productModel = new Product();
-        echo json_encode($productModel->getAll());
+        $this->json($productModel->getAll());
     }
 
     public function find()
     {
-        header('Content-Type: application/json');
-        $barcode = $_GET['code_barres'] ?? '';
+
+        $barcode = $this->sanitaze(trim($_GET['code_barres'] ?? ''));
         if (!$barcode) {
-            echo json_encode(['error' => 'Code-barre manquant']);
+            $this->json(['error' => 'Code-barre manquant']);
             return;
         }
 
@@ -31,27 +27,24 @@ class ProductController
         if ($product) {
             echo json_encode($product);
         } else {
-            http_response_code(404);
-            echo json_encode(['error' => 'Produit introuvable']);
+            self::status(404)->json(['error' => 'Produit introuvable']);
         }
     }
 
     public function create()
     {
-        header('Content-Type: application/json');
         if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
-            http_response_code(403);
-            echo json_encode(['error' => 'Accès refusé']);
+            self::status(403)->json(['error' => 'Accès refusé']);
             return;
         }
 
         $data = [
-            'code_barres' => $_POST['code_barres'],
-            'nom' => $_POST['nom'],
-            'categorie' => $_POST['categorie'],
-            'prix' => $_POST['prix'],
-            'stock' => $_POST['stock'],
-            'stock_minimum' => $_POST['stock_minimum']
+            'code_barres' => $this->sanitaze($_POST['code_barres']),
+            'nom' => $this->sanitaze($_POST['nom']),
+            'categorie' => $this->sanitaze($_POST['categorie']),
+            'prix' => $this->sanitaze($_POST['prix']),
+            'stock' => $this->sanitaze($_POST['stock']),
+            'stock_minimum' => $this->sanitaze($_POST['stock_minimum'])
         ];
 
         // Image upload
@@ -69,32 +62,30 @@ class ProductController
 
         $productModel = new Product();
         $id = $productModel->create($data);
-        echo json_encode(['success' => true, 'id' => $id]);
+        $this->json(['success' => true, 'id' => $id]);
     }
 
     public function update()
     {
-        header('Content-Type: application/json');
+
         if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
-            http_response_code(403);
-            echo json_encode(['error' => 'Accès refusé']);
+            $this->status(403)->json(['error' => 'Accès refusé']);
             return;
         }
 
-        $id = $_POST['id'] ?? null;
+        $id = $this->sanitaze($_POST['id'] ?? null);
         if (!$id) {
-            http_response_code(400);
-            echo json_encode(['error' => 'ID manquant']);
+            $this->status(400)->json(['error' => 'ID manquant']);
             return;
         }
 
         $data = [
-            'code_barres' => $_POST['code_barres'],
-            'nom' => $_POST['nom'],
-            'categorie' => $_POST['categorie'],
-            'prix' => $_POST['prix'],
-            'stock' => $_POST['stock'],
-            'stock_minimum' => $_POST['stock_minimum']
+            'code_barres' => $this->sanitaze($_POST['code_barres']),
+            'nom' => $this->sanitaze($_POST['nom']),
+            'categorie' => $this->sanitaze($_POST['categorie']),
+            'prix' => $this->sanitaze($_POST['prix']),
+            'stock' => $this->sanitaze($_POST['stock']),
+            'stock_minimum' => $this->sanitaze($_POST['stock_minimum'])
         ];
 
         // Image upload
@@ -112,26 +103,23 @@ class ProductController
 
         $productModel = new Product();
         $success = $productModel->update($id, $data);
-        echo json_encode(['success' => $success]);
+        $this->json(['success' => $success]);
     }
 
     public function delete()
     {
-        header('Content-Type: application/json');
         if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
-            http_response_code(403);
-            echo json_encode(['error' => 'Accès refusé']);
+            $this->status(403)->json(['error' => 'Accès refusé']);
             return;
         }
 
-        $id = $_POST['id'] ??  0;
+        $id = $this->sanitaze($_POST['id'] ??  0);
         if ($id) {
             $productModel = new Product();
             $success = $productModel->delete($id);
-            echo json_encode(['success' => $success]);
+            $this->json(['success' => $success]);
         } else {
-            http_response_code(400);
-            echo json_encode(['error' => 'ID manquant']);
+            $this->status(400)->json(['error' => 'ID manquant']);
         }
     }
 }
