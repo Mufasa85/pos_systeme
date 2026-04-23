@@ -1,12 +1,47 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>POS System - Caisse Professionnelle</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="mobile-caisse.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/qr-code-styling@1.5.0/lib/qr-code-styling.js"></script>
+</head>
+<body>
+  <!-- Login Page Container -->
+  <div id="login-container"></div>
+
+  <!-- Main App -->
+  <div id="main-app" class="main-app hidden">
+    <!-- Mobile Header Container -->
+    <div id="header-container"></div>
+    
+    <!-- Sidebar Container -->
+    <aside id="sidebar-container" class="sidebar-container"></aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <div id="page-container"></div>
     </main>
   </div>
 
+  <!-- Modals (always available) -->
   <!-- Receipt Modal -->
   <div id="receipt-modal" class="modal">
     <div class="modal-content receipt-modal">
       <div id="receipt-content" class="receipt"></div>
       <div class="receipt-actions">
-        <button id="print-receipt" class="btn btn-primary">
+        <button id="validate-receipt" class="btn btn-primary">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+          Valider la facture
+        </button>
+        <button id="print-receipt" class="btn btn-success hidden">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="6 9 6 2 18 2 18 9"></polyline>
             <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
@@ -14,7 +49,7 @@
           </svg>
           Imprimer
         </button>
-        <button id="close-receipt" class="btn btn-secondary" onclick="document.getElementById('receipt-modal').classList.remove('active')">Fermer</button>
+        <button id="close-receipt" class="btn btn-secondary">Fermer</button>
       </div>
     </div>
   </div>
@@ -24,17 +59,13 @@
     <div class="modal-content">
       <div class="modal-header">
         <h3 id="product-modal-title">Ajouter un produit</h3>
-        <button class="close-modal" onclick="document.getElementById('product-modal').classList.remove('active')">&times;</button>
+        <button class="close-modal">&times;</button>
       </div>
       <form id="product-form">
-        <input type="hidden" id="product-id">
         <div class="form-row">
           <div class="form-group">
             <label>Code-barres</label>
-            <div style="display:flex; gap:0.5rem;">
-                <input type="text" id="product-barcode" required style="flex:1;">
-                <button type="button" class="btn btn-secondary" onclick="generateBarcode()" title="Générer un code-barres" style="padding: 0 10px;">Générer</button>
-            </div>
+            <input type="text" id="product-barcode" required>
           </div>
           <div class="form-group">
             <label>Nom</label>
@@ -43,16 +74,9 @@
         </div>
         <div class="form-row">
           <div class="form-group">
-            <label>Catégorie</label>
-            <select id="product-category" required>
-              <option value="">Sélectionner...</option>
-              <option value="Comestible">Comestible</option>
-              <option value="Non Comestible">Non Comestible</option>
-              <option value="Service">Service</option>
-              <option value="Boissons">Boissons</option>
-              <option value="Alimentation">Alimentation</option>
-              <option value="Hygiène">Hygiène</option>
-              <option value="Ménage">Ménage</option>
+            <label>Categorie</label>
+          <select id="product-category" required>
+              <option value="">Sélectionner une catégorie...</option>
             </select>
           </div>
           <div class="form-group">
@@ -70,14 +94,8 @@
             <input type="number" id="product-min-stock" min="0" required>
           </div>
         </div>
-        <div class="form-row">
-          <div class="form-group" style="flex: 1;">
-            <label>Image Produit (Optionnel)</label>
-            <input type="file" id="product-image" accept="image/*">
-          </div>
-        </div>
         <div class="modal-actions">
-          <button type="button" class="btn btn-secondary" onclick="closeProductModal()">Annuler</button>
+          <button type="button" class="btn btn-secondary close-modal">Annuler</button>
           <button type="submit" class="btn btn-primary">Enregistrer</button>
         </div>
       </form>
@@ -89,35 +107,31 @@
     <div class="modal-content">
       <div class="modal-header">
         <h3 id="user-modal-title">Ajouter un utilisateur</h3>
-        <button class="close-modal" onclick="document.getElementById('user-modal').classList.remove('active')">&times;</button>
+        <button class="close-modal">&times;</button>
       </div>
       <form id="user-form">
-        <input type="hidden" id="user-id">
-        <div class="form-row">
-          <div class="form-group">
-            <label>Nom d'utilisateur</label>
-            <input type="text" id="user-username" required>
-          </div>
-          <div class="form-group">
-            <label>Mot de passe</label>
-            <input type="password" id="user-password" placeholder="(Laisser vide si inchangé)">
-          </div>
+        <div class="form-group">
+          <label>Nom d'utilisateur</label>
+          <input type="text" id="user-username" required>
         </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label>Nom Complet</label>
-            <input type="text" id="user-fullname" required>
-          </div>
-          <div class="form-group">
-            <label>Rôle</label>
-            <select id="user-role" required>
-              <option value="vendeur">Vendeur</option>
-              <option value="admin">Administrateur</option>
-            </select>
-          </div>
+        <div class="form-group">
+          <label>Mot de passe</label>
+          <input type="password" id="user-password">
+          <small id="password-hint">Laissez vide pour conserver l'ancien mot de passe</small>
+        </div>
+        <div class="form-group">
+          <label>Nom complet</label>
+          <input type="text" id="user-fullname" required>
+        </div>
+        <div class="form-group">
+          <label>Role</label>
+          <select id="user-role" required>
+            <option value="vendeur">Vendeur</option>
+            <option value="admin">Administrateur</option>
+          </select>
         </div>
         <div class="modal-actions">
-          <button type="button" class="btn btn-secondary close-modal" onclick="document.getElementById('user-modal').classList.remove('active')">Annuler</button>
+          <button type="button" class="btn btn-secondary close-modal">Annuler</button>
           <button type="submit" class="btn btn-primary">Enregistrer</button>
         </div>
       </form>
@@ -129,7 +143,7 @@
     <div class="modal-content">
       <div class="modal-header">
         <h3 id="category-modal-title">Ajouter une catégorie</h3>
-        <button class="close-modal" onclick="document.getElementById('category-modal').classList.remove('active')">&times;</button>
+        <button class="close-modal">&times;</button>
       </div>
       <form id="category-form">
         <div class="form-group" style="margin-bottom:1rem;">
@@ -145,13 +159,14 @@
           </div>
         </div>
         <div class="modal-actions">
-          <button type="button" class="btn btn-secondary close-modal" onclick="document.getElementById('category-modal').classList.remove('active')">Annuler</button>
+          <button type="button" class="btn btn-secondary close-modal">Annuler</button>
           <button type="submit" class="btn btn-primary">Enregistrer</button>
         </div>
       </form>
     </div>
   </div>
 
-  <script src="./assets/js/app.js"></script>
+  <script src="templates.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>

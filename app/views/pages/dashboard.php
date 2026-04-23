@@ -1,0 +1,77 @@
+<!-- Dashboard Page -->
+<div id="page-dashboard" class="page active">
+  <div class="page-header">
+    <h2>Tableau de bord</h2>
+    <p id="current-date"></p>
+  </div>
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-icon blue">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="12" y1="1" x2="12" y2="23"></line>
+          <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+        </svg>
+      </div>
+      <div class="stat-info">
+        <span class="stat-label">Ventes du jour</span>
+        <span class="stat-value" id="stat-today">0.00 Fc</span>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon green">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
+          <polyline points="17 6 23 6 23 12"></polyline>
+        </svg>
+      </div>
+      <div class="stat-info">
+        <span class="stat-label">Ventes semaine</span>
+        <span class="stat-value" id="stat-week">0.00 Fc</span>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon cyan">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+          <line x1="3" y1="6" x2="21" y2="6"></line>
+          <path d="M16 10a4 4 0 0 1-8 0"></path>
+        </svg>
+      </div>
+      <div class="stat-info">
+        <span class="stat-label">Produits</span>
+        <span class="stat-value" id="stat-products">0</span>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon orange">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+          <line x1="12" y1="9" x2="12" y2="13"></line>
+          <line x1="12" y1="17" x2="12.01" y2="17"></line>
+        </svg>
+      </div>
+      <div class="stat-info">
+        <span class="stat-label">Stock faible</span>
+        <span class="stat-value" id="stat-low-stock">0</span>
+      </div>
+    </div>
+  </div>
+  <div class="dashboard-grid">
+    <div class="card">
+      <div class="card-header">
+        <h3>Dernieres ventes</h3>
+      </div>
+      <div class="card-body">
+        <div id="recent-sales" class="recent-list"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <h3>Alertes de stock</h3>
+      </div>
+      <div class="card-body">
+        <div id="stock-alerts" class="alert-list"></div>
+      </div>
+    </div>
+  </div>
+</div>
