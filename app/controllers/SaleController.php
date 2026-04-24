@@ -56,12 +56,10 @@ class SaleController extends Controller
 
             $db->commit();
             $this->json(['success' => true, 'numero_facture' => $invoiceNum, 'vente_id' => $saleId]);
-
         } catch (\Exception $e) {
             $db->rollBack();
             $this->status(500)->json(['error' => 'Erreur lors de la vente: ' . $e->getMessage()]);
         }
-
     }
 
     public function delete($id)
@@ -97,11 +95,36 @@ class SaleController extends Controller
 
             $db->commit();
             $this->json(['success' => true, 'message' => 'Vente supprimée avec succès']);
-
         } catch (\Exception $e) {
             $db->rollBack();
             http_response_code(500);
             $this->status(500)->json(['error' => 'Erreur lors de la suppression: ' . $e->getMessage()]);
         }
+    }
+
+    public function details($params)
+    {
+        $id = $params['id'] ?? null;
+
+        if (!$id) {
+            $this->status(400)->json(['error' => 'ID manquant']);
+            return;
+        }
+
+        $saleModel = new Sale();
+        $detailModel = new SaleDetail();
+
+        $sale = $saleModel->exist($id);
+        if (!$sale) {
+            $this->status(404)->json(['error' => 'Vente inexistante']);
+            return;
+        }
+
+        $details = $detailModel->getBySaleId($id);
+
+        $this->json([
+            'sale' => $sale,
+            'details' => $details
+        ]);
     }
 }

@@ -27,6 +27,7 @@ Router::post("/api/delete/category", [CategoryController::class, 'delete']);
 // Suppression d'une vente
 Router::post("/api/delete/vente", [SaleController::class, 'delete']);
 Router::post("/api/vente", [SaleController::class, 'create']);
+Router::get("/api/vente/[i:id]/details", [SaleController::class, 'details']);
 
 // Proxy DGI API avec CORS
 Router::get("/api/dgi", function () {

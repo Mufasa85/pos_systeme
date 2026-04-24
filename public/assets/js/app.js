@@ -760,6 +760,93 @@ function deleteCategory(id) {
     }
 }
 
+// ==================== SALE DETAILS ====================
+
+function viewSaleDetails(saleId) {
+    fetch(APP_URL + '/api/vente/' + saleId + '/details')
+        .then(res => res.json())
+        .then(data => {
+            if (data.error) {
+                alert(data.error);
+                return;
+            }
+
+            const sale = data.sale;
+            const details = data.details;
+
+            let itemsHtml = '';
+            let totalItems = 0;
+
+            details.forEach(item => {
+                totalItems += parseInt(item.quantite);
+                const subtotal = parseFloat(item.quantite) * parseFloat(item.prix);
+                itemsHtml += `
+                    <tr style="border-bottom:1px solid #eee;">
+                        <td style="padding:0.5rem;">${item.produit_nom || 'Produit #' + item.produit_id}</td>
+                        <td style="padding:0.5rem; text-align:center;">${item.quantite}</td>
+                        <td style="padding:0.5rem; text-align:right;">${parseFloat(item.prix).toFixed(2)} Fc</td>
+                        <td style="padding:0.5rem; text-align:right; font-weight:600;">${subtotal.toFixed(2)} Fc</td>
+                    </tr>
+                `;
+            });
+
+            const formattedDate = new Date(sale.date).toLocaleString('fr-FR', {
+                day: '2-digit', month: '2-digit', year: 'numeric',
+                hour: '2-digit', minute: '2-digit'
+            });
+
+            document.getElementById('sale-details-title').textContent = 'Facture ' + sale.numero_facture;
+            document.getElementById('sale-details-content').innerHTML = `
+                <div style="margin-bottom:1rem; padding-bottom:1rem; border-bottom:1px solid #eee;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:0.5rem;">
+                        <span style="color:var(--muted);">Date:</span>
+                        <span style="font-weight:500;">${formattedDate}</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; margin-bottom:0.5rem;">
+                        <span style="color:var(--muted);">Vendeur:</span>
+                        <span style="font-weight:500;">${sale.nom_vendeur || 'N/A'}</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between;">
+                        <span style="color:var(--muted);">Articles:</span>
+                        <span style="font-weight:500;">${totalItems}</span>
+                    </div>
+                </div>
+                
+                <table style="width:100%; border-collapse:collapse; margin-bottom:1rem;">
+                    <thead>
+                        <tr style="background:#f5f5f5;">
+                            <th style="padding:0.5rem; text-align:left;">Produit</th>
+                            <th style="padding:0.5rem; text-align:center;">Qte</th>
+                            <th style="padding:0.5rem; text-align:right;">Prix</th>
+                            <th style="padding:0.5rem; text-align:right;">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${itemsHtml}
+                    </tbody>
+                </table>
+                
+                <div style="border-top:2px solid #333; padding-top:1rem;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:0.5rem;">
+                        <span>Sous-total HT:</span>
+                        <span>${parseFloat(sale.sous_total_ht).toFixed(2)} Fc</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; margin-bottom:0.5rem;">
+                        <span>TVA (20%):</span>
+                        <span>${parseFloat(sale.tva).toFixed(2)} Fc</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; font-size:1.25rem; font-weight:700;">
+                        <span>TOTAL:</span>
+                        <span>${parseFloat(sale.total).toFixed(2)} Fc</span>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('sale-details-modal').classList.add('active');
+        })
+        .catch(() => alert('Erreur serveur'));
+}
+
 function closeProductModal() {
     $('#product-modal').classList.remove('active');
     $('#product-form').reset();

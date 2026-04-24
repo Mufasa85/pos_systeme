@@ -46,6 +46,10 @@ class Sale
     }
     public function exist($id)
     {
-        return $this->db->fetch("SELECT * FROM ventes WHERE id = ?", [$id]);
+        $sql = "SELECT v.*, u.nom_complet as nom_vendeur 
+                FROM ventes v 
+                LEFT JOIN utilisateurs u ON v.vendeur_id = u.id 
+                WHERE v.id = ?";
+        return $this->db->fetch($sql, [$id]);
     }
 }

@@ -28,4 +28,13 @@ class SaleDetail
     {
         return $this->db->fetch("SELECT * FROM details_vente WHERE id = ?", [$id]);
     }
+
+    public function getBySaleId($saleId)
+    {
+        $sql = "SELECT dv.*, p.nom as produit_nom, p.code_barres 
+                FROM details_vente dv 
+                LEFT JOIN produits p ON dv.produit_id = p.id 
+                WHERE dv.vente_id = ?";
+        return $this->db->fetchAll($sql, [$saleId]);
+    }
 }
