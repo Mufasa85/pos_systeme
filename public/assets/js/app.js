@@ -781,12 +781,12 @@ function viewSaleDetails(saleId) {
                 totalItems += parseInt(item.quantite);
                 const subtotal = parseFloat(item.quantite) * parseFloat(item.prix);
                 itemsHtml += `
-                    <tr style="border-bottom:1px solid #eee;">
-                        <td style="padding:0.5rem;">${item.produit_nom || 'Produit #' + item.produit_id}</td>
-                        <td style="padding:0.5rem; text-align:center;">${item.quantite}</td>
-                        <td style="padding:0.5rem; text-align:right;">${parseFloat(item.prix).toFixed(2)} Fc</td>
-                        <td style="padding:0.5rem; text-align:right; font-weight:600;">${subtotal.toFixed(2)} Fc</td>
-                    </tr>
+                    <div class="receipt-item">
+                        <span class="item-name">${item.produit_nom || 'Produit #' + item.produit_id}</span>
+                        <span class="item-qty">x${item.quantite}</span>
+                        <span class="item-pu">${parseFloat(item.prix).toFixed(2)}</span>
+                        <span class="item-price">${subtotal.toFixed(2)}</span>
+                    </div>
                 `;
             });
 
@@ -795,56 +795,112 @@ function viewSaleDetails(saleId) {
                 hour: '2-digit', minute: '2-digit'
             });
 
-            document.getElementById('sale-details-title').textContent = 'Facture ' + sale.numero_facture;
             document.getElementById('sale-details-content').innerHTML = `
-                <div style="margin-bottom:1rem; padding-bottom:1rem; border-bottom:1px solid #eee;">
-                    <div style="display:flex; justify-content:space-between; margin-bottom:0.5rem;">
-                        <span style="color:var(--muted);">Date:</span>
-                        <span style="font-weight:500;">${formattedDate}</span>
+                <div class="receipt">
+                    <div class="receipt-header">
+                        <div class="store-name">SuperMarche Express</div>
+                        <div class="store-info">
+                            123 Rue Mohammed V, Casablanca<br>
+                            Tel: +212 522 123 456<br>
+                            ICE: 001234567890123
+                        </div>
                     </div>
-                    <div style="display:flex; justify-content:space-between; margin-bottom:0.5rem;">
-                        <span style="color:var(--muted);">Vendeur:</span>
-                        <span style="font-weight:500;">${sale.nom_vendeur || 'N/A'}</span>
+
+                    <div class="receipt-meta">
+                        <span>${sale.numero_facture}</span>
+                        <span>${formattedDate}</span>
                     </div>
-                    <div style="display:flex; justify-content:space-between;">
-                        <span style="color:var(--muted);">Articles:</span>
-                        <span style="font-weight:500;">${totalItems}</span>
-                    </div>
-                </div>
-                
-                <table style="width:100%; border-collapse:collapse; margin-bottom:1rem;">
-                    <thead>
-                        <tr style="background:#f5f5f5;">
-                            <th style="padding:0.5rem; text-align:left;">Produit</th>
-                            <th style="padding:0.5rem; text-align:center;">Qte</th>
-                            <th style="padding:0.5rem; text-align:right;">Prix</th>
-                            <th style="padding:0.5rem; text-align:right;">Total</th>
-                        </tr>
-                    </thead>
-                    <tbody>
+
+                    <div class="receipt-items">
+                        <div class="receipt-item" style="font-weight: 700; border-bottom: 1px solid #333; margin-bottom: 5px;">
+                            <span class="item-name">Article</span>
+                            <span class="item-qty">Qte</span>
+                            <span class="item-pu">PU</span>
+                            <span class="item-price">Total</span>
+                        </div>
                         ${itemsHtml}
-                    </tbody>
-                </table>
-                
-                <div style="border-top:2px solid #333; padding-top:1rem;">
-                    <div style="display:flex; justify-content:space-between; margin-bottom:0.5rem;">
-                        <span>Sous-total HT:</span>
-                        <span>${parseFloat(sale.sous_total_ht).toFixed(2)} Fc</span>
                     </div>
-                    <div style="display:flex; justify-content:space-between; margin-bottom:0.5rem;">
-                        <span>TVA (20%):</span>
-                        <span>${parseFloat(sale.tva).toFixed(2)} Fc</span>
+
+                    <div class="receipt-totals">
+                        <div class="receipt-total-row">
+                            <span>Sous-total HT:</span>
+                            <span>${parseFloat(sale.sous_total_ht).toFixed(2)} Fc</span>
+                        </div>
+                        <div class="receipt-total-row">
+                            <span>TVA (20%):</span>
+                            <span>${parseFloat(sale.tva).toFixed(2)} Fc</span>
+                        </div>
+                        <div class="receipt-total-row grand-total">
+                            <span>TOTAL TTC:</span>
+                            <span>${parseFloat(sale.total).toFixed(2)} Fc</span>
+                        </div>
                     </div>
-                    <div style="display:flex; justify-content:space-between; font-size:1.25rem; font-weight:700;">
-                        <span>TOTAL:</span>
-                        <span>${parseFloat(sale.total).toFixed(2)} Fc</span>
+
+                    <div class="receipt-footer">
+                        <div class="vendeur-info">Vendeur: ${sale.nom_vendeur || 'N/A'}</div>
+                        <div class="barcode">||| ${sale.numero_facture} |||</div>
+                        <div class="thank-you">Merci de votre visite!</div>
+                        <p style="margin-top: 5px; color: #555; font-size: 9px;">Conservez ce ticket pour tout echange</p>
                     </div>
                 </div>
             `;
 
+            // Setup print button
+            $('#print-sale-btn').onclick = () => printSaleReceipt(saleId);
+
             document.getElementById('sale-details-modal').classList.add('active');
         })
         .catch(() => alert('Erreur serveur'));
+}
+
+function printSaleReceipt(saleId) {
+    const content = $('#sale-details-content').innerHTML;
+    const printWindow = window.open('', '_blank', 'width=400,height=600');
+
+    const styles = `
+        <style>
+            @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap');
+            @page { margin: 0; }
+            body { margin: 0; padding: 10px; background: white; color: black; display: flex; justify-content: center; }
+            .receipt { font-family: 'JetBrains Mono', 'Courier New', monospace; font-size: 12px; line-height: 1.4; width: 80mm; padding: 5mm; }
+            .receipt-header { text-align: center; border-bottom: 1px dashed #000; padding-bottom: 15px; margin-bottom: 15px; }
+            .receipt-header .store-name { font-size: 18px; font-weight: 700; margin-bottom: 5px; text-transform: uppercase; }
+            .receipt-header .store-info { font-size: 11px; }
+            .receipt-meta { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 15px; padding-bottom: 8px; border-bottom: 1px dashed #000; }
+            .receipt-items { margin-bottom: 15px; }
+            .receipt-item { display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 11px; }
+            .receipt-item .item-name { flex: 3; min-width: 0; white-space: normal; overflow-wrap: break-word; }
+            .receipt-item .item-qty { flex: 0.5; text-align: right; min-width: 30px; }
+            .receipt-item .item-pu { flex: 1; text-align: center; min-width: 50px; }
+            .receipt-item .item-price { flex: 1; text-align: right; font-weight: 600; min-width: 60px; }
+            .receipt-totals { margin-bottom: 15px; }
+            .receipt-total-row { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 11px; }
+            .receipt-total-row.grand-total { font-size: 16px; font-weight: 700; border-top: 2px solid #000; border-bottom: 2px solid #000; padding: 10px 0; margin-top: 10px; }
+            .receipt-footer { text-align: center; margin-top: 15px; padding-top: 15px; border-top: 1px dashed #000; font-size: 11px; }
+            .barcode { font-size: 18px; letter-spacing: 3px; font-weight: 700; margin: 15px 0; }
+            .vendeur-info { margin-bottom: 10px; }
+            .thank-you { font-style: italic; margin-top: 10px; }
+        </style>
+    `;
+
+    printWindow.document.write(`
+        <html>
+            <head>
+                <title>Ticket de Caisse</title>
+                ${styles}
+            </head>
+            <body>
+                ${content}
+            </body>
+        </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+
+    setTimeout(() => {
+        printWindow.print();
+        printWindow.close();
+    }, 500);
 }
 
 function closeProductModal() {
@@ -915,20 +971,20 @@ function initSidebar() {
 // Attach init
 function initProductsTabs() {
     const filterInput = $('#products-filter');
+    const categoryFilter = $('#category-filter');
     const refreshBtn = $('#refresh-products');
-    const tabs = $$('.category-tab');
 
-    function filterProductsTable(search = '', activeCategory = 'all') {
+    function filterProductsTable(search = '', category = 'all') {
         const rows = $$('#products-table tr[data-category]');
         let visibleCount = 0;
 
         rows.forEach(row => {
-            const category = row.dataset.category.toLowerCase();
-            const nom = row.cells[0].textContent.toLowerCase();
-            const code = row.cells[1].textContent.toLowerCase();
+            const rowCategory = row.dataset.category ? row.dataset.category.toLowerCase() : '';
+            const nom = row.querySelector('td:nth-child(2)')?.textContent.toLowerCase() || '';
+            const code = row.querySelector('td:nth-child(3)')?.textContent.toLowerCase() || '';
 
             const matchesSearch = !search || nom.includes(search.toLowerCase()) || code.includes(search.toLowerCase());
-            const matchesCategory = activeCategory === 'all' || category === activeCategory.toLowerCase();
+            const matchesCategory = category === 'all' || rowCategory === category.toLowerCase();
 
             if (matchesSearch && matchesCategory) {
                 row.style.display = '';
@@ -938,31 +994,43 @@ function initProductsTabs() {
             }
         });
 
-        if (visibleCount === 0) {
-            // Could add empty state row if wanted
+        // Afficher un message si aucun résultat
+        let emptyMsg = $('#products-empty-message');
+        if (!emptyMsg && visibleCount === 0 && rows.length > 0) {
+            const table = $('#products-table');
+            const tr = document.createElement('tr');
+            tr.id = 'products-empty-message';
+            tr.innerHTML = '<td colspan="7" style="text-align:center; padding:2rem; color:#888;">Aucun produit trouvé</td>';
+            table.appendChild(tr);
+        } else if (emptyMsg && visibleCount > 0) {
+            emptyMsg.remove();
         }
     }
 
-    tabs.forEach(tab => {
-        tab.addEventListener('click', (e) => {
-            tabs.forEach(t => t.classList.remove('active'));
-            e.target.classList.add('active');
-            filterProductsTable(filterInput.value, e.target.dataset.category);
-        });
-    });
-
+    // Ecouter le champ de recherche
     if (filterInput) {
         filterInput.addEventListener('input', (e) => {
-            filterProductsTable(e.target.value, document.querySelector('.category-tab.active').dataset.category);
+            const category = categoryFilter ? categoryFilter.value : 'all';
+            filterProductsTable(e.target.value, category);
         });
     }
 
+    // Ecouter le select de catégorie
+    if (categoryFilter) {
+        categoryFilter.addEventListener('change', (e) => {
+            const search = filterInput ? filterInput.value : '';
+            filterProductsTable(search, e.target.value);
+        });
+    }
+
+    // Bouton refresh
     if (refreshBtn) {
         refreshBtn.addEventListener('click', () => {
             window.location.reload();
         });
     }
 
+    // Filtrer initial
     filterProductsTable();
 }
 

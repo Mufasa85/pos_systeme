@@ -51,13 +51,24 @@
 
       <!-- Sale Details Modal -->
       <div id="sale-details-modal" class="modal">
-        <div class="modal-content" style="max-width:500px;">
-          <div class="modal-header">
-            <h3 id="sale-details-title">Détails de la vente</h3>
-            <button class="close-modal" onclick="document.getElementById('sale-details-modal').classList.remove('active')">&times;</button>
+        <div class="modal-content receipt-modal">
+          <div class="receipt-scrollable">
+            <div id="sale-details-content">
+              <!-- Contenu généré par JavaScript -->
+            </div>
           </div>
-          <div id="sale-details-content" style="padding:1rem;">
-            <!-- Contenu généré par JavaScript -->
+          <div class="receipt-actions">
+            <button class="btn btn-secondary" onclick="document.getElementById('sale-details-modal').classList.remove('active')">
+              Annuler
+            </button>
+            <button class="btn btn-primary" id="print-sale-btn">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="6 9 6 2 18 2 18 9"></polyline>
+                <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+                <rect x="6" y="14" width="12" height="8"></rect>
+              </svg>
+              Imprimer
+            </button>
           </div>
         </div>
       </div>
