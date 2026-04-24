@@ -14,8 +14,8 @@
     const APP_URL = window.location.origin;
     const CURRENT_USER = <?= json_encode([
                             'id' => $_SESSION['user_id'] ?? null,
-                            'username' => $_SESSION['username'] ?? '',
-                            'fullName' => $_SESSION['full_name'] ?? '',
+                            'username' => $_SESSION['nom_utilisateur'] ?? '',
+                            'fullName' => $_SESSION['nom_complet'] ?? '',
                             'role' => $_SESSION['role'] ?? 'vendeur'
                           ]) ?>;
   </script>

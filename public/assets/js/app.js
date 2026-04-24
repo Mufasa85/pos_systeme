@@ -8,7 +8,7 @@ const DGI_API_URL = APP_URL + '/api/dgi';
 
 const posCart = {
     items: [],
-    taxRate: 20,
+    taxRate: 16,
     currentSaleData: null,
     dgiResponse: null,
 
@@ -163,16 +163,17 @@ const posCart = {
             $('#show-preview').disabled = false;
         }
 
-        const subtotal = this.items.reduce((s, i) => s + (i.prix * i.quantite), 0);
+        // Les prix sont maintenant HT (sans TVA), on calcule la TVA puis le TTC
+        const subtotalHT = this.items.reduce((s, i) => s + (i.prix * i.quantite), 0);
         const taxRate = this.taxRate / 100;
-        const subtotalHT = subtotal / (1 + taxRate);
-        const tax = subtotal - subtotalHT;
+        const tax = subtotalHT * taxRate;
+        const subtotalTTC = subtotalHT;
 
         $('#subtotal').textContent = formatCurrency(subtotalHT);
         $('#tax').textContent = formatCurrency(tax);
-        $('#total').textContent = formatCurrency(subtotal);
+        $('#total').textContent = formatCurrency(subtotalTTC);
 
-        this.currentTotals = { sous_total_ht: subtotalHT, tva: tax, total: subtotal };
+        this.currentTotals = { sous_total_ht: subtotalHT, tva: tax, total: subtotalTTC };
     },
 
     // Appeler l'API DGI pour valider la facture
@@ -262,7 +263,6 @@ const posCart = {
                 <div class="receipt-item">
                     <span class="item-name">${item.nom}</span>
                     <span class="item-qty">x${item.quantite}</span>
-                    <span class="item-pu">${item.prix.toFixed(2)}</span>
                     <span class="item-price">${(item.prix * item.quantite).toFixed(2)}</span>
                 </div>
             `;
@@ -288,7 +288,6 @@ const posCart = {
                     <div class="receipt-item" style="font-weight: 700; border-bottom: 1px solid #333; margin-bottom: 5px;">
                         <span class="item-name">Article</span>
                         <span class="item-qty">Qte</span>
-                        <span class="item-pu">PU</span>
                         <span class="item-price">Total</span>
                     </div>
                     ${itemsHtml}
@@ -300,7 +299,7 @@ const posCart = {
                         <span>${this.currentTotals.sous_total_ht.toFixed(2)} Fc</span>
                     </div>
                     <div class="receipt-total-row">
-                        <span>TVA (20%):</span>
+                        <span>TVA (16%):</span>
                         <span>${this.currentTotals.tva.toFixed(2)} Fc</span>
                     </div>
                     <div class="receipt-total-row grand-total">
@@ -384,8 +383,8 @@ const posCart = {
             // Construire le HTML du recap DGI
             let dgiInfoHtml = '<div style="background: #e8f5e9; border: 1px solid #4caf50; border-radius: 8px; padding: 10px; margin: 10px 0; text-align: center;"><div style="color: #2e7d32; font-weight: bold; font-size: 11px;">VALIDE DGI - ' + (dgiResponse.message || 'Facture generee avec succes') + '</div>';
             if (dgiResponse.data) {
-                dgiInfoHtml += '<div style="font-size: 10px; color: #555; margin-top: 5px;">';
-                if (dgiResponse.data.dateDGI) dgiInfoHtml += 'Date: ' + dgiResponse.data.dateDGI + ' | ';
+                dgiInfoHtml += '<div style="font-size: 14px; color: #555; margin-top: 5px;">';
+                if (dgiResponse.data.dateDGI) dgiInfoHtml += 'Date: ' + dgiResponse.data.dateDGI + '\n';
                 if (dgiResponse.data.counters) dgiInfoHtml += 'Compteur: ' + dgiResponse.data.counters;
                 if (dgiResponse.data.codeDEFDGI) dgiInfoHtml += '<br>DEF: ' + dgiResponse.data.codeDEFDGI;
                 dgiInfoHtml += '</div>';
@@ -405,7 +404,6 @@ const posCart = {
                     <div class="receipt-item">
                         <span class="item-name">${item.nom}</span>
                         <span class="item-qty">x${item.quantite}</span>
-                        <span class="item-pu">${item.prix.toFixed(2)}</span>
                         <span class="item-price">${(item.prix * item.quantite).toFixed(2)}</span>
                     </div>
                 `;
@@ -432,7 +430,6 @@ const posCart = {
                         <div class="receipt-item" style="font-weight: 700; border-bottom: 1px solid #333; margin-bottom: 5px;">
                             <span class="item-name">Article</span>
                             <span class="item-qty">Qte</span>
-                            <span class="item-pu">PU</span>
                             <span class="item-price">Total</span>
                         </div>
                         ${itemsHtml}
@@ -444,7 +441,7 @@ const posCart = {
                             <span>${this.currentTotals.sous_total_ht.toFixed(2)} Fc</span>
                         </div>
                         <div class="receipt-total-row">
-                            <span>TVA (20%):</span>
+                            <span>TVA (16%):</span>
                             <span>${this.currentTotals.tva.toFixed(2)} Fc</span>
                         </div>
                         <div class="receipt-total-row grand-total">
@@ -784,7 +781,6 @@ function viewSaleDetails(saleId) {
                     <div class="receipt-item">
                         <span class="item-name">${item.produit_nom || 'Produit #' + item.produit_id}</span>
                         <span class="item-qty">x${item.quantite}</span>
-                        <span class="item-pu">${parseFloat(item.prix).toFixed(2)}</span>
                         <span class="item-price">${subtotal.toFixed(2)}</span>
                     </div>
                 `;
@@ -815,7 +811,6 @@ function viewSaleDetails(saleId) {
                         <div class="receipt-item" style="font-weight: 700; border-bottom: 1px solid #333; margin-bottom: 5px;">
                             <span class="item-name">Article</span>
                             <span class="item-qty">Qte</span>
-                            <span class="item-pu">PU</span>
                             <span class="item-price">Total</span>
                         </div>
                         ${itemsHtml}
@@ -827,7 +822,7 @@ function viewSaleDetails(saleId) {
                             <span>${parseFloat(sale.sous_total_ht).toFixed(2)} Fc</span>
                         </div>
                         <div class="receipt-total-row">
-                            <span>TVA (20%):</span>
+                            <span>TVA (16%):</span>
                             <span>${parseFloat(sale.tva).toFixed(2)} Fc</span>
                         </div>
                         <div class="receipt-total-row grand-total">
@@ -1024,8 +1019,8 @@ function _printReceiptContent(content) {
             * { box-sizing: border-box; margin: 0; padding: 0; }
             body {
                 font-family: 'Courier New', Courier, monospace;
-                font-size: 11px;
-                line-height: 1.45;
+                font-size: 14px;
+                line-height: 1.5;
                 width: 100%;
                 max-width: 76mm;
                 margin: 0 auto;
@@ -1034,31 +1029,30 @@ function _printReceiptContent(content) {
             }
             /* === EN-TETE MAGASIN === */
             .receipt { width: 100%; }
-            .receipt-header { text-align: center; border-bottom: 1px dashed #000; padding-bottom: 10px; margin-bottom: 10px; }
-            .receipt-header .store-name { font-size: 15px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
-            .receipt-header .store-info { font-size: 10px; line-height: 1.5; color: #222; }
+            .receipt-header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 12px; margin-bottom: 12px; }
+            .receipt-header .store-name { font-size: 20px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+            .receipt-header .store-info { font-size: 13px; line-height: 1.6; color: #222; }
             /* === META (numero + date) === */
-            .receipt-meta { display: flex; justify-content: space-between; font-size: 10px; font-weight: 600; padding: 6px 0; margin-bottom: 8px; border-bottom: 1px dashed #000; }
+            .receipt-meta { display: flex; justify-content: space-between; font-size: 13px; font-weight: 600; padding: 8px 0; margin-bottom: 10px; border-bottom: 2px solid #000; }
             /* === TABLEAU ARTICLES === */
-            .receipt-items { margin-bottom: 8px; }
-            .receipt-item { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 3px; font-size: 10px; gap: 2px; }
-            .receipt-item .item-name  { flex: 3;   min-width: 0; white-space: normal; overflow-wrap: break-word; }
-            .receipt-item .item-qty   { flex: 0.6; text-align: center; white-space: nowrap; }
-            .receipt-item .item-pu    { flex: 1;   text-align: right;  white-space: nowrap; }
+            .receipt-items { margin-bottom: 10px; }
+            .receipt-item { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 5px; font-size: 13px; gap: 3px; }
+            .receipt-item .item-name  { flex: 2;   min-width: 0; white-space: normal; overflow-wrap: break-word; }
+            .receipt-item .item-qty   { flex: 1;   text-align: center; white-space: nowrap; }
             .receipt-item .item-price { flex: 1;   text-align: right;  font-weight: 700; white-space: nowrap; }
             /* === TOTAUX === */
-            .receipt-totals { margin-bottom: 6px; }
-            .receipt-total-row { display: flex; justify-content: space-between; font-size: 10px; margin-bottom: 3px; }
-            .receipt-total-row.grand-total { font-size: 14px; font-weight: 700; border-top: 2px solid #000; border-bottom: 2px solid #000; padding: 6px 0; margin-top: 6px; }
+            .receipt-totals { margin-bottom: 8px; }
+            .receipt-total-row { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 5px; }
+            .receipt-total-row.grand-total { font-size: 18px; font-weight: 700; border-top: 3px solid #000; border-bottom: 3px solid #000; padding: 8px 0; margin-top: 8px; }
             /* === BOITE DGI VERTE (inline styles du JS) === */
-            div[style*="e8f5e9"], div[style*="4caf50"] { border-radius: 4px; padding: 6px 8px !important; margin: 8px 0 !important; font-size: 10px !important; }
+            div[style*="e8f5e9"], div[style*="4caf50"] { border-radius: 4px; padding: 8px 10px !important; margin: 10px 0 !important; font-size: 13px !important; }
             /* === PIED DE PAGE === */
-            .receipt-footer { text-align: center; margin-top: 10px; padding-top: 8px; border-top: 1px dashed #000; font-size: 10px; }
-            .vendeur-info { margin-bottom: 6px; }
+            .receipt-footer { text-align: center; margin-top: 12px; padding-top: 10px; border-top: 2px solid #000; font-size: 13px; }
+            .vendeur-info { margin-bottom: 8px; }
             .qrcode-container {
                 width: 100%;
                 text-align: center;
-                margin: 8px 0;
+                margin: 10px 0;
                 overflow: visible;
             }
             .qrcode-container > div {
@@ -1069,12 +1063,12 @@ function _printReceiptContent(content) {
             .qrcode-container img {
                 display: block;
                 margin: 0 auto;
-                max-width: 130px;
+                max-width: 160px;
                 height: auto;
                 overflow: visible;
             }
-            .barcode { font-size: 13px; letter-spacing: 2px; font-weight: 700; margin: 5px 0; text-align: center; }
-            .thank-you { font-style: italic; margin-top: 6px; font-size: 10px; }
+            .barcode { font-size: 18px; letter-spacing: 3px; font-weight: 700; margin: 8px 0; text-align: center; }
+            .thank-you { font-style: italic; margin-top: 8px; font-size: 13px; }
         </style>
     `;
 
@@ -1098,12 +1092,12 @@ function _printReceiptContent(content) {
                         svg.setAttribute('viewBox', `0 0 ${origW} ${origH}`);
                     }
                     // Forcer les dimensions CSS via attributs (override la lib)
-                    svg.setAttribute('width', '130');
-                    svg.setAttribute('height', '130');
-                    svg.style.width  = '130px';
-                    svg.style.height = '130px';
+                    svg.setAttribute('width', '220');
+                    svg.setAttribute('height', '220');
+                    svg.style.width = '220px';
+                    svg.style.height = '220px';
                     svg.style.display = 'block';
-                    svg.style.margin  = '0 auto';
+                    svg.style.margin = '0 auto';
                     svg.style.overflow = 'visible';
                 });
 
