@@ -48,12 +48,36 @@ class ProductController extends Controller
 
         // Image upload
         if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
-            $uploadDir = BASE_PATH . 'public/assets/img/products/';
+            $uploadDir = dirname(__DIR__, 2) . '/public/assets/img/products/';
             if (!is_dir($uploadDir)) {
                 mkdir($uploadDir, 0755, true);
             }
-            $fileName = uniqid() . '_' . basename($_FILES['image']['name']);
+
+            // Obtenir l'extension du fichier
+            $extension = strtolower(pathinfo($_FILES['image']['name'], PATHINFO_EXTENSION));
+            $allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+
+            if (!in_array($extension, $allowedExtensions)) {
+                $extension = 'jpg'; // Extension par défaut
+            }
+
+            // Sanitiser le nom du produit pour le nom du fichier
+            $productName = preg_replace('/[^a-zA-Z0-9_-]/', '_', strtolower($data['nom']));
+            $productName = preg_replace('/_+/', '_', $productName); // Éliminer les underscores multiples
+            $productName = trim($productName, '_');
+
+            // Générer un nom de fichier unique basé sur le nom du produit
+            $fileName = $productName . '_' . time() . '.' . $extension;
             $filePath = $uploadDir . $fileName;
+
+            // Vérifier si le fichier existe déjà et ajouter un suffixe si nécessaire
+            $counter = 1;
+            while (file_exists($filePath)) {
+                $fileName = $productName . '_' . time() . '_' . $counter . '.' . $extension;
+                $filePath = $uploadDir . $fileName;
+                $counter++;
+            }
+
             if (move_uploaded_file($_FILES['image']['tmp_name'], $filePath)) {
                 $data['image'] = 'assets/img/products/' . $fileName;
             }
@@ -88,12 +112,36 @@ class ProductController extends Controller
 
         // Image upload
         if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
-            $uploadDir = dirname(__DIR__, 2) . 'public/assets/img/products/';
+            $uploadDir = dirname(__DIR__, 2) . '/public/assets/img/products/';
             if (!is_dir($uploadDir)) {
                 mkdir($uploadDir, 0755, true);
             }
-            $fileName = uniqid() . '_' . basename($_FILES['image']['name']);
+
+            // Obtenir l'extension du fichier
+            $extension = strtolower(pathinfo($_FILES['image']['name'], PATHINFO_EXTENSION));
+            $allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+
+            if (!in_array($extension, $allowedExtensions)) {
+                $extension = 'jpg';
+            }
+
+            // Sanitiser le nom du produit pour le nom du fichier
+            $productName = preg_replace('/[^a-zA-Z0-9_-]/', '_', strtolower($data['nom']));
+            $productName = preg_replace('/_+/', '_', $productName);
+            $productName = trim($productName, '_');
+
+            // Générer un nom de fichier unique basé sur le nom du produit
+            $fileName = $productName . '_' . time() . '.' . $extension;
             $filePath = $uploadDir . $fileName;
+
+            // Vérifier si le fichier existe déjà
+            $counter = 1;
+            while (file_exists($filePath)) {
+                $fileName = $productName . '_' . time() . '_' . $counter . '.' . $extension;
+                $filePath = $uploadDir . $fileName;
+                $counter++;
+            }
+
             if (move_uploaded_file($_FILES['image']['tmp_name'], $filePath)) {
                 $data['image'] = 'assets/img/products/' . $fileName;
             }
@@ -118,7 +166,7 @@ class ProductController extends Controller
             $success = $productModel->delete($id);
             $this->json(['success' => $success]);
         } else {
-            $this->status(400)->json(['error' => 'ID manquant '.$id]);
+            $this->status(400)->json(['error' => 'ID manquant ' . $id]);
         }
     }
 }
