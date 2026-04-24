@@ -310,7 +310,7 @@ const posCart = {
                 </div>
 
                 <div class="receipt-footer">
-                    <div class="vendeur-info">Vendeur: Administrateur</div>
+                    <div class="vendeur-info">Vendeur: ${(typeof CURRENT_USER !== 'undefined' && CURRENT_USER.fullName) ? CURRENT_USER.fullName : 'POS System'}</div>
                     <div class="barcode">||| ${invoiceNum} |||</div>
                     <div class="thank-you">Merci de votre visite!</div>
                     <div style="margin-top: 5px; font-size: 9px; font-style: italic;">Conservez ce ticket pour tout echange</div>
@@ -456,7 +456,7 @@ const posCart = {
                     ${dgiInfoHtml}
 
                     <div class="receipt-footer">
-                        <div class="vendeur-info">Vendeur: POS System</div>
+                        <div class="vendeur-info">Vendeur: ${(typeof CURRENT_USER !== 'undefined' && CURRENT_USER.fullName) ? CURRENT_USER.fullName : 'POS System'}</div>
                         <div id="${qrContainerId}" class="qrcode-container"></div>
                         <div class="barcode">||| ${saleData.numero_facture} |||</div>
                         <div class="thank-you">Merci de votre visite!</div>
@@ -837,7 +837,7 @@ function viewSaleDetails(saleId) {
                     </div>
 
                     <div class="receipt-footer">
-                        <div class="vendeur-info">Vendeur: ${sale.nom_vendeur || 'N/A'}</div>
+                        <div class="vendeur-info">Vendeur: ${sale.nom_vendeur || (typeof CURRENT_USER !== 'undefined' && CURRENT_USER.fullName ? CURRENT_USER.fullName : 'N/A')}</div>
                         <div class="barcode">||| ${sale.numero_facture} |||</div>
                         <div class="thank-you">Merci de votre visite!</div>
                         <p style="margin-top: 5px; color: #555; font-size: 9px;">Conservez ce ticket pour tout echange</p>
@@ -855,52 +855,7 @@ function viewSaleDetails(saleId) {
 
 function printSaleReceipt(saleId) {
     const content = $('#sale-details-content').innerHTML;
-    const printWindow = window.open('', '_blank', 'width=400,height=600');
-
-    const styles = `
-        <style>
-            @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap');
-            @page { margin: 0; }
-            body { margin: 0; padding: 10px; background: white; color: black; display: flex; justify-content: center; }
-            .receipt { font-family: 'JetBrains Mono', 'Courier New', monospace; font-size: 12px; line-height: 1.4; width: 80mm; padding: 5mm; }
-            .receipt-header { text-align: center; border-bottom: 1px dashed #000; padding-bottom: 15px; margin-bottom: 15px; }
-            .receipt-header .store-name { font-size: 18px; font-weight: 700; margin-bottom: 5px; text-transform: uppercase; }
-            .receipt-header .store-info { font-size: 11px; }
-            .receipt-meta { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 15px; padding-bottom: 8px; border-bottom: 1px dashed #000; }
-            .receipt-items { margin-bottom: 15px; }
-            .receipt-item { display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 11px; }
-            .receipt-item .item-name { flex: 3; min-width: 0; white-space: normal; overflow-wrap: break-word; }
-            .receipt-item .item-qty { flex: 0.5; text-align: right; min-width: 30px; }
-            .receipt-item .item-pu { flex: 1; text-align: center; min-width: 50px; }
-            .receipt-item .item-price { flex: 1; text-align: right; font-weight: 600; min-width: 60px; }
-            .receipt-totals { margin-bottom: 15px; }
-            .receipt-total-row { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 11px; }
-            .receipt-total-row.grand-total { font-size: 16px; font-weight: 700; border-top: 2px solid #000; border-bottom: 2px solid #000; padding: 10px 0; margin-top: 10px; }
-            .receipt-footer { text-align: center; margin-top: 15px; padding-top: 15px; border-top: 1px dashed #000; font-size: 11px; }
-            .barcode { font-size: 18px; letter-spacing: 3px; font-weight: 700; margin: 15px 0; }
-            .vendeur-info { margin-bottom: 10px; }
-            .thank-you { font-style: italic; margin-top: 10px; }
-        </style>
-    `;
-
-    printWindow.document.write(`
-        <html>
-            <head>
-                <title>Ticket de Caisse</title>
-                ${styles}
-            </head>
-            <body>
-                ${content}
-            </body>
-        </html>
-    `);
-    printWindow.document.close();
-    printWindow.focus();
-
-    setTimeout(() => {
-        printWindow.print();
-        printWindow.close();
-    }, 500);
+    _printReceiptContent(content);
 }
 
 function closeProductModal() {
@@ -1038,59 +993,127 @@ document.addEventListener('DOMContentLoaded', () => {
     posCart.init();
     loadCategories(); // Charger les categories pour le modal produit
 
-    // Print Receipt Logic
+    // Print Receipt Logic — via iframe (compatible Android/iOS/Desktop)
     const printBtn = $('#print-receipt');
     if (printBtn) {
         printBtn.addEventListener('click', () => {
             const content = $('#receipt-content').innerHTML;
-            const printWindow = window.open('', '_blank', 'width=400,height=600');
-
-            const styles = `
-                <style>
-                    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap');
-                    @page { margin: 0; }
-                    body { margin: 0; padding: 10px; background: white; color: black; display: flex; justify-content: center; }
-                    .receipt { font-family: 'JetBrains Mono', 'Courier New', monospace; font-size: 12px; line-height: 1.4; width: 80mm; padding: 5mm; }
-                    .receipt-header { text-align: center; border-bottom: 1px dashed #000; padding-bottom: 15px; margin-bottom: 15px; }
-                    .receipt-header .store-name { font-size: 18px; font-weight: 700; margin-bottom: 5px; text-transform: uppercase; }
-                    .receipt-header .store-info { font-size: 11px; }
-                    .receipt-meta { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 15px; padding-bottom: 8px; border-bottom: 1px dashed #000; }
-                    .receipt-items { margin-bottom: 15px; }
-                    .receipt-item { display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 11px; }
-                    .receipt-item .item-name { flex: 3; min-width: 0; white-space: normal; overflow-wrap: break-word; }
-                    .receipt-item .item-qty { flex: 0.5; text-align: right; min-width: 30px; }
-                    .receipt-item .item-pu { flex: 1; text-align: center; min-width: 50px; }
-                    .receipt-item .item-price { flex: 1; text-align: right; font-weight: 600; min-width: 60px; }
-                    .receipt-totals { margin-bottom: 15px; }
-                    .receipt-total-row { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 11px; }
-                    .receipt-total-row.grand-total { font-size: 16px; font-weight: 700; border-top: 2px solid #000; border-bottom: 2px solid #000; padding: 10px 0; margin-top: 10px; }
-                    .receipt-footer { text-align: center; margin-top: 15px; padding-top: 15px; border-top: 1px dashed #000; font-size: 11px; }
-                    .barcode { font-size: 18px; letter-spacing: 3px; font-weight: 700; margin: 15px 0; }
-                    .qrcode-container { display: flex; justify-content: center; align-items: center; margin: 15px auto; width: 100%; }
-                    .qrcode-container > div { padding: 5px; }
-                    .qrcode-container svg, .qrcode-container img { max-width: 150px; height: auto; }
-                </style>
-            `;
-
-            printWindow.document.write(`
-                <html>
-                    <head>
-                        <title>Ticket de Caisse</title>
-                        ${styles}
-                    </head>
-                    <body>
-                        ${content}
-                    </body>
-                </html>
-            `);
-            printWindow.document.close();
-            printWindow.focus();
-
-            // Give the browser short time to parse the font and styles
-            setTimeout(() => {
-                printWindow.print();
-                printWindow.close();
-            }, 500);
+            _printReceiptContent(content);
         });
     }
 });
+
+/**
+ * Impression universelle via iframe caché.
+ * Compatible Android Chrome, iOS Safari, Desktop.
+ * Evite le blocage des popups window.open().
+ */
+function _printReceiptContent(content) {
+    // Supprimer un ancien iframe s'il existe
+    const oldFrame = document.getElementById('_print-frame');
+    if (oldFrame) oldFrame.remove();
+
+    const iframe = document.createElement('iframe');
+    iframe.id = '_print-frame';
+    iframe.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:80mm;height:1px;border:none;overflow:hidden;';
+    document.body.appendChild(iframe);
+
+    const printStyles = `
+        <style>
+            @page { margin: 3mm 2mm; size: 80mm auto; }
+            * { box-sizing: border-box; margin: 0; padding: 0; }
+            body {
+                font-family: 'Courier New', Courier, monospace;
+                font-size: 11px;
+                line-height: 1.45;
+                width: 100%;
+                max-width: 76mm;
+                margin: 0 auto;
+                color: #000;
+                background: #fff;
+            }
+            /* === EN-TETE MAGASIN === */
+            .receipt { width: 100%; }
+            .receipt-header { text-align: center; border-bottom: 1px dashed #000; padding-bottom: 10px; margin-bottom: 10px; }
+            .receipt-header .store-name { font-size: 15px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+            .receipt-header .store-info { font-size: 10px; line-height: 1.5; color: #222; }
+            /* === META (numero + date) === */
+            .receipt-meta { display: flex; justify-content: space-between; font-size: 10px; font-weight: 600; padding: 6px 0; margin-bottom: 8px; border-bottom: 1px dashed #000; }
+            /* === TABLEAU ARTICLES === */
+            .receipt-items { margin-bottom: 8px; }
+            .receipt-item { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 3px; font-size: 10px; gap: 2px; }
+            .receipt-item .item-name  { flex: 3;   min-width: 0; white-space: normal; overflow-wrap: break-word; }
+            .receipt-item .item-qty   { flex: 0.6; text-align: center; white-space: nowrap; }
+            .receipt-item .item-pu    { flex: 1;   text-align: right;  white-space: nowrap; }
+            .receipt-item .item-price { flex: 1;   text-align: right;  font-weight: 700; white-space: nowrap; }
+            /* === TOTAUX === */
+            .receipt-totals { margin-bottom: 6px; }
+            .receipt-total-row { display: flex; justify-content: space-between; font-size: 10px; margin-bottom: 3px; }
+            .receipt-total-row.grand-total { font-size: 14px; font-weight: 700; border-top: 2px solid #000; border-bottom: 2px solid #000; padding: 6px 0; margin-top: 6px; }
+            /* === BOITE DGI VERTE (inline styles du JS) === */
+            div[style*="e8f5e9"], div[style*="4caf50"] { border-radius: 4px; padding: 6px 8px !important; margin: 8px 0 !important; font-size: 10px !important; }
+            /* === PIED DE PAGE === */
+            .receipt-footer { text-align: center; margin-top: 10px; padding-top: 8px; border-top: 1px dashed #000; font-size: 10px; }
+            .vendeur-info { margin-bottom: 6px; }
+            .qrcode-container {
+                width: 100%;
+                text-align: center;
+                margin: 8px 0;
+                overflow: visible;
+            }
+            .qrcode-container > div {
+                display: inline-block;
+                overflow: visible;
+            }
+            .qrcode-container svg,
+            .qrcode-container img {
+                display: block;
+                margin: 0 auto;
+                max-width: 130px;
+                height: auto;
+                overflow: visible;
+            }
+            .barcode { font-size: 13px; letter-spacing: 2px; font-weight: 700; margin: 5px 0; text-align: center; }
+            .thank-you { font-style: italic; margin-top: 6px; font-size: 10px; }
+        </style>
+    `;
+
+
+    const doc = iframe.contentDocument || iframe.contentWindow.document;
+    doc.open();
+    doc.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">${printStyles}</head><body>${content}</body></html>`);
+    doc.close();
+
+    // Attendre que l'iframe soit chargée puis lancer l'impression
+    iframe.onload = function () {
+        setTimeout(() => {
+            try {
+                // ✅ Patch SVG : forcer viewBox + taille pour éviter l'affichage "quart"
+                const iDoc = iframe.contentDocument;
+                iDoc.querySelectorAll('.qrcode-container svg').forEach(svg => {
+                    const origW = parseInt(svg.getAttribute('width') || 180);
+                    const origH = parseInt(svg.getAttribute('height') || 180);
+                    // Ajouter viewBox s'il n'existe pas
+                    if (!svg.getAttribute('viewBox')) {
+                        svg.setAttribute('viewBox', `0 0 ${origW} ${origH}`);
+                    }
+                    // Forcer les dimensions CSS via attributs (override la lib)
+                    svg.setAttribute('width', '130');
+                    svg.setAttribute('height', '130');
+                    svg.style.width  = '130px';
+                    svg.style.height = '130px';
+                    svg.style.display = 'block';
+                    svg.style.margin  = '0 auto';
+                    svg.style.overflow = 'visible';
+                });
+
+                iframe.contentWindow.focus();
+                iframe.contentWindow.print();
+            } catch (e) {
+                console.error('Erreur impression iframe:', e);
+            }
+            // Nettoyer l'iframe après un délai
+            setTimeout(() => { if (iframe.parentNode) iframe.remove(); }, 2000);
+        }, 400);
+    };
+}

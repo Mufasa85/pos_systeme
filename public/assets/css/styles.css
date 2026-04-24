@@ -1631,6 +1631,9 @@ body {
   .receipt-actions {
     flex-direction: column;
   }
+  .page.active{
+    margin-block-start: 16%;
+  }
 }
 
 @media (max-width: 400px) {
