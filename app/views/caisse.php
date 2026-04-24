@@ -56,25 +56,3 @@
           </div>
         </div>
       </div>
-
-      <!-- Preview Modal - Recapitulatif de la facture -->
-      <div id="preview-modal" class="modal">
-        <div class="modal-content preview-modal">
-          <div class="modal-header">
-            <h3>Récapitulatif de la vente</h3>
-            <button class="close-modal" onclick="posCart.closePreview()">&times;</button>
-          </div>
-          <div id="preview-content" class="preview-content">
-            <!-- Contenu généré par JS -->
-          </div>
-          <div class="modal-actions">
-            <button type="button" class="btn btn-secondary" onclick="posCart.closePreview()">Annuler</button>
-            <button type="button" id="confirm-sale" class="btn btn-primary" onclick="posCart.confirmSale()">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="20 6 9 17 4 12"></polyline>
-              </svg>
-              Confirmer la vente
-            </button>
-          </div>
-        </div>
-      </div>

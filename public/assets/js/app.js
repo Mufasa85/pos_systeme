@@ -554,6 +554,103 @@ function deleteProduct(id) {
     }
 }
 
+// ==================== USER MANAGEMENT ====================
+
+function openAddUserModal() {
+    document.getElementById('user-modal-title').textContent = 'Ajouter un utilisateur';
+    document.getElementById('user-id').value = '';
+    document.getElementById('user-username').value = '';
+    document.getElementById('user-fullname').value = '';
+    document.getElementById('user-password').value = '';
+    document.getElementById('user-password').required = true;
+    document.getElementById('user-role').value = 'vendeur';
+    document.getElementById('user-actif').value = '1';
+    document.getElementById('password-hint').style.display = 'none';
+    document.getElementById('user-modal').style.display = 'flex';
+}
+
+function openEditUserModal(id, username, fullname, role, actif) {
+    document.getElementById('user-modal-title').textContent = 'Modifier l\'utilisateur';
+    document.getElementById('user-id').value = id;
+    document.getElementById('user-username').value = username;
+    document.getElementById('user-fullname').value = fullname;
+    document.getElementById('user-password').value = '';
+    document.getElementById('user-password').required = false;
+    document.getElementById('user-role').value = role;
+    document.getElementById('user-actif').value = actif;
+    document.getElementById('password-hint').style.display = 'inline';
+    document.getElementById('user-modal').style.display = 'flex';
+}
+
+function closeUserModal() {
+    document.getElementById('user-modal').style.display = 'none';
+}
+
+function saveUser(event) {
+    event.preventDefault();
+    const formData = new FormData();
+    formData.append('username', document.getElementById('user-username').value);
+    formData.append('fullname', document.getElementById('user-fullname').value);
+    const password = document.getElementById('user-password').value;
+    const userId = document.getElementById('user-id').value;
+
+    const url = userId ? APP_URL + '/api/update/user' : APP_URL + '/api/create/user';
+
+    if (userId) {
+        formData.append('id', userId);
+        formData.append('nom_utilisateur', document.getElementById('user-username').value);
+        formData.append('nom_complet', document.getElementById('user-fullname').value);
+        formData.append('role', document.getElementById('user-role').value);
+        formData.append('actif', document.getElementById('user-actif').value);
+        if (password) {
+            formData.append('mot_de_passe', password);
+        }
+    } else {
+        formData.append('password', password);
+        formData.append('role', document.getElementById('user-role').value);
+        formData.append('actif', document.getElementById('user-actif').value);
+    }
+
+    fetch(url, {
+        method: 'POST',
+        body: formData
+    })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                alert(userId ? 'Utilisateur modifie !' : 'Utilisateur cree !');
+                closeUserModal();
+                window.location.reload();
+            } else {
+                alert(data.error || 'Erreur');
+            }
+        })
+        .catch(() => alert('Erreur serveur'));
+
+    return false;
+}
+
+function deleteUser(id) {
+    if (confirm('Supprimer definitivement cet utilisateur ?')) {
+        const formData = new FormData();
+        formData.append('id', id);
+        fetch(APP_URL + '/api/delete/user', {
+            method: 'POST',
+            body: formData
+        })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Utilisateur supprime !');
+                    window.location.reload();
+                } else {
+                    alert(data.error || 'Erreur suppression');
+                }
+            })
+            .catch(() => alert('Erreur serveur'));
+    }
+}
+
 function closeProductModal() {
     $('#product-modal').classList.remove('active');
     $('#product-form').reset();

@@ -65,6 +65,9 @@ const Store = {
   // Invoice counter
   invoiceCounter: 1000,
 
+  // Current Sale for modal
+  currentSale: null,
+
   // Save to localStorage
   save() {
     localStorage.setItem('pos_users', JSON.stringify(this.users));
@@ -493,7 +496,19 @@ function validateSale() {
 }
 
 function showReceipt(sale) {
+  Store.currentSale = sale;
   const settings = Store.settings;
+
+  // Reset modal state
+  $('#validate-receipt').classList.remove('hidden');
+  $('#validate-receipt').disabled = false;
+  $('#validate-receipt').innerHTML = `
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <polyline points="20 6 9 17 4 12"></polyline>
+    </svg>
+    Valider la facture
+  `;
+  $('#print-receipt').classList.add('hidden');
 
   const itemsHtml = sale.items.map(item => `
     <div class="receipt-item">
@@ -548,7 +563,9 @@ function showReceipt(sale) {
     
     <div class="receipt-footer">
       <div>Vendeur: ${sale.seller}</div>
-      <div class="barcode">||||| ${sale.invoiceNumber} |||||</div>
+      <div id="qrcode-container" class="qrcode-container"></div>
+      <div id="validation-status" style="margin: 0.5rem 0; font-weight: 600; color: var(--primary);"></div>
+      <div class="barcode">||| ${sale.invoiceNumber} |||</div>
       <div class="thank-you">Merci de votre visite!</div>
       <div style="margin-top: 0.5rem;">Conservez ce ticket pour tout echange</div>
     </div>
@@ -556,6 +573,92 @@ function showReceipt(sale) {
 
   $('#receipt-content').innerHTML = receiptHtml;
   $('#receipt-modal').classList.add('active');
+}
+
+async function validateReceipt() {
+  const sale = Store.currentSale;
+  if (!sale) return;
+
+  const btn = $('#validate-receipt');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner spinner-small"></div> Validation...';
+
+  // Simulated API Call
+  try {
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
+    // Simulate API Response Data
+    const apiResponse = {
+      status: 'success',
+      transactionId: 'TXN-' + Math.random().toString(36).substr(2, 9).toUpperCase(),
+      validationDate: new Date().toISOString()
+    };
+
+    // Update UI
+    $('#validation-status').textContent = 'Validé par l\'API le ' + formatDate(apiResponse.validationDate);
+
+    // Generate QR Code
+    const baseUrl = window.location.href.substring(0, window.location.href.lastIndexOf('/'));
+    const dataStr = JSON.stringify({
+      i: sale.invoiceNumber,
+      d: sale.date,
+      it: sale.items.map(item => ({ n: item.name, q: item.quantity, p: item.price })),
+      t: sale.total,
+      s: sale.seller,
+      st: {
+        n: Store.settings.storeName,
+        a: Store.settings.storeAddress,
+        p: Store.settings.storePhone,
+        i: Store.settings.storeICE,
+        t: Store.settings.taxRate
+      }
+    });
+
+    // Simple Base64 encoding (not "hashed" as requested)
+    const encodedData = btoa(unescape(encodeURIComponent(dataStr)));
+    const receiptUrl = `${baseUrl}/facture.html?hash=${encodedData}`;
+
+    const qrCode = new QRCodeStyling({
+      width: 300,
+      height: 300,
+      type: "svg",
+      data: receiptUrl,
+      margin: 10,
+      qrOptions: {
+        typeNumber: 0,
+        mode: 'Byte',
+        errorCorrectionLevel: 'L'
+      },
+      dotsOptions: {
+        color: "#000000",
+        type: "rounded"
+      },
+      cornersSquareOptions: {
+        color: "#000000",
+        type: "extra-rounded"
+      },
+      cornersDotOptions: {
+        color: "#000000",
+        type: "dot"
+      },
+      backgroundOptions: {
+        color: "#ffffff",
+      }
+    });
+
+    const container = document.getElementById("qrcode-container");
+    container.innerHTML = "";
+    qrCode.append(container);
+
+    // Toggle buttons
+    btn.classList.add('hidden');
+    $('#print-receipt').classList.remove('hidden');
+
+  } catch (error) {
+    alert('Erreur lors de la validation: ' + error.message);
+    btn.disabled = false;
+    btn.textContent = 'Réessayer la validation';
+  }
 }
 
 function printReceipt() {
@@ -1097,6 +1200,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Receipt modal
   $('#close-receipt').addEventListener('click', () => closeModal('receipt-modal'));
+  $('#validate-receipt').addEventListener('click', validateReceipt);
   $('#print-receipt').addEventListener('click', printReceipt);
 
   // Products

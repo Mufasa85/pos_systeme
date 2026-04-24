@@ -255,6 +255,27 @@ body {
   height: 36px;
 }
 
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top-color: #fff;
+  animation: spin 0.8s linear infinite;
+}
+
+.spinner-small {
+  width: 14px;
+  height: 14px;
+  border-width: 2px;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .btn-logout {
   background: rgba(255, 255, 255, 0.1);
   color: var(--sidebar-text);
@@ -599,7 +620,36 @@ body {
   font-size: 0.75rem;
 }
 
-.alert-item {
+.receipt-footer {
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.qrcode-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 2rem auto;
+  width: 100%;
+  clear: both;
+}
+
+.qrcode-container svg,
+.qrcode-container canvas,
+.qrcode-container img {
+  display: block;
+  padding: 15px;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  width: 340px !important;
+  height: 340px !important;
+  /* box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15); */
+  box-sizing: border-box;
+}
+
+.barcode {
   border-left: 3px solid var(--warning);
 }
 
@@ -1585,17 +1635,39 @@ body {
   }
 
   .receipt,
-  .receipt * {
+  .receipt *,
+  .receipt-view,
+  .receipt-view * {
     visibility: visible;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 
-  .receipt {
+  .receipt,
+  .receipt-view {
     position: absolute;
-    left: 0;
+    left: 50%;
+    transform: translateX(-50%);
     top: 0;
     width: 80mm;
-    padding: 5mm;
+    padding: 2mm;
     font-size: 10px;
+    background: white !important;
+  }
+
+  .qrcode-container {
+    display: flex !important;
+    justify-content: center !important;
+    margin: 10px auto !important;
+  }
+
+  .qrcode-container svg,
+  .qrcode-container canvas,
+  .qrcode-container img {
+    width: 360px !important;
+    height: 310px !important;
+    padding: 0 !important;
+    display: block !important;
   }
 
   .receipt-actions {
