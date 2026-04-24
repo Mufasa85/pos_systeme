@@ -535,9 +535,11 @@ function editProduct(product) {
 
 function deleteProduct(id) {
     if (confirm('Supprimer definitivement ce produit ?')) {
+        const formData = new FormData();
+        formData.append('id', id);
         fetch(APP_URL + '/api/produit/delete', {
             method: 'POST',
-            body: JSON.stringify({id:id})
+            body: formData
         })
             .then(res => res.json())
             .then(data => {
@@ -680,7 +682,7 @@ document.addEventListener('DOMContentLoaded', () => {
         printBtn.addEventListener('click', () => {
             const content = $('#receipt-content').innerHTML;
             const printWindow = window.open('', '_blank', 'width=400,height=600');
-            
+
             const styles = `
                 <style>
                     @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap');
