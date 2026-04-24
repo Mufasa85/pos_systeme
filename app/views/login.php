@@ -51,7 +51,7 @@
   </div>
 
   <script>
-    const APP_URL = "http://localhost:8000";
+    const APP_URL = window.location.origin;
     document.getElementById('login-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       const fd = new FormData(e.target);

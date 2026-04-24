@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <script>
-    const APP_URL = "http://localhost:8000";
+    const APP_URL = window.location.origin;
     const CURRENT_USER = <?= json_encode([
                             'id' => $_SESSION['user_id'] ?? null,
                             'username' => $_SESSION['username'] ?? '',

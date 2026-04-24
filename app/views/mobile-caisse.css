@@ -115,7 +115,7 @@
   }
   
   .caisse-cart {
-    height: 5s0vh !important;
+    height: 30vh !important;
     min-height: 240px !important;
   }
   
@@ -183,7 +183,7 @@
   }
   
   .cart-item {
-    /* padding: 0.4rem !important; */
+    padding: 0.4rem !important;
     gap: 0.3rem !important;
     margin-bottom: 0.3rem !important;
   }
