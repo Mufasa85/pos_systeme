@@ -71,10 +71,7 @@
             <div class="form-group">
               <label>Catégorie</label>
               <select id="product-category" required>
-                <option value="">Sélectionner...</option>
-                <option value="1">Comestible</option>
-                <option value="2">Non Comestible</option>
-                <option value="3">Service</option>
+                <option value="">Chargement...</option>
               </select>
             </div>
             <div class="form-group">

@@ -521,15 +521,30 @@ const posCart = {
 };
 
 function editProduct(product) {
+    // Recharger les categories si necessaire pour le select
+    if (categoriesCache.length === 0) {
+        loadCategories().then(() => {
+            setProductForm(product);
+        });
+    } else {
+        setProductForm(product);
+    }
+}
+
+function setProductForm(product) {
     $('#product-id').value = product.id;
     $('#product-modal-title').textContent = 'Modifier le produit';
     $('#product-barcode').value = product.code_barres;
     $('#product-name').value = product.nom;
-    $('#product-category').value = product.category_id;
     $('#product-price').value = product.prix;
     $('#product-stock').value = product.stock;
     $('#product-min-stock').value = product.stock_minimum;
     $('#product-image').value = '';
+
+    // Selectionner la bonne categorie
+    const categorySelect = $('#product-category');
+    categorySelect.value = product.category_id;
+
     $('#product-modal').classList.add('active');
 }
 
@@ -652,6 +667,33 @@ function deleteUser(id) {
 }
 
 // ==================== CATEGORY MANAGEMENT ====================
+
+// Load categories from API into select elements
+let categoriesCache = [];
+
+async function loadCategories() {
+    try {
+        const res = await fetch(APP_URL + '/api/categories');
+        categoriesCache = await res.json();
+        populateCategorySelect('product-category', categoriesCache);
+        populateCategorySelect('category-filter', categoriesCache);
+    } catch (e) {
+        console.error('Erreur chargement categories:', e);
+    }
+}
+
+function populateCategorySelect(selectId, categories) {
+    const select = document.getElementById(selectId);
+    if (!select) return;
+
+    select.innerHTML = '<option value="">Sélectionner...</option>';
+    categories.forEach(cat => {
+        const option = document.createElement('option');
+        option.value = cat.id;
+        option.textContent = cat.category || cat.nom || cat.name;
+        select.appendChild(option);
+    });
+}
 
 function openCategoryModal() {
     document.getElementById('category-modal-title').textContent = 'Ajouter une catégorie';
@@ -839,6 +881,7 @@ function initProductsTabs() {
 
 document.addEventListener('DOMContentLoaded', () => {
     posCart.init();
+    loadCategories(); // Charger les categories pour le modal produit
 
     // Print Receipt Logic
     const printBtn = $('#print-receipt');
