@@ -651,6 +651,73 @@ function deleteUser(id) {
     }
 }
 
+// ==================== CATEGORY MANAGEMENT ====================
+
+function openCategoryModal() {
+    document.getElementById('category-modal-title').textContent = 'Ajouter une catégorie';
+    document.getElementById('category-id').value = '';
+    document.getElementById('category-name').value = '';
+    document.getElementById('category-modal').style.display = 'flex';
+}
+
+function editCategory(category) {
+    document.getElementById('category-modal-title').textContent = 'Modifier la catégorie';
+    document.getElementById('category-id').value = category.id;
+    document.getElementById('category-name').value = category.nom;
+    document.getElementById('category-modal').style.display = 'flex';
+}
+
+function closeCategoryModal() {
+    document.getElementById('category-modal').style.display = 'none';
+}
+
+function saveCategory(event) {
+    event.preventDefault();
+    const formData = new FormData();
+    formData.append('category', document.getElementById('category-name').value);
+    const categoryId = document.getElementById('category-id').value;
+    const url = categoryId ? APP_URL + '/api/categories/update' : APP_URL + '/api/categories';
+
+    if (categoryId) {
+        formData.append('id', categoryId);
+    }
+
+    fetch(url, {
+        method: 'POST',
+        body: formData
+    })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                alert(categoryId ? 'Catégorie modifiée !' : 'Catégorie créée !');
+                closeCategoryModal();
+                window.location.reload();
+            } else {
+                alert(data.error || 'Erreur');
+            }
+        })
+        .catch(() => alert('Erreur serveur'));
+
+    return false;
+}
+
+function deleteCategory(id) {
+    if (confirm('Supprimer definitivement cette catégorie ?')) {
+        const formData = new FormData();
+        formData.append('id', id);
+        fetch(APP_URL + '/api/delete/category', {
+            method: 'POST',
+            body: formData
+        })
+            .then(res => res.text())
+            .then(data => {
+                alert('Catégorie supprimée !');
+                window.location.reload();
+            })
+            .catch(() => alert('Erreur serveur'));
+    }
+}
+
 function closeProductModal() {
     $('#product-modal').classList.remove('active');
     $('#product-form').reset();

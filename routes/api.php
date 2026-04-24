@@ -15,6 +15,8 @@ Router::post("/api/produit/update", [ProductController::class, 'update']);
 Router::post("/api/produit/delete", [ProductController::class, 'delete']);
 
 Router::get('/api/categories', [CategoryController::class, 'index']);
+Router::post('/api/categories', [CategoryController::class, 'create']);
+Router::post('/api/categories/update', [CategoryController::class, 'update']);
 
 Router::post('/api/create/user', [UserController::class, 'create']);
 Router::post("/api/delete/user", [UserController::class, 'delete']);

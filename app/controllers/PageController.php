@@ -22,9 +22,9 @@ class PageController
     {
         $page = $view;
         extract($data);
-        require_once dirname(__DIR__).DIRECTORY_SEPARATOR . 'views/layout/header.php';
-        require_once dirname(__DIR__).DIRECTORY_SEPARATOR . 'views/' . $view . '.php';
-        require_once  dirname(__DIR__).DIRECTORY_SEPARATOR . 'views/layout/footer.php';
+        require_once dirname(__DIR__) . DIRECTORY_SEPARATOR . 'views/layout/header.php';
+        require_once dirname(__DIR__) . DIRECTORY_SEPARATOR . 'views/' . $view . '.php';
+        require_once  dirname(__DIR__) . DIRECTORY_SEPARATOR . 'views/layout/footer.php';
     }
 
     public function dashboard()
@@ -104,10 +104,13 @@ class PageController
             exit;
         }
         $productModel = new Product();
+        $categoryModel = new \App\Models\Category();
+
+        // Get all categories from database
+        $dbCategories = $categoryModel->all();
 
         // Get all products to count by category
         $produits = $productModel->getAll();
-        $categories = [];
         $categoryCounts = [];
 
         foreach ($produits as $p) {
@@ -118,24 +121,19 @@ class PageController
             $categoryCounts[$cat]++;
         }
 
-        // Define default categories with colors
-        $defaultCategories = [
-            'Comestible' => '#0B5E88',
-            'Non Comestible' => '#8B5E3C',
-            'Service' => '#5E8B3C',
-            //'Boissons' => '#3C8B8B',
-            //'Alimentation' => '#8B3C5E',
-            //'Hygiène' => '#5E3C8B',
-           // 'Ménage' => '#8B8B3C'
-        ];
+        // Build categories array from database with product counts
+        $categories = [];
+        $colors = ['#0B5E88', '#8B5E3C', '#5E8B3C', '#3C8B8B', '#8B3C5E', '#5E3C8B', '#8B8B3C'];
+        $colorIndex = 0;
 
-        foreach ($defaultCategories as $name => $color) {
+        foreach ($dbCategories as $c) {
             $categories[] = [
-                'id' => array_search($name, array_keys($defaultCategories)) + 1,
-                'nom' => $name,
-                'couleur' => $color,
-                'nombre_produits' => $categoryCounts[$name] ?? 0
+                'id' => $c['id'],
+                'nom' => $c['category'],
+                'couleur' => $c['couleur'] ?? $colors[$colorIndex % count($colors)],
+                'nombre_produits' => $categoryCounts[$c['category']] ?? 0
             ];
+            $colorIndex++;
         }
 
         $this->render('categories', ['categories' => $categories]);
