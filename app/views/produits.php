@@ -2,7 +2,7 @@
       <div id="page-products" class="page <?= $page == 'produits' ? 'active' : '' ?>">
         <div class="page-header">
           <h2>Gestion des produits</h2>
-          <?php if(isset($_SESSION['role']) && $_SESSION['role'] === 'admin'): ?>
+          <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin'): ?>
           <button id="add-product-btn" class="btn btn-primary" onclick="openProductModal()">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -31,7 +31,7 @@
               </tr>
             </thead>
             <tbody id="products-table">
-              <?php foreach($produits as $p): ?>
+              <?php foreach ($produits as $p): ?>
               <tr data-category="<?= htmlspecialchars($p['categorie']) ?>" style="border-bottom:1px solid #eee;">
                 <td style="padding:0.75rem;">
                   <img src="<?= $p['image'] ?>" alt="<?= htmlspecialchars($p['nom']) ?>" style="width:40px;height:40px;object-fit:cover;border-radius:4px;" onerror="this.style.display='none'">
@@ -45,13 +45,14 @@
                    </span>
                 </td>
                 <td style="padding:0.75rem;"><strong><?= number_format($p['prix'], 2) ?> Fc</strong></td>
-                <?php if(isset($_SESSION['role']) && $_SESSION['role'] === 'admin'): ?>
+                <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin'): ?>
                 <td style="padding:0.75rem; text-align:right;">
                   <button class="btn btn-ghost btn-small" onclick="editProduct(<?= htmlspecialchars(json_encode($p)) ?>)" title="Modifier">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                       <polygon points="16 3 21 8 8 21 3 21 3 16 16 3"></polygon>
                     </svg>
-                  </button>
+      </button>
+  
                   <button class="btn btn-ghost btn-small" style="color:red;" onclick="deleteProduct(<?= $p['id'] ?>)" title="Supprimer">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                       <polyline points="3 6 5 6 21 6"></polyline>

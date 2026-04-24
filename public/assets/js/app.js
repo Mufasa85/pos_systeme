@@ -535,8 +535,9 @@ function editProduct(product) {
 
 function deleteProduct(id) {
     if (confirm('Supprimer definitivement ce produit ?')) {
-        fetch(APP_URL + '/api/produit/delete?id=' + id, {
-            method: 'POST'
+        fetch(APP_URL + '/api/produit/delete', {
+            method: 'POST',
+            body: JSON.stringify({id:id})
         })
             .then(res => res.json())
             .then(data => {

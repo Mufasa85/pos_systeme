@@ -111,13 +111,14 @@ class ProductController extends Controller
             return;
         }
 
-        $id = $this->sanitaze($_POST['id'] ??  0);
-        if ($id) {
+        $id = $this->sanitaze((int)$_POST['id']);
+
+        if ($id > 0) {
             $productModel = new Product();
             $success = $productModel->delete($id);
             $this->json(['success' => $success]);
         } else {
-            $this->status(400)->json(['error' => 'ID manquant']);
+            $this->status(400)->json(['error' => 'ID manquant '.$id]);
         }
     }
 }

@@ -76,7 +76,7 @@ class UserController extends Controller
 
     public function delete()
     {
-        $id = $this->sanitaze($_POST['id'] ?? null);
+        $id = $this->sanitaze($_POST['id'] ?? 0);
         if (!$id) {
             $this->status(400)->json(['error' => 'ID manquant']);
             return;
