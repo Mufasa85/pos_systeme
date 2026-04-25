@@ -6,6 +6,7 @@ use App\Controllers\CategoryController;
 use App\Controllers\ProductController;
 use App\Controllers\SaleController;
 use App\Controllers\UserController;
+use App\Controllers\SettingsController;
 use App\Core\Router;
 
 Router::get("/api/produits", [ProductController::class, 'index']);
@@ -29,6 +30,12 @@ Router::post("/api/delete/category", [CategoryController::class, 'delete']);
 Router::post("/api/delete/vente", [SaleController::class, 'delete']);
 Router::post("/api/vente", [SaleController::class, 'create']);
 Router::get("/api/vente/[i:id]/details", [SaleController::class, 'details']);
+
+// Paramètres du système
+Router::get("/api/settings", [SettingsController::class, 'index']);
+Router::post("/api/settings", [SettingsController::class, 'update']);
+Router::post("/api/settings/store", [SettingsController::class, 'updateStore']);
+Router::post("/api/settings/tax", [SettingsController::class, 'updateTax']);
 
 // Proxy DGI API avec CORS
 Router::get("/api/dgi", function () {

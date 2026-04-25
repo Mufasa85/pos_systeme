@@ -6,6 +6,30 @@ const formatCurrency = (amount) => amount.toFixed(2) + ' Fc';
 // DGI API Configuration - utilise le proxy local pour eviter CORS
 const DGI_API_URL = APP_URL + '/api/dgi';
 
+// Variables globales pour les informations du magasin
+let STORE_INFO = {
+    name: 'SuperMarche Express',
+    address: '123 Rue Mohammed V, Casablanca',
+    phone: '+212 522 123 456',
+    ice: '001234567890123'
+};
+
+// Charger les informations du magasin depuis les paramètres
+async function loadStoreInfo() {
+    try {
+        const res = await fetch(APP_URL + '/api/settings');
+        const data = await res.json();
+        STORE_INFO = {
+            name: data.store_name || STORE_INFO.name,
+            address: data.store_address || STORE_INFO.address,
+            phone: data.store_phone || STORE_INFO.phone,
+            ice: data.store_ice || STORE_INFO.ice
+        };
+    } catch (e) {
+        console.warn('Impossible de charger les paramètres du magasin, utilisation des valeurs par défaut');
+    }
+}
+
 const posCart = {
     items: [],
     taxRate: 16,
@@ -271,11 +295,11 @@ const posCart = {
         $('#preview-content').innerHTML = `
             <div class="receipt">
                 <div class="receipt-header">
-                    <div class="store-name">SuperMarche Express</div>
+                    <div class="store-name">${STORE_INFO.name}</div>
                     <div class="store-info">
-                        123 Rue Mohammed V, Casablanca<br>
-                        Tel: +212 522 123 456<br>
-                        ICE: 001234567890123
+                        ${STORE_INFO.address}<br>
+                        Tel: ${STORE_INFO.phone}<br>
+                        ICE: ${STORE_INFO.ice}
                     </div>
                 </div>
 
@@ -408,11 +432,11 @@ const posCart = {
             $('#receipt-content').innerHTML = `
                 <div class="receipt">
                     <div class="receipt-header">
-                        <div class="store-name">SuperMarche Express</div>
+                        <div class="store-name">${STORE_INFO.name}</div>
                         <div class="store-info">
-                            123 Rue Mohammed V, Casablanca<br>
-                            Tel: +212 522 123 456<br>
-                            ICE: 001234567890123
+                            ${STORE_INFO.address}<br>
+                            Tel: ${STORE_INFO.phone}<br>
+                            ICE: ${STORE_INFO.ice}
                         </div>
                     </div>
 
@@ -421,12 +445,7 @@ const posCart = {
                         <span>${formattedDate}</span>
                     </div>
 
-                    <div class="receipt-items">
-                        <div class="receipt-item" style="font-weight: 700; border-bottom: 1px solid #333; margin-bottom: 5px;">
-                            <span class="item-name">Article</span>
-                            <span class="item-qty">Qte</span>
-                            <span class="item-price">Total</span>
-                        </div>
+                    <div class="receipt-items receipt-items-grid">
                         ${itemsHtml}
                     </div>
 
@@ -789,11 +808,11 @@ function viewSaleDetails(saleId) {
             document.getElementById('sale-details-content').innerHTML = `
                 <div class="receipt">
                     <div class="receipt-header">
-                        <div class="store-name">SuperMarche Express</div>
+                        <div class="store-name">${STORE_INFO.name}</div>
                         <div class="store-info">
-                            123 Rue Mohammed V, Casablanca<br>
-                            Tel: +212 522 123 456<br>
-                            ICE: 001234567890123
+                            ${STORE_INFO.address}<br>
+                            Tel: ${STORE_INFO.phone}<br>
+                            ICE: ${STORE_INFO.ice}
                         </div>
                     </div>
 
@@ -975,6 +994,7 @@ function initProductsTabs() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    loadStoreInfo(); // Charger les informations du magasin depuis les paramètres
     posCart.init();
     loadCategories(); // Charger les categories pour le modal produit
 
