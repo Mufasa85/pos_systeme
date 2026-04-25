@@ -23,6 +23,7 @@
                 <th>Date</th>
                 <th>Vendeur</th>
                 <th>Total</th>
+                <th>Compteur DGI</th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -37,11 +38,18 @@
                     data-date="<?= date('Y-m-d', strtotime($v['date'])) ?>"
                     data-seller="<?= htmlspecialchars($v['nom_vendeur']) ?>"
                     style="border-bottom:1px solid #eee;">
-                    <td style="padding:0.75rem;"><?= htmlspecialchars($v['numero_facture']) ?></td>
-                    <td style="padding:0.75rem;"><?= date('d/m/Y H:i', strtotime($v['date'])) ?></td>
-                    <td style="padding:0.75rem;"><?= htmlspecialchars($v['nom_vendeur']) ?></td>
-                    <td style="padding:0.75rem;"><strong><?= number_format($v['total'], 2) ?> Fc</strong></td>
-                    <td style="padding:0.75rem;">
+                    <td data-label="N° Facture" style="padding:0.75rem;"><?= htmlspecialchars($v['numero_facture']) ?></td>
+                    <td data-label="Date" style="padding:0.75rem;"><?= date('d/m/Y H:i', strtotime($v['date'])) ?></td>
+                    <td data-label="Vendeur" style="padding:0.75rem;"><?= htmlspecialchars($v['nom_vendeur']) ?></td>
+                    <td data-label="Total" style="padding:0.75rem;"><strong><?= number_format($v['total'], 2) ?> Fc</strong></td>
+                    <td data-label="Compteur DGI" style="padding:0.75rem;">
+                      <?php if (!empty($v['counters'])): ?>
+                        <span class="badge badge-success" title="Compteur DGI"><?= htmlspecialchars($v['counters']) ?></span>
+                      <?php else: ?>
+                        <span style="color:#999; font-size:0.85em;">-</span>
+                      <?php endif; ?>
+                    </td>
+                    <td data-label="Actions" style="padding:0.75rem;">
                       <button class="btn btn-ghost btn-small" onclick="viewSaleDetails(<?= $v['id'] ?>)" title="Voir les détails">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                           <circle cx="12" cy="12" r="10"></circle>

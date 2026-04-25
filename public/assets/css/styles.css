@@ -145,6 +145,43 @@ body {
   gap: 1rem;
 }
 
+/* Masquer l'en-tête du tableau sur petits écrans */
+@media (max-width: 600px) {
+  .data-table thead {
+    display: none;
+  }
+  /* Masquer l'en-tête "Article | Qte | Total" sur petit écran */
+  .receipt-items > div:first-child {
+    display: none !important;
+  }
+  /* Masquer aussi l'en-tête de colonne dans les reçus (ticket) */
+  .receipt-item[style*="font-weight: 700"],
+  .receipt-items .receipt-item:has(.item-qty:empty) {
+    display: none !important;
+  }
+  .data-table td {
+    display: block;
+    padding: 0.5rem 0.75rem;
+  }
+  .data-table td:before {
+    content: attr(data-label);
+    font-weight: 600;
+    margin-right: 0.5rem;
+    color: #666;
+  }
+  .data-table td:first-child {
+    padding-top: 1rem;
+  }
+  .data-table td:last-child {
+    padding-bottom: 1rem;
+  }
+  .data-table tr {
+    border-bottom: 1px solid #eee;
+    margin-bottom: 1rem;
+    display: block;
+  }
+}
+
 @media (max-width: 480px) {
   .form-row {
     grid-template-columns: 1fr;

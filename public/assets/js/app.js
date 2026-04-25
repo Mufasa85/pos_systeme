@@ -284,12 +284,7 @@ const posCart = {
                     <span>${formattedDate}</span>
                 </div>
 
-                <div class="receipt-items">
-                    <div class="receipt-item" style="font-weight: 700; border-bottom: 1px solid #333; margin-bottom: 5px;">
-                        <span class="item-name">Article</span>
-                        <span class="item-qty">Qte</span>
-                        <span class="item-price">Total</span>
-                    </div>
+                <div class="receipt-items receipt-items-grid">
                     ${itemsHtml}
                 </div>
 
@@ -807,12 +802,7 @@ function viewSaleDetails(saleId) {
                         <span>${formattedDate}</span>
                     </div>
 
-                    <div class="receipt-items">
-                        <div class="receipt-item" style="font-weight: 700; border-bottom: 1px solid #333; margin-bottom: 5px;">
-                            <span class="item-name">Article</span>
-                            <span class="item-qty">Qte</span>
-                            <span class="item-price">Total</span>
-                        </div>
+                    <div class="receipt-items receipt-items-grid">
                         ${itemsHtml}
                     </div>
 
