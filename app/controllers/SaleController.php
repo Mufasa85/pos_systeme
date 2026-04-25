@@ -32,13 +32,21 @@ class SaleController extends Controller
 
             $invoiceNum = $saleModel->generateInvoiceNumber();
 
+            // Récupérer les données DGI (si présentes)
+            $dgiData = $data['dgi_data'] ?? [];
+
             $saleId = $saleModel->create([
                 'numero_facture' => $invoiceNum,
                 'sous_total_ht'  => $data['sous_total_ht'],
                 'tva'            => $data['tva'],
                 'total'          => $data['total'],
                 'vendeur_id'     => $_SESSION['user_id'],
-                'date'           => date('Y-m-d H:i:s')
+                'date'           => date('Y-m-d H:i:s'),
+                'dateDGI'        => $dgiData['dateDGI'] ?? null,
+                'qrCode'         => $dgiData['qrCode'] ?? null,
+                'codeDEFDGI'     => $dgiData['codeDEFDGI'] ?? null,
+                'counters'       => $dgiData['counters'] ?? null,
+                'nim'            => $dgiData['nim'] ?? null
             ]);
 
             foreach ($data['articles'] as $item) {

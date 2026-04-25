@@ -15,15 +15,20 @@ class Sale
 
     public function create($data)
     {
-        $sql = "INSERT INTO ventes (numero_facture, sous_total_ht, tva, total, vendeur_id, date) 
-                VALUES (:numero_facture, :sous_total_ht, :tva, :total, :vendeur_id, :date)";
+        $sql = "INSERT INTO ventes (numero_facture, sous_total_ht, tva, total, vendeur_id, date, dateDGI, qrCode, codeDEFDGI, counters, nim) 
+                VALUES (:numero_facture, :sous_total_ht, :tva, :total, :vendeur_id, :date, :dateDGI, :qrCode, :codeDEFDGI, :counters, :nim)";
         $this->db->query($sql, [
             ':numero_facture' => $data['numero_facture'],
             ':sous_total_ht'  => $data['sous_total_ht'],
             ':tva'            => $data['tva'],
             ':total'          => $data['total'],
             ':vendeur_id'     => $data['vendeur_id'],
-            ':date'           => $data['date']
+            ':date'           => $data['date'],
+            ':dateDGI'        => $data['dateDGI'] ?? null,
+            ':qrCode'         => $data['qrCode'] ?? null,
+            ':codeDEFDGI'     => $data['codeDEFDGI'] ?? null,
+            ':counters'       => $data['counters'] ?? null,
+            ':nim'            => $data['nim'] ?? null
         ]);
         return $this->db->getConnection()->lastInsertId();
     }
