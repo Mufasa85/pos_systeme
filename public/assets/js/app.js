@@ -993,6 +993,11 @@ document.addEventListener('DOMContentLoaded', () => {
         initProductsTabs();
     }
 
+    // Initialiser les filtres de la page historique
+    if ($('#invoice-search')) {
+        initHistoryFilters();
+    }
+
     // Print Receipt Logic — via iframe (compatible Android/iOS/Desktop)
     const printBtn = $('#print-receipt');
     if (printBtn) {
@@ -1002,6 +1007,67 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
+
+// ==================== HISTORY FILTERS ====================
+
+function initHistoryFilters() {
+    const invoiceSearch = $('#invoice-search');
+    const dateFilter = $('#date-filter');
+    const sellerFilter = $('#seller-filter');
+
+    function filterHistory() {
+        const invoiceQuery = invoiceSearch ? invoiceSearch.value.toLowerCase().trim() : '';
+        const dateQuery = dateFilter ? dateFilter.value : '';
+        const sellerQuery = sellerFilter ? sellerFilter.value : 'all';
+
+        const rows = $$('#page-history tbody tr[data-invoice]');
+        let visibleCount = 0;
+
+        rows.forEach(row => {
+            const invoice = row.dataset.invoice ? row.dataset.invoice.toLowerCase() : '';
+            const date = row.dataset.date || '';
+            const seller = row.dataset.seller || '';
+
+            const matchInvoice = !invoiceQuery || invoice.includes(invoiceQuery);
+            const matchDate = !dateQuery || date === dateQuery;
+            const matchSeller = sellerQuery === 'all' || seller === sellerQuery;
+
+            if (matchInvoice && matchDate && matchSeller) {
+                row.style.display = '';
+                visibleCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        // Afficher un message si aucun résultat
+        let emptyMsg = $('#history-empty-message');
+        if (!emptyMsg && visibleCount === 0 && rows.length > 0) {
+            const tbody = document.querySelector('#page-history tbody');
+            const tr = document.createElement('tr');
+            tr.id = 'history-empty-message';
+            tr.innerHTML = '<td colspan="5" style="text-align:center; padding:2rem; color:#888;">Aucune vente trouvée</td>';
+            tbody.appendChild(tr);
+        } else if (emptyMsg && visibleCount > 0) {
+            emptyMsg.remove();
+        }
+    }
+
+    // Écouteurs d'événements
+    if (invoiceSearch) {
+        invoiceSearch.addEventListener('input', filterHistory);
+        invoiceSearch.addEventListener('keyup', filterHistory);
+    }
+    if (dateFilter) {
+        dateFilter.addEventListener('change', filterHistory);
+    }
+    if (sellerFilter) {
+        sellerFilter.addEventListener('change', filterHistory);
+    }
+
+    // Filtrer initial
+    filterHistory();
+}
 
 /**
  * Impression universelle via iframe caché.

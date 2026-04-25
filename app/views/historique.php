@@ -4,9 +4,15 @@
           <h2>Historique des ventes</h2>
         </div>
         <div class="filters-bar">
+          <input type="text" id="invoice-search" placeholder="Rechercher par N° facture...">
           <input type="date" id="date-filter">
           <select id="seller-filter">
             <option value="all">Tous les vendeurs</option>
+            <?php
+            $vendeurs = array_unique(array_column($ventes, 'nom_vendeur'));
+            foreach ($vendeurs as $v): ?>
+              <option value="<?= htmlspecialchars($v) ?>"><?= htmlspecialchars($v) ?></option>
+            <?php endforeach; ?>
           </select>
         </div>
         <div class="table-container">
@@ -27,7 +33,10 @@
                 </tr>
               <?php else: ?>
                 <?php foreach ($ventes as $v): ?>
-                  <tr style="border-bottom:1px solid #eee;">
+                  <tr data-invoice="<?= htmlspecialchars($v['numero_facture']) ?>"
+                    data-date="<?= date('Y-m-d', strtotime($v['date'])) ?>"
+                    data-seller="<?= htmlspecialchars($v['nom_vendeur']) ?>"
+                    style="border-bottom:1px solid #eee;">
                     <td style="padding:0.75rem;"><?= htmlspecialchars($v['numero_facture']) ?></td>
                     <td style="padding:0.75rem;"><?= date('d/m/Y H:i', strtotime($v['date'])) ?></td>
                     <td style="padding:0.75rem;"><?= htmlspecialchars($v['nom_vendeur']) ?></td>
