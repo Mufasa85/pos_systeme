@@ -60,14 +60,23 @@ class PageController
 
     public function caisse()
     {
-        $this->render('caisse');
+        $categoryModel = new \App\Models\Category();
+        $categories = $categoryModel->all();
+        $this->render('caisse', ['categories' => $categories]);
     }
 
     public function produits()
     {
         $productModel = new Product();
+        $categoryModel = new \App\Models\Category();
+
         $produits = $productModel->getAll();
-        $this->render('produits', ['produits' => $produits]);
+        $categories = $categoryModel->all();
+
+        $this->render('produits', [
+            'produits' => $produits,
+            'categories' => $categories
+        ]);
     }
 
     public function utilisateurs()

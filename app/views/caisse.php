@@ -12,6 +12,9 @@
             </div>
             <div class="category-tabs" id="caisse-category-tabs">
               <button class="category-tab active" data-category="all">Tous</button>
+              <?php foreach ($categories as $cat): ?>
+                <button class="category-tab" data-category="<?= htmlspecialchars($cat['category']) ?>"><?= htmlspecialchars($cat['category']) ?></button>
+              <?php endforeach; ?>
             </div>
             <div id="products-grid" class="products-grid">
               <div class="empty-state">Chargement des produits...</div>
@@ -39,7 +42,7 @@
                 <span id="subtotal">0.00 Fc</span>
               </div>
               <div class="total-row">
-                <span>TVA (20%)</span>
+                <span>TVA (16%)</span>
                 <span id="tax">0.00 Fc</span>
               </div>
               <div class="total-row total-final">

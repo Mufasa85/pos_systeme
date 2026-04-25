@@ -16,6 +16,9 @@
           <input type="text" id="products-filter" placeholder="Rechercher un produit...">
           <select id="category-filter">
             <option value="all">Toutes les catégories</option>
+            <?php foreach ($categories as $cat): ?>
+              <option value="<?= htmlspecialchars($cat['category']) ?>"><?= htmlspecialchars($cat['category']) ?></option>
+            <?php endforeach; ?>
           </select>
         </div>
         <div class="table-container">

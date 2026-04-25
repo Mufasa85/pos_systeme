@@ -673,7 +673,7 @@ async function loadCategories() {
         const res = await fetch(APP_URL + '/api/categories');
         categoriesCache = await res.json();
         populateCategorySelect('product-category', categoriesCache);
-        populateCategorySelect('category-filter', categoriesCache);
+        // Ne pas écraser category-filter car il est déjà rempli côté PHP
     } catch (e) {
         console.error('Erreur chargement categories:', e);
     }
@@ -987,6 +987,11 @@ function initProductsTabs() {
 document.addEventListener('DOMContentLoaded', () => {
     posCart.init();
     loadCategories(); // Charger les categories pour le modal produit
+
+    // Initialiser les filtres de la page produits
+    if ($('#products-table')) {
+        initProductsTabs();
+    }
 
     // Print Receipt Logic — via iframe (compatible Android/iOS/Desktop)
     const printBtn = $('#print-receipt');
