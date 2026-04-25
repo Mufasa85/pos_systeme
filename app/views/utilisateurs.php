@@ -79,7 +79,7 @@
             </div>
             <div style="margin-bottom:1rem;">
               <label style="display:block; margin-bottom:0.5rem; font-weight:500;">Rôle</label>
-              <select id="user-role" name="role" style="width:100%; padding:0.5rem; border:1px solid #ddd; border-radius:4px;">
+              <select id="user-role1" name="role" style="width:100%; padding:0.5rem; border:1px solid #ddd; border-radius:4px;">
                 <option value="vendeur">Vendeur</option>
                 <option value="admin">Admin</option>
               </select>

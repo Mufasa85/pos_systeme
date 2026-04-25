@@ -44,6 +44,9 @@ class UserController extends Controller
             return;
         }
 
+        // Debug: log received data
+        error_log("User update - ID: $id, POST data: " . print_r($_POST, true));
+
         $data = [];
         if (isset($_POST['nom_utilisateur'])) {
             $data['nom_utilisateur'] = $this->sanitaze($_POST['nom_utilisateur']);
@@ -61,10 +64,20 @@ class UserController extends Controller
             $data['actif']           = $this->sanitaze($_POST['actif']);
         }
 
+        error_log("User update - data to update: " . print_r($data, true));
+
+        if (empty($data)) {
+            $this->json(['success' => false, 'error' => 'Aucune donnée à mettre à jour']);
+            return;
+        }
+
         $userModel = new \App\Models\User();
         $success = $userModel->update($id, $data);
 
-        $this->json(['success' => $success]);
+        error_log("User update - success: " . ($success ? 'true' : 'false'));
+        error_log("User update - role in data: " . ($data['role'] ?? 'NOT SET'));
+
+        $this->json(['success' => (bool)$success, 'debug_role' => $data['role'] ?? 'NOT SET']);
     }
 
     public function all()

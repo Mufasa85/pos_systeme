@@ -84,10 +84,21 @@ class User
         }
 
         if (empty($fields)) {
+            error_log("User model update - no fields to update for id: $id");
             return false; // rien à mettre à jour
         }
 
         $sql = "UPDATE utilisateurs SET " . implode(", ", $fields) . " WHERE id = :id";
-        return $this->db->query($sql, $params);
+        error_log("User model update - SQL: $sql");
+        error_log("User model update - params: " . print_r($params, true));
+
+        try {
+            $this->db->execute($sql, $params);
+            error_log("User model update - executed successfully");
+            return true; // Succès si pas d'exception
+        } catch (\Exception $e) {
+            error_log("User model update - error: " . $e->getMessage());
+            return false;
+        }
     }
 }

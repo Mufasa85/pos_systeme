@@ -2,6 +2,8 @@
 
 namespace App\Controllers;
 
+require_once dirname(__DIR__, 2) . '/config/config.php';
+
 use App\Models\User;
 use App\controllers\Controller;
 

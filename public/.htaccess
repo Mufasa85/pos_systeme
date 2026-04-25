@@ -1,5 +1,8 @@
 RewriteEngine On
 
+# Rediriger "/" vers "dashboard" (chemin relatif)
+RewriteRule ^$ dashboard [R=301,L]
+
 # Si la requête n'est pas un fichier existant ou un dossier
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d

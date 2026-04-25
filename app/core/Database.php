@@ -46,6 +46,21 @@ class Database
         return $stmt;
     }
 
+    // Retourne true si la requête s'est exécutée sans erreur (indépendamment du nombre de lignes affectées)
+    public function execute($sql, $params = [])
+    {
+        error_log("Database execute - SQL: $sql");
+        error_log("Database execute - params: " . print_r($params, true));
+
+        $stmt = $this->pdo->prepare($sql);
+        $result = $stmt->execute($params);
+
+        $rowCount = $stmt->rowCount();
+        error_log("Database execute - rowCount: $rowCount");
+
+        return true;
+    }
+
     public function fetchAll($sql, $params = [])
     {
         return $this->query($sql, $params)->fetchAll();

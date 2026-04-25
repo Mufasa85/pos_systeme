@@ -596,16 +596,40 @@ function openAddUserModal() {
 }
 
 function openEditUserModal(id, username, fullname, role, actif) {
+    // Get elements
+    const modal = document.getElementById('user-modal');
+    const roleSelect = document.getElementById('user-role');
+    const actifSelect = document.getElementById('user-actif');
+
+    // Set values first while modal is still hidden
     document.getElementById('user-modal-title').textContent = 'Modifier l\'utilisateur';
     document.getElementById('user-id').value = id;
     document.getElementById('user-username').value = username;
     document.getElementById('user-fullname').value = fullname;
     document.getElementById('user-password').value = '';
     document.getElementById('user-password').required = false;
-    document.getElementById('user-role').value = role;
-    document.getElementById('user-actif').value = actif;
     document.getElementById('password-hint').style.display = 'inline';
-    document.getElementById('user-modal').style.display = 'flex';
+
+    // Set select values using selectedIndex
+    if (role === 'admin') {
+        roleSelect.selectedIndex = 1; // Admin is second option
+    } else {
+        roleSelect.selectedIndex = 0; // Vendeur is first option
+    }
+
+    if (actif == 1) {
+        actifSelect.selectedIndex = 0; // Actif is first option
+    } else {
+        actifSelect.selectedIndex = 1; // Inactif is second option
+    }
+
+    // Debug
+    console.log('openEditUserModal - role parameter:', role);
+    console.log('openEditUserModal - roleSelect.selectedIndex:', roleSelect.selectedIndex);
+    console.log('openEditUserModal - roleSelect.value:', roleSelect.value);
+
+    // Now show modal
+    modal.style.display = 'flex';
 }
 
 function closeUserModal() {
@@ -615,43 +639,67 @@ function closeUserModal() {
 function saveUser(event) {
     event.preventDefault();
     const formData = new FormData();
-    formData.append('username', document.getElementById('user-username').value);
-    formData.append('fullname', document.getElementById('user-fullname').value);
-    const password = document.getElementById('user-password').value;
     const userId = document.getElementById('user-id').value;
+    const username = document.getElementById('user-username').value;
+    const fullname = document.getElementById('user-fullname').value;
+    const password = document.getElementById('user-password').value;
+
+    // Get role value directly from the select element
+    const roleSelect = document.getElementById('user-role1');
+    const role = roleSelect ? roleSelect.value : 'vendeur';
+    const actif = document.getElementById('user-actif').value;
+
 
     const url = userId ? APP_URL + '/api/update/user' : APP_URL + '/api/create/user';
 
     if (userId) {
         formData.append('id', userId);
-        formData.append('nom_utilisateur', document.getElementById('user-username').value);
-        formData.append('nom_complet', document.getElementById('user-fullname').value);
-        formData.append('role', document.getElementById('user-role').value);
-        formData.append('actif', document.getElementById('user-actif').value);
+        formData.append('nom_utilisateur', username);
+        formData.append('nom_complet', fullname);
+        formData.append('role', role);
+        formData.append('actif', actif);
         if (password) {
             formData.append('mot_de_passe', password);
         }
     } else {
+        formData.append('username', username);
+        formData.append('fullname', fullname);
         formData.append('password', password);
-        formData.append('role', document.getElementById('user-role').value);
-        formData.append('actif', document.getElementById('user-actif').value);
+        formData.append('role', role);
+        formData.append('actif', actif);
     }
 
     fetch(url, {
         method: 'POST',
         body: formData
     })
-        .then(res => res.json())
+        .then(res => {
+            console.log('HTTP status:', res.status);
+            return res.json();
+        })
         .then(data => {
+            console.log('Server response:', data);
             if (data.success) {
                 alert(userId ? 'Utilisateur modifie !' : 'Utilisateur cree !');
                 closeUserModal();
                 window.location.reload();
             } else {
-                alert(data.error || 'Erreur');
+                // Show detailed error
+                let errorMsg = 'Erreur: ';
+                if (data.error) {
+                    errorMsg += data.error;
+                } else if (data.success === false) {
+                    errorMsg += 'La mise a jour a echoue (success=false)';
+                } else {
+                    errorMsg += JSON.stringify(data);
+                }
+                alert(errorMsg);
             }
         })
-        .catch(() => alert('Erreur serveur'));
+        .catch((err) => {
+            console.error('Fetch error:', err);
+            alert('Erreur serveur: ' + err.message);
+        });
 
     return false;
 }
