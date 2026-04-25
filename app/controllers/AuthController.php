@@ -10,10 +10,10 @@ class AuthController extends Controller
     public function showLogin()
     {
         if (isset($_SESSION['user_id'])) {
-            #header('Location: ' . APP_URL . '/dashboard');
+            header('Location: ' . APP_URL . '/dashboard');
             exit;
         }
-        require_once dirname(__DIR__) . DIRECTORY_SEPARATOR. 'views/login.php';
+        require_once dirname(__DIR__) . DIRECTORY_SEPARATOR . 'views/login.php';
     }
 
     public function login()
@@ -41,6 +41,7 @@ class AuthController extends Controller
     public function logout()
     {
         session_destroy();
-        // header('Location: /');
+        header('Location: /');
+        exit;
     }
 }

@@ -43,10 +43,7 @@
           Se connecter
         </button>
       </form>
-      <div class="login-footer">
-        <p>Comptes démo:</p>
-        <p><strong>admin</strong> / admin123 | <strong>vendeur1</strong> / vendeur123</p>
-      </div>
+
     </div>
   </div>
 
