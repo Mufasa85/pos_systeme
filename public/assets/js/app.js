@@ -98,11 +98,13 @@ const posCart = {
                  onclick="posCart.addToCart(${p.id})"
                  ${p.stock <= 0 ? 'title="Rupture de stock"' : ''}>
               <div class="product-image">
-                <img src="${p.image}" alt="${p.nom}" onerror="this.style.display='none'">
+                <img src="${p.image}" alt="${p.nom}" onerror="this.parentElement.innerHTML='<svg width=\\'40\\\' height=\\'40\\\' viewBox=\\'0 0 24 24\\\' fill=\\'none\\\' stroke=\\'currentColor\\\' stroke-width=\\'1.5\\\'><path d=\\'M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z\\\'></path><line x1=\\'3\\\' y1=\\'6\\\' x2=\\'21\\\' y2=\\'6\\\'></line><path d=\\'M16 10a4 4 0 0 1-8 0\\\'></path></svg>'">
               </div>
-              <div class="name">${p.nom}</div>
-              <div class="price">${formatCurrency(parseFloat(p.prix))}</div>
-              <div class="barcode-display">${p.code_barres}</div>
+              <div class="product-info">
+                <div class="name">${p.nom}</div>
+                <div class="price">${formatCurrency(parseFloat(p.prix))}</div>
+                <div class="barcode-display">${p.code_barres}</div>
+              </div>
             </div>
         `).join('') || '<div class="empty-state">Aucun produit trouve</div>';
     },
