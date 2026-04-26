@@ -1,9 +1,19 @@
       <!-- Dashboard Page -->
       <div id="page-dashboard" class="page <?= $page == 'dashboard' ? 'active' : '' ?>">
         <div class="page-header">
-          <h2>Tableau de bord</h2>
+          <h2>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 10px; vertical-align: middle;">
+              <rect x="3" y="3" width="7" height="7"></rect>
+              <rect x="14" y="3" width="7" height="7"></rect>
+              <rect x="14" y="14" width="7" height="7"></rect>
+              <rect x="3" y="14" width="7" height="7"></rect>
+            </svg>
+            Tableau de bord
+          </h2>
           <p id="current-date"><?= date('d/m/Y') ?></p>
         </div>
+
+        <!-- Statistiques principales -->
         <div class="stats-grid">
           <div class="stat-card">
             <div class="stat-icon blue">
@@ -15,20 +25,40 @@
             <div class="stat-info">
               <span class="stat-label">Ventes du jour</span>
               <span class="stat-value" id="stat-today"><?= number_format($ventes_jour ?? 0, 2) ?> Fc</span>
+              <span class="stat-count"><?= $nb_ventes_jour ?? 0 ?> transactions</span>
             </div>
           </div>
+
           <div class="stat-card">
-          <div class="stat-icon green">
+            <div class="stat-icon green">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
                 <polyline points="17 6 23 6 23 12"></polyline>
               </svg>
             </div>
             <div class="stat-info">
-              <span class="stat-label">Ventes semaine</span>
+              <span class="stat-label">Cette semaine</span>
               <span class="stat-value" id="stat-week"><?= number_format($ventes_semaine ?? 0, 2) ?> Fc</span>
+              <span class="stat-count"><?= $nb_ventes_semaine ?? 0 ?> transactions</span>
             </div>
           </div>
+
+          <div class="stat-card">
+            <div class="stat-icon purple">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+              </svg>
+            </div>
+            <div class="stat-info">
+              <span class="stat-label">Ce mois</span>
+              <span class="stat-value" id="stat-month"><?= number_format($ventes_mois ?? 0, 2) ?> Fc</span>
+              <span class="stat-count"><?= $nb_ventes_mois ?? 0 ?> transactions</span>
+            </div>
+          </div>
+
           <div class="stat-card">
             <div class="stat-icon cyan">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -42,30 +72,34 @@
               <span class="stat-value" id="stat-products"><?= $produits_compte ?? 0 ?></span>
             </div>
           </div>
-          <div class="stat-card">
-            <div class="stat-icon orange">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-                <line x1="12" y1="9" x2="12" y2="13"></line>
-                <line x1="12" y1="17" x2="12.01" y2="17"></line>
-              </svg>
+        </div>
+
+        <!-- Graphique des ventes -->
+        <div class="dashboard-grid" style="margin-top: 1.5rem;">
+          <div class="card" style="padding: 1.5rem;">
+            <div class="card-header" style="margin-bottom: 1rem;">
+              <h3>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 8px; vertical-align: middle;">
+                  <line x1="18" y1="20" x2="18" y2="10"></line>
+                  <line x1="12" y1="20" x2="12" y2="4"></line>
+                  <line x1="6" y1="20" x2="6" y2="14"></line>
+                </svg>
+                Ventes des 7 derniers jours
+              </h3>
             </div>
-            <div class="stat-info">
-              <span class="stat-label">Stock faible</span>
-              <span class="stat-value" id="stat-low-stock"><?= count($stock_faible ?? []) ?></span>
+            <div class="card-body" style="height: 300px; position: relative;">
+              <canvas id="sales-chart"></canvas>
             </div>
           </div>
-        </div>
-        
-        <div class="dashboard-grid">
+
           <div class="card">
             <div class="card-header">
               <h3>Dernières ventes</h3>
             </div>
             <div class="card-body">
               <div id="recent-sales" class="recent-list">
-                <?php if(!empty($ventes)): ?>
-                    <?php foreach(array_slice($ventes, 0, 5) as $v): ?>
+                <?php if (!empty($ventes)): ?>
+                  <?php foreach (array_slice($ventes, 0, 5) as $v): ?>
                     <div class="recent-item">
                       <div>
                         <strong><?= htmlspecialchars($v['numero_facture']) ?></strong>
@@ -73,32 +107,122 @@
                       </div>
                       <span class="time"><?= date('d/m/Y H:i', strtotime($v['date'])) ?> par <?= htmlspecialchars($v['nom_vendeur'] ?? 'Inconnu') ?></span>
                     </div>
-                    <?php endforeach; ?>
+                  <?php endforeach; ?>
                 <?php else: ?>
-                    <div class="empty-state">Aucune vente récente</div>
+                  <div class="empty-state">Aucune vente récente</div>
                 <?php endif; ?>
               </div>
             </div>
           </div>
-          
+        </div>
+
+        <div class="dashboard-grid" style="margin-top: 1.5rem;">
           <div class="card">
             <div class="card-header">
               <h3>Alertes de stock</h3>
             </div>
             <div class="card-body">
               <div id="stock-alerts" class="alert-list">
-                <?php if(!empty($stock_faible)): ?>
-                    <?php foreach($stock_faible as $sf): ?>
+                <?php if (!empty($stock_faible)): ?>
+                  <?php foreach ($stock_faible as $sf): ?>
                     <div class="alert-item <?= $sf['stock'] == 0 ? 'critical' : '' ?>">
                       <span><?= htmlspecialchars($sf['nom']) ?></span>
                       <span><strong><?= $sf['stock'] ?></strong> / <?= $sf['stock_minimum'] ?></span>
                     </div>
-                    <?php endforeach; ?>
+                  <?php endforeach; ?>
                 <?php else: ?>
-                    <div class="empty-state">Aucune alerte de stock</div>
+                  <div class="empty-state">Aucune alerte de stock</div>
                 <?php endif; ?>
+              </div>
+            </div>
+          </div>
+
+          <!-- Stats rapides -->
+          <div class="card">
+            <div class="card-header">
+              <h3>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 8px; vertical-align: middle;">
+                  <path d="M12 20V10"></path>
+                  <path d="M18 20V4"></path>
+                  <path d="M6 20v-4"></path>
+                </svg>
+                Performance
+              </h3>
+            </div>
+            <div class="card-body">
+              <div style="text-align: center; padding: 1rem 0;">
+                <?php
+                $avg_day = $ventes_semaine > 0 ? $ventes_semaine / 7 : 0;
+                $avg_ticket = $nb_ventes_semaine > 0 ? $ventes_semaine / $nb_ventes_semaine : 0;
+                ?>
+                <div style="margin-bottom: 1.5rem;">
+                  <div style="font-size: 2rem; font-weight: 700; color: var(--primary);"><?= number_format($avg_day, 2) ?> Fc</div>
+                  <div style="font-size: 0.85rem; color: var(--muted);">Panier moyen / jour</div>
+                </div>
+                <div>
+                  <div style="font-size: 2rem; font-weight: 700; color: var(--success);"><?= number_format($avg_ticket, 2) ?> Fc</div>
+                  <div style="font-size: 0.85rem; color: var(--muted);">Panier moyen / transaction</div>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
+
+      <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+      <script>
+        // Données du graphique
+        const labels = <?= $chart_labels ?? '[]' ?>;
+        const values = <?= $chart_values ?? '[]' ?>;
+
+        const ctx = document.getElementById('sales-chart').getContext('2d');
+        const salesChart = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: labels,
+            datasets: [{
+              label: 'Ventes (Fc)',
+              data: values,
+              backgroundColor: 'rgba(59, 130, 246, 0.5)',
+              borderColor: 'rgba(59, 130, 246, 1)',
+              borderWidth: 2,
+              borderRadius: 6,
+              borderSkipped: false,
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                display: false
+              },
+              tooltip: {
+                callbacks: {
+                  label: function(context) {
+                    return context.parsed.y.toFixed(2) + ' Fc';
+                  }
+                }
+              }
+            },
+            scales: {
+              y: {
+                beginAtZero: true,
+                grid: {
+                  color: 'rgba(0, 0, 0, 0.05)'
+                },
+                ticks: {
+                  callback: function(value) {
+                    return value + ' Fc';
+                  }
+                }
+              },
+              x: {
+                grid: {
+                  display: false
+                }
+              }
+            }
+          }
+        });
+      </script>

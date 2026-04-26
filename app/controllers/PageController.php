@@ -39,16 +39,64 @@ class PageController
         $produits = $productModel->getAll();
 
         $today = date('Y-m-d');
+        $today_start = date('Y-m-d 00:00:00');
+        $today_end = date('Y-m-d 23:59:59');
         $semaine_start = date('Y-m-d', strtotime('-6 days'));
+        $semaine_start_dt = date('Y-m-d 00:00:00', strtotime('-6 days'));
+        $semaine_end = date('Y-m-d 23:59:59');
+        $mois_start = date('Y-m-01 00:00:00');
+        $mois_end = date('Y-m-t 23:59:59');
+
+        // Calculs des ventes par période
         $ventes_jour = 0;
         $ventes_semaine = 0;
+        $ventes_mois = 0;
+        $nb_ventes_jour = 0;
+        $nb_ventes_semaine = 0;
+        $nb_ventes_mois = 0;
+
+        // Données pour le graphique des 7 derniers jours
+        $chart_data = [];
+        for ($i = 6; $i >= 0; $i--) {
+            $day = date('Y-m-d', strtotime("-$i days"));
+            $chart_data[$day] = ['total' => 0, 'count' => 0];
+        }
+
         foreach ($ventes as $v) {
-            if (strpos($v['date'], $today) === 0) {
+            $v_date = strtotime($v['date']);
+            $v_date_str = date('Y-m-d', $v_date);
+
+            // Aujourd'hui
+            if ($v_date >= strtotime($today_start) && $v_date <= strtotime($today_end)) {
                 $ventes_jour += $v['total'];
+                $nb_ventes_jour++;
             }
-            if (strpos($v['date'], $semaine_start) === 0) {
+
+            // Cette semaine
+            if ($v_date >= strtotime($semaine_start_dt) && $v_date <= strtotime($semaine_end)) {
                 $ventes_semaine += $v['total'];
+                $nb_ventes_semaine++;
             }
+
+            // Ce mois
+            if ($v_date >= strtotime($mois_start) && $v_date <= strtotime($mois_end)) {
+                $ventes_mois += $v['total'];
+                $nb_ventes_mois++;
+            }
+
+            // Graphique - 7 derniers jours
+            if (isset($chart_data[$v_date_str])) {
+                $chart_data[$v_date_str]['total'] += $v['total'];
+                $chart_data[$v_date_str]['count']++;
+            }
+        }
+
+        // Préparer les données pour Chart.js
+        $chart_labels = [];
+        $chart_values = [];
+        foreach ($chart_data as $date => $data) {
+            $chart_labels[] = date('d/m', strtotime($date));
+            $chart_values[] = round($data['total'], 2);
         }
 
         $this->render('dashboard', [
@@ -56,6 +104,12 @@ class PageController
             'produits_compte' => count($produits),
             'ventes_jour' => $ventes_jour,
             'ventes_semaine' => $ventes_semaine,
+            'ventes_mois' => $ventes_mois,
+            'nb_ventes_jour' => $nb_ventes_jour,
+            'nb_ventes_semaine' => $nb_ventes_semaine,
+            'nb_ventes_mois' => $nb_ventes_mois,
+            'chart_labels' => json_encode($chart_labels),
+            'chart_values' => json_encode($chart_values),
             'stock_faible' => array_filter($produits, function ($p) {
                 return $p['stock'] <= $p['stock_minimum'];
             })
