@@ -12,8 +12,8 @@ class App
     {
         if (self::$router == null) {
             self::$router = new AltoRouter();
+            // Pas de base path - routes sont relatives à la racine du domaine
         }
         return self::$router;
     }
 }
- 

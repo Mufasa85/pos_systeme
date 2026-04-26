@@ -2,7 +2,6 @@
 
 namespace App\Controllers;
 
-//use App\Models\Category;
 use App\Models\User;
 use App\Models\Product;
 use App\Models\Sale;
@@ -12,15 +11,18 @@ class PageController
 {
     public function __construct()
     {
-
-        if (!isset($_SESSION['user_id'])) {
-            header('Location: http://localhost:8000/');
-            exit;
-        }
+        // Ne rien faire ici - pas de redirection automatique
     }
 
     private function render($view, $data = [])
     {
+        // Vérifier la session AVANT d'afficher la page
+        if (!isset($_SESSION['user_id'])) {
+            // Juste rediriger vers /, chemin relatif
+            header('Location: /');
+            exit;
+        }
+
         $page = $view;
         // Charger le nom du magasin pour toutes les pages
         $settingsModel = new Settings();
@@ -139,8 +141,12 @@ class PageController
 
     public function utilisateurs()
     {
+        if (!isset($_SESSION['user_id'])) {
+            header('Location: /');
+            exit;
+        }
         if ($_SESSION['role'] !== 'admin') {
-            header('Location: /dashboard');
+            header('Location: /');
             exit;
         }
         $userModel = new User();
@@ -157,8 +163,12 @@ class PageController
 
     public function parametres()
     {
+        if (!isset($_SESSION['user_id'])) {
+            header('Location: /');
+            exit;
+        }
         if ($_SESSION['role'] !== 'admin') {
-            header('Location: /dashboard');
+            header('Location: /');
             exit;
         }
         $this->render('parametres');
@@ -166,8 +176,12 @@ class PageController
 
     public function categories()
     {
+        if (!isset($_SESSION['user_id'])) {
+            header('Location: /');
+            exit;
+        }
         if ($_SESSION['role'] !== 'admin') {
-            header('Location: /dashboard');
+            header('Location: /');
             exit;
         }
         $productModel = new Product();

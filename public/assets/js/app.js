@@ -60,7 +60,7 @@ const posCart = {
         if (addProductForm) {
             addProductForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
-                await this.createProduct();
+                await posCart.saveProduct();
             });
         }
     },
