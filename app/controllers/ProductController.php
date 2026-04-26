@@ -101,16 +101,22 @@ class ProductController extends Controller
             return;
         }
 
+        // Récupérer l'ancien produit pour conserver l'image existante
+        $productModel = new Product();
+        $oldProduct = $productModel->findById($id);
+        $oldImage = $oldProduct ? $oldProduct['image'] : '';
+
         $data = [
             'code_barres' => $this->sanitaze($_POST['code_barres']),
             'nom' => $this->sanitaze($_POST['nom']),
             'category_id' => (int)$this->sanitaze($_POST['category_id']),
             'prix' => (float)$this->sanitaze($_POST['prix']),
             'stock' => (int)$this->sanitaze($_POST['stock']),
-            'stock_minimum' => (int)$this->sanitaze($_POST['stock_minimum'])
+            'stock_minimum' => (int)$this->sanitaze($_POST['stock_minimum']),
+            'image' => $oldImage // Par défaut, garder l'ancienne image
         ];
 
-        // Image upload
+        // Image upload - seulement si une nouvelle image est uploadée
         if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
             $uploadDir = dirname(__DIR__, 2) . '/public/assets/img/products/';
             if (!is_dir($uploadDir)) {
@@ -147,7 +153,6 @@ class ProductController extends Controller
             }
         }
 
-        $productModel = new Product();
         $success = $productModel->update($id, $data);
         $this->json(['success' => $success]);
     }
