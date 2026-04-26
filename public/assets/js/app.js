@@ -215,7 +215,7 @@ const posCart = {
             const invoiceNum = 'FAC-' + Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
 
             // Obtenir le nom du vendeur
-            const sellerName = (typeof CURRENT_USER !== 'undefined' && CURRENT_USER.fullName) ? CURRENT_USER.fullName : 'POS System';
+            const sellerName = (typeof CURRENT_USER !== 'undefined' && CURRENT_USER.fullName) ? CURRENT_USER.fullName : STORE_INFO.name;
 
             // Envoyer les donnees en POST a l'API DGI
             const res = await fetch(DGI_API_URL, {
@@ -358,7 +358,7 @@ const posCart = {
                 </div>
 
                 <div class="receipt-footer">
-                    <div class="vendeur-info">Vendeur: ${(typeof CURRENT_USER !== 'undefined' && CURRENT_USER.fullName) ? CURRENT_USER.fullName : 'POS System'}</div>
+                    <div class="vendeur-info">Vendeur: ${(typeof CURRENT_USER !== 'undefined' && CURRENT_USER.fullName) ? CURRENT_USER.fullName : STORE_INFO.name}</div>
                     <div class="barcode">||| ${invoiceNum} |||</div>
                     <div class="thank-you">Merci de votre visite!</div>
                     <div style="margin-top: 5px; font-size: 9px; font-style: italic;">Conservez ce ticket pour tout echange</div>
@@ -497,7 +497,7 @@ const posCart = {
                     ${dgiInfoHtml}
 
                     <div class="receipt-footer">
-                        <div class="vendeur-info">Vendeur: ${(typeof CURRENT_USER !== 'undefined' && CURRENT_USER.fullName) ? CURRENT_USER.fullName : 'POS System'}</div>
+                        <div class="vendeur-info">Vendeur: ${(typeof CURRENT_USER !== 'undefined' && CURRENT_USER.fullName) ? CURRENT_USER.fullName : STORE_INFO.name}</div>
                         <div id="${qrContainerId}" class="qrcode-container"></div>
                         <div class="barcode">||| ${saleData.numero_facture} |||</div>
                         <div class="thank-you">Merci de votre visite!</div>
@@ -628,7 +628,7 @@ function deleteProduct(id) {
 // ==================== USER MANAGEMENT ====================
 
 function openAddUserModal() {
-    document.getElementById('user-modal-title').textContent = 'Ajouter un utilisateur';
+    document.getElementById('user-modal-title').innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 8px; vertical-align: middle;"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><line x1="20" y1="8" x2="20" y2="14"></line><line x1="23" y1="11" x2="17" y2="11"></line></svg>Ajouter un utilisateur';
     document.getElementById('user-id').value = '';
     document.getElementById('user-username').value = '';
     document.getElementById('user-fullname').value = '';
@@ -647,7 +647,7 @@ function openEditUserModal(id, username, fullname, role, actif) {
     const actifSelect = document.getElementById('user-actif');
 
     // Set values first while modal is still hidden
-    document.getElementById('user-modal-title').textContent = 'Modifier l\'utilisateur';
+    document.getElementById('user-modal-title').innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 8px; vertical-align: middle;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>Modifier l\'utilisateur';
     document.getElementById('user-id').value = id;
     document.getElementById('user-username').value = username;
     document.getElementById('user-fullname').value = fullname;

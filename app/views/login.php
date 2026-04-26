@@ -1,10 +1,17 @@
+<?php
+
+use App\Models\Settings;
+
+$settingsModel = new Settings();
+$storeName = $settingsModel->get('store_name') ?? 'Mon Magasin';
+?>
 <!DOCTYPE html>
 <html lang="fr">
 
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>POS System - Login</title>
+  <title>Connexion - <?= htmlspecialchars($storeName) ?></title>
   <link rel="stylesheet" href="./assets/css/styles.css">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
@@ -20,7 +27,7 @@
             <line x1="12" y1="17" x2="12" y2="21"></line>
           </svg>
         </div>
-        <h1>POS System</h1>
+        <h1><?= htmlspecialchars($storeName) ?></h1>
         <p>Connectez-vous pour accéder à la caisse</p>
       </div>
       <form id="login-form" class="login-form" action="/login" method="POST">

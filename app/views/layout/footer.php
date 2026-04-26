@@ -278,39 +278,131 @@
 
     <!-- User Modal -->
     <div id="user-modal" class="modal">
-      <div class="modal-content">
+      <div class="modal-content" style="max-width: 550px;">
         <div class="modal-header">
-          <h3 id="user-modal-title">Ajouter un utilisateur</h3>
+          <h3 id="user-modal-title">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 8px; vertical-align: middle;">
+              <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+              <circle cx="8.5" cy="7" r="4"></circle>
+              <line x1="20" y1="8" x2="20" y2="14"></line>
+              <line x1="23" y1="11" x2="17" y2="11"></line>
+            </svg>
+            Ajouter un utilisateur
+          </h3>
           <button class="close-modal" onclick="document.getElementById('user-modal').classList.remove('active')">&times;</button>
         </div>
         <form id="user-form">
           <input type="hidden" id="user-id">
-          <div class="form-row">
-            <div class="form-group">
-              <label>Nom d'utilisateur</label>
-              <input type="text" id="user-username" required>
-            </div>
-            <div class="form-group">
-              <label>Mot de passe</label>
-              <input type="password" id="user-password" placeholder="(Laisser vide si inchangé)">
+
+          <!-- Informations de connexion -->
+          <div style="background: var(--background); border-radius: var(--radius); padding: 1rem; margin-bottom: 1rem;">
+            <h4 style="font-size: 0.85rem; font-weight: 600; color: var(--muted); margin-bottom: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+              </svg>
+              Informations de connexion
+            </h4>
+            <div class="form-row">
+              <div class="form-group">
+                <label>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="12" cy="7" r="4"></circle>
+                  </svg>
+                  Nom d'utilisateur
+                </label>
+                <input type="text" id="user-username" required placeholder="Ex: jdupont">
+              </div>
+              <div class="form-group">
+                <label>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                  </svg>
+                  Mot de passe
+                </label>
+                <input type="password" id="user-password" placeholder="Min. 6 caractères">
+                <small id="password-hint" style="color: var(--muted); display: none;">Laisser vide pour ne pas modifier</small>
+              </div>
             </div>
           </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label>Nom Complet</label>
-              <input type="text" id="user-fullname" required>
+
+          <!-- Informations personnelles -->
+          <div style="background: var(--background); border-radius: var(--radius); padding: 1rem; margin-bottom: 1rem;">
+            <h4 style="font-size: 0.85rem; font-weight: 600; color: var(--muted); margin-bottom: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+              </svg>
+              Informations personnelles
+            </h4>
+            <div class="form-row">
+              <div class="form-group">
+                <label>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="12" cy="7" r="4"></circle>
+                  </svg>
+                  Nom complet
+                </label>
+                <input type="text" id="user-fullname" required placeholder="Ex: Jean Dupont">
+              </div>
+              <div class="form-group">
+                <label>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                  </svg>
+                  Rôle
+                </label>
+                <select id="user-role" required>
+                  <option value="vendeur">Vendeur</option>
+                  <option value="admin">Administrateur</option>
+                </select>
+              </div>
             </div>
+          </div>
+
+          <!-- Statut -->
+          <div style="background: var(--background); border-radius: var(--radius); padding: 1rem; margin-bottom: 1rem;">
+            <h4 style="font-size: 0.85rem; font-weight: 600; color: var(--muted); margin-bottom: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+              </svg>
+              Statut du compte
+            </h4>
             <div class="form-group">
-              <label>Rôle</label>
-              <select id="user-role" required>
-                <option value="vendeur">Vendeur</option>
-                <option value="admin">Administrateur</option>
+              <label>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;">
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                  <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                </svg>
+                Statut
+              </label>
+              <select id="user-actif" style="width: 100%;">
+                <option value="1">Actif</option>
+                <option value="0">Inactif</option>
               </select>
             </div>
           </div>
-          <div class="modal-actions">
-            <button type="button" class="btn btn-secondary close-modal" onclick="document.getElementById('user-modal').classList.remove('active')">Annuler</button>
-            <button type="submit" class="btn btn-primary">Enregistrer</button>
+
+          <div class="modal-actions" style="padding-top: 1rem; border-top: 1px solid var(--border);">
+            <button type="button" class="btn btn-secondary close-modal" onclick="document.getElementById('user-modal').classList.remove('active')" style="padding: 0.75rem 1.5rem;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+              Annuler
+            </button>
+            <button type="submit" class="btn btn-primary" style="padding: 0.75rem 2rem;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                <polyline points="7 3 7 8 15 8"></polyline>
+              </svg>
+              Enregistrer
+            </button>
           </div>
         </form>
       </div>

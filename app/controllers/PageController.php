@@ -6,6 +6,7 @@ namespace App\Controllers;
 use App\Models\User;
 use App\Models\Product;
 use App\Models\Sale;
+use App\Models\Settings;
 
 class PageController
 {
@@ -21,6 +22,9 @@ class PageController
     private function render($view, $data = [])
     {
         $page = $view;
+        // Charger le nom du magasin pour toutes les pages
+        $settingsModel = new Settings();
+        $data['storeName'] = $settingsModel->get('store_name') ?? 'Mon Magasin';
         extract($data);
         require_once dirname(__DIR__) . DIRECTORY_SEPARATOR . 'views/layout/header.php';
         require_once dirname(__DIR__) . DIRECTORY_SEPARATOR . 'views/' . $view . '.php';

@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>POS System - Caisse Professionnelle</title>
+  <title id="page-title-base">Caisse - <?= htmlspecialchars($storeName ?? 'Mon Magasin') ?></title>
   <link rel="stylesheet" href="./assets/css/styles.css">
   <link rel="stylesheet" href="./assets/css/mobile-caisse.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -33,7 +33,7 @@
           <line x1="3" y1="18" x2="21" y2="18"></line>
         </svg>
       </button>
-      <h1>POS System</h1>
+      <h1 id="mobile-store-name"><?= htmlspecialchars($storeName ?? 'Mon Magasin') ?></h1>
       <div id="mobile-user-info" class="mobile-user-info"><?= htmlspecialchars($_SESSION['full_name'] ?? '') ?></div>
     </header>
 
@@ -47,7 +47,7 @@
             <line x1="12" y1="17" x2="12" y2="21"></line>
           </svg>
         </div>
-        <span>POS System</span>
+        <span id="sidebar-store-name"><?= htmlspecialchars($storeName ?? 'Mon Magasin') ?></span>
         <button id="close-sidebar" class="close-sidebar">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="18" y1="6" x2="6" y2="18"></line>
