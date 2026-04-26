@@ -145,7 +145,15 @@ const posCart = {
 
     clearCart() {
         this.items = [];
+        this.clientNumber = '';
+        const clientInput = $('#client-number');
+        if (clientInput) clientInput.value = '';
         this.renderCart();
+    },
+
+    updateClientNumber(number) {
+        this.clientNumber = number;
+        console.log('Numéro client mis à jour:', number);
     },
 
     renderCart() {
@@ -203,9 +211,31 @@ const posCart = {
     // Appeler l'API DGI pour valider la facture
     async validateWithDGI() {
         try {
-            // DGI API GET simple - retourne les infos de la facture
+            // Generer le numero de facture
+            const invoiceNum = 'FAC-' + Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
+
+            // Obtenir le nom du vendeur
+            const sellerName = (typeof CURRENT_USER !== 'undefined' && CURRENT_USER.fullName) ? CURRENT_USER.fullName : 'POS System';
+
+            // Envoyer les donnees en POST a l'API DGI
             const res = await fetch(DGI_API_URL, {
-                method: 'GET'
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    store_name: STORE_INFO.name,
+                    store_phone: STORE_INFO.phone,
+                    store_address: STORE_INFO.address,
+                    store_ice: STORE_INFO.ice,
+                    seller_name: sellerName,
+                    amount: this.currentTotals.total,
+                    client_number: this.clientNumber || '',
+                    invoice_number: invoiceNum,
+                    articles: this.items.map(item => ({
+                        name: item.nom,
+                        quantity: item.quantite,
+                        price: item.prix
+                    }))
+                })
             });
             return await res.json();
         } catch (e) {

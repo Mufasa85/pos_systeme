@@ -33,6 +33,16 @@
                 Vider
               </button>
             </div>
+            <div class="client-number-section">
+              <label for="client-number" class="client-number-label">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="12" cy="7" r="4"></circle>
+                </svg>
+                Numéro du client
+              </label>
+              <input type="text" id="client-number" class="client-number-input" placeholder="Entrez le numéro du client" onchange="posCart.updateClientNumber(this.value)">
+            </div>
             <div id="cart-items" class="cart-items">
               <div class="cart-empty">Le panier est vide</div>
             </div>
