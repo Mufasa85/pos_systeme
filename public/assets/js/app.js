@@ -574,13 +574,28 @@ function editProduct(product) {
 
 function setProductForm(product) {
     $('#product-id').value = product.id;
-    $('#product-modal-title').textContent = 'Modifier le produit';
+    $('#product-modal-title').innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 8px; vertical-align: middle;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>Modifier le produit';
     $('#product-barcode').value = product.code_barres;
     $('#product-name').value = product.nom;
     $('#product-price').value = product.prix;
     $('#product-stock').value = product.stock;
     $('#product-min-stock').value = product.stock_minimum;
     $('#product-image').value = '';
+
+    // Afficher l'image existante si elle existe
+    const preview = $('#product-image-preview');
+    const fileNameDisplay = $('#product-image-name');
+    const clearBtn = $('#clear-image-btn');
+
+    if (product.image && product.image.trim() !== '') {
+        preview.innerHTML = '<img src="' + APP_URL + '/' + product.image + '" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.parentElement.innerHTML=\'<div style=\\\'text-align:center; color:var(--muted); padding:1rem;\\\'><svg width=\\\'40\\\' height=\\\'40\\\' viewBox=\\\'0 0 24 24\\\' fill=\\\'none\\\' stroke=\\\'currentColor\\\' stroke-width=\\\'1.5\\\' style=\\\'opacity:0.4;\\\'><rect x=\\\'3\\\' y=\\\'3\\\' width=\\\'18\\\' height=\\\'18\\\' rx=\\\'2\\\' ry=\\\'2\\\'></rect><circle cx=\\\'8.5\\\' cy=\\\'8.5\\\' r=\\\'1.5\\\'></circle><polyline points=\\\'21 15 16 10 5 21\\\'></polyline></svg><p style=\\\'font-size:0.75rem; margin-top:0.5rem;\\\'>Image introuvable</p></div>\'">';
+        fileNameDisplay.textContent = 'Image actuelle';
+        clearBtn.style.display = 'inline-flex';
+    } else {
+        preview.innerHTML = '<div style="text-align: center; color: var(--muted); padding: 1rem;"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="opacity: 0.4;"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg><p style="font-size: 0.75rem; margin-top: 0.5rem;">Aucune image</p></div>';
+        fileNameDisplay.textContent = '';
+        clearBtn.style.display = 'none';
+    }
 
     // Selectionner la bonne categorie
     const categorySelect = $('#product-category');
