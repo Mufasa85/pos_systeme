@@ -1,5 +1,8 @@
       <!-- Caisse Page -->
       <div id="page-caisse" class="page <?= $page == 'caisse' ? 'active' : '' ?>">
+        <!-- Overlay pour le panier mobile -->
+        <div class="cart-sidebar-overlay" id="cart-sidebar-overlay" onclick="toggleCartSidebar()"></div>
+
         <div class="caisse-container">
           <!-- Products Section -->
           <div class="caisse-products">
@@ -21,10 +24,16 @@
             </div>
           </div>
 
-          <!-- Cart Section -->
-          <div class="caisse-cart">
+          <!-- Cart Section (Sidebar sur mobile) -->
+          <div class="caisse-cart" id="caisse-cart">
             <div class="cart-header">
               <h3>Panier</h3>
+              <button id="close-cart-sidebar" class="btn btn-ghost btn-small cart-close-btn" onclick="toggleCartSidebar()">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
               <button id="clear-cart" class="btn btn-ghost btn-small" onclick="posCart.clearCart()">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <polyline points="3 6 5 6 21 6"></polyline>
@@ -68,4 +77,15 @@
             </button>
           </div>
         </div>
+
+        <!-- Bouton flottant du panier (visible sur mobile) -->
+        <button class="cart-floating-btn" id="cart-floating-btn" onclick="toggleCartSidebar()">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="9" cy="21" r="1"></circle>
+            <circle cx="20" cy="21" r="1"></circle>
+            <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+          </svg>
+          <span class="cart-badge" id="cart-badge">0</span>
+          <span class="cart-floating-total" id="cart-floating-total">0.00 Fc</span>
+        </button>
       </div>

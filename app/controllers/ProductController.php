@@ -46,6 +46,14 @@ class ProductController extends Controller
             'stock_minimum' => (int)$this->sanitaze($_POST['stock_minimum'])
         ];
 
+        // Vérifier si le code-barres existe déjà
+        $productModel = new Product();
+        $existingProduct = $productModel->findByBarcode($data['code_barres']);
+        if ($existingProduct) {
+            $this->status(409)->json(['error' => 'Ce code-barres existe déjà pour le produit: ' . $existingProduct['nom']]);
+            return;
+        }
+
         // Image upload
         if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
             $uploadDir = dirname(__DIR__, 2) . '/public/assets/img/products/';
@@ -105,6 +113,14 @@ class ProductController extends Controller
         $productModel = new Product();
         $oldProduct = $productModel->findById($id);
         $oldImage = $oldProduct ? $oldProduct['image'] : '';
+
+        // Vérifier si le code-barres existe déjà pour un autre produit
+        $newBarcode = $this->sanitaze($_POST['code_barres']);
+        $existingProduct = $productModel->findByBarcode($newBarcode);
+        if ($existingProduct && $existingProduct['id'] != $id) {
+            $this->status(409)->json(['error' => 'Ce code-barres existe déjà pour le produit: ' . $existingProduct['nom']]);
+            return;
+        }
 
         $data = [
             'code_barres' => $this->sanitaze($_POST['code_barres']),

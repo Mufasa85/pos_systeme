@@ -12,7 +12,7 @@
         <div class="settings-grid">
           <!-- Informations Magasin -->
           <div class="card" style="padding: 1.5rem;">
-            <div class="card-header" style="margin-bottom: 1.5rem;">
+            <div class="card-header" style="margin-bottom: 1.5rem; padding : 0px">
               <h3>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 8px; vertical-align: middle;">
                   <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
@@ -80,7 +80,7 @@
           </div>
 
           <!-- Paramètres TVA -->
-          <div class="card" style="padding: 1.5rem;">
+          <div class="card" style="padding:0px;">
             <div class="card-header" style="margin-bottom: 1.5rem;">
               <h3>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 8px; vertical-align: middle;">
@@ -106,33 +106,10 @@
                       <input type="number" id="tax-rate" name="tax_rate" value="16" min="0" max="100" style="padding-right: 50px; text-align: center; font-size: 1.25rem; font-weight: 600;">
                       <span style="position: absolute; right: 16px; color: var(--muted); font-size: 1rem;">%</span>
                     </div>
-                    <small style="color: var(--muted);">Taux standard au Maroc: 20% | Réduit: 14% | Super-réduit: 0%</small>
+
                   </div>
 
-                  <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border);">
-                    <h4 style="font-size: 0.85rem; font-weight: 600; color: var(--muted); margin-bottom: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em;">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;">
-                        <circle cx="12" cy="12" r="10"></circle>
-                        <line x1="12" y1="16" x2="12" y2="12"></line>
-                        <line x1="12" y1="8" x2="12.01" y2="8"></line>
-                      </svg>
-                      Informations
-                    </h4>
-                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem;">
-                      <div style="text-align: center; padding: 0.75rem; background: var(--primary); border-radius: var(--radius); color: white;">
-                        <div style="font-size: 1.25rem; font-weight: 700;">20%</div>
-                        <div style="font-size: 0.7rem; opacity: 0.9;">Standard</div>
-                      </div>
-                      <div style="text-align: center; padding: 0.75rem; background: var(--success); border-radius: var(--radius); color: white;">
-                        <div style="font-size: 1.25rem; font-weight: 700;">14%</div>
-                        <div style="font-size: 0.7rem; opacity: 0.9;">Réduit</div>
-                      </div>
-                      <div style="text-align: center; padding: 0.75rem; background: var(--muted); border-radius: var(--radius); color: white;">
-                        <div style="font-size: 1.25rem; font-weight: 700;">0%</div>
-                        <div style="font-size: 0.7rem; opacity: 0.9;">Exonéré</div>
-                      </div>
-                    </div>
-                  </div>
+
                 </div>
                 <button type="submit" class="btn btn-primary" style="width: 100%; padding: 0.875rem;">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

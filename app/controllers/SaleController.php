@@ -135,4 +135,11 @@ class SaleController extends Controller
             'details' => $details
         ]);
     }
+
+    public function nextInvoice()
+    {
+        $saleModel = new Sale();
+        $invoiceNum = $saleModel->generateInvoiceNumber();
+        $this->json(['invoice_number' => $invoiceNum]);
+    }
 }

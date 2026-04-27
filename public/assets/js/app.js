@@ -303,7 +303,7 @@ const posCart = {
     },
 
     // Afficher le récapitulatif de la vente (style ticket thermique moderne)
-    showPreview() {
+    async showPreview() {
         if (this.items.length === 0) return;
 
         const formattedDate = new Date().toLocaleString('fr-FR', {
@@ -311,10 +311,22 @@ const posCart = {
             hour: '2-digit', minute: '2-digit'
         });
 
-        const invoiceNum = 'FAC-' + Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
+        // Récupérer le numéro de facture depuis la base de données
+        let invoiceNum = 'FAC-000001';
+        try {
+            const res = await fetch(APP_URL + '/api/vente/next-invoice');
+            const data = await res.json();
+            if (data.invoice_number) {
+                invoiceNum = data.invoice_number;
+            }
+        } catch (e) {
+            console.warn('Impossible de récupérer le numéro de facture, utilisation du numéro aléatoire');
+        }
 
+        // Construire les items du reçu
         let itemsHtml = '';
-        this.items.forEach(item => {
+        for (let i = 0; i < this.items.length; i++) {
+            const item = this.items[i];
             itemsHtml += `
                 <div class="receipt-item">
                     <span class="item-name">${item.nom}</span>
@@ -322,7 +334,7 @@ const posCart = {
                     <span class="item-price">${(item.prix * item.quantite).toFixed(2)}</span>
                 </div>
             `;
-        });
+        }
 
         $('#preview-content').innerHTML = `
             <div class="receipt">
@@ -974,8 +986,40 @@ function openProductModal() {
     $('#product-modal').classList.add('active');
 }
 
-// Product form submit
+// Main initialization
 document.addEventListener('DOMContentLoaded', () => {
+    // Initialize cart
+    posCart.init();
+
+    // Load store info
+    loadStoreInfo();
+
+    // Load categories for product modal
+    loadCategories();
+
+    // Initialize products tabs if on products page
+    if ($('#products-table')) {
+        initProductsTabs();
+    }
+
+    // Initialize history filters if on history page
+    if ($('#invoice-search')) {
+        initHistoryFilters();
+    }
+
+    // Print button
+    const printBtn = $('#print-receipt');
+    if (printBtn) {
+        printBtn.addEventListener('click', () => {
+            const content = $('#receipt-content').innerHTML;
+            _printReceiptContent(content);
+        });
+    }
+
+    // Initialize sidebar
+    initSidebar();
+
+    // Product form submit
     const productForm = $('#product-form');
     if (productForm) {
         productForm.addEventListener('submit', async (e) => {
@@ -983,8 +1027,6 @@ document.addEventListener('DOMContentLoaded', () => {
             await posCart.saveProduct();
         });
     }
-
-    initSidebar();
 });
 
 // Mobile sidebar
@@ -1022,7 +1064,78 @@ function initSidebar() {
     });
 }
 
-// Attach init
+// ==================== CART SIDEBAR TOGGLE (Mobile) ====================
+
+function toggleCartSidebar() {
+    const cart = $('#caisse-cart');
+    const overlay = $('#cart-sidebar-overlay');
+
+    if (!cart) return;
+
+    const isOpen = cart.classList.contains('open');
+
+    if (isOpen) {
+        cart.classList.remove('open');
+        if (overlay) overlay.classList.remove('active');
+        document.body.style.overflow = '';
+    } else {
+        cart.classList.add('open');
+        if (overlay) overlay.classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+}
+
+function updateCartFloatingButton() {
+    const badge = $('#cart-badge');
+    const total = $('#cart-floating-total');
+
+    if (!badge || !total) return;
+
+    const itemCount = posCart.items.reduce((sum, item) => sum + item.quantite, 0);
+    const totalAmount = posCart.items.reduce((sum, item) => sum + (item.prix * item.quantite), 0);
+
+    badge.textContent = itemCount;
+    total.textContent = totalAmount.toFixed(2) + ' Fc';
+}
+
+// Intercept posCart methods to update floating button
+const originalRenderCart = posCart.renderCart.bind(posCart);
+posCart.renderCart = function () {
+    originalRenderCart();
+    updateCartFloatingButton();
+};
+
+const originalClearCart = posCart.clearCart.bind(posCart);
+posCart.clearCart = function () {
+    originalClearCart();
+    updateCartFloatingButton();
+};
+
+const originalAddToCart = posCart.addToCart.bind(posCart);
+posCart.addToCart = function (id) {
+    originalAddToCart(id);
+    updateCartFloatingButton();
+};
+
+const originalUpdateQty = posCart.updateQty.bind(posCart);
+posCart.updateQty = function (id, delta) {
+    originalUpdateQty(id, delta);
+    updateCartFloatingButton();
+};
+
+const originalRemoveFromCart = posCart.removeFromCart.bind(posCart);
+posCart.removeFromCart = function (id) {
+    originalRemoveFromCart(id);
+    updateCartFloatingButton();
+};
+
+// Initialize floating button on load
+document.addEventListener('DOMContentLoaded', () => {
+    updateCartFloatingButton();
+});
+
+// ==================== PRODUCTS TABS ====================
+
 function initProductsTabs() {
     const filterInput = $('#products-filter');
     const categoryFilter = $('#category-filter');
@@ -1048,7 +1161,6 @@ function initProductsTabs() {
             }
         });
 
-        // Afficher un message si aucun résultat
         let emptyMsg = $('#products-empty-message');
         if (!emptyMsg && visibleCount === 0 && rows.length > 0) {
             const table = $('#products-table');
@@ -1061,7 +1173,6 @@ function initProductsTabs() {
         }
     }
 
-    // Ecouter le champ de recherche
     if (filterInput) {
         filterInput.addEventListener('input', (e) => {
             const category = categoryFilter ? categoryFilter.value : 'all';
@@ -1069,7 +1180,6 @@ function initProductsTabs() {
         });
     }
 
-    // Ecouter le select de catégorie
     if (categoryFilter) {
         categoryFilter.addEventListener('change', (e) => {
             const search = filterInput ? filterInput.value : '';
@@ -1077,41 +1187,14 @@ function initProductsTabs() {
         });
     }
 
-    // Bouton refresh
     if (refreshBtn) {
         refreshBtn.addEventListener('click', () => {
             window.location.reload();
         });
     }
 
-    // Filtrer initial
     filterProductsTable();
 }
-
-document.addEventListener('DOMContentLoaded', () => {
-    loadStoreInfo(); // Charger les informations du magasin depuis les paramètres
-    posCart.init();
-    loadCategories(); // Charger les categories pour le modal produit
-
-    // Initialiser les filtres de la page produits
-    if ($('#products-table')) {
-        initProductsTabs();
-    }
-
-    // Initialiser les filtres de la page historique
-    if ($('#invoice-search')) {
-        initHistoryFilters();
-    }
-
-    // Print Receipt Logic — via iframe (compatible Android/iOS/Desktop)
-    const printBtn = $('#print-receipt');
-    if (printBtn) {
-        printBtn.addEventListener('click', () => {
-            const content = $('#receipt-content').innerHTML;
-            _printReceiptContent(content);
-        });
-    }
-});
 
 // ==================== HISTORY FILTERS ====================
 
@@ -1145,7 +1228,6 @@ function initHistoryFilters() {
             }
         });
 
-        // Afficher un message si aucun résultat
         let emptyMsg = $('#history-empty-message');
         if (!emptyMsg && visibleCount === 0 && rows.length > 0) {
             const tbody = document.querySelector('#page-history tbody');
@@ -1158,7 +1240,6 @@ function initHistoryFilters() {
         }
     }
 
-    // Écouteurs d'événements
     if (invoiceSearch) {
         invoiceSearch.addEventListener('input', filterHistory);
         invoiceSearch.addEventListener('keyup', filterHistory);
@@ -1170,17 +1251,12 @@ function initHistoryFilters() {
         sellerFilter.addEventListener('change', filterHistory);
     }
 
-    // Filtrer initial
     filterHistory();
 }
 
-/**
- * Impression universelle via iframe caché.
- * Compatible Android Chrome, iOS Safari, Desktop.
- * Evite le blocage des popups window.open().
- */
+// ==================== PRINT RECEIPT ====================
+
 function _printReceiptContent(content) {
-    // Supprimer un ancien iframe s'il existe
     const oldFrame = document.getElementById('_print-frame');
     if (oldFrame) oldFrame.remove();
 
@@ -1203,71 +1279,45 @@ function _printReceiptContent(content) {
                 color: #000;
                 background: #fff;
             }
-            /* === EN-TETE MAGASIN === */
             .receipt { width: 100%; }
             .receipt-header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 12px; margin-bottom: 12px; }
             .receipt-header .store-name { font-size: 20px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
             .receipt-header .store-info { font-size: 13px; line-height: 1.6; color: #222; }
-            /* === META (numero + date) === */
             .receipt-meta { display: flex; justify-content: space-between; font-size: 13px; font-weight: 600; padding: 8px 0; margin-bottom: 10px; border-bottom: 2px solid #000; }
-            /* === TABLEAU ARTICLES === */
             .receipt-items { margin-bottom: 10px; }
             .receipt-item { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 5px; font-size: 13px; gap: 3px; }
-            .receipt-item .item-name  { flex: 2;   min-width: 0; white-space: normal; overflow-wrap: break-word; }
-            .receipt-item .item-qty   { flex: 1;   text-align: center; white-space: nowrap; }
-            .receipt-item .item-price { flex: 1;   text-align: right;  font-weight: 700; white-space: nowrap; }
-            /* === TOTAUX === */
+            .receipt-item .item-name { flex: 2; min-width: 0; white-space: normal; overflow-wrap: break-word; }
+            .receipt-item .item-qty { flex: 1; text-align: center; white-space: nowrap; }
+            .receipt-item .item-price { flex: 1; text-align: right; font-weight: 700; white-space: nowrap; }
             .receipt-totals { margin-bottom: 8px; }
             .receipt-total-row { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 5px; }
             .receipt-total-row.grand-total { font-size: 18px; font-weight: 700; border-top: 3px solid #000; border-bottom: 3px solid #000; padding: 8px 0; margin-top: 8px; }
-            /* === BOITE DGI VERTE (inline styles du JS) === */
             div[style*="e8f5e9"], div[style*="4caf50"] { border-radius: 4px; padding: 8px 10px !important; margin: 10px 0 !important; font-size: 13px !important; }
-            /* === PIED DE PAGE === */
             .receipt-footer { text-align: center; margin-top: 12px; padding-top: 10px; border-top: 2px solid #000; font-size: 13px; }
             .vendeur-info { margin-bottom: 8px; }
-            .qrcode-container {
-                width: 100%;
-                text-align: center;
-                margin: 10px 0;
-                overflow: visible;
-            }
-            .qrcode-container > div {
-                display: inline-block;
-                overflow: visible;
-            }
-            .qrcode-container svg,
-            .qrcode-container img {
-                display: block;
-                margin: 0 auto;
-                max-width: 160px;
-                height: auto;
-                overflow: visible;
-            }
+            .qrcode-container { width: 100%; text-align: center; margin: 10px 0; overflow: visible; }
+            .qrcode-container > div { display: inline-block; overflow: visible; }
+            .qrcode-container svg, .qrcode-container img { display: block; margin: 0 auto; max-width: 160px; height: auto; overflow: visible; }
             .barcode { font-size: 18px; letter-spacing: 3px; font-weight: 700; margin: 8px 0; text-align: center; }
             .thank-you { font-style: italic; margin-top: 8px; font-size: 13px; }
         </style>
     `;
-
 
     const doc = iframe.contentDocument || iframe.contentWindow.document;
     doc.open();
     doc.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">${printStyles}</head><body>${content}</body></html>`);
     doc.close();
 
-    // Attendre que l'iframe soit chargée puis lancer l'impression
     iframe.onload = function () {
         setTimeout(() => {
             try {
-                // ✅ Patch SVG : forcer viewBox + taille pour éviter l'affichage "quart"
                 const iDoc = iframe.contentDocument;
                 iDoc.querySelectorAll('.qrcode-container svg').forEach(svg => {
                     const origW = parseInt(svg.getAttribute('width') || 180);
                     const origH = parseInt(svg.getAttribute('height') || 180);
-                    // Ajouter viewBox s'il n'existe pas
                     if (!svg.getAttribute('viewBox')) {
                         svg.setAttribute('viewBox', `0 0 ${origW} ${origH}`);
                     }
-                    // Forcer les dimensions CSS via attributs (override la lib)
                     svg.setAttribute('width', '220');
                     svg.setAttribute('height', '220');
                     svg.style.width = '220px';
@@ -1282,7 +1332,6 @@ function _printReceiptContent(content) {
             } catch (e) {
                 console.error('Erreur impression iframe:', e);
             }
-            // Nettoyer l'iframe après un délai
             setTimeout(() => { if (iframe.parentNode) iframe.remove(); }, 2000);
         }, 400);
     };
