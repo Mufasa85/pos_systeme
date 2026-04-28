@@ -37,31 +37,26 @@ const posCart = {
     dgiResponse: null,
 
     init() {
-        // Caisse tabs
-        if ($('#product-search')) {
+        // Caisse - Select moderne pour catégories
+        if ($('#category-filter')) {
             this.loadProducts();
-            $('#product-search').addEventListener('input', (e) => this.filterProducts(e.target.value));
-            $$('.category-tab').forEach(tab => {
-                tab.addEventListener('click', (e) => {
-                    $$('.category-tab').forEach(t => t.classList.remove('active'));
-                    e.target.classList.add('active');
-                    this.filterProducts($('#product-search').value, e.target.dataset.category);
-                });
+            if ($('#product-search')) {
+                $('#product-search').addEventListener('input', (e) => this.filterProducts(e.target.value));
+            }
+
+            // Événement de changement pour le select de catégorie
+            $('#category-filter').addEventListener('change', (e) => {
+                if ($('#product-search')) {
+                    this.filterProducts($('#product-search').value, e.target.value);
+                } else {
+                    this.filterProducts('', e.target.value);
+                }
             });
         }
 
         // Produits page tabs
         if ($('#products-table')) {
             initProductsTabs();
-        }
-
-        // Product Modal Logic
-        const addProductForm = $('#product-form');
-        if (addProductForm) {
-            addProductForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                await posCart.saveProduct();
-            });
         }
     },
 
@@ -983,7 +978,14 @@ function generateBarcode() {
 }
 
 function openProductModal() {
-    $('#product-modal').classList.add('active');
+    // Charger les catégories si nécessaire avant d'afficher le modal
+    if (categoriesCache.length === 0) {
+        loadCategories().then(() => {
+            $('#product-modal').classList.add('active');
+        });
+    } else {
+        $('#product-modal').classList.add('active');
+    }
 }
 
 // Main initialization
@@ -1019,7 +1021,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize sidebar
     initSidebar();
 
-    // Product form submit
+    // Product form submit - UNIQUEMENT si le formulaire existe
     const productForm = $('#product-form');
     if (productForm) {
         productForm.addEventListener('submit', async (e) => {

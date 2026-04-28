@@ -2,6 +2,7 @@
 
 namespace App\Controllers;
 
+//use App\Models\Category;
 use App\Models\User;
 use App\Models\Product;
 use App\Models\Sale;
@@ -11,15 +12,18 @@ class PageController
 {
     public function __construct()
     {
-        // Ne rien faire ici - pas de redirection automatique
+        // Pas de redirection automatique dans le constructeur
+        // Chaque méthode vérifie la session si nécessaire
     }
 
     private function render($view, $data = [])
     {
         // Vérifier la session AVANT d'afficher la page
         if (!isset($_SESSION['user_id'])) {
-            // Juste rediriger vers /, chemin relatif
-            header('Location: /');
+            // Redirection vers login
+            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";
+            $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+            header('Location: ' . $protocol . '://' . $host . '/');
             exit;
         }
 
@@ -141,12 +145,10 @@ class PageController
 
     public function utilisateurs()
     {
-        if (!isset($_SESSION['user_id'])) {
-            header('Location: /');
-            exit;
-        }
         if ($_SESSION['role'] !== 'admin') {
-            header('Location: /');
+            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";
+            $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+            header('Location: ' . $protocol . '://' . $host . '/dashboard');
             exit;
         }
         $userModel = new User();
@@ -163,12 +165,10 @@ class PageController
 
     public function parametres()
     {
-        if (!isset($_SESSION['user_id'])) {
-            header('Location: /');
-            exit;
-        }
         if ($_SESSION['role'] !== 'admin') {
-            header('Location: /');
+            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";
+            $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+            header('Location: ' . $protocol . '://' . $host . '/dashboard');
             exit;
         }
         $this->render('parametres');
@@ -176,12 +176,10 @@ class PageController
 
     public function categories()
     {
-        if (!isset($_SESSION['user_id'])) {
-            header('Location: /');
-            exit;
-        }
         if ($_SESSION['role'] !== 'admin') {
-            header('Location: /');
+            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";
+            $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+            header('Location: ' . $protocol . '://' . $host . '/dashboard');
             exit;
         }
         $productModel = new Product();
@@ -218,5 +216,31 @@ class PageController
         }
 
         $this->render('categories', ['categories' => $categories]);
+    }
+
+    public function scanner()
+    {
+        // Vérifier la session
+        if (!isset($_SESSION['user_id'])) {
+            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";
+            $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+            header('Location: ' . $protocol . '://' . $host . '/');
+            exit;
+        }
+
+        // Pour le scanner, on charge une page spéciale sans le layout principal
+        $settingsModel = new Settings();
+        $storeName = $settingsModel->get('store_name') ?? 'Mon Magasin';
+        $baseUrl = $this->getBaseUrl();
+
+        // Rendre la page scanner directement (sans header/footer du layout)
+        require_once dirname(__DIR__) . DIRECTORY_SEPARATOR . 'views/scanner.php';
+    }
+
+    private function getBaseUrl()
+    {
+        $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";
+        $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+        return $protocol . '://' . $host;
     }
 }

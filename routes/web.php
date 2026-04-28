@@ -4,7 +4,7 @@ use App\Core\Router;
 use App\Controllers\AuthController;
 use App\Controllers\PageController;
 
-Router::get("/", [AuthController::class,'showLogin']);
+Router::get("/", [AuthController::class, 'showLogin']);
 Router::post("/login", [AuthController::class, 'login']);
 Router::get("/logout", [AuthController::class, 'logout']);
 
@@ -15,6 +15,7 @@ Router::get("/utilisateurs", [PageController::class, 'utilisateurs']);
 Router::get("/historique", [PageController::class, 'historique']);
 Router::get("/categories", [PageController::class, 'categories']);
 Router::get("/parametres", [PageController::class, 'parametres']);
+Router::get("/scanner", [PageController::class, 'scanner']);
 /*
 $router->get('/', 'AuthController@showLogin');
 $router->post('/login', 'AuthController@login');
