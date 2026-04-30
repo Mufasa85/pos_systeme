@@ -37,9 +37,22 @@ const posCart = {
     dgiResponse: null,
 
     init() {
+        // Vérifier si un produit a été scanné et ajouté via l'URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const addProductId = urlParams.get('add_product');
+
         // Caisse - Select moderne pour catégories
         if ($('#category-filter')) {
-            this.loadProducts();
+            this.loadProducts().then(() => {
+                // Ajouter le produit scanné au panier si présent
+                if (addProductId) {
+                    console.log('[CAISSE] Produit scanné détecté:', addProductId);
+                    this.addToCart(parseInt(addProductId));
+                    // Nettoyer l'URL sans recharger
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                }
+            });
+
             if ($('#product-search')) {
                 $('#product-search').addEventListener('input', (e) => this.filterProducts(e.target.value));
             }
@@ -234,10 +247,48 @@ const posCart = {
                     }))
                 })
             });
-            return await res.json();
+
+            console.log(JSON.stringify({
+                store_name: STORE_INFO.name,
+                store_phone: STORE_INFO.phone,
+                store_address: STORE_INFO.address,
+                store_ice: STORE_INFO.ice,
+                seller_name: sellerName,
+                amount: this.currentTotals.total,
+                client_number: this.clientNumber || '',
+                invoice_number: invoiceNum,
+                articles: this.items.map(item => ({
+                    name: item.nom,
+                    quantity: item.quantite,
+                    price: item.prix
+                }))
+            }))
+
+            // Vérifier si la réponse estOK
+            if (!res.ok) {
+                console.warn('[DGI] Réponse non OK:', res.status, res.statusText);
+                return { success: false, message: 'Erreur serveur DGI: ' + res.status };
+            }
+
+            // Lire le texte de la réponse
+            const text = await res.text();
+
+            // Vérifier si le texte est vide
+            if (!text || text.trim() === '') {
+                console.warn('[DGI] Réponse vide du serveur');
+                return { success: false, message: 'Réponse vide du serveur DGI' };
+            }
+
+            // Parser le JSON
+            try {
+                return JSON.parse(text);
+            } catch (jsonErr) {
+                console.warn('[DGI] Réponse non-JSON:', text.substring(0, 200));
+                return { success: false, message: 'Réponse invalide du serveur DGI' };
+            }
         } catch (e) {
             console.error('Erreur appel DGI:', e);
-            return { success: false, message: 'Erreur de connexion DGI' };
+            return { success: false, message: 'Erreur de connexion DGI: ' + e.message };
         }
     },
 
@@ -368,7 +419,7 @@ const posCart = {
 
                 <div class="receipt-footer">
                     <div class="vendeur-info">Vendeur: ${(typeof CURRENT_USER !== 'undefined' && CURRENT_USER.fullName) ? CURRENT_USER.fullName : STORE_INFO.name}</div>
-                    <div class="barcode">||| ${invoiceNum} |||</div>
+                    <div class="barcode">${invoiceNum}</div>
                     <div class="thank-you">Merci de votre visite!</div>
                     <div style="margin-top: 5px; font-size: 9px; font-style: italic;">Conservez ce ticket pour tout echange</div>
                 </div>
@@ -441,10 +492,12 @@ const posCart = {
             // Construire le HTML du recap DGI
             let dgiInfoHtml = '<div style="background: #e8f5e9; border: 1px solid #4caf50; border-radius: 8px; padding: 10px; margin: 10px 0; text-align: center;"><div style="color: #2e7d32; font-weight: bold; font-size: 11px;">VALIDE DGI - ' + (dgiResponse.message || 'Facture generee avec succes') + '</div>';
             if (dgiResponse.data) {
+                console.log(dgiResponse)
                 dgiInfoHtml += '<div style="font-size: 14px; color: #555; margin-top: 5px;">';
                 if (dgiResponse.data.dateDGI) dgiInfoHtml += 'Date: ' + dgiResponse.data.dateDGI + '\n';
                 if (dgiResponse.data.counters) dgiInfoHtml += 'Compteur: ' + dgiResponse.data.counters;
                 if (dgiResponse.data.codeDEFDGI) dgiInfoHtml += '<br>DEF: ' + dgiResponse.data.codeDEFDGI;
+                if (dgiResponse.data.nim) dgiInfoHtml += '<br> NIM : ' + dgiResponse.data.nim;
                 dgiInfoHtml += '</div>';
             }
             dgiInfoHtml += '</div>';
@@ -452,6 +505,7 @@ const posCart = {
             // Contenu du QR code
             const qrContainerId = 'dgi-qrcode-container';
             const qrCodeContent = (dgiResponse.data && dgiResponse.data.qrCode) ? dgiResponse.data.qrCode : saleData.numero_facture;
+
             const formattedDate = new Date().toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
             // Construire les lignes du tableau
@@ -508,7 +562,7 @@ const posCart = {
                     <div class="receipt-footer">
                         <div class="vendeur-info">Vendeur: ${(typeof CURRENT_USER !== 'undefined' && CURRENT_USER.fullName) ? CURRENT_USER.fullName : STORE_INFO.name}</div>
                         <div id="${qrContainerId}" class="qrcode-container"></div>
-                        <div class="barcode">||| ${saleData.numero_facture} |||</div>
+                        <div class="barcode">${saleData.numero_facture}</div>
                         <div class="thank-you">Merci de votre visite!</div>
                         <p style="margin-top: 5px; color: #555; font-size: 9px;">Conservez ce ticket pour tout echange</p>
                     </div>
@@ -986,6 +1040,187 @@ function openProductModal() {
     } else {
         $('#product-modal').classList.add('active');
     }
+}
+
+// ==================== SCANNER MODAL ====================
+
+let scannerHtml5QrCode = null;
+let isScannerActive = false;
+let scannerLastCode = null;
+let scannerProcessing = false;
+
+function openScannerModal() {
+    const modal = document.getElementById('scanner-modal');
+    if (!modal) return;
+
+    modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+
+    // Démarrer le scanner après l'affichage du modal
+    setTimeout(() => {
+        startInlineScanner();
+    }, 300);
+}
+
+function closeScannerModal() {
+    const modal = document.getElementById('scanner-modal');
+    if (!modal) return;
+
+    modal.classList.remove('active');
+    document.body.style.overflow = '';
+
+    // Arrêter le scanner
+    stopInlineScanner();
+}
+
+async function startInlineScanner() {
+    // Charger la bibliothèque si nécessaire
+    if (typeof Html5Qrcode === 'undefined') {
+        await loadHtml5QrCode();
+    }
+
+    const readerEl = document.getElementById('scanner-reader');
+    if (!readerEl) return;
+
+    // Reset UI
+    document.getElementById('scanner-loading').classList.remove('loading');
+    document.getElementById('scanner-loading').style.display = 'none';
+    document.getElementById('scanner-result').className = 'scanner-status';
+    document.getElementById('scanner-result').style.display = 'none';
+    document.getElementById('scanner-product').classList.remove('show');
+    document.getElementById('scanner-rescan-btn').style.display = 'none';
+    document.getElementById('scanner-reader').style.display = 'block';
+    readerEl.innerHTML = '';
+
+    scannerHtml5QrCode = new Html5Qrcode('scanner-reader');
+    isScannerActive = true;
+    scannerLastCode = null;
+    scannerProcessing = false;
+
+    try {
+        await scannerHtml5QrCode.start(
+            { facingMode: 'environment' },
+            { fps: 10, qrbox: { width: 250, height: 250 } },
+            onInlineScanSuccess,
+            onInlineScanFailure
+        );
+        console.log('[SCANNER MODAL] Démarré avec succès');
+    } catch (err) {
+        console.error('[SCANNER MODAL] Erreur:', err);
+        readerEl.innerHTML = '<div style="text-align:center;padding:20px;color:#dc3545;">Erreur caméra: ' + err.message + '</div>';
+    }
+}
+
+function onInlineScanSuccess(code) {
+    if (scannerProcessing || code === scannerLastCode) return;
+
+    scannerLastCode = code;
+    scannerProcessing = true;
+
+    console.log('[SCANNER MODAL] Code détecté:', code);
+
+    // Afficher le chargement
+    const loadingEl = document.getElementById('scanner-loading');
+    loadingEl.style.display = 'flex';
+    loadingEl.classList.add('loading');
+
+    const resultEl = document.getElementById('scanner-result');
+    resultEl.style.display = 'none';
+    document.getElementById('scanner-product').classList.remove('show');
+
+    // Rechercher le produit
+    searchProductForCart(code);
+}
+
+function onInlineScanFailure(error) {
+    // Ne rien faire - c'est normal
+}
+
+function searchProductForCart(barcode) {
+    // Rechercher dans les produits déjà chargés
+    document.getElementById('scanner-loading').style.display = 'none';
+
+    const product = posCart.allProducts.find(p => p.code_barres === barcode);
+
+    if (product) {
+        // Produit trouvé - ajouter au panier
+        onInlineProductFound(product, barcode);
+    } else {
+        onInlineProductNotFound(barcode);
+    }
+}
+
+function onInlineProductFound(product, barcode) {
+    // Ajouter au panier
+    posCart.addToCart(product.id);
+
+    const resultEl = document.getElementById('scanner-result');
+    resultEl.className = 'scanner-status success';
+    resultEl.textContent = '✓ ' + product.nom + ' ajouté !';
+    resultEl.style.display = 'block';
+
+    // Afficher les infos
+    document.getElementById('scanner-product').classList.add('show');
+    document.getElementById('scanned-name').textContent = product.nom;
+    document.getElementById('scanned-price').textContent = formatCurrency(product.prix);
+
+    // Arrêter le scanner et fermer le modal
+    try {
+        if (scannerHtml5QrCode && isScannerActive) {
+            scannerHtml5QrCode.stop().then(() => {
+                isScannerActive = false;
+            }).catch(() => { });
+        }
+    } catch (e) { }
+
+    // Fermer le modal immédiatement
+    const modal = document.getElementById('scanner-modal');
+    if (modal) {
+        modal.classList.remove('active');
+        document.body.style.overflow = '';
+    }
+}
+
+function onInlineProductNotFound(barcode) {
+    const resultEl = document.getElementById('scanner-result');
+    resultEl.className = 'scanner-status error';
+    resultEl.textContent = '✗ Code-barres introuvable dans la base';
+    resultEl.style.display = 'block';
+
+    setTimeout(() => {
+        scannerProcessing = false;
+        scannerLastCode = null;
+        resultEl.style.display = 'none';
+    }, 3000);
+}
+
+async function restartScanner() {
+    await startInlineScanner();
+}
+
+async function stopInlineScanner() {
+    if (scannerHtml5QrCode && isScannerActive) {
+        try {
+            await scannerHtml5QrCode.stop();
+        } catch (err) {
+            console.warn('[SCANNER MODAL] Erreur arrêt:', err);
+        }
+        isScannerActive = false;
+    }
+}
+
+function loadHtml5QrCode() {
+    return new Promise((resolve, reject) => {
+        if (typeof Html5Qrcode !== 'undefined') {
+            resolve();
+            return;
+        }
+        const script = document.createElement('script');
+        script.src = 'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js';
+        script.onload = resolve;
+        script.onerror = reject;
+        document.head.appendChild(script);
+    });
 }
 
 // Main initialization

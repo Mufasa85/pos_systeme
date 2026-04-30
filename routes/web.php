@@ -16,6 +16,15 @@ Router::get("/historique", [PageController::class, 'historique']);
 Router::get("/categories", [PageController::class, 'categories']);
 Router::get("/parametres", [PageController::class, 'parametres']);
 Router::get("/scanner", [PageController::class, 'scanner']);
+Router::get("/new-scanner", [PageController::class, 'newScanner']);
+Router::get("/facture/[i:id]", [\App\Controllers\InvoiceController::class, 'show']);
+Router::get("/facture", [\App\Controllers\InvoiceController::class, 'showByRef']);
+Router::get("/facture-client/[i:id]", [\App\Controllers\InvoiceController::class, 'publicInvoice']);
+
+// API routes for invoice actions
+Router::post("/api/facture/[i:id]/send", [\App\Controllers\InvoiceController::class, 'sendInvoice']);
+Router::get("/api/facture/[i:id]/pdf", [\App\Controllers\InvoiceController::class, 'downloadPdf']);
+
 /*
 $router->get('/', 'AuthController@showLogin');
 $router->post('/login', 'AuthController@login');

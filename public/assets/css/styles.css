@@ -883,6 +883,7 @@ body {
   flex: 1;
   padding: 0.25rem;
   align-items: start;
+  align-content: start;
 }
 
 @media (min-width: 640px) {
@@ -1374,7 +1375,7 @@ body {
    ============================================ */
 #preview-modal {
   display: none;
-  z-index: 1100;
+  z-index: 1102 !important;
 }
 
 #preview-modal.modal.active {
@@ -1426,6 +1427,7 @@ body {
 /* Receipt Modal (Final) */
 #receipt-modal {
   display: none;
+  z-index: 1102 !important;
 }
 
 #receipt-modal.modal.active {
@@ -1451,6 +1453,7 @@ body {
   display: flex;
   justify-content: center;
   align-items: flex-start;
+ 
 }
 
 #receipt-modal .receipt-actions {

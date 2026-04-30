@@ -12,7 +12,7 @@
           <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
         </svg>
         <input type="text" id="product-search" placeholder="Rechercher un produit..." autofocus>
-        <a href="/scanner" class="scanner-btn" title="Scanner code-barres">
+        <button class="scanner-btn" onclick="openScannerModal()" title="Scanner code-barres">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M3 7V5a2 2 0 0 1 2-2h2"></path>
             <path d="M17 3h2a2 2 0 0 1 2 2v2"></path>
@@ -24,7 +24,7 @@
             <line x1="14" y1="8" x2="17" y2="8"></line>
             <line x1="14" y1="16" x2="17" y2="16"></line>
           </svg>
-        </a>
+        </button>
       </div>
       <!-- Select moderne pour les catégories -->
       <div class="category-select-wrapper">
@@ -125,4 +125,43 @@
     <span class="cart-badge" id="cart-badge">0</span>
     <span class="cart-floating-total" id="cart-floating-total">0.00 Fc</span>
   </button>
+
+  <!-- MODAL SCANNER -->
+  <div id="scanner-modal" class="scanner-modal">
+    <div class="scanner-modal-content">
+      <div class="scanner-modal-header">
+        <h3> Scanner Code-barres</h3>
+        <button class="scanner-close-btn" onclick="closeScannerModal()">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <!-- État de chargement -->
+      <div id="scanner-loading" class="scanner-status loading">
+        <div class="scanner-spinner"></div>
+        <span>Recherche du produit...</span>
+      </div>
+
+      <!-- Résultat -->
+      <div id="scanner-result" class="scanner-status"></div>
+
+      <!-- Info produit -->
+      <div id="scanner-product" class="scanner-product-info">
+        <div class="scanner-product-name" id="scanned-name">-</div>
+        <div class="scanner-product-price" id="scanned-price">-</div>
+      </div>
+
+      <!-- Zone de scan -->
+      <div id="scanner-reader"></div>
+
+      <!-- Actions -->
+      <div class="scanner-actions">
+        <button id="scanner-cancel-btn" class="scanner-btn-cancel" onclick="closeScannerModal()">Fermer</button>
+        <button id="scanner-rescan-btn" class="scanner-btn-rescan" onclick="restartScanner()" style="display:none;">Scanner à nouveau</button>
+      </div>
+    </div>
+  </div>
 </div>

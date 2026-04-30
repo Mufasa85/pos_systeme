@@ -1,185 +1,396 @@
-<?php
-
-/**
- * Scanner de code-barres - Page autonome
- * Permet de scanner des produits et les ajouter directement au panier
- */
-
-// Chemins corrects depuis app/views
-require_once __DIR__ . '/../../config/config.php';
-require_once __DIR__ . '/../../app/core/Database.php';
-require_once __DIR__ . '/../../app/models/Settings.php';
-
-$page = 'scanner';
-$storeName = 'Caisse';
-
-// Utiliser le modèle Settings pour récupérer le nom du magasin
-$settingsModel = new \App\Models\Settings();
-$storeName = $settingsModel->get('store_name') ?? 'Mon Magasin';
-?>
 <!DOCTYPE html>
-<html lang="fr">
+<html>
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Scanner Code-barres - <?= htmlspecialchars($storeName) ?></title>
-    <link rel="stylesheet" href="<?= $baseUrl ?>/assets/css/styles.css">
-    <link rel="stylesheet" href="<?= $baseUrl ?>/assets/css/scanner.css">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <script>
-        const APP_URL = window.location.origin;
-    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scan Code-barres</title>
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js" type="text/javascript"></script>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(135deg, #0B5E88, #074a68);
+        }
+
+        .box {
+            width: 90%;
+            max-width: 500px;
+            padding: 30px;
+            border-radius: 16px;
+            background: white;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            text-align: center;
+        }
+
+        h2 {
+            color: #0B5E88;
+            margin-bottom: 20px;
+        }
+
+        #reader {
+            width: 100%;
+            margin: 20px auto;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        /* Style du cadre de scan */
+        #reader video {
+            border-radius: 12px;
+            object-fit: cover;
+        }
+
+        .status {
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            font-weight: 600;
+            display: none;
+        }
+
+        .status.loading {
+            background: #fff3cd;
+            color: #856404;
+            display: block;
+        }
+
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            display: block;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            display: block;
+        }
+
+        .product-info {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+            display: none;
+        }
+
+        .product-info.show {
+            display: block;
+        }
+
+        .product-name {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .product-price {
+            font-size: 24px;
+            color: #0B5E88;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 14px;
+            font-size: 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            border: none;
+            margin-top: 12px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        #cancelBtn {
+            background: #dc3545;
+            color: white;
+        }
+
+        #cancelBtn:hover {
+            background: #a71d2a;
+        }
+
+        #rescanBtn {
+            background: #28a745;
+            color: white;
+            display: none;
+        }
+
+        #rescanBtn:hover {
+            background: #218838;
+        }
+
+        /* Animation de chargement */
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #0B5E88;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Message de redirection */
+        .redirect-msg {
+            background: #d1ecf1;
+            color: #0c5460;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            display: none;
+        }
+
+        .redirect-msg.show {
+            display: block;
+        }
+
+        /* Zone de scan alternative */
+        #qr-shaded-region {
+            border: 3px solid #0B5E88 !important;
+            border-radius: 8px !important;
+        }
+    </style>
 </head>
 
-<body class="scanner-page">
-    <!-- Header -->
-    <header class="scanner-header">
-        <a href="/caisse" class="back-btn">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <line x1="19" y1="12" x2="5" y2="12"></line>
-                <polyline points="12 19 5 12 12 5"></polyline>
-            </svg>
-        </a>
-        <h1>Scanner Code-barres</h1>
-        <div class="header-actions">
-            <button id="flash-toggle" class="icon-btn" title="Activer/Désactiver le flash">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
-                </svg>
-            </button>
-        </div>
-    </header>
+<body>
 
-    <!-- Scanner Container -->
-    <main class="scanner-container">
-        <!-- Scanner Icon Section (shown before starting) -->
-        <div id="scanner-intro" class="scanner-intro">
-            <div class="scanner-icon-wrapper">
-                <svg class="scanner-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                    <path d="M3 7V5a2 2 0 0 1 2-2h2"></path>
-                    <path d="M17 3h2a2 2 0 0 1 2 2v2"></path>
-                    <path d="M21 17v2a2 2 0 0 1-2 2h-2"></path>
-                    <path d="M7 21H5a2 2 0 0 1-2-2v-2"></path>
-                    <line x1="7" y1="12" x2="17" y2="12"></line>
-                    <line x1="7" y1="8" x2="10" y2="8"></line>
-                    <line x1="7" y1="16" x2="10" y2="16"></line>
-                    <line x1="14" y1="8" x2="17" y2="8"></line>
-                    <line x1="14" y1="16" x2="17" y2="16"></line>
-                </svg>
-                <div class="scanner-pulse"></div>
-            </div>
-            <h2>Scanner vos produits</h2>
-            <p>Pointez la caméra vers le code-barres du produit pour l'ajouter au panier</p>
-            <button id="start-scan-btn" class="btn-scan">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
-                    <circle cx="12" cy="13" r="4"></circle>
-                </svg>
-                Commencer le scan
-            </button>
+    <div class="box">
+        <h2>📷 Scanner Code-barres</h2>
+
+        <!-- État de chargement -->
+        <div id="loadingStatus" class="status loading">
+            <div class="spinner"></div>
+            Recherche du produit...
         </div>
 
-        <!-- Camera View -->
-        <div id="scanner-view" class="scanner-view hidden">
-            <div id="scanner-region" class="scanner-region">
-                <div class="scanner-frame">
-                    <div class="corner top-left"></div>
-                    <div class="corner top-right"></div>
-                    <div class="corner bottom-left"></div>
-                    <div class="corner bottom-right"></div>
-                    <div class="scan-line"></div>
-                </div>
-                <div class="scanner-timer" id="scan-timer">00:00</div>
-            </div>
+        <!-- Résultat -->
+        <div id="resultStatus" class="status"></div>
 
-            <div id="camera-select-container" class="camera-select-container hidden">
-                <label for="camera-select">Choisir la caméra:</label>
-                <select id="camera-select"></select>
-            </div>
-
-            <div class="scanner-controls">
-                <button id="stop-scan-btn" class="btn-control btn-danger">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="6" y="6" width="12" height="12" rx="2"></rect>
-                    </svg>
-                    Arrêter le scan
-                </button>
-                <button id="switch-camera-btn" class="btn-control btn-secondary">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M11 19H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h5"></path>
-                        <path d="M13 5h7a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-5"></path>
-                        <polyline points="16 17 21 12 16 7"></polyline>
-                        <polyline points="8 17 3 12 8 7"></polyline>
-                    </svg>
-                    Changer de caméra
-                </button>
-            </div>
+        <!-- Info produit -->
+        <div id="productInfo" class="product-info">
+            <div class="product-name" id="productName">-</div>
+            <div class="product-price" id="productPrice">-</div>
         </div>
 
-        <!-- Status Messages -->
-        <div id="scanner-status" class="scanner-status hidden">
-            <div class="status-icon"></div>
-            <div class="status-text"></div>
+        <!-- Message redirection -->
+        <div id="redirectMsg" class="redirect-msg">
+            ⏳ Redirection vers la caisse...
         </div>
 
-        <!-- Last Scanned Product -->
-        <div id="last-scanned" class="last-scanned hidden">
-            <div class="scanned-header">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polyline points="20 6 9 17 4 12"></polyline>
-                </svg>
-                <span>Dernier produit scanné</span>
-            </div>
-            <div class="scanned-product">
-                <div class="product-info">
-                    <div class="product-name" id="scanned-name">-</div>
-                    <div class="product-barcode" id="scanned-barcode">-</div>
-                </div>
-                <div class="product-price" id="scanned-price">-</div>
-            </div>
-        </div>
-    </main>
+        <!-- Zone de scan -->
+        <div id="reader"></div>
+        <p id="result"></p>
 
-    <!-- Notification Toast -->
-    <div id="notification" class="notification hidden">
-        <div class="notification-icon"></div>
-        <div class="notification-message"></div>
+        <button id="cancelBtn" class="btn" onclick="cancelScan()">Annuler</button>
+        <button id="rescanBtn" class="btn" onclick="restartScan()">Scanner à nouveau</button>
     </div>
 
-    <!-- Sound Effects -->
-    <audio id="beep-success" preload="auto">
-        <source src="data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU" type="audio/wav">
-    </audio>
-
-    <!-- Scripts -->
-    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-    <script src="<?= $baseUrl ?>/assets/js/scanner.js"></script>
     <script>
-        // Debug: Vérifier si la bibliothèque est chargée
-        window.addEventListener('load', function() {
-            console.log('Page scanner chargée');
-            console.log('Html5Qrcode disponible:', typeof Html5Qrcode !== 'undefined');
+        // Configuration
+        const APP_URL = window.location.origin;
 
-            // Tester l'accès à la caméra
-            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-                console.log('getUserMedia disponible');
-                navigator.mediaDevices.getUserMedia({
-                        video: true
-                    })
-                    .then(function(stream) {
-                        console.log('Caméra accessible');
-                        stream.getTracks().forEach(function(track) {
-                            track.stop();
-                        });
-                    })
-                    .catch(function(err) {
-                        console.log('Erreur caméra:', err.message);
-                    });
-            }
+        let html5QrCode = null;
+        let isScanning = false;
+        let lastScannedCode = null;
+        let isProcessing = false;
+
+        // Démarrer le scanner automatiquement
+        window.addEventListener('load', function() {
+            startScanner();
         });
+
+        async function startScanner() {
+            html5QrCode = new Html5Qrcode("reader");
+            isScanning = true;
+            isProcessing = false;
+            lastScannedCode = null;
+
+            try {
+                await html5QrCode.start({
+                        facingMode: "environment"
+                    }, {
+                        fps: 10,
+                        qrbox: {
+                            width: 300,
+                            height: 300
+                        }
+                    },
+                    onScanSuccess,
+                    onScanFailure
+                );
+                console.log("Scanner démarré avec succès");
+            } catch (err) {
+                console.error("Erreur démarrage scanner:", err);
+                document.getElementById("result").innerHTML =
+                    "<span style='color:red;'>Erreur: Impossible d'accéder à la caméra.</span>";
+            }
+        }
+
+        // Code détecté avec succès
+        async function onScanSuccess(code) {
+            // Éviter les scans répétitifs
+            if (isProcessing || code === lastScannedCode) {
+                return;
+            }
+
+            lastScannedCode = code;
+            isProcessing = true;
+
+            // Afficher le code détecté
+            document.getElementById("result").innerHTML =
+                "<strong>Code détecté :</strong> " + code;
+            document.getElementById("loadingStatus").classList.add("loading");
+            document.getElementById("resultStatus").className = "status";
+            document.getElementById("productInfo").classList.remove("show");
+            document.getElementById("redirectMsg").classList.remove("show");
+
+            // Rechercher le produit dans la base
+            await searchProduct(code);
+        }
+
+        // Rechercher le produit via l'API
+        async function searchProduct(barcode) {
+            try {
+                console.log("Recherche produit:", barcode);
+
+                const response = await fetch(APP_URL + "/api/produit?code_barres=" + encodeURIComponent(barcode));
+
+                if (!response.ok) {
+                    throw new Error("Erreur réponse API");
+                }
+
+                const product = await response.json();
+                console.log("Produit trouvé:", product);
+
+                // Masquer le chargement
+                document.getElementById("loadingStatus").classList.remove("loading");
+
+                if (product && product.id) {
+                    // Produit trouvé !
+                    onProductFound(product, barcode);
+                } else {
+                    // Produit non trouvé
+                    onProductNotFound(barcode);
+                }
+
+            } catch (err) {
+                console.error("Erreur recherche produit:", err);
+                document.getElementById("loadingStatus").classList.remove("loading");
+                document.getElementById("resultStatus").className = "status error";
+                document.getElementById("resultStatus").textContent = "Erreur de connexion au serveur";
+
+                // Permettre de rescanner
+                setTimeout(() => {
+                    isProcessing = false;
+                    lastScannedCode = null;
+                }, 2000);
+            }
+        }
+
+        // Produit trouvé - rediriger vers la caisse
+        function onProductFound(product, barcode) {
+            document.getElementById("resultStatus").className = "status success";
+            document.getElementById("resultStatus").textContent = "✓ Produit trouvé !";
+
+            // Afficher les infos du produit
+            document.getElementById("productInfo").classList.add("show");
+            document.getElementById("productName").textContent = product.nom;
+            document.getElementById("productPrice").textContent = formatCurrency(product.prix);
+
+            // Arrêter le scanner
+            stopScanner();
+
+            // Afficher message de redirection
+            document.getElementById("redirectMsg").classList.add("show");
+
+            // Rediriger vers la caisse après 1 seconde
+            setTimeout(() => {
+                const redirectUrl = APP_URL + "/caisse?add_product=" + product.id + "&barcode=" + encodeURIComponent(barcode);
+                console.log("Redirection vers:", redirectUrl);
+                window.location.href = redirectUrl;
+            }, 1500);
+        }
+
+        // Produit non trouvé
+        function onProductNotFound(barcode) {
+            document.getElementById("resultStatus").className = "status error";
+            document.getElementById("resultStatus").textContent = "✗ Code-barres non trouvé dans la base";
+
+            // Permettre de rescanner
+            setTimeout(() => {
+                isProcessing = false;
+                lastScannedCode = null;
+                document.getElementById("resultStatus").className = "status";
+            }, 3000);
+        }
+
+        // Formatage devise
+        function formatCurrency(amount) {
+            return parseFloat(amount).toFixed(2) + ' Fc';
+        }
+
+        // Échec du scan (normal, pas d'erreur)
+        function onScanFailure(error) {
+            // Ne rien faire - c'est normal quand rien n'est scanné
+        }
+
+        // Annuler et retourner
+        async function cancelScan() {
+            await stopScanner();
+            window.history.back();
+        }
+
+        // Redémarrer le scan
+        async function restartScan() {
+            isProcessing = false;
+            lastScannedCode = null;
+            document.getElementById("result").innerHTML = "";
+            document.getElementById("resultStatus").className = "status";
+            document.getElementById("productInfo").classList.remove("show");
+            document.getElementById("redirectMsg").classList.remove("show");
+            document.getElementById("rescanBtn").style.display = "none";
+
+            await startScanner();
+        }
+
+        // Arrêter le scanner
+        async function stopScanner() {
+            if (html5QrCode && isScanning) {
+                try {
+                    await html5QrCode.stop();
+                    isScanning = false;
+                    document.getElementById("rescanBtn").style.display = "block";
+                } catch (err) {
+                    console.warn("Erreur arrêt scanner:", err);
+                }
+            }
+        }
     </script>
+
 </body>
 
 </html>

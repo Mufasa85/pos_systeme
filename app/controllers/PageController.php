@@ -237,6 +237,21 @@ class PageController
         require_once dirname(__DIR__) . DIRECTORY_SEPARATOR . 'views/scanner.php';
     }
 
+    // Nouveau scanner propre
+    public function newScanner()
+    {
+        // Vérifier la session
+        if (!isset($_SESSION['user_id'])) {
+            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";
+            $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+            header('Location: ' . $protocol . '://' . $host . '/');
+            exit;
+        }
+
+        // Charger la nouvelle page scanner
+        require_once dirname(__DIR__) . DIRECTORY_SEPARATOR . 'views/new-scanner.php';
+    }
+
     private function getBaseUrl()
     {
         $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";
