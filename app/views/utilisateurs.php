@@ -36,7 +36,7 @@
                   </td>
                   <td style="padding:0.75rem;"><span class="badge <?= $u['role'] === 'admin' ? 'badge-primary' : 'badge-success' ?>"><?= $u['role'] === 'admin' ? 'Admin' : 'Vendeur' ?></span></td>
                   <td style="padding:0.75rem;"><span class="badge <?= $u['actif'] ? 'badge-success' : 'badge-danger' ?>"><?= $u['actif'] ? 'Actif' : 'Inactif' ?></span></td>
-                  <td style="padding:0.75rem; text-align:right;">
+                  <td style="padding:0.75rem;">
                     <button class="btn btn-ghost btn-small" onclick="openEditUserModal(<?= $u['id'] ?>, '<?= htmlspecialchars($u['nom_utilisateur'], ENT_QUOTES) ?>', '<?= htmlspecialchars($u['nom_complet'], ENT_QUOTES) ?>', '<?= $u['role'] ?>', <?= $u['actif'] ?>)" title="Modifier">
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <polygon points="16 3 21 8 8 21 3 21 3 16 16 3"></polygon>

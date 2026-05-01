@@ -85,7 +85,7 @@
                     <polyline points="17 8 12 3 7 8"></polyline>
                     <line x1="12" y1="3" x2="12" y2="15"></line>
                   </svg>
-                  Choisir une image
+                   image
                 </label>
                 <button type="button" class="btn btn-ghost" onclick="clearProductImage();" id="clear-image-btn" style="display: none; margin-left: 0.5rem;">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

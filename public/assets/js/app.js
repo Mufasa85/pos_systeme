@@ -71,10 +71,11 @@ const posCart = {
     async loadProducts() {
         try {
             const res = await fetch(APP_URL + '/api/produits');
-            this.allProducts = await res.json();
+            const data = await res.json();
+            this.allProducts = Array.isArray(data) ? data : (data.products || []);
             this.renderProducts(this.allProducts);
         } catch (e) {
-            console.error('Failed fetching products');
+            console.error('Failed fetching products:', e);
             if ($('#products-grid')) $('#products-grid').innerHTML = '<div class="empty-state">Erreur de chargement</div>';
         }
     },
@@ -93,12 +94,13 @@ const posCart = {
     renderProducts(list) {
         const grid = $('#products-grid');
         if (!grid) return;
-        grid.innerHTML = list.map(p => `
+        
+        let html = list.map(p => `
             <div class="product-card ${p.stock <= 0 ? 'out-of-stock' : ''}" 
                  onclick="posCart.addToCart(${p.id})"
                  ${p.stock <= 0 ? 'title="Rupture de stock"' : ''}>
               <div class="product-image">
-                <img src="${p.image}" alt="${p.nom}" onerror="this.parentElement.innerHTML='<svg width=\\'40\\\' height=\\'40\\\' viewBox=\\'0 0 24 24\\\' fill=\\'none\\\' stroke=\\'currentColor\\\' stroke-width=\\'1.5\\\'><path d=\\'M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z\\\'></path><line x1=\\'3\\\' y1=\\'6\\\' x2=\\'21\\\' y2=\\'6\\\'></line><path d=\\'M16 10a4 4 0 0 1-8 0\\\'></path></svg>'">
+                <img src="${p.image}" alt="${p.nom}" onerror="this.parentElement.innerHTML='<svg width=\\'40\\\' height=\\'50\\\' viewBox=\\'0 0 24 24\\\' fill=\\'none\\\' stroke=\\'currentColor\\\' stroke-width=\\'1.5\\\'><path d=\\'M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z\\\'></path><line x1=\\'3\\\' y1=\\'6\\\' x2=\\'21\\\' y2=\\'6\\\'></line><path d=\\'M16 10a4 4 0 0 1-8 0\\\'></path></svg>'">
               </div>
               <div class="product-info">
                 <div class="name">${p.nom}</div>
@@ -106,7 +108,19 @@ const posCart = {
                 <div class="barcode-display">${p.code_barres}</div>
               </div>
             </div>
-        `).join('') || '<div class="empty-state">Aucun produit trouve</div>';
+        `);
+        
+        // Compléter jusqu'à 20 cartes avec des placeholders (PC/Tablette uniquement, pas mobile)
+        const targetCards = 20;
+        const currentCards = html.length;
+        const isMobile = window.matchMedia('(max-width: 767px)').matches;
+        if (!isMobile && currentCards < targetCards) {
+            for (let i = currentCards; i < targetCards; i++) {
+                html.push(`<div class="product-card placeholder-card hide-on-mobile" style="opacity: 0.2; cursor: default; min-height: 130px; background: #e8e8e8; border: 2px dashed #bbb; display: flex; align-items: center; justify-content: center; border-radius: 8px;" title="Emplacement réservé"><span style="color: #999; font-size: 11px;">Vide</span></div>`);
+            }
+        }
+        
+        grid.innerHTML = html.join('') || '<div class="empty-state">Aucun produit trouvé</div>';
     },
 
     addToCart(id) {
