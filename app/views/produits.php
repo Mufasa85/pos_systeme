@@ -50,7 +50,7 @@
                   </td>
                   <td style="padding:0.75rem;"><strong><?= number_format($p['prix'], 2) ?> Fc</strong></td>
                   <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin'): ?>
-                    <td style="padding:0.75rem; text-align:right;">
+                    <td style="padding:0.75rem;">
                       <button class="btn btn-ghost btn-small" onclick="editProduct(<?= htmlspecialchars(json_encode($p)) ?>)" title="Modifier">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                           <polygon points="16 3 21 8 8 21 3 21 3 16 16 3"></polygon>
