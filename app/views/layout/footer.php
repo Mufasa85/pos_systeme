@@ -59,7 +59,7 @@
           </h3>
           <button class="close-modal" onclick="document.getElementById('product-modal').classList.remove('active')">&times;</button>
         </div>
-        <form id="product-form">
+        <form id="product-form" onsubmit="return false;">
           <input type="hidden" id="product-id">
 
           <!-- Section Image avec aperçu -->
@@ -436,7 +436,7 @@
       </div>
     </div>
 
-    <script src="./assets/js/app.js"></script>
+    <script src="./assets/js/app.js?v=1.0.3"></script>
     </body>
 
     </html>

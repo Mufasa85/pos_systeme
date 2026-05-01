@@ -37,31 +37,39 @@ const posCart = {
     dgiResponse: null,
 
     init() {
-        // Caisse tabs
-        if ($('#product-search')) {
-            this.loadProducts();
-            $('#product-search').addEventListener('input', (e) => this.filterProducts(e.target.value));
-            $$('.category-tab').forEach(tab => {
-                tab.addEventListener('click', (e) => {
-                    $$('.category-tab').forEach(t => t.classList.remove('active'));
-                    e.target.classList.add('active');
-                    this.filterProducts($('#product-search').value, e.target.dataset.category);
-                });
+        // Vérifier si un produit a été scanné et ajouté via l'URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const addProductId = urlParams.get('add_product');
+
+        // Caisse - Select moderne pour catégories
+        if ($('#category-filter')) {
+            this.loadProducts().then(() => {
+                // Ajouter le produit scanné au panier si présent
+                if (addProductId) {
+                    console.log('[CAISSE] Produit scanné détecté:', addProductId);
+                    this.addToCart(parseInt(addProductId));
+                    // Nettoyer l'URL sans recharger
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                }
+            });
+
+            if ($('#product-search')) {
+                $('#product-search').addEventListener('input', (e) => this.filterProducts(e.target.value));
+            }
+
+            // Événement de changement pour le select de catégorie
+            $('#category-filter').addEventListener('change', (e) => {
+                if ($('#product-search')) {
+                    this.filterProducts($('#product-search').value, e.target.value);
+                } else {
+                    this.filterProducts('', e.target.value);
+                }
             });
         }
 
         // Produits page tabs
         if ($('#products-table')) {
             initProductsTabs();
-        }
-
-        // Product Modal Logic
-        const addProductForm = $('#product-form');
-        if (addProductForm) {
-            addProductForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                await this.createProduct();
-            });
         }
     },
 
@@ -253,10 +261,48 @@ const posCart = {
                     }))
                 })
             });
-            return await res.json();
+
+            console.log(JSON.stringify({
+                store_name: STORE_INFO.name,
+                store_phone: STORE_INFO.phone,
+                store_address: STORE_INFO.address,
+                store_ice: STORE_INFO.ice,
+                seller_name: sellerName,
+                amount: this.currentTotals.total,
+                client_number: this.clientNumber || '',
+                invoice_number: invoiceNum,
+                articles: this.items.map(item => ({
+                    name: item.nom,
+                    quantity: item.quantite,
+                    price: item.prix
+                }))
+            }))
+
+            // Vérifier si la réponse estOK
+            if (!res.ok) {
+                console.warn('[DGI] Réponse non OK:', res.status, res.statusText);
+                return { success: false, message: 'Erreur serveur DGI: ' + res.status };
+            }
+
+            // Lire le texte de la réponse
+            const text = await res.text();
+
+            // Vérifier si le texte est vide
+            if (!text || text.trim() === '') {
+                console.warn('[DGI] Réponse vide du serveur');
+                return { success: false, message: 'Réponse vide du serveur DGI' };
+            }
+
+            // Parser le JSON
+            try {
+                return JSON.parse(text);
+            } catch (jsonErr) {
+                console.warn('[DGI] Réponse non-JSON:', text.substring(0, 200));
+                return { success: false, message: 'Réponse invalide du serveur DGI' };
+            }
         } catch (e) {
             console.error('Erreur appel DGI:', e);
-            return { success: false, message: 'Erreur de connexion DGI' };
+            return { success: false, message: 'Erreur de connexion DGI: ' + e.message };
         }
     },
 
@@ -317,7 +363,7 @@ const posCart = {
     },
 
     // Afficher le récapitulatif de la vente (style ticket thermique moderne)
-    showPreview() {
+    async showPreview() {
         if (this.items.length === 0) return;
 
         const formattedDate = new Date().toLocaleString('fr-FR', {
@@ -325,10 +371,22 @@ const posCart = {
             hour: '2-digit', minute: '2-digit'
         });
 
-        const invoiceNum = 'FAC-' + Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
+        // Récupérer le numéro de facture depuis la base de données
+        let invoiceNum = 'FAC-000001';
+        try {
+            const res = await fetch(APP_URL + '/api/vente/next-invoice');
+            const data = await res.json();
+            if (data.invoice_number) {
+                invoiceNum = data.invoice_number;
+            }
+        } catch (e) {
+            console.warn('Impossible de récupérer le numéro de facture, utilisation du numéro aléatoire');
+        }
 
+        // Construire les items du reçu
         let itemsHtml = '';
-        this.items.forEach(item => {
+        for (let i = 0; i < this.items.length; i++) {
+            const item = this.items[i];
             itemsHtml += `
                 <div class="receipt-item">
                     <span class="item-name">${item.nom}</span>
@@ -336,7 +394,7 @@ const posCart = {
                     <span class="item-price">${(item.prix * item.quantite).toFixed(2)}</span>
                 </div>
             `;
-        });
+        }
 
         $('#preview-content').innerHTML = `
             <div class="receipt">
@@ -375,7 +433,7 @@ const posCart = {
 
                 <div class="receipt-footer">
                     <div class="vendeur-info">Vendeur: ${(typeof CURRENT_USER !== 'undefined' && CURRENT_USER.fullName) ? CURRENT_USER.fullName : STORE_INFO.name}</div>
-                    <div class="barcode">||| ${invoiceNum} |||</div>
+                    <div class="barcode">${invoiceNum}</div>
                     <div class="thank-you">Merci de votre visite!</div>
                     <div style="margin-top: 5px; font-size: 9px; font-style: italic;">Conservez ce ticket pour tout echange</div>
                 </div>
@@ -448,10 +506,12 @@ const posCart = {
             // Construire le HTML du recap DGI
             let dgiInfoHtml = '<div style="background: #e8f5e9; border: 1px solid #4caf50; border-radius: 8px; padding: 10px; margin: 10px 0; text-align: center;"><div style="color: #2e7d32; font-weight: bold; font-size: 11px;">VALIDE DGI - ' + (dgiResponse.message || 'Facture generee avec succes') + '</div>';
             if (dgiResponse.data) {
+                console.log(dgiResponse)
                 dgiInfoHtml += '<div style="font-size: 14px; color: #555; margin-top: 5px;">';
                 if (dgiResponse.data.dateDGI) dgiInfoHtml += 'Date: ' + dgiResponse.data.dateDGI + '\n';
                 if (dgiResponse.data.counters) dgiInfoHtml += 'Compteur: ' + dgiResponse.data.counters;
                 if (dgiResponse.data.codeDEFDGI) dgiInfoHtml += '<br>DEF: ' + dgiResponse.data.codeDEFDGI;
+                if (dgiResponse.data.nim) dgiInfoHtml += '<br> NIM : ' + dgiResponse.data.nim;
                 dgiInfoHtml += '</div>';
             }
             dgiInfoHtml += '</div>';
@@ -459,6 +519,7 @@ const posCart = {
             // Contenu du QR code
             const qrContainerId = 'dgi-qrcode-container';
             const qrCodeContent = (dgiResponse.data && dgiResponse.data.qrCode) ? dgiResponse.data.qrCode : saleData.numero_facture;
+
             const formattedDate = new Date().toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
             // Construire les lignes du tableau
@@ -515,7 +576,7 @@ const posCart = {
                     <div class="receipt-footer">
                         <div class="vendeur-info">Vendeur: ${(typeof CURRENT_USER !== 'undefined' && CURRENT_USER.fullName) ? CURRENT_USER.fullName : STORE_INFO.name}</div>
                         <div id="${qrContainerId}" class="qrcode-container"></div>
-                        <div class="barcode">||| ${saleData.numero_facture} |||</div>
+                        <div class="barcode">${saleData.numero_facture}</div>
                         <div class="thank-you">Merci de votre visite!</div>
                         <p style="margin-top: 5px; color: #555; font-size: 9px;">Conservez ce ticket pour tout echange</p>
                     </div>
@@ -985,11 +1046,231 @@ function generateBarcode() {
 }
 
 function openProductModal() {
-    $('#product-modal').classList.add('active');
+    // Charger les catégories si nécessaire avant d'afficher le modal
+    if (categoriesCache.length === 0) {
+        loadCategories().then(() => {
+            $('#product-modal').classList.add('active');
+        });
+    } else {
+        $('#product-modal').classList.add('active');
+    }
 }
 
-// Product form submit
+// ==================== SCANNER MODAL ====================
+
+let scannerHtml5QrCode = null;
+let isScannerActive = false;
+let scannerLastCode = null;
+let scannerProcessing = false;
+
+function openScannerModal() {
+    const modal = document.getElementById('scanner-modal');
+    if (!modal) return;
+
+    modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+
+    // Démarrer le scanner après l'affichage du modal
+    setTimeout(() => {
+        startInlineScanner();
+    }, 300);
+}
+
+function closeScannerModal() {
+    const modal = document.getElementById('scanner-modal');
+    if (!modal) return;
+
+    modal.classList.remove('active');
+    document.body.style.overflow = '';
+
+    // Arrêter le scanner
+    stopInlineScanner();
+}
+
+async function startInlineScanner() {
+    // Charger la bibliothèque si nécessaire
+    if (typeof Html5Qrcode === 'undefined') {
+        await loadHtml5QrCode();
+    }
+
+    const readerEl = document.getElementById('scanner-reader');
+    if (!readerEl) return;
+
+    // Reset UI
+    document.getElementById('scanner-loading').classList.remove('loading');
+    document.getElementById('scanner-loading').style.display = 'none';
+    document.getElementById('scanner-result').className = 'scanner-status';
+    document.getElementById('scanner-result').style.display = 'none';
+    document.getElementById('scanner-product').classList.remove('show');
+    document.getElementById('scanner-rescan-btn').style.display = 'none';
+    document.getElementById('scanner-reader').style.display = 'block';
+    readerEl.innerHTML = '';
+
+    scannerHtml5QrCode = new Html5Qrcode('scanner-reader');
+    isScannerActive = true;
+    scannerLastCode = null;
+    scannerProcessing = false;
+
+    try {
+        await scannerHtml5QrCode.start(
+            { facingMode: 'environment' },
+            { fps: 10, qrbox: { width: 250, height: 250 } },
+            onInlineScanSuccess,
+            onInlineScanFailure
+        );
+        console.log('[SCANNER MODAL] Démarré avec succès');
+    } catch (err) {
+        console.error('[SCANNER MODAL] Erreur:', err);
+        readerEl.innerHTML = '<div style="text-align:center;padding:20px;color:#dc3545;">Erreur caméra: ' + err.message + '</div>';
+    }
+}
+
+function onInlineScanSuccess(code) {
+    if (scannerProcessing || code === scannerLastCode) return;
+
+    scannerLastCode = code;
+    scannerProcessing = true;
+
+    console.log('[SCANNER MODAL] Code détecté:', code);
+
+    // Afficher le chargement
+    const loadingEl = document.getElementById('scanner-loading');
+    loadingEl.style.display = 'flex';
+    loadingEl.classList.add('loading');
+
+    const resultEl = document.getElementById('scanner-result');
+    resultEl.style.display = 'none';
+    document.getElementById('scanner-product').classList.remove('show');
+
+    // Rechercher le produit
+    searchProductForCart(code);
+}
+
+function onInlineScanFailure(error) {
+    // Ne rien faire - c'est normal
+}
+
+function searchProductForCart(barcode) {
+    // Rechercher dans les produits déjà chargés
+    document.getElementById('scanner-loading').style.display = 'none';
+
+    const product = posCart.allProducts.find(p => p.code_barres === barcode);
+
+    if (product) {
+        // Produit trouvé - ajouter au panier
+        onInlineProductFound(product, barcode);
+    } else {
+        onInlineProductNotFound(barcode);
+    }
+}
+
+function onInlineProductFound(product, barcode) {
+    // Ajouter au panier
+    posCart.addToCart(product.id);
+
+    const resultEl = document.getElementById('scanner-result');
+    resultEl.className = 'scanner-status success';
+    resultEl.textContent = '✓ ' + product.nom + ' ajouté !';
+    resultEl.style.display = 'block';
+
+    // Afficher les infos
+    document.getElementById('scanner-product').classList.add('show');
+    document.getElementById('scanned-name').textContent = product.nom;
+    document.getElementById('scanned-price').textContent = formatCurrency(product.prix);
+
+    // Arrêter le scanner et fermer le modal
+    try {
+        if (scannerHtml5QrCode && isScannerActive) {
+            scannerHtml5QrCode.stop().then(() => {
+                isScannerActive = false;
+            }).catch(() => { });
+        }
+    } catch (e) { }
+
+    // Fermer le modal immédiatement
+    const modal = document.getElementById('scanner-modal');
+    if (modal) {
+        modal.classList.remove('active');
+        document.body.style.overflow = '';
+    }
+}
+
+function onInlineProductNotFound(barcode) {
+    const resultEl = document.getElementById('scanner-result');
+    resultEl.className = 'scanner-status error';
+    resultEl.textContent = '✗ Code-barres introuvable dans la base';
+    resultEl.style.display = 'block';
+
+    setTimeout(() => {
+        scannerProcessing = false;
+        scannerLastCode = null;
+        resultEl.style.display = 'none';
+    }, 3000);
+}
+
+async function restartScanner() {
+    await startInlineScanner();
+}
+
+async function stopInlineScanner() {
+    if (scannerHtml5QrCode && isScannerActive) {
+        try {
+            await scannerHtml5QrCode.stop();
+        } catch (err) {
+            console.warn('[SCANNER MODAL] Erreur arrêt:', err);
+        }
+        isScannerActive = false;
+    }
+}
+
+function loadHtml5QrCode() {
+    return new Promise((resolve, reject) => {
+        if (typeof Html5Qrcode !== 'undefined') {
+            resolve();
+            return;
+        }
+        const script = document.createElement('script');
+        script.src = 'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js';
+        script.onload = resolve;
+        script.onerror = reject;
+        document.head.appendChild(script);
+    });
+}
+
+// Main initialization
 document.addEventListener('DOMContentLoaded', () => {
+    // Initialize cart
+    posCart.init();
+
+    // Load store info
+    loadStoreInfo();
+
+    // Load categories for product modal
+    loadCategories();
+
+    // Initialize products tabs if on products page
+    if ($('#products-table')) {
+        initProductsTabs();
+    }
+
+    // Initialize history filters if on history page
+    if ($('#invoice-search')) {
+        initHistoryFilters();
+    }
+
+    // Print button
+    const printBtn = $('#print-receipt');
+    if (printBtn) {
+        printBtn.addEventListener('click', () => {
+            const content = $('#receipt-content').innerHTML;
+            _printReceiptContent(content);
+        });
+    }
+
+    // Initialize sidebar
+    initSidebar();
+
+    // Product form submit - UNIQUEMENT si le formulaire existe
     const productForm = $('#product-form');
     if (productForm) {
         productForm.addEventListener('submit', async (e) => {
@@ -997,8 +1278,6 @@ document.addEventListener('DOMContentLoaded', () => {
             await posCart.saveProduct();
         });
     }
-
-    initSidebar();
 });
 
 // Mobile sidebar
@@ -1036,7 +1315,78 @@ function initSidebar() {
     });
 }
 
-// Attach init
+// ==================== CART SIDEBAR TOGGLE (Mobile) ====================
+
+function toggleCartSidebar() {
+    const cart = $('#caisse-cart');
+    const overlay = $('#cart-sidebar-overlay');
+
+    if (!cart) return;
+
+    const isOpen = cart.classList.contains('open');
+
+    if (isOpen) {
+        cart.classList.remove('open');
+        if (overlay) overlay.classList.remove('active');
+        document.body.style.overflow = '';
+    } else {
+        cart.classList.add('open');
+        if (overlay) overlay.classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+}
+
+function updateCartFloatingButton() {
+    const badge = $('#cart-badge');
+    const total = $('#cart-floating-total');
+
+    if (!badge || !total) return;
+
+    const itemCount = posCart.items.reduce((sum, item) => sum + item.quantite, 0);
+    const totalAmount = posCart.items.reduce((sum, item) => sum + (item.prix * item.quantite), 0);
+
+    badge.textContent = itemCount;
+    total.textContent = totalAmount.toFixed(2) + ' Fc';
+}
+
+// Intercept posCart methods to update floating button
+const originalRenderCart = posCart.renderCart.bind(posCart);
+posCart.renderCart = function () {
+    originalRenderCart();
+    updateCartFloatingButton();
+};
+
+const originalClearCart = posCart.clearCart.bind(posCart);
+posCart.clearCart = function () {
+    originalClearCart();
+    updateCartFloatingButton();
+};
+
+const originalAddToCart = posCart.addToCart.bind(posCart);
+posCart.addToCart = function (id) {
+    originalAddToCart(id);
+    updateCartFloatingButton();
+};
+
+const originalUpdateQty = posCart.updateQty.bind(posCart);
+posCart.updateQty = function (id, delta) {
+    originalUpdateQty(id, delta);
+    updateCartFloatingButton();
+};
+
+const originalRemoveFromCart = posCart.removeFromCart.bind(posCart);
+posCart.removeFromCart = function (id) {
+    originalRemoveFromCart(id);
+    updateCartFloatingButton();
+};
+
+// Initialize floating button on load
+document.addEventListener('DOMContentLoaded', () => {
+    updateCartFloatingButton();
+});
+
+// ==================== PRODUCTS TABS ====================
+
 function initProductsTabs() {
     const filterInput = $('#products-filter');
     const categoryFilter = $('#category-filter');
@@ -1062,7 +1412,6 @@ function initProductsTabs() {
             }
         });
 
-        // Afficher un message si aucun résultat
         let emptyMsg = $('#products-empty-message');
         if (!emptyMsg && visibleCount === 0 && rows.length > 0) {
             const table = $('#products-table');
@@ -1075,7 +1424,6 @@ function initProductsTabs() {
         }
     }
 
-    // Ecouter le champ de recherche
     if (filterInput) {
         filterInput.addEventListener('input', (e) => {
             const category = categoryFilter ? categoryFilter.value : 'all';
@@ -1083,7 +1431,6 @@ function initProductsTabs() {
         });
     }
 
-    // Ecouter le select de catégorie
     if (categoryFilter) {
         categoryFilter.addEventListener('change', (e) => {
             const search = filterInput ? filterInput.value : '';
@@ -1091,41 +1438,14 @@ function initProductsTabs() {
         });
     }
 
-    // Bouton refresh
     if (refreshBtn) {
         refreshBtn.addEventListener('click', () => {
             window.location.reload();
         });
     }
 
-    // Filtrer initial
     filterProductsTable();
 }
-
-document.addEventListener('DOMContentLoaded', () => {
-    loadStoreInfo(); // Charger les informations du magasin depuis les paramètres
-    posCart.init();
-    loadCategories(); // Charger les categories pour le modal produit
-
-    // Initialiser les filtres de la page produits
-    if ($('#products-table')) {
-        initProductsTabs();
-    }
-
-    // Initialiser les filtres de la page historique
-    if ($('#invoice-search')) {
-        initHistoryFilters();
-    }
-
-    // Print Receipt Logic — via iframe (compatible Android/iOS/Desktop)
-    const printBtn = $('#print-receipt');
-    if (printBtn) {
-        printBtn.addEventListener('click', () => {
-            const content = $('#receipt-content').innerHTML;
-            _printReceiptContent(content);
-        });
-    }
-});
 
 // ==================== HISTORY FILTERS ====================
 
@@ -1159,7 +1479,6 @@ function initHistoryFilters() {
             }
         });
 
-        // Afficher un message si aucun résultat
         let emptyMsg = $('#history-empty-message');
         if (!emptyMsg && visibleCount === 0 && rows.length > 0) {
             const tbody = document.querySelector('#page-history tbody');
@@ -1172,7 +1491,6 @@ function initHistoryFilters() {
         }
     }
 
-    // Écouteurs d'événements
     if (invoiceSearch) {
         invoiceSearch.addEventListener('input', filterHistory);
         invoiceSearch.addEventListener('keyup', filterHistory);
@@ -1184,17 +1502,12 @@ function initHistoryFilters() {
         sellerFilter.addEventListener('change', filterHistory);
     }
 
-    // Filtrer initial
     filterHistory();
 }
 
-/**
- * Impression universelle via iframe caché.
- * Compatible Android Chrome, iOS Safari, Desktop.
- * Evite le blocage des popups window.open().
- */
+// ==================== PRINT RECEIPT ====================
+
 function _printReceiptContent(content) {
-    // Supprimer un ancien iframe s'il existe
     const oldFrame = document.getElementById('_print-frame');
     if (oldFrame) oldFrame.remove();
 
@@ -1217,71 +1530,45 @@ function _printReceiptContent(content) {
                 color: #000;
                 background: #fff;
             }
-            /* === EN-TETE MAGASIN === */
             .receipt { width: 100%; }
             .receipt-header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 12px; margin-bottom: 12px; }
             .receipt-header .store-name { font-size: 20px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
             .receipt-header .store-info { font-size: 13px; line-height: 1.6; color: #222; }
-            /* === META (numero + date) === */
             .receipt-meta { display: flex; justify-content: space-between; font-size: 13px; font-weight: 600; padding: 8px 0; margin-bottom: 10px; border-bottom: 2px solid #000; }
-            /* === TABLEAU ARTICLES === */
             .receipt-items { margin-bottom: 10px; }
             .receipt-item { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 5px; font-size: 13px; gap: 3px; }
-            .receipt-item .item-name  { flex: 2;   min-width: 0; white-space: normal; overflow-wrap: break-word; }
-            .receipt-item .item-qty   { flex: 1;   text-align: center; white-space: nowrap; }
-            .receipt-item .item-price { flex: 1;   text-align: right;  font-weight: 700; white-space: nowrap; }
-            /* === TOTAUX === */
+            .receipt-item .item-name { flex: 2; min-width: 0; white-space: normal; overflow-wrap: break-word; }
+            .receipt-item .item-qty { flex: 1; text-align: center; white-space: nowrap; }
+            .receipt-item .item-price { flex: 1; text-align: right; font-weight: 700; white-space: nowrap; }
             .receipt-totals { margin-bottom: 8px; }
             .receipt-total-row { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 5px; }
             .receipt-total-row.grand-total { font-size: 18px; font-weight: 700; border-top: 3px solid #000; border-bottom: 3px solid #000; padding: 8px 0; margin-top: 8px; }
-            /* === BOITE DGI VERTE (inline styles du JS) === */
             div[style*="e8f5e9"], div[style*="4caf50"] { border-radius: 4px; padding: 8px 10px !important; margin: 10px 0 !important; font-size: 13px !important; }
-            /* === PIED DE PAGE === */
             .receipt-footer { text-align: center; margin-top: 12px; padding-top: 10px; border-top: 2px solid #000; font-size: 13px; }
             .vendeur-info { margin-bottom: 8px; }
-            .qrcode-container {
-                width: 100%;
-                text-align: center;
-                margin: 10px 0;
-                overflow: visible;
-            }
-            .qrcode-container > div {
-                display: inline-block;
-                overflow: visible;
-            }
-            .qrcode-container svg,
-            .qrcode-container img {
-                display: block;
-                margin: 0 auto;
-                max-width: 160px;
-                height: auto;
-                overflow: visible;
-            }
+            .qrcode-container { width: 100%; text-align: center; margin: 10px 0; overflow: visible; }
+            .qrcode-container > div { display: inline-block; overflow: visible; }
+            .qrcode-container svg, .qrcode-container img { display: block; margin: 0 auto; max-width: 160px; height: auto; overflow: visible; }
             .barcode { font-size: 18px; letter-spacing: 3px; font-weight: 700; margin: 8px 0; text-align: center; }
             .thank-you { font-style: italic; margin-top: 8px; font-size: 13px; }
         </style>
     `;
-
 
     const doc = iframe.contentDocument || iframe.contentWindow.document;
     doc.open();
     doc.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">${printStyles}</head><body>${content}</body></html>`);
     doc.close();
 
-    // Attendre que l'iframe soit chargée puis lancer l'impression
     iframe.onload = function () {
         setTimeout(() => {
             try {
-                // ✅ Patch SVG : forcer viewBox + taille pour éviter l'affichage "quart"
                 const iDoc = iframe.contentDocument;
                 iDoc.querySelectorAll('.qrcode-container svg').forEach(svg => {
                     const origW = parseInt(svg.getAttribute('width') || 180);
                     const origH = parseInt(svg.getAttribute('height') || 180);
-                    // Ajouter viewBox s'il n'existe pas
                     if (!svg.getAttribute('viewBox')) {
                         svg.setAttribute('viewBox', `0 0 ${origW} ${origH}`);
                     }
-                    // Forcer les dimensions CSS via attributs (override la lib)
                     svg.setAttribute('width', '220');
                     svg.setAttribute('height', '220');
                     svg.style.width = '220px';
@@ -1296,7 +1583,6 @@ function _printReceiptContent(content) {
             } catch (e) {
                 console.error('Erreur impression iframe:', e);
             }
-            // Nettoyer l'iframe après un délai
             setTimeout(() => { if (iframe.parentNode) iframe.remove(); }, 2000);
         }, 400);
     };

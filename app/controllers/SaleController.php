@@ -50,6 +50,16 @@ class SaleController extends Controller
             ]);
 
             foreach ($data['articles'] as $item) {
+                // Vérifier le stock avant de vendre
+                $product = $productModel->findById($item['produit_id']);
+                if (!$product || $product['stock'] < $item['quantite']) {
+                    $db->rollBack();
+                    $this->status(400)->json([
+                        'error' => 'Stock insuffisant pour le produit: ' . ($product['nom'] ?? $item['produit_id'])
+                    ]);
+                    return;
+                }
+
                 // Créer le détail
                 $detailModel->create([
                     'vente_id'   => $saleId,
@@ -58,7 +68,7 @@ class SaleController extends Controller
                     'prix'       => $item['prix']
                 ]);
 
-                // Mettre à jour le stock
+                // Mettre à jour le stock (décrémenter)
                 $productModel->updateStock($item['produit_id'], $item['quantite']);
             }
 
@@ -134,5 +144,12 @@ class SaleController extends Controller
             'sale' => $sale,
             'details' => $details
         ]);
+    }
+
+    public function nextInvoice()
+    {
+        $saleModel = new Sale();
+        $invoiceNum = $saleModel->generateInvoiceNumber();
+        $this->json(['invoice_number' => $invoiceNum]);
     }
 }

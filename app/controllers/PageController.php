@@ -12,15 +12,21 @@ class PageController
 {
     public function __construct()
     {
-
-        if (!isset($_SESSION['user_id'])) {
-            header('Location: http://localhost:8000/');
-            exit;
-        }
+        // Pas de redirection automatique dans le constructeur
+        // Chaque méthode vérifie la session si nécessaire
     }
 
     private function render($view, $data = [])
     {
+        // Vérifier la session AVANT d'afficher la page
+        if (!isset($_SESSION['user_id'])) {
+            // Redirection vers login
+            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";
+            $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+            header('Location: ' . $protocol . '://' . $host . '/');
+            exit;
+        }
+
         $page = $view;
         // Charger le nom du magasin pour toutes les pages
         $settingsModel = new Settings();
@@ -140,7 +146,9 @@ class PageController
     public function utilisateurs()
     {
         if ($_SESSION['role'] !== 'admin') {
-            header('Location: /dashboard');
+            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";
+            $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+            header('Location: ' . $protocol . '://' . $host . '/dashboard');
             exit;
         }
         $userModel = new User();
@@ -158,7 +166,9 @@ class PageController
     public function parametres()
     {
         if ($_SESSION['role'] !== 'admin') {
-            header('Location: /dashboard');
+            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";
+            $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+            header('Location: ' . $protocol . '://' . $host . '/dashboard');
             exit;
         }
         $this->render('parametres');
@@ -167,7 +177,9 @@ class PageController
     public function categories()
     {
         if ($_SESSION['role'] !== 'admin') {
-            header('Location: /dashboard');
+            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";
+            $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+            header('Location: ' . $protocol . '://' . $host . '/dashboard');
             exit;
         }
         $productModel = new Product();
@@ -204,5 +216,46 @@ class PageController
         }
 
         $this->render('categories', ['categories' => $categories]);
+    }
+
+    public function scanner()
+    {
+        // Vérifier la session
+        if (!isset($_SESSION['user_id'])) {
+            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";
+            $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+            header('Location: ' . $protocol . '://' . $host . '/');
+            exit;
+        }
+
+        // Pour le scanner, on charge une page spéciale sans le layout principal
+        $settingsModel = new Settings();
+        $storeName = $settingsModel->get('store_name') ?? 'Mon Magasin';
+        $baseUrl = $this->getBaseUrl();
+
+        // Rendre la page scanner directement (sans header/footer du layout)
+        require_once dirname(__DIR__) . DIRECTORY_SEPARATOR . 'views/scanner.php';
+    }
+
+    // Nouveau scanner propre
+    public function newScanner()
+    {
+        // Vérifier la session
+        if (!isset($_SESSION['user_id'])) {
+            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";
+            $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+            header('Location: ' . $protocol . '://' . $host . '/');
+            exit;
+        }
+
+        // Charger la nouvelle page scanner
+        require_once dirname(__DIR__) . DIRECTORY_SEPARATOR . 'views/new-scanner.php';
+    }
+
+    private function getBaseUrl()
+    {
+        $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";
+        $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+        return $protocol . '://' . $host;
     }
 }

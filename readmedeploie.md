@@ -220,6 +220,8 @@ Créez ou modifiez le fichier `.htaccess` dans `public_html/caisse/public/.htacc
 RewriteEngine On
 
 # Forcer HTTPS (recommandé)
+# Forcer HTTPS (compatible avec les serveurs avec proxy comme Cloudflare/Hostinger)
+RewriteCond %{HTTP:X-Forwarded-Proto} !https
 RewriteCond %{HTTPS} off
 RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 
@@ -322,6 +324,7 @@ Assurez-vous que le `.htaccess` contient :
 
 ```apache
 RewriteEngine On
+RewriteCond %{HTTP:X-Forwarded-Proto} !https
 RewriteCond %{HTTPS} off
 RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 ```

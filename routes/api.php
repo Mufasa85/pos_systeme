@@ -30,6 +30,7 @@ Router::post("/api/delete/category", [CategoryController::class, 'delete']);
 Router::post("/api/delete/vente", [SaleController::class, 'delete']);
 Router::post("/api/vente", [SaleController::class, 'create']);
 Router::get("/api/vente/[i:id]/details", [SaleController::class, 'details']);
+Router::get("/api/vente/next-invoice", [SaleController::class, 'nextInvoice']);
 
 // Paramètres du système
 Router::get("/api/settings", [SettingsController::class, 'index']);
@@ -37,17 +38,10 @@ Router::post("/api/settings", [SettingsController::class, 'update']);
 Router::post("/api/settings/store", [SettingsController::class, 'updateStore']);
 Router::post("/api/settings/tax", [SettingsController::class, 'updateTax']);
 
-// Proxy DGI API avec CORS
+// Proxy DGI API - GET
 Router::get("/api/dgi", function () {
     header('Access-Control-Allow-Origin: *');
-    header('Access-Control-Allow-Methods: GET, OPTIONS');
-    header('Access-Control-Allow-Headers: Content-Type');
     header('Content-Type: application/json');
-
-    if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-        http_response_code(200);
-        exit;
-    }
 
     $dgiUrl = 'https://osat-energie.com/dgi/';
     $response = @file_get_contents($dgiUrl);
@@ -57,7 +51,62 @@ Router::get("/api/dgi", function () {
             'success' => false,
             'message' => 'Erreur de connexion DGI'
         ]);
-    } else {
-        echo $response;
+        return;
     }
+
+    echo $response;
+});
+
+// Proxy DGI API - POST uniquement (forward au serveur DGI)
+Router::post("/api/dgi", function () {
+    header('Access-Control-Allow-Origin: *');
+    header('Access-Control-Allow-Methods: POST, OPTIONS');
+    header('Access-Control-Allow-Headers: Content-Type');
+    header('Content-Type: application/json');
+
+    if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+        http_response_code(200);
+        exit;
+    }
+
+    $input = json_decode(file_get_contents('php://input'), true);
+
+    if (!$input) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'message' => 'Données invalides']);
+        return;
+    }
+
+    // Forward vers le serveur DGI
+    $dgiUrl = 'https://osat-energie.com/dgi/';
+    $postData = json_encode($input);
+
+    $ch = curl_init($dgiUrl);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $postData);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        'Content-Type: application/json',
+        'Content-Length: ' . strlen($postData)
+    ]);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curlError = curl_error($ch);
+    curl_close($ch);
+
+    if ($response === false || empty($response)) {
+        http_response_code(503);
+        echo json_encode([
+            'success' => false,
+            'message' => 'DGI inaccessible'
+        ]);
+        return;
+    }
+
+    // Renvoyer la réponse de DGI directement
+    echo $response;
 });
