@@ -179,6 +179,8 @@ CREATE TABLE `ventes` (
 ) ENGINE=InnoDB AUTO_INCREMENT=72 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
+ALTER TABLE settings ADD COLUMN RCCM TEXT NULL;
+ALTER TABLE settings ADD COLUMN NIF TEXT NULL;
 --
 -- Dumping data for table `ventes`
 --
