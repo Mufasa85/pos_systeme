@@ -1,58 +1,76 @@
 # Structure de la Base de Données - pos_systeme
 
 *Document généré le 01/05/2026*
+*Mises à jour le 01/05/2026 (ajout clients et taxes)*
 
 ---
 
-## Schéma des Relations
+## Schéma des Relations (Version 3)
 
 ```
-┌─────────────────┐     ┌─────────────────┐
-│  utilisateurs   │     │    categories    │
-├─────────────────┤     ├─────────────────┤
-│ id (PK)         │     │ id (PK)         │
-│ nom_utilisateur │     │ category        │
-│ mot_de_passe    │     │ created_at      │
-│ nom_complet     │     │ updated_at      │
-│ role            │     └────────┬────────┘
-│ actif           │              │
-└────────┬────────┘              │
-         │                       │
-         │ 1:N                  │ 1:N
-         ▼                       ▼
-┌─────────────────┐     ┌─────────────────┐
-│     ventes      │     │    produits     │
-├─────────────────┤     ├─────────────────┤
-│ id (PK)         │◄────│ category_id(FK) │
-│ numero_facture  │     │ id (PK)         │
-│ sous_total_ht   │     │ code_barres     │
-│ tva             │     │ nom             │
-│ total           │     │ prix            │
-│ vendeur_id (FK) │     │ stock           │
-│ date            │     │ stock_minimum   │
-└────────┬────────┘     │ image           │
-         │              └─────────────────┘
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│  type_client    │     │   utilisateurs  │     │    categories   │
+├─────────────────┤     ├─────────────────┤     ├─────────────────┤
+│ id (PK)         │     │ id (PK)         │     │ id (PK)         │
+│ nom             │     │ nom_utilisateur │     │ category        │
+│ description     │     │ mot_de_passe    │     │ created_at      │
+│ actif           │     │ nom_complet     │     │ updated_at      │
+└────────┬────────┘     │ role            │     └────────┬────────┘
+         │ 1:N          │ actif           │              │
+         ▼              └────────┬────────┘              │
+┌─────────────────┐              │                       │
+│    clients      │              │ 1:N                   │ 1:N
+├─────────────────┤              ▼                       ▼
+│ id (PK)         │     ┌─────────────────┐     ┌─────────────────┐
+│ nom             │◄────│     ventes      │     │    produits     │
+│ numero          │     ├─────────────────┤     ├─────────────────┤
+│ code_client     │     │ id (PK)         │◄────│ category_id(FK) │
+│ type_client_id  │     │ numero_facture  │     │ id (PK)         │
+│ actif           │     │ client_id (FK)  │     │ code_barres     │
+└────────┬────────┘     │ vendeur_id(FK)  │     │ nom             │
+         │              │ sous_total_ht   │     │ prix_ht         │
+         │              │ tva             │     │ groupe_taxe(FK) │
+         │              │ total           │     │ stock           │
+         │              │ date            │     │ stock_minimum   │
+         │              └────────┬────────┘     │ image           │
+         │                       │              └─────────────────┘
+         │                       │ 1:N
+         │                       ▼
+         │               ┌─────────────────┐
+         │               │  details_vente  │
+         │               ├─────────────────┤
+         │               │ id (PK)         │
+         │               │ vente_id (FK)   │◄────┐
+         │               │ produit_id (FK) │◄────┤
+         │               │ quantite        │     │
+         │               │ prix            │     │
+         │               └─────────────────┘     │
+         │                                       │
+         │                                       ▼
+         │                               ┌─────────────────┐
+         │                               │     produits    │
+         │                               └─────────────────┘
+
+┌─────────────────┐
+│     taxes       │
+├─────────────────┤
+│ id (PK)         │
+│ groupe_taxe     │
+│ etiquette       │
+│ description     │
+│ taux            │
+│ actif           │
+└────────┬────────┘
          │ 1:N
          ▼
 ┌─────────────────┐
-│  details_vente  │
-├─────────────────┤
-│ id (PK)         │
-│ vente_id (FK)   │◄────┐
-│ produit_id (FK) │◄────┤
-│ quantite        │     │
-│ prix            │     │
-└─────────────────┘     │
-                        │
-                        ▼
-                 ┌───────────────┐
-                 │   produits    │
-                 └───────────────┘
+│    produits     │
+└─────────────────┘
 ```
 
 ---
 
-## Tables
+## Tables Existantes
 
 ### 1. `utilisateurs`
 
@@ -68,10 +86,6 @@
 **Relations:**
 - `1:N` → `ventes` (un utilisateur peut faire plusieurs ventes)
 
-**Rôles:**
-- `admin` : Accès complet (gestion produits, utilisateurs, rapports)
-- `vendeur` : Accès limité (caisse, historique de ses ventes)
-
 ---
 
 ### 2. `categories`
@@ -85,11 +99,6 @@
 
 **Relations:**
 - `1:N` → `produits` (une catégorie peut contenir plusieurs produits)
-
-**Catégories par défaut:**
-- Comestible
-- Non Comestible
-- Service
 
 ---
 
@@ -108,6 +117,7 @@
 
 **Relations:**
 - `N:1` ← `categories` (appartient à une catégorie)
+- `N:1` ← `taxes` (appartient à un groupe de taxe)
 - `1:N` → `details_vente` (peut être vendu plusieurs fois)
 
 ---
@@ -118,21 +128,17 @@
 |---------|------|-------------|-------------|
 | `id` | INT | PK, AUTO_INCREMENT | Identifiant unique |
 | `numero_facture` | VARCHAR(50) | NOT NULL, UNIQUE | Numéro de facture |
+| `client_id` | INT | FK → clients(id), NULL | Client (optionnel) |
+| `vendeur_id` | INT | FK → utilisateurs(id) | Vendeur ayant fait la vente |
 | `sous_total_ht` | DECIMAL(10,2) | NOT NULL | Montant HT |
 | `tva` | DECIMAL(10,2) | NOT NULL | Montant TVA (16%) |
 | `total` | DECIMAL(10,2) | NOT NULL | Montant TTC |
-| `vendeur_id` | INT | FK → utilisateurs(id) | Vendeur ayant fait la vente |
 | `date` | DATETIME | DEFAULT CURRENT_TIMESTAMP | Date/heure de la vente |
 
 **Relations:**
+- `N:1` ← `clients` (vente pour un client, optionnel)
 - `N:1` ← `utilisateurs` (réalisée par un vendeur)
 - `1:N` → `details_vente` (contient plusieurs articles)
-
-**Calculs:**
-```
-TVA = sous_total_ht × 0.16
-total = sous_total_ht + tva
-```
 
 ---
 
@@ -152,113 +158,204 @@ total = sous_total_ht + tva
 
 ---
 
-## Contraintes d'intégrité référentielle
+## ✨ NOUVELLES TABLES (Proposition)
+
+### 6. `type_client`
+
+| Colonne | Type | Contraintes | Description |
+|---------|------|-------------|-------------|
+| `id` | INT | PK, AUTO_INCREMENT | Identifiant unique |
+| `nom` | VARCHAR(50) | NOT NULL | Nom du type (ex: Particulier, Entreprise) |
+| `description` | TEXT | NULL | Description du type |
+| `actif` | TINYINT(1) | NOT NULL, DEFAULT 1 | 1=actif, 0=inactif |
+| `created_at` | DATETIME | DEFAULT CURRENT_TIMESTAMP | Date de création |
+
+**Relations:**
+- `1:N` → `clients` (un type peut être appliqué à plusieurs clients)
+
+**Exemples de données:**
+| id | nom | description |
+|----|-----|-------------|
+| 1 | Particulier | Client personne physique |
+| 2 | Entreprise | Client personne morale |
+
+---
+
+### 7. `clients`
+
+| Colonne | Type | Contraintes | Description |
+|---------|------|-------------|-------------|
+| `id` | INT | PK, AUTO_INCREMENT | Identifiant unique |
+| `nom` | VARCHAR(100) | NOT NULL | Nom du client |
+| `numero` | VARCHAR(30) | NOT NULL | Numéro de téléphone |
+| `code_client` | VARCHAR(20) | NOT NULL, UNIQUE | Code client (ex: CLI-001) |
+| `type_client_id` | INT | FK → type_client(id) | Type de client |
+| `adresse` | VARCHAR(255) | NULL | Adresse |
+| `email` | VARCHAR(100) | NULL | Email |
+| `actif` | TINYINT(1) | NOT NULL, DEFAULT 1 | 1=actif, 0=inactif |
+| `created_at` | DATETIME | DEFAULT CURRENT_TIMESTAMP | Date de création |
+
+**Relations:**
+- `N:1` ← `type_client` (appartient à un type)
+- `1:N` → `ventes` (un client peut avoir plusieurs achats)
+
+**Exemples de données:**
+| code_client | nom | type_client_id |
+|-------------|-----|----------------|
+| CLI-001 | Jean Dupont | 1 (Particulier) |
+| CLI-002 | SARL Muamba | 2 (Entreprise) |
+| CLI-003 | Marie Kabongo | 1 (Particulier) |
+
+---
+
+### 8. `taxes`
+
+| Colonne | Type | Contraintes | Description |
+|---------|------|-------------|-------------|
+| `id` | INT | PK, AUTO_INCREMENT | Identifiant unique |
+| `groupe_taxe` | VARCHAR(50) | NOT NULL | Groupe de taxe (ex: TVACONF, TVARED) |
+| `etiquette` | VARCHAR(100) | NOT NULL | Étiquette visible (ex: "TVA 16%") |
+| `description` | TEXT | NULL | Description de la taxe |
+| `taux` | DECIMAL(5,2) | NOT NULL, DEFAULT 0 | Taux en pourcentage (ex: 16.00) |
+| `actif` | TINYINT(1) | NOT NULL, DEFAULT 1 | 1=actif, 0=inactif |
+| `created_at` | DATETIME | DEFAULT CURRENT_TIMESTAMP | Date de création |
+
+**Relations:**
+- `1:N` → `produits` (un groupe de taxe peut être appliqué à plusieurs produits)
+
+**Exemples de données:**
+| groupe_taxe | etiquette | taux | description |
+|-------------|-----------|------|-------------|
+| EXONERE | Exonéré | 0.00 | Produit exonéré de TVA |
+| TVACONF | TVA Confédérale | 16.00 | TVA standard RDC |
+| TVARED | TVA Réduite | 8.00 | TVA réduite pour certains produits |
+| TVAZERO | TVA 0% | 0.00 | Produits à taux zéro |
+
+---
+
+## Modifications nécessaires sur `produits`
+
+La table `produits` devra être modifiée pour inclure la clé étrangère vers `taxes`:
 
 ```sql
--- Suppression en cascade activée sur toutes les clés étrangères
-ON DELETE CASCADE
-ON UPDATE CASCADE
+-- Nouvelle colonne à ajouter
+ALTER TABLE produits ADD COLUMN taxe_id INT DEFAULT 1;
+
+-- Nouvelle contrainte
+ALTER TABLE produits ADD FOREIGN KEY (taxe_id) REFERENCES taxes(id)
+    ON DELETE SET NULL ON UPDATE CASCADE;
 ```
 
-### Comportement:
-| Action | Comportement |
-|--------|--------------|
-| Supprimer une catégorie | Supprime tous les produits associés |
-| Supprimer un produit | Supprime les détails de vente associés |
-| Supprimer une vente | Supprime les détails de vente associés |
-| Supprimer un utilisateur | Supprime les ventes associées |
-
 ---
 
-## Index
+## Modifications nécessaires sur `ventes`
 
-| Table | Index | Type | Colonne(s) |
-|-------|-------|------|------------|
-| `utilisateurs` | PRIMARY | PK | id |
-| `utilisateurs` | UNIQUE | - | nom_utilisateur |
-| `categories` | PRIMARY | PK | id |
-| `produits` | PRIMARY | PK | id |
-| `produits` | UNIQUE | - | code_barres |
-| `produits` | INDEX | - | category_id |
-| `ventes` | PRIMARY | PK | id |
-| `ventes` | UNIQUE | - | numero_facture |
-| `ventes` | INDEX | - | vendeur_id |
-| `details_vente` | PRIMARY | PK | id |
-| `details_vente` | INDEX | - | vente_id |
-| `details_vente` | INDEX | - | produit_id |
-
----
-
-## Requêtes SQL pour créer la BDD
+La table `ventes` devra être modifiée pour inclure la clé étrangère vers `clients`:
 
 ```sql
--- Création de la base
-CREATE DATABASE `pos_system`;
-USE `pos_system`;
+-- Nouvelle colonne à ajouter
+ALTER TABLE ventes ADD COLUMN client_id INT NULL;
 
--- Table utilisateurs
-CREATE TABLE `utilisateurs` (
+-- Nouvelle contrainte
+ALTER TABLE ventes ADD FOREIGN KEY (client_id) REFERENCES clients(id)
+    ON DELETE SET NULL ON UPDATE CASCADE;
+```
+
+---
+
+## Requêtes SQL pour créer les nouvelles tables
+
+```sql
+-- ===================================
+-- TABLE : type_client
+-- ===================================
+CREATE TABLE IF NOT EXISTS `type_client` (
   `id` INT NOT NULL AUTO_INCREMENT,
-  `nom_utilisateur` VARCHAR(50) NOT NULL UNIQUE,
-  `mot_de_passe` VARCHAR(255) NOT NULL,
-  `nom_complet` VARCHAR(100) NOT NULL,
-  `role` ENUM('admin','vendeur') NOT NULL DEFAULT 'vendeur',
-  `actif` TINYINT(1) NOT NULL DEFAULT 1,
+  `code` VARCHAR(50) NOT NULL,
+  `description` TEXT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Table categories
-CREATE TABLE `categories` (
-  `id` INT NOT NULL AUTO_INCREMENT,
-  `category` VARCHAR(120) NOT NULL,
-  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+-- Insertion des types par défaut
+INSERT INTO `type_client` (`nom`, `description`) VALUES
+('Particulier', 'Client personne physique'),
+('Entreprise', 'Client personne morale');
 
--- Table produits
-CREATE TABLE `produits` (
+-- ===================================
+-- TABLE : clients
+-- ===================================
+CREATE TABLE IF NOT EXISTS `clients` (
   `id` INT NOT NULL AUTO_INCREMENT,
-  `code_barres` VARCHAR(50) NOT NULL UNIQUE,
   `nom` VARCHAR(100) NOT NULL,
-  `category_id` INT NOT NULL,
-  `prix` DECIMAL(10,2) NOT NULL,
-  `stock` INT NOT NULL DEFAULT 0,
-  `stock_minimum` INT NOT NULL DEFAULT 10,
-  `image` VARCHAR(255) DEFAULT NULL,
+  `numero` VARCHAR(30) NOT NULL,
+  `code_client` VARCHAR(20) NOT NULL UNIQUE,
+  `type_client_id` INT NOT NULL,
   PRIMARY KEY (`id`),
-  FOREIGN KEY (`category_id`) REFERENCES `categories`(`id`)
-    ON DELETE CASCADE ON UPDATE CASCADE
+  FOREIGN KEY (`type_client_id`) REFERENCES `type_client`(`id`)
+    ON DELETE RESTRICT ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Table ventes
-CREATE TABLE `ventes` (
+-- ===================================
+-- TABLE : taxes
+-- ===================================
+CREATE TABLE IF NOT EXISTS `taxes` (
   `id` INT NOT NULL AUTO_INCREMENT,
-  `numero_facture` VARCHAR(50) NOT NULL UNIQUE,
-  `sous_total_ht` DECIMAL(10,2) NOT NULL,
-  `tva` DECIMAL(10,2) NOT NULL,
-  `total` DECIMAL(10,2) NOT NULL,
-  `vendeur_id` INT NOT NULL,
-  `date` DATETIME DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  FOREIGN KEY (`vendeur_id`) REFERENCES `utilisateurs`(`id`)
-    ON DELETE CASCADE ON UPDATE CASCADE
+  `groupe_taxe` VARCHAR(50) NOT NULL,
+  `etiquette` VARCHAR(100) NOT NULL,
+  `description` TEXT NULL,
+  `taux` DECIMAL(5,2) NOT NULL DEFAULT 0,
+  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Table details_vente
-CREATE TABLE `details_vente` (
-  `id` INT NOT NULL AUTO_INCREMENT,
-  `vente_id` INT NOT NULL,
-  `produit_id` INT NOT NULL,
-  `quantite` INT NOT NULL,
-  `prix` DECIMAL(10,2) NOT NULL,
-  PRIMARY KEY (`id`),
-  FOREIGN KEY (`vente_id`) REFERENCES `ventes`(`id`)
-    ON DELETE CASCADE ON UPDATE CASCADE,
-  FOREIGN KEY (`produit_id`) REFERENCES `produits`(`id`)
-    ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+-- Insertion des taxes par défaut
+INSERT INTO `taxes` (`groupe_taxe`, `etiquette`, `description`, `taux`) VALUES
+('EXONERE', 'Exonéré', 'Produit exonéré de toute taxe', 0.00),
+('TVACONF', 'TVA Confédérale', 'TVA standard RDC', 16.00),
+('TVARED', 'TVA Réduite', 'TVA réduite pour produits spécifiques', 8.00),
+('TVAZERO', 'TVA 0%', 'Produit au taux zéro', 0.00);
 ```
+
+---
+
+## Schéma simplifié des nouvelles relations
+
+```
+TYPE_CLIENT
+   │ 1:N
+   ▼
+CLIENTS
+   │ 1:N
+   ▼
+VENTES ──── 1:N ──── DETAILS_VENTE
+   │                         │
+   │                        1:N
+   │                         │
+   │                         ▼
+   │                      PRODUITS
+   │                         │
+   │                        1:N
+   │                         │
+   │                         ▼
+   │                      TAXES
+   │
+   1:N
+   │
+   ▼
+UTILISATEURS
+```
+
+---
+
+## Résumé des changements
+
+| Action | Table | Description |
+|--------|-------|-------------|
+| AJOUT | `type_client` | Types de clients (Particulier, Entreprise) |
+| AJOUT | `clients` | Clients avec référence au type |
+| AJOUT | `taxes` | Groupes de taxes pour les produits |
+| MODIF | `produits` | Ajouter `taxe_id` FK |
+| MODIF | `ventes` | Ajouter `client_id` FK |
 
 ---
 

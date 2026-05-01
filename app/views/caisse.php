@@ -85,9 +85,21 @@
             <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
             <circle cx="12" cy="7" r="4"></circle>
           </svg>
-          Numéro du client
+          Client
         </label>
-        <input type="text" id="client-number" class="client-number-input" placeholder="Entrez le numéro du client" onchange="posCart.updateClientNumber(this.value)">
+        <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+          <input type="text" id="client-nom" class="client-number-input" placeholder="Nom du client" style="flex: 1;">
+          <input type="text" id="client-number" class="client-number-input" placeholder="Numéro" style="width: 140px;">
+        </div>
+        <button type="button" id="btn-save-client" class="btn btn-secondary btn-small" onclick="saveClientQuick()" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+            <circle cx="8.5" cy="7" r="4"></circle>
+            <line x1="20" y1="8" x2="20" y2="14"></line>
+            <line x1="23" y1="11" x2="17" y2="11"></line>
+          </svg>
+          Enregistrer client
+        </button>
       </div>
       <div id="cart-items" class="cart-items">
         <div class="cart-empty">Le panier est vide</div>
@@ -106,12 +118,92 @@
           <span id="total">0.00 Fc</span>
         </div>
       </div>
-      <button id="show-preview" class="btn btn-primary btn-full" disabled onclick="posCart.showPreview()">
+      <button id="show-preview" class="btn btn-primary btn-full" disabled onclick="posCart.showPaymentModal()">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <polyline points="20 6 9 17 4 12"></polyline>
         </svg>
         Valider la vente
       </button>
+    </div>
+  </div>
+
+  <!-- MODAL PAIEMENT (Popup séparé pour calculer la monnaie) -->
+  <div id="payment-modal" class="modal">
+    <div class="modal-content" style="max-width: 400px; padding: 0;">
+      <div class="modal-header" style="background: linear-gradient(135deg, #0B5E88 0%, #2AB7E6 100%); color: white; border: none;">
+        <h3 style="color: white;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 8px;">
+            <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
+            <line x1="1" y1="10" x2="23" y2="10"></line>
+          </svg>
+          PAIEMENT
+        </h3>
+        <button class="close-modal" onclick="closePaymentModal()" style="color: white;">&times;</button>
+      </div>
+      
+      <div style="padding: 1.5rem;">
+        <!-- Total à payer -->
+        <div style="background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); border-radius: 12px; padding: 1.25rem; text-align: center; margin-bottom: 1rem;">
+          <div style="font-size: 0.8rem; color: #64748b; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 1px;">TOTAL À PAYER</div>
+          <div id="payment-total" style="font-size: 2rem; font-weight: 700; color: #0B5E88;">0.00 Fc</div>
+          <div id="payment-total-usd" style="font-size: 0.9rem; color: #64748b; margin-top: 0.25rem;">($0.00 USD)</div>
+        </div>
+
+        <!-- Taux de change fixe -->
+        <div style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px; padding: 0.75rem; text-align: center; margin-bottom: 1rem;">
+          <span style="font-size: 0.8rem; color: #856404;">💱 Taux: 1 USD = <strong>2 300 Fc</strong></span>
+        </div>
+
+        <!-- Mode de paiement (Radio) -->
+        <div style="margin-bottom: 1rem;">
+          <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #1a1a2e; margin-bottom: 0.5rem;">
+            Mode de paiement
+          </label>
+          <div style="display: flex; gap: 1rem; margin-bottom: 0.75rem;">
+            <label style="flex: 1; cursor: pointer;">
+              <input type="radio" name="payment-mode" value="usd" checked onchange="posCart.togglePaymentMode('usd')" style="margin-right: 0.5rem;">
+              <span style="font-weight: 500;"> Dollars (USD)</span>
+            </label>
+            <label style="flex: 1; cursor: pointer;">
+              <input type="radio" name="payment-mode" value="fc" onchange="posCart.togglePaymentMode('fc')" style="margin-right: 0.5rem;">
+              <span style="font-weight: 500;"> Francs (Fc)</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Entrée montant reçu -->
+        <div style="margin-bottom: 1rem;">
+          <label for="payment-received" id="payment-received-label" style="display: block; font-size: 0.875rem; font-weight: 600; color: #1a1a2e; margin-bottom: 0.5rem;">
+             Montant reçu (USD)
+          </label>
+          <input type="number" id="payment-received" 
+                 placeholder="Entrez le montant..." 
+                 step="0.01" 
+                 min="0"
+                 style="width: 100%; padding: 1rem; border: 2px solid #e2e8f0; border-radius: 10px; font-size: 1.25rem; text-align: center; font-weight: 600; outline: none; transition: border-color 0.2s;"
+                 oninput="posCart.calculateChange()">
+        </div>
+
+        <!-- Résultat -->
+        <div id="payment-result" style="display: none; border-radius: 12px; padding: 1.25rem; text-align: center;">
+          <div id="payment-change-label" style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 0.5rem;"></div>
+          <div id="payment-change-fc" style="font-size: 2rem; font-weight: 700;"></div>
+          <div id="payment-change-usd" style="font-size: 0.9rem; margin-top: 0.25rem;"></div>
+        </div>
+
+        <!-- Boutons -->
+        <div style="display: flex; gap: 0.75rem; margin-top: 1.5rem;">
+          <button onclick="closePaymentModal()" class="btn btn-secondary" style="flex: 1; padding: 0.875rem;">
+            Annuler
+          </button>
+          <button id="btn-confirm-payment" onclick="confirmPayment()" class="btn btn-success" style="flex: 2; padding: 0.875rem; font-size: 1rem; font-weight: 600;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+            Continuer
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 

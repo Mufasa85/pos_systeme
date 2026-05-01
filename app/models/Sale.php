@@ -15,10 +15,11 @@ class Sale
 
     public function create($data)
     {
-        $sql = "INSERT INTO ventes (numero_facture, sous_total_ht, tva, total, vendeur_id, date, dateDGI, qrCode, codeDEFDGI, counters, nim) 
-                VALUES (:numero_facture, :sous_total_ht, :tva, :total, :vendeur_id, :date, :dateDGI, :qrCode, :codeDEFDGI, :counters, :nim)";
+        $sql = "INSERT INTO ventes (numero_facture, client_id, sous_total_ht, tva, total, vendeur_id, date, dateDGI, qrCode, codeDEFDGI, counters, nim) 
+                VALUES (:numero_facture, :client_id, :sous_total_ht, :tva, :total, :vendeur_id, :date, :dateDGI, :qrCode, :codeDEFDGI, :counters, :nim)";
         $this->db->query($sql, [
             ':numero_facture' => $data['numero_facture'],
+            ':client_id'      => $data['client_id'] ?? null,
             ':sous_total_ht'  => $data['sous_total_ht'],
             ':tva'            => $data['tva'],
             ':total'          => $data['total'],
@@ -35,9 +36,13 @@ class Sale
 
     public function getAllSales()
     {
-        $sql = "SELECT v.*, u.nom_complet as nom_vendeur 
+        $sql = "SELECT v.*, u.nom_complet as nom_vendeur, 
+                       c.nom as client_nom, c.code_client, c.numero as client_numero,
+                       tc.nom as client_type_nom
                 FROM ventes v 
                 LEFT JOIN utilisateurs u ON v.vendeur_id = u.id 
+                LEFT JOIN clients c ON v.client_id = c.id
+                LEFT JOIN type_client tc ON c.type_client_id = tc.id
                 ORDER BY v.date DESC";
         return $this->db->fetchAll($sql);
     }

@@ -150,6 +150,10 @@ body {
   .data-table thead {
     display: none;
   }
+  /* Masquer l'en-tête "Article | Qte | Total" sur petit écran */
+  .receipt-items > div:first-child {
+    display: none !important;
+  }
   /* Masquer aussi l'en-tête de colonne dans les reçus (ticket) */
   .receipt-item[style*="font-weight: 700"],
   .receipt-items .receipt-item:has(.item-qty:empty) {
@@ -1375,7 +1379,6 @@ body {
    ============================================ */
 #preview-modal {
   display: none;
-  z-index: 1102 !important;
 }
 
 #preview-modal.modal.active {
@@ -1427,7 +1430,6 @@ body {
 /* Receipt Modal (Final) */
 #receipt-modal {
   display: none;
-  z-index: 1102 !important;
 }
 
 #receipt-modal.modal.active {
@@ -1453,7 +1455,6 @@ body {
   display: flex;
   justify-content: center;
   align-items: flex-start;
- 
 }
 
 #receipt-modal .receipt-actions {
@@ -1675,14 +1676,14 @@ body {
     padding: 0.6rem;
   }
 
-.product-image {
-  width: 110px;
-  height: 110px;
-  border-radius: var(--radius);
-  overflow: hidden;
-  background: var(--background);
-  flex-shrink: 0;
-}
+  .product-image {
+    width: 70px;
+    height: 70px;
+  }
+
+  .product-card .name {
+    font-size: 0.75rem;
+  }
 
   .product-card .price {
     font-size: 0.85rem;
@@ -1733,27 +1734,27 @@ body {
   }
 
   .products-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 0.75rem;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
   }
 
   .product-card {
-    padding: 0.75rem;
+    padding: 0.5rem;
   }
 
   .product-image {
-    width: 100px;
-    height: 100px;
+    width: 55px;
+    height: 55px;
   }
 
   .product-card .name {
-    font-size: 0.9rem;
-    min-height: 2em;
+    font-size: 0.65rem;
+    min-height: 1.8em;
     -webkit-line-clamp: 2;
   }
 
   .product-card .price {
-    font-size: 1rem;
+    font-size: 0.8rem;
   }
 
   .barcode-display {
@@ -1910,278 +1911,31 @@ body {
   }
 }
 
-/* Extra small screens - 390px and below */
-@media (max-width: 410px) {
-  /* Product Modal fixes */
-  #product-modal {
-    padding: 0 !important;
-  }
-  
-  #product-modal .modal-content {
-    max-width: calc(100% - 12px) !important;
-    margin: 6px !important;
-    max-height: calc(100vh - 12px) !important;
-    width: calc(100% - 12px) !important;
-  }
-  
-  /* Paramètres page fixes - grand formulaire sur mobile */
-  #page-parametres {
-    padding: 0 !important;
-    height: calc(100vh - 70px) !important;
-    overflow-y: auto !important;
-  }
-  
-  #page-parametres .page-header {
-    margin-bottom: 0.75rem !important;
-    padding: 0.75rem !important;
-    background: var(--card) !important;
-    border-bottom: 1px solid var(--border) !important;
-    position: sticky !important;
-    top: 0 !important;
-    z-index: 10 !important;
-  }
-  
-  #page-parametres .page-header h2 {
-    font-size: 1rem !important;
-    margin-bottom: 0.25rem !important;
-  }
-  
-  #page-parametres .page-header p {
-    font-size: 0.65rem !important;
-  }
-  
-  #page-parametres .settings-grid {
-    display: block !important;
-    gap: 0 !important;
-  }
-  
-  #page-parametres .settings-form {
-    padding: 0.75rem !important;
-    margin: 0 !important;
-    border-radius: 0 !important;
-    border-bottom: 1px solid var(--border) !important;
-    box-shadow: none !important;
-  }
-  
-  #page-parametres .settings-form h3 {
-    font-size: 0.85rem !important;
-    margin-bottom: 0.75rem !important;
-    padding-bottom: 0.5rem !important;
-    border-bottom: 1px solid var(--border) !important;
-  }
-  
-  #page-parametres .form-group {
-    margin-bottom: 14px !important;
-  }
-  
-  #page-parametres .form-group label {
-    font-size: 0.8rem !important;
-    margin-bottom: 4px !important;
-    font-weight: 600 !important;
-  }
-  
-  #page-parametres .form-group input,
-  #page-parametres .form-group select,
-  #page-parametres .form-group textarea {
-    padding: 12px 10px !important;
-    font-size: 0.9rem !important;
-    width: 100% !important;
-    min-height: 44px !important;
-  }
-  
-  #page-parametres .form-group textarea {
-    min-height: 100px !important;
-    resize: vertical !important;
-  }
-  
-  #page-parametres .form-group small {
-    font-size: 0.7rem !important;
-    margin-top: 4px !important;
-  }
-  
-  #page-parametres .btn {
-    width: 100% !important;
-    padding: 14px !important;
-    font-size: 0.9rem !important;
-    margin-top: 1rem !important;
-    min-height: 48px !important;
-  }
-  
-  /* Paramètres button row */
-  #page-parametres .settings-form .btn {
-    display: block !important;
-    width: 100% !important;
-  }
-  
-  /* Full width inputs */
-  #page-parametres .form-row {
-    display: block !important;
-  }
-  
-  #page-parametres .form-row .form-group {
-    margin-bottom: 14px !important;
-  }
-  
-  .modal-content form {
-    padding: 10px !important;
-  }
-  
-  .form-group {
-    margin-bottom: 10px !important;
-  }
-  
-  .form-group label {
-    font-size: 0.7rem !important;
-    margin-bottom: 4px !important;
-    display: block !important;
-  }
-  
-  .form-group input,
-  .form-group select {
-    padding: 8px 6px !important;
-    font-size: 0.8rem !important;
-    width: 100% !important;
-  }
-  
-  /* Product image section - stack vertically, full width */
-  .product-image-section {
-    flex-direction: column !important;
-    align-items: center !important;
-    gap: 10px !important;
-    margin-bottom: 10px !important;
-  }
-  
-  .product-image-preview {
-    width: 80px !important;
-    height: 80px !important;
-    flex-shrink: 0 !important;
-  }
-  
-  .product-image-info {
-    width: 100% !important;
-    text-align: center !important;
-  }
-  
-  /* File input wrapper - full width */
-  .file-input-wrapper {
-    width: 100% !important;
-  }
-  
-  .file-input-wrapper input[type="file"] {
-    max-width: 100% !important;
-  }
-  
-  .file-input-wrapper label,
-  .file-input-wrapper .btn {
-    width: 100% !important;
-    display: flex !important;
-    justify-content: center !important;
-    font-size: 0.75rem !important;
-    padding: 8px !important;
-  }
-  
-  /* Code-barres input with button - stack */
-  .form-group > div[style*="display:flex"] {
-    flex-direction: column !important;
-    gap: 6px !important;
-  }
-  
-  .form-group > div[style*="display:flex"] input {
-    width: 100% !important;
-    max-width: 100% !important;
-  }
-  
-  .form-group > div[style*="display:flex"] button {
-    width: 100% !important;
-    max-width: 100% !important;
-    padding: 8px 10px !important;
-    font-size: 0.75rem !important;
-    white-space: nowrap !important;
-  }
-  
-  /* Section headers */
-  .modal-content form > div > h4 {
-    font-size: 0.65rem !important;
-    padding: 3px 0 !important;
-    margin-bottom: 6px !important;
-  }
-  
-  /* Background sections */
-  .modal-content form > div[style*="background"] {
-    padding: 8px !important;
-    margin-bottom: 8px !important;
-  }
-  
-  /* Buttons */
-  .modal-actions {
-    padding: 8px !important;
-    flex-wrap: wrap !important;
-  }
-  
-  .modal-actions .btn {
-    padding: 10px 12px !important;
-    font-size: 0.75rem !important;
-    flex: 1 1 calc(50% - 4px) !important;
-    min-width: 120px !important;
-  }
-  
-  /* Remove min-width for filters */
-  .filters-bar input,
-  .filters-bar select {
-    min-width: 0 !important;
-    width: 100% !important;
-  }
-  
-  /* Category form */
-  #category-modal .modal-content {
-    width: calc(100% - 12px) !important;
-    max-width: calc(100% - 12px) !important;
-    margin: 6px !important;
-  }
-  
-  /* User modal */
-  #user-modal .modal-content {
-    width: calc(100% - 12px) !important;
-    max-width: calc(100% - 12px) !important;
-    margin: 6px !important;
-  }
-  
-  /* Preview modal */
-  #preview-modal .modal-content {
-    max-width: calc(100% - 12px) !important;
-  }
-  
-  /* Receipt modal */
-  #receipt-modal .modal-content {
-    max-width: calc(100% - 12px) !important;
-  }
-}
-
 @media (max-width: 400px) {
   .products-grid {
     grid-template-columns: repeat(2, 1fr);
-    gap: 0.6rem;
+    gap: 0.4rem;
   }
 
   .product-card {
-    padding: 0.6rem;
+    padding: 0.4rem;
   }
 
   .product-image {
-    width: 100px;
-    height: 100px;
+    width: 50px;
+    height: 50px;
   }
 
   .product-card .name {
-    font-size: 0.8rem;
+    font-size: 0.6rem;
   }
 
   .product-card .price {
-    font-size: 0.9rem;
+    font-size: 0.75rem;
   }
 
   .barcode-display {
-    font-size: 0.6rem;
+    font-size: 0.5rem;
   }
 
   .stats-grid {

@@ -35,11 +35,12 @@
         </div>
         <div class="modal-actions">
           <button type="button" class="btn btn-secondary" onclick="posCart.closePreview()">Annuler</button>
-          <button type="button" id="confirm-sale" class="btn btn-primary" onclick="posCart.confirmSale()">
+          <button type="button" id="confirm-sale" class="btn btn-primary" onclick="posCart.closePreview(); posCart.showPaymentModal();">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polyline points="20 6 9 17 4 12"></polyline>
+              <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
+              <line x1="1" y1="10" x2="23" y2="10"></line>
             </svg>
-            Valider la facture
+            Payer maintenant
           </button>
         </div>
       </div>
@@ -408,6 +409,76 @@
       </div>
     </div>
 
+    <!-- New Client Modal -->
+    <div id="new-client-modal" class="modal">
+      <div class="modal-content" style="max-width: 450px;">
+        <div class="modal-header">
+          <h3 id="new-client-modal-title">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 8px; vertical-align: middle;">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+              <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+            Nouveau client
+          </h3>
+          <button class="close-modal" onclick="closeNewClientModal()">&times;</button>
+        </div>
+        <form id="new-client-form">
+          <input type="hidden" id="new-client-numero-hidden">
+          <div class="form-group" style="margin-bottom: 1rem;">
+            <label for="new-client-nom">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+              </svg>
+              Nom du client
+            </label>
+            <input type="text" id="new-client-nom" required placeholder="Ex: Jean Dupont">
+          </div>
+          <div class="form-group" style="margin-bottom: 1rem;">
+            <label for="new-client-numero">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;">
+                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+              </svg>
+              Numéro
+            </label>
+            <input type="text" id="new-client-numero" required placeholder="Numéro de téléphone">
+          </div>
+          <div class="form-group" style="margin-bottom: 1rem;">
+            <label for="new-client-type">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                <circle cx="9" cy="7" r="4"></circle>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+              </svg>
+              Type de client
+            </label>
+            <select id="new-client-type">
+              <option value="1">Particulier</option>
+              <option value="2">Entreprise</option>
+            </select>
+          </div>
+          <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" onclick="closeNewClientModal()">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+              Annuler
+            </button>
+            <button type="submit" class="btn btn-primary">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                <polyline points="7 3 7 8 15 8"></polyline>
+              </svg>
+              Enregistrer
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
     <!-- Category Modal -->
     <div id="category-modal" class="modal">
       <div class="modal-content">
@@ -436,7 +507,7 @@
       </div>
     </div>
 
-    <script src="./assets/js/app.js?v=1.0.3"></script>
+    <script src="./assets/js/app.js?v=1.0.4"></script>
     </body>
 
     </html>

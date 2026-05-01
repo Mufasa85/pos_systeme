@@ -33,6 +33,11 @@ Router::get("/api/vente/[i:id]/details", [SaleController::class, 'details']);
 Router::get("/api/vente/next-invoice", [SaleController::class, 'nextInvoice']);
 
 // Paramètres du système
+// Routes pour les clients
+Router::get("/api/clients", [ClientController::class, 'index']);
+Router::get("/api/client/lookup", [ClientController::class, 'lookup']);
+Router::post("/api/client", [ClientController::class, 'create']);
+
 Router::get("/api/settings", [SettingsController::class, 'index']);
 Router::post("/api/settings", [SettingsController::class, 'update']);
 Router::post("/api/settings/store", [SettingsController::class, 'updateStore']);

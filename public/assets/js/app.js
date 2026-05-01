@@ -170,14 +170,81 @@ const posCart = {
     clearCart() {
         this.items = [];
         this.clientNumber = '';
+        this.currentClient = null;
         const clientInput = $('#client-number');
         if (clientInput) clientInput.value = '';
+        const clientDisplay = $('#client-name-display');
+        if (clientDisplay) clientDisplay.remove();
         this.renderCart();
     },
 
     updateClientNumber(number) {
         this.clientNumber = number;
-        console.log('Numéro client mis à jour:', number);
+        // Recherche automatique du client
+        if (number && number.length >= 8) {
+            this.lookupClient(number);
+        } else {
+            // Effacer le nom affiché si le numéro est vide ou trop court
+            const clientDisplay = $('#client-name-display');
+            if (clientDisplay) clientDisplay.remove();
+        }
+    },
+
+    async lookupClient(numero) {
+        try {
+            const res = await fetch(APP_URL + '/api/client/lookup?numero=' + encodeURIComponent(numero));
+            const data = await res.json();
+
+            if (data.found && data.client) {
+                // Client trouvé - remplir automatiquement les champs
+                this.currentClient = data.client;
+                
+                // Remplir le champ nom avec le nom du client
+                const nomInput = $('#client-nom');
+                if (nomInput) {
+                    nomInput.value = data.client.nom || '';
+                    nomInput.style.borderColor = '#10b981';
+                    nomInput.style.background = '#f0fdf4';
+                }
+                
+                this.displayClientName(data.client);
+            } else {
+                // Client non trouvé - ouvrir le modal pour créer
+                this.currentClient = null;
+                openNewClientModal(numero);
+            }
+        } catch (e) {
+            console.error('Erreur lookup client:', e);
+        }
+    },
+
+    displayClientName(client) {
+        // Remplir le champ nom avec le nom du client
+        const nomInput = $('#client-nom');
+        if (nomInput) {
+            nomInput.value = client.nom || '';
+            nomInput.style.borderColor = '#10b981';
+            nomInput.style.background = '#f0fdf4';
+        }
+
+        // Ajouter badge de confirmation
+        const existing = $('#client-name-display');
+        if (existing) existing.remove();
+
+        const clientNumberSection = $('.client-number-section');
+        if (clientNumberSection) {
+            const display = document.createElement('div');
+            display.id = 'client-name-display';
+            display.style.cssText = 'margin-top: 0.5rem; padding: 0.4rem 0.6rem; background: linear-gradient(135deg, #10b981 0%, #059669 100%); border-radius: 6px; font-size: 0.75rem; color: white; display: flex; align-items: center; gap: 0.4rem; font-weight: 500;';
+            display.innerHTML = `
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                </svg>
+                <span>${client.nom} <span style="opacity: 0.7;">• ${client.code_client}</span></span>
+            `;
+            clientNumberSection.appendChild(display);
+        }
     },
 
     renderCart() {
@@ -362,7 +429,7 @@ const posCart = {
         }
     },
 
-    // Afficher le récapitulatif de la vente (style ticket thermique moderne)
+    // Afficher le récapitulatif de la vente (ticket final avec DGI)
     async showPreview() {
         if (this.items.length === 0) return;
 
@@ -371,17 +438,7 @@ const posCart = {
             hour: '2-digit', minute: '2-digit'
         });
 
-        // Récupérer le numéro de facture depuis la base de données
-        let invoiceNum = 'FAC-000001';
-        try {
-            const res = await fetch(APP_URL + '/api/vente/next-invoice');
-            const data = await res.json();
-            if (data.invoice_number) {
-                invoiceNum = data.invoice_number;
-            }
-        } catch (e) {
-            console.warn('Impossible de récupérer le numéro de facture, utilisation du numéro aléatoire');
-        }
+        const invoiceNum = this.currentInvoiceNum || 'FAC-000001';
 
         // Construire les items du reçu
         let itemsHtml = '';
@@ -441,6 +498,150 @@ const posCart = {
         `;
 
         $('#preview-modal').classList.add('active');
+        
+        // Ajouter le bouton de confirmation après le reçu
+        const previewFooter = document.querySelector('#preview-modal .modal-footer');
+        if (previewFooter) {
+            previewFooter.innerHTML = `
+                <button class="btn btn-secondary" onclick="posCart.closePreview()">Fermer</button>
+                <button class="btn btn-primary" onclick="posCart.showPaymentModal()">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
+                        <line x1="1" y1="10" x2="23" y2="10"></line>
+                    </svg>
+                    Payer maintenant
+                </button>
+            `;
+        }
+    },
+
+    // Afficher le modal de paiement (popup séparé)
+    showPaymentModal() {
+        if (this.items.length === 0) return;
+        
+        // Récupérer le numéro de facture depuis la base de données
+        let invoiceNum = 'FAC-000001';
+        fetch(APP_URL + '/api/vente/next-invoice')
+            .then(res => res.json())
+            .then(data => {
+                if (data.invoice_number) {
+                    this.currentInvoiceNum = data.invoice_number;
+                }
+            })
+            .catch(() => {});
+        
+        // Afficher le modal
+        const modal = $('#payment-modal');
+        const totalFc = this.currentTotals.total;
+        const tauxChange = 2300; // Taux fixe: 1 USD = 2300 Fc
+        const totalUsd = totalFc / tauxChange;
+        
+        // Mettre à jour les totaux affichés
+        $('#payment-total').textContent = formatCurrency(totalFc);
+        $('#payment-total-usd').textContent = '($' + totalUsd.toFixed(2) + ' USD)';
+        
+        // Réinitialiser le champ et le mode
+        $('#payment-received').value = '';
+        $('#payment-result').style.display = 'none';
+        this.currentPaymentMode = 'usd';
+        
+        // Reset radio buttons
+        const usdRadio = $('input[name="payment-mode"][value="usd"]');
+        const fcRadio = $('input[name="payment-mode"][value="fc"]');
+        if (usdRadio) usdRadio.checked = true;
+        if (fcRadio) fcRadio.checked = false;
+        
+        // Mettre à jour le label
+        const label = $('#payment-received-label');
+        if (label) label.innerHTML = ' Montant reçu (USD)';
+        
+        modal.classList.add('active');
+        $('#payment-received').focus();
+    },
+    
+    // Mode de paiement (USD ou FC)
+    currentPaymentMode: 'usd',
+    
+    togglePaymentMode(mode) {
+        this.currentPaymentMode = mode;
+        const input = $('#payment-received');
+        const label = $('#payment-received-label');
+        
+        if (mode === 'usd') {
+            label.innerHTML = ' Montant reçu (USD)';
+            input.placeholder = 'Entrez en dollars...';
+            input.value = '';
+        } else {
+            label.innerHTML = ' Montant reçu (Fc)';
+            input.placeholder = 'Entrez en francs...';
+            input.value = '';
+        }
+        
+        // Cacher le résultat
+        $('#payment-result').style.display = 'none';
+        input.focus();
+    },
+    
+    // Calculer la monnaie à rendre dans le modal (supporte USD et FC)
+    calculateChange() {
+        const totalFc = this.currentTotals.total;
+        const inputValue = parseFloat($('#payment-received').value) || 0;
+        
+        // Taux de change constant
+        const TAUX_CHANGE = 2300; // 1 USD = 2300 Fc
+        
+        // Mode de paiement actuel (USD ou FC)
+        const paymentMode = $('input[name="payment-mode"]:checked')?.value || 'usd';
+        
+        let restFc, restUsd;
+        
+        if (paymentMode === 'usd') {
+            // Client paie en USD
+            const receivedFc = inputValue * TAUX_CHANGE;
+            restFc = receivedFc - totalFc;
+            restUsd = inputValue - (totalFc / TAUX_CHANGE);
+        } else {
+            // Client paie en Fc
+            restFc = inputValue - totalFc;
+            restUsd = restFc / TAUX_CHANGE;
+        }
+        
+        const resultDiv = $('#payment-result');
+        const changeLabel = $('#payment-change-label');
+        const changeFcEl = $('#payment-change-fc');
+        const changeUsdEl = $('#payment-change-usd');
+        
+        if (inputValue <= 0) {
+            resultDiv.style.display = 'none';
+            this.paymentAmount = 0;
+            this.paymentStatus = 'pending';
+        } else if (restFc < 0) {
+            // Montant insuffisant - Rouge
+            resultDiv.style.display = 'block';
+            resultDiv.style.background = '#ffebee';
+            resultDiv.style.border = '2px solid #f44336';
+            changeLabel.textContent = '⚠️ MONTANT INSUFFISANT';
+            changeLabel.style.color = '#c62828';
+            changeFcEl.textContent = 'Il manque ' + Math.abs(restFc).toFixed(2) + ' Fc';
+            changeFcEl.style.color = '#c62828';
+            changeUsdEl.textContent = '($' + Math.abs(restUsd).toFixed(2) + ' USD)';
+            changeUsdEl.style.color = '#c62828';
+            this.paymentAmount = 0;
+            this.paymentStatus = 'insufficient';
+        } else {
+            // Monnaie à rendre - Vert
+            resultDiv.style.display = 'block';
+            resultDiv.style.background = '#e8f5e9';
+            resultDiv.style.border = '2px solid #4caf50';
+            changeLabel.textContent = '💵 MONNAIE À RENDRE';
+            changeLabel.style.color = '#2e7d32';
+            changeFcEl.textContent = formatCurrency(Math.abs(restFc));
+            changeFcEl.style.color = '#2e7d32';
+            changeUsdEl.textContent = '(' + restUsd.toFixed(2) + ' USD)';
+            changeUsdEl.style.color = '#2e7d32';
+            this.paymentAmount = inputValue;
+            this.paymentStatus = 'ok';
+        }
     },
 
     // Fermer le modal de prévisualisation
@@ -471,6 +672,7 @@ const posCart = {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     articles: this.items,
+                    client_id: this.currentClient ? this.currentClient.id : null,
                     sous_total_ht: this.currentTotals.sous_total_ht,
                     tva: this.currentTotals.tva,
                     total: this.currentTotals.total,
@@ -1056,6 +1258,39 @@ function openProductModal() {
     }
 }
 
+// ==================== PAYMENT MODAL ====================
+
+function closePaymentModal() {
+    const modal = $('#payment-modal');
+    if (modal) {
+        modal.classList.remove('active');
+    }
+    // Reset payment amount
+    if (posCart) {
+        posCart.paymentAmount = 0;
+        posCart.paymentStatus = 'pending';
+    }
+}
+
+function confirmPayment() {
+    // Vérifier que le montant est suffisant
+    if (!posCart || !posCart.paymentAmount || posCart.paymentStatus === 'insufficient') {
+        alert('Le montant reçu est insuffisant!');
+        return;
+    }
+    
+    if (!posCart.paymentAmount || posCart.paymentAmount <= 0) {
+        alert('Veuillez entrer le montant reçu du client');
+        return;
+    }
+    
+    // Fermer le modal de paiement
+    closePaymentModal();
+    
+    // Appeler confirmSale pour finaliser la vente
+    posCart.confirmSale();
+}
+
 // ==================== SCANNER MODAL ====================
 
 let scannerHtml5QrCode = null;
@@ -1235,6 +1470,141 @@ function loadHtml5QrCode() {
         script.onerror = reject;
         document.head.appendChild(script);
     });
+}
+
+// ==================== NEW CLIENT MODAL ====================
+
+function openNewClientModal(numero) {
+    const modal = document.getElementById('new-client-modal');
+    if (!modal) return;
+
+    // Reset form
+    document.getElementById('new-client-nom').value = '';
+    document.getElementById('new-client-numero').value = numero || '';
+    document.getElementById('new-client-numero-hidden').value = numero || '';
+    document.getElementById('new-client-type').value = '1';
+
+    // Show modal
+    modal.classList.add('active');
+    document.getElementById('new-client-nom').focus();
+}
+
+function closeNewClientModal() {
+    const modal = document.getElementById('new-client-modal');
+    if (modal) {
+        modal.classList.remove('active');
+    }
+}
+
+// Handle new client form submission
+document.addEventListener('DOMContentLoaded', () => {
+    const form = document.getElementById('new-client-form');
+    if (form) {
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const nom = document.getElementById('new-client-nom').value.trim();
+            const numero = document.getElementById('new-client-numero').value.trim();
+            const typeClientId = document.getElementById('new-client-type').value;
+
+            if (!nom || !numero) {
+                alert('Veuillez remplir tous les champs');
+                return;
+            }
+
+            try {
+                const res = await fetch(APP_URL + '/api/client', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        nom: nom,
+                        numero: numero,
+                        type_client_id: typeClientId
+                    })
+                });
+
+                const data = await res.json();
+
+                if (data.success && data.client) {
+                    // Client créé avec succès
+                    closeNewClientModal();
+
+                    // Mettre à jour le panier avec le nouveau client
+                    posCart.currentClient = data.client;
+                    posCart.clientNumber = numero;
+                    posCart.displayClientName(data.client);
+
+                    // Mettre à jour le champ de numéro
+                    const clientInput = document.getElementById('client-number');
+                    if (clientInput) clientInput.value = numero;
+                } else {
+                    alert(data.message || 'Erreur lors de la création du client');
+                }
+            } catch (e) {
+                console.error('Erreur création client:', e);
+                alert('Erreur de connexion');
+            }
+        });
+    }
+});
+
+// ==================== QUICK CLIENT SAVE ====================
+
+async function saveClientQuick() {
+    const nom = document.getElementById('client-nom').value.trim();
+    const numero = document.getElementById('client-number').value.trim();
+
+    if (!nom || !numero) {
+        alert('Veuillez remplir le nom et le numéro du client');
+        return;
+    }
+
+    try {
+        const res = await fetch(APP_URL + '/api/client', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                nom: nom,
+                numero: numero,
+                type_client_id: 1
+            })
+        });
+
+        const data = await res.json();
+
+        if (data.success && data.client) {
+            // Client créé avec succès
+            posCart.currentClient = data.client;
+            posCart.clientNumber = numero;
+            posCart.displayClientName(data.client);
+
+            // Afficher une confirmation visuelle
+            const btn = document.getElementById('btn-save-client');
+            if (btn) {
+                btn.classList.remove('btn-secondary');
+                btn.classList.add('btn-success');
+                btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> Client enregistré!';
+                setTimeout(() => {
+                    btn.classList.remove('btn-success');
+                    btn.classList.add('btn-secondary');
+                    btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><line x1="20" y1="8" x2="20" y2="14"></line><line x1="23" y1="11" x2="17" y2="11"></line></svg> Enregistrer client';
+                }, 2000);
+            }
+        } else {
+            // Client existe déjà - l'utiliser
+            if (data.client) {
+                posCart.currentClient = data.client;
+                posCart.clientNumber = numero;
+                posCart.displayClientName(data.client);
+                alert('Client déjà enregistré: ' + data.client.nom);
+            } else {
+                alert(data.message || 'Erreur lors de l\'enregistrement');
+            }
+        }
+    } catch (e) {
+        console.error('Erreur saveClientQuick:', e);
+        alert('Erreur de connexion');
+    }
 }
 
 // Main initialization

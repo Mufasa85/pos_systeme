@@ -5,6 +5,7 @@ namespace App\Controllers;
 use App\Models\Product;
 use App\Models\Sale;
 use App\Models\SaleDetail;
+use App\Models\Client;
 use App\controllers\Controller;
 
 class SaleController extends Controller
@@ -25,6 +26,25 @@ class SaleController extends Controller
         $saleModel = new Sale();
         $detailModel = new SaleDetail();
         $productModel = new Product();
+        $clientModel = new Client();
+
+        // Si pas de client_id, créer un client "Particulier" par défaut (type 1 = PP)
+        $clientId = $data['client_id'] ?? null;
+        if (!$clientId) {
+            // Chercher si le client PP par défaut existe déjà
+            $defaultClient = $clientModel->findByNumero('0000000000');
+            if ($defaultClient) {
+                $clientId = $defaultClient['id'];
+            } else {
+                // Créer le client PP par défaut
+                $newClient = $clientModel->create([
+                    'nom' => 'Particulier',
+                    'numero' => '0000000000',
+                    'type_client_id' => 1
+                ]);
+                $clientId = $newClient['id'] ?? null;
+            }
+        }
 
         try {
             $db = \App\Core\Database::getInstance()->getConnection();
@@ -37,6 +57,7 @@ class SaleController extends Controller
 
             $saleId = $saleModel->create([
                 'numero_facture' => $invoiceNum,
+                'client_id'      => $clientId,
                 'sous_total_ht'  => $data['sous_total_ht'],
                 'tva'            => $data['tva'],
                 'total'          => $data['total'],
