@@ -137,17 +137,20 @@
         </div>
       </div>
       <div class="btn-group-valider">
-        <button id="btn-preview" class="btn btn-secondary" onclick="posCart.showPreview()" style="display: flex; align-items: center; gap: 6px;" title="Voir l'aperçu de la facture">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="4" y="2" width="16" height="20" rx="2"></rect>
-            <line x1="8" y1="6" x2="16" y2="6"></line>
-            <line x1="8" y1="10" x2="16" y2="10"></line>
-            <line x1="8" y1="14" x2="12" y2="14"></line>
-            <line x1="8" y1="18" x2="10" y2="18"></line>
-          </svg>
-          Calculatrice
-        </button>
-        <button id="show-preview" class="btn btn-primary btn-full" disabled onclick="posCart.showPreview()" style="flex: 1;">
+        <label id="calculator-toggle" class="calculator-radio" title="Mode calculatrice">
+          <input type="checkbox" id="calc-mode-checkbox" onchange="toggleCalcMode(this.checked)">
+          <span class="calc-label">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="4" y="2" width="16" height="20" rx="2"></rect>
+              <line x1="8" y1="6" x2="16" y2="6"></line>
+              <line x1="8" y1="10" x2="16" y2="10"></line>
+              <line x1="8" y1="14" x2="12" y2="14"></line>
+              <line x1="8" y1="18" x2="10" y2="18"></line>
+            </svg>
+            Calculatrice
+          </span>
+        </label>
+        <button id="show-preview" class="btn btn-primary btn-full" disabled onclick="posCart.showPreview()">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="20 6 9 17 4 12"></polyline>
           </svg>

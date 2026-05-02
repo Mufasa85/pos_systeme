@@ -230,6 +230,16 @@ const posCart = {
         this.renderCart();
     },
 
+    toggleCalcMode(enabled) {
+        this.calcMode = enabled;
+        const toggle = $('#calculator-toggle');
+        if (enabled) {
+            toggle.classList.add('active');
+        } else {
+            toggle.classList.remove('active');
+        }
+    },
+
     updateClientNumber(number) {
         this.clientNumber = number;
         // Recherche automatique du client
@@ -514,6 +524,12 @@ const posCart = {
     // Afficher le récapitulatif de la vente (ticket final avec DGI)
     async showPreview() {
         if (this.items.length === 0) return;
+
+        // Si le mode calculatrice est activé, ouvrir le modal de paiement
+        if (this.calcMode) {
+            this.showPaymentModal();
+            return;
+        }
 
         // Récupérer le numéro de facture depuis la base de données
         try {
@@ -2270,4 +2286,20 @@ function showClientMessage(message, type) {
     setTimeout(() => {
         messageDiv.style.display = 'none';
     }, 3000);
+}
+
+// ==================== CALCULATOR MODE ====================
+
+function toggleCalcMode(enabled) {
+    if (posCart) {
+        posCart.calcMode = enabled;
+        const toggle = $('#calculator-toggle');
+        if (toggle) {
+            if (enabled) {
+                toggle.classList.add('active');
+            } else {
+                toggle.classList.remove('active');
+            }
+        }
+    }
 }

@@ -1040,6 +1040,44 @@ body {
 .btn-group-valider .btn {
   margin: 0;
 }
+
+/* Calculator Toggle Radio */
+.calculator-radio {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+}
+
+.calculator-radio input[type="checkbox"] {
+  display: none;
+}
+
+.calculator-radio .calc-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0.75rem 1rem;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--muted);
+  background: var(--card);
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.calculator-radio input[type="checkbox"]:checked + .calc-label {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: rgba(11, 94, 136, 0.08);
+}
+
+.calculator-radio .calc-label:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
 @media (min-width: 640px) {
   .products-grid {
     grid-template-columns: repeat(3, 1fr);
