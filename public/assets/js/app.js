@@ -11,7 +11,9 @@ let STORE_INFO = {
     name: 'SuperMarche Express',
     address: '123 Rue Mohammed V, Casablanca',
     phone: '+212 522 123 456',
-    ice: '001234567890123'
+    ice: '001234567890123',
+    rccm: '',
+    isf: ''
 };
 
 // Charger les informations du magasin depuis les paramètres
@@ -23,10 +25,50 @@ async function loadStoreInfo() {
             name: data.store_name || STORE_INFO.name,
             address: data.store_address || STORE_INFO.address,
             phone: data.store_phone || STORE_INFO.phone,
-            ice: data.store_ice || STORE_INFO.ice
+            ice: data.store_ice || STORE_INFO.ice,
+            rccm: data.store_rccm || '',
+            isf: data.store_isf || ''
         };
     } catch (e) {
         console.warn('Impossible de charger les paramètres du magasin, utilisation des valeurs par défaut');
+    }
+
+    // Charger aussi les types de clients pour le select
+    loadClientTypes();
+}
+
+// Charger les types de clients depuis l'API
+async function loadClientTypes() {
+    const typeSelect = document.getElementById('client-type');
+    if (!typeSelect) return;
+
+    try {
+        const res = await fetch(APP_URL + '/api/client/types');
+        const types = await res.json();
+
+        if (Array.isArray(types) && types.length > 0) {
+            // Garder la première option "Type client"
+            const firstOption = typeSelect.querySelector('option[value=""]');
+            typeSelect.innerHTML = '';
+            if (firstOption) {
+                typeSelect.appendChild(firstOption);
+            } else {
+                const defaultOpt = document.createElement('option');
+                defaultOpt.value = '';
+                defaultOpt.textContent = 'Type client';
+                typeSelect.appendChild(defaultOpt);
+            }
+
+            // Ajouter les types de clients
+            types.forEach(type => {
+                const option = document.createElement('option');
+                option.value = type.id;
+                option.textContent = `${type.code} - ${type.description}`;
+                typeSelect.appendChild(option);
+            });
+        }
+    } catch (e) {
+        console.warn('Impossible de charger les types de clients:', e);
     }
 }
 
@@ -102,7 +144,7 @@ const posCart = {
     renderProducts(list) {
         const grid = $('#products-grid');
         if (!grid) return;
-        
+
         let html = list.map(p => `
             <div class="product-card ${p.stock <= 0 ? 'out-of-stock' : ''}" 
                  onclick="posCart.addToCart(${p.id})"
@@ -117,7 +159,7 @@ const posCart = {
               </div>
             </div>
         `);
-        
+
         // Compléter jusqu'à 20 cartes avec des placeholders (PC/Tablette uniquement, pas mobile)
         const targetCards = 20;
         const currentCards = html.length;
@@ -127,7 +169,7 @@ const posCart = {
                 html.push(`<div class="product-card placeholder-card hide-on-mobile" style="opacity: 0.2; cursor: default; min-height: 130px; background: #e8e8e8; border: 2px dashed #bbb; display: flex; align-items: center; justify-content: center; border-radius: 8px;" title="Emplacement réservé"><span style="color: #999; font-size: 11px;">Vide</span></div>`);
             }
         }
-        
+
         grid.innerHTML = html.join('') || '<div class="empty-state">Aucun produit trouvé</div>';
     },
 
@@ -144,7 +186,9 @@ const posCart = {
                 nom: product.nom,
                 prix: parseFloat(product.prix),
                 quantite: 1,
-                maxStock: product.stock
+                maxStock: product.stock,
+                tax_rate: parseFloat(product.tax_rate) || 0,  // Taux de taxe du produit
+                tax_etiquette: product.tax_etiquette || ''
             });
         }
         this.renderCart();
@@ -198,7 +242,7 @@ const posCart = {
             if (data.found && data.client) {
                 // Client trouvé - remplir automatiquement les champs
                 this.currentClient = data.client;
-                
+
                 // Remplir le champ nom avec le nom du client
                 const nomInput = $('#client-nom');
                 if (nomInput) {
@@ -206,7 +250,7 @@ const posCart = {
                     nomInput.style.borderColor = '#10b981';
                     nomInput.style.background = '#f0fdf4';
                 }
-                
+
                 this.displayClientName(data.client);
             } else {
                 // Client non trouvé - ouvrir le modal pour créer
@@ -286,17 +330,24 @@ const posCart = {
             $('#show-preview').disabled = false;
         }
 
-        // Les prix sont maintenant HT (sans TVA), on calcule la TVA puis le TTC
-        const subtotalHT = this.items.reduce((s, i) => s + (i.prix * i.quantite), 0);
-        const taxRate = this.taxRate / 100;
-        const tax = subtotalHT * taxRate;
-        const subtotalTTC = subtotalHT;
+        // Les prix sont maintenant HT (sans TVA), calculer la TVA par produit selon son taux
+        let subtotalHT = 0;
+        let totalTax = 0;
+
+        for (const item of this.items) {
+            const itemHT = item.prix * item.quantite;
+            const itemTax = itemHT * (item.tax_rate / 100);
+            subtotalHT += itemHT;
+            totalTax += itemTax;
+        }
+
+        const subtotalTTC = subtotalHT + totalTax;
 
         $('#subtotal').textContent = formatCurrency(subtotalHT);
-        $('#tax').textContent = formatCurrency(tax);
+        $('#tax').textContent = formatCurrency(totalTax);
         $('#total').textContent = formatCurrency(subtotalTTC);
 
-        this.currentTotals = { sous_total_ht: subtotalHT, tva: tax, total: subtotalTTC };
+        this.currentTotals = { sous_total_ht: subtotalHT, tva: totalTax, total: subtotalTTC };
     },
 
     // Appeler l'API DGI pour valider la facture
@@ -308,6 +359,13 @@ const posCart = {
             // Obtenir le nom du vendeur
             const sellerName = (typeof CURRENT_USER !== 'undefined' && CURRENT_USER.fullName) ? CURRENT_USER.fullName : STORE_INFO.name;
 
+            // Récupérer les infos client pour la DGI
+            const clientNom = $('#client-nom')?.value || (this.currentClient?.nom || '');
+            const clientTypeText = $('#client-type option:checked')?.textContent || (this.currentClient?.type_description || '');
+            const clientTypeInitiales = clientTypeText.split(' - ')[0].trim() || '';
+            const clientNif = $('#client-nif')?.value || (this.currentClient?.nif || '');
+            const clientNumero = $('#client-number')?.value || (this.clientNumber || '');
+
             // Envoyer les donnees en POST a l'API DGI
             const res = await fetch(DGI_API_URL, {
                 method: 'POST',
@@ -317,15 +375,23 @@ const posCart = {
                     store_phone: STORE_INFO.phone,
                     store_address: STORE_INFO.address,
                     store_ice: STORE_INFO.ice,
+                    store_rccm: STORE_INFO.rccm,
+                    store_isf: STORE_INFO.isf,
                     seller_name: sellerName,
                     amount: this.currentTotals.total,
-                    client_number: this.clientNumber || '',
+                    client_number: clientNumero,
                     invoice_number: invoiceNum,
                     articles: this.items.map(item => ({
                         name: item.nom,
                         quantity: item.quantite,
-                        price: item.prix
-                    }))
+                        price: item.prix,
+                        tax_rate: item.tax_rate || 0,
+                        tax_etiquette: item.tax_etiquette || ''
+                    })),
+                    // Infos client pour DGI
+                    client_name: clientNom,
+                    client_type: clientTypeInitiales,
+                    client_nif: clientNif
                 })
             });
 
@@ -334,14 +400,21 @@ const posCart = {
                 store_phone: STORE_INFO.phone,
                 store_address: STORE_INFO.address,
                 store_ice: STORE_INFO.ice,
+                store_rccm: STORE_INFO.rccm,
+                store_isf: STORE_INFO.isf,
                 seller_name: sellerName,
                 amount: this.currentTotals.total,
-                client_number: this.clientNumber || '',
+                client_number: clientNumero,
+                client_name: clientNom,
+                client_type: clientTypeInitiales,
+                client_nif: clientNif,
                 invoice_number: invoiceNum,
                 articles: this.items.map(item => ({
                     name: item.nom,
                     quantity: item.quantite,
-                    price: item.prix
+                    price: item.prix,
+                    tax_rate: item.tax_rate || 0,
+                    tax_etiquette: item.tax_etiquette || ''
                 }))
             }))
 
@@ -362,6 +435,7 @@ const posCart = {
 
             // Parser le JSON
             try {
+
                 return JSON.parse(text);
             } catch (jsonErr) {
                 console.warn('[DGI] Réponse non-JSON:', text.substring(0, 200));
@@ -433,6 +507,17 @@ const posCart = {
     async showPreview() {
         if (this.items.length === 0) return;
 
+        // Récupérer le numéro de facture depuis la base de données
+        try {
+            const res = await fetch(APP_URL + '/api/vente/next-invoice');
+            const data = await res.json();
+            if (data.invoice_number) {
+                this.currentInvoiceNum = data.invoice_number;
+            }
+        } catch (e) {
+            console.warn('Erreur récupération numéro facture:', e);
+        }
+
         const formattedDate = new Date().toLocaleString('fr-FR', {
             day: '2-digit', month: '2-digit', year: 'numeric',
             hour: '2-digit', minute: '2-digit'
@@ -444,24 +529,58 @@ const posCart = {
         let itemsHtml = '';
         for (let i = 0; i < this.items.length; i++) {
             const item = this.items[i];
+            const itemHT = item.prix * item.quantite;
+            const itemTax = itemHT * (item.tax_rate / 100);
+            const itemTTC = itemHT + itemTax;
+            const taxLabel = item.tax_etiquette || (item.tax_rate > 0 ? 'TVA ' + item.tax_rate + '%' : 'Exonere');
             itemsHtml += `
                 <div class="receipt-item">
-                    <span class="item-name">${item.nom}</span>
+                    <span class="item-name">${item.nom}<span class="item-tax-badge">${taxLabel}</span></span>
                     <span class="item-qty">x${item.quantite}</span>
-                    <span class="item-price">${(item.prix * item.quantite).toFixed(2)}</span>
+                    <span class="item-price">${itemTTC.toFixed(2)}</span>
                 </div>
             `;
         }
+
+        // Ajouter les infos RCCM et ISF si disponibles (chacun sur sa propre ligne)
+        let storeExtraInfo = '';
+        if (STORE_INFO.rccm) {
+            storeExtraInfo += `<div>RCCM: ${STORE_INFO.rccm}</div>`;
+        }
+        if (STORE_INFO.isf) {
+            storeExtraInfo += `<div>ISF: ${STORE_INFO.isf}</div>`;
+        }
+
+        // Récupérer les infos de l'acheteur depuis les inputs du panier
+        const acheteurNom = $('#client-nom')?.value || (this.currentClient?.nom || '');
+        const acheteurTypeText = $('#client-type option:checked')?.textContent || (this.currentClient?.type_description || '');
+        // Extraire juste les initiales (ex: "PP - Particulier" -> "PP")
+        const acheteurTypeInitiales = acheteurTypeText.split(' - ')[0].trim() || '';
+        const acheteurNif = $('#client-nif')?.value || (this.currentClient?.nif || '');
+        const acheteurNumero = $('#client-number')?.value || (this.clientNumber || '');
+        const vendeur = (typeof CURRENT_USER !== 'undefined' && CURRENT_USER.fullName) ? CURRENT_USER.fullName : STORE_INFO.name;
+
+        // Construire les infos en une seule section sans separarer vendeur/acheteur
+        let infoSection = `<div style="border-top: 1px dashed #ccc; margin-top: 6px; padding-top: 6px; text-align: left; font-size: 11px; line-height: 1.5;">
+                           <div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>Vendeur:</strong></span><span>${vendeur}</span></div>
+                           ${acheteurNom ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>Client:</strong></span><span>${acheteurNom}</span></div>` : ''}
+                           ${acheteurNumero ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>Num:</strong></span><span>${acheteurNumero}</span></div>` : ''}
+                           ${acheteurTypeInitiales ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>Type:</strong></span><span>${acheteurTypeInitiales}</span></div>` : ''}
+                           ${acheteurNif ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>NIF:</strong></span><span>${acheteurNif}</span></div>` : ''}
+                           ${STORE_INFO.isf ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>ISF:</strong></span><span>${STORE_INFO.isf}</span></div>` : ''}
+                        </div>`;
 
         $('#preview-content').innerHTML = `
             <div class="receipt">
                 <div class="receipt-header">
                     <div class="store-name">${STORE_INFO.name}</div>
                     <div class="store-info">
-                        ${STORE_INFO.address}<br>
-                        Tel: ${STORE_INFO.phone}<br>
-                        ICE: ${STORE_INFO.ice}
+                        <div>${STORE_INFO.address}</div>
+                        <div>Tel: ${STORE_INFO.phone}</div>
+                        <div>ICE: ${STORE_INFO.ice}</div>
+                        ${storeExtraInfo}
                     </div>
+                    ${infoSection}
                 </div>
 
                 <div class="receipt-meta">
@@ -479,7 +598,7 @@ const posCart = {
                         <span>${this.currentTotals.sous_total_ht.toFixed(2)} Fc</span>
                     </div>
                     <div class="receipt-total-row">
-                        <span>TVA (16%):</span>
+                        <span>TVA:</span>
                         <span>${this.currentTotals.tva.toFixed(2)} Fc</span>
                     </div>
                     <div class="receipt-total-row grand-total">
@@ -489,7 +608,6 @@ const posCart = {
                 </div>
 
                 <div class="receipt-footer">
-                    <div class="vendeur-info">Vendeur: ${(typeof CURRENT_USER !== 'undefined' && CURRENT_USER.fullName) ? CURRENT_USER.fullName : STORE_INFO.name}</div>
                     <div class="barcode">${invoiceNum}</div>
                     <div class="thank-you">Merci de votre visite!</div>
                     <div style="margin-top: 5px; font-size: 9px; font-style: italic;">Conservez ce ticket pour tout echange</div>
@@ -498,18 +616,17 @@ const posCart = {
         `;
 
         $('#preview-modal').classList.add('active');
-        
+
         // Ajouter le bouton de confirmation après le reçu
         const previewFooter = document.querySelector('#preview-modal .modal-footer');
         if (previewFooter) {
             previewFooter.innerHTML = `
                 <button class="btn btn-secondary" onclick="posCart.closePreview()">Fermer</button>
-                <button class="btn btn-primary" onclick="posCart.showPaymentModal()">
+                <button class="btn btn-primary" onclick="posCart.confirmSale()">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
-                        <line x1="1" y1="10" x2="23" y2="10"></line>
+                        <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
-                    Payer maintenant
+                    Valider la facture
                 </button>
             `;
         }
@@ -518,7 +635,7 @@ const posCart = {
     // Afficher le modal de paiement (popup séparé)
     showPaymentModal() {
         if (this.items.length === 0) return;
-        
+
         // Récupérer le numéro de facture depuis la base de données
         let invoiceNum = 'FAC-000001';
         fetch(APP_URL + '/api/vente/next-invoice')
@@ -528,45 +645,45 @@ const posCart = {
                     this.currentInvoiceNum = data.invoice_number;
                 }
             })
-            .catch(() => {});
-        
+            .catch(() => { });
+
         // Afficher le modal
         const modal = $('#payment-modal');
         const totalFc = this.currentTotals.total;
         const tauxChange = 2300; // Taux fixe: 1 USD = 2300 Fc
         const totalUsd = totalFc / tauxChange;
-        
+
         // Mettre à jour les totaux affichés
         $('#payment-total').textContent = formatCurrency(totalFc);
         $('#payment-total-usd').textContent = '($' + totalUsd.toFixed(2) + ' USD)';
-        
+
         // Réinitialiser le champ et le mode
         $('#payment-received').value = '';
         $('#payment-result').style.display = 'none';
         this.currentPaymentMode = 'usd';
-        
+
         // Reset radio buttons
         const usdRadio = $('input[name="payment-mode"][value="usd"]');
         const fcRadio = $('input[name="payment-mode"][value="fc"]');
         if (usdRadio) usdRadio.checked = true;
         if (fcRadio) fcRadio.checked = false;
-        
+
         // Mettre à jour le label
         const label = $('#payment-received-label');
         if (label) label.innerHTML = ' Montant reçu (USD)';
-        
+
         modal.classList.add('active');
         $('#payment-received').focus();
     },
-    
+
     // Mode de paiement (USD ou FC)
     currentPaymentMode: 'usd',
-    
+
     togglePaymentMode(mode) {
         this.currentPaymentMode = mode;
         const input = $('#payment-received');
         const label = $('#payment-received-label');
-        
+
         if (mode === 'usd') {
             label.innerHTML = ' Montant reçu (USD)';
             input.placeholder = 'Entrez en dollars...';
@@ -576,25 +693,25 @@ const posCart = {
             input.placeholder = 'Entrez en francs...';
             input.value = '';
         }
-        
+
         // Cacher le résultat
         $('#payment-result').style.display = 'none';
         input.focus();
     },
-    
+
     // Calculer la monnaie à rendre dans le modal (supporte USD et FC)
     calculateChange() {
         const totalFc = this.currentTotals.total;
         const inputValue = parseFloat($('#payment-received').value) || 0;
-        
+
         // Taux de change constant
         const TAUX_CHANGE = 2300; // 1 USD = 2300 Fc
-        
+
         // Mode de paiement actuel (USD ou FC)
         const paymentMode = $('input[name="payment-mode"]:checked')?.value || 'usd';
-        
+
         let restFc, restUsd;
-        
+
         if (paymentMode === 'usd') {
             // Client paie en USD
             const receivedFc = inputValue * TAUX_CHANGE;
@@ -605,12 +722,12 @@ const posCart = {
             restFc = inputValue - totalFc;
             restUsd = restFc / TAUX_CHANGE;
         }
-        
+
         const resultDiv = $('#payment-result');
         const changeLabel = $('#payment-change-label');
         const changeFcEl = $('#payment-change-fc');
         const changeUsdEl = $('#payment-change-usd');
-        
+
         if (inputValue <= 0) {
             resultDiv.style.display = 'none';
             this.paymentAmount = 0;
@@ -724,29 +841,62 @@ const posCart = {
 
             const formattedDate = new Date().toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
-            // Construire les lignes du tableau
+            // Récupérer les infos client pour le reçu
+            const acheteurNom = $('#client-nom')?.value || (this.currentClient?.nom || '');
+            const acheteurTypeText = $('#client-type option:checked')?.textContent || (this.currentClient?.type_description || '');
+            const acheteurTypeInitiales = acheteurTypeText.split(' - ')[0].trim() || '';
+            const acheteurNif = $('#client-nif')?.value || (this.currentClient?.nif || '');
+            const acheteurNumero = $('#client-number')?.value || (this.clientNumber || '');
+            const vendeur = (typeof CURRENT_USER !== 'undefined' && CURRENT_USER.fullName) ? CURRENT_USER.fullName : STORE_INFO.name;
+
+            // Ajouter les infos RCCM et ISF si disponibles (chacun sur sa propre ligne)
+            let storeExtraInfo = '';
+            if (STORE_INFO.rccm) {
+                storeExtraInfo += `<div>RCCM: ${STORE_INFO.rccm}</div>`;
+            }
+            if (STORE_INFO.isf) {
+                storeExtraInfo += `<div>ISF: ${STORE_INFO.isf}</div>`;
+            }
+
+            // Construire les infos en une seule section
+            let infoSection = `<div style="border-top: 1px dashed #ccc; margin-top: 6px; padding-top: 6px; text-align: left; font-size: 11px; line-height: 1.5;">
+                               <div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>Vendeur:</strong></span><span>${vendeur}</span></div>
+                               ${acheteurNom ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>Client:</strong></span><span>${acheteurNom}</span></div>` : ''}
+                               ${acheteurNumero ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>Num:</strong></span><span>${acheteurNumero}</span></div>` : ''}
+                               ${acheteurTypeInitiales ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>Type:</strong></span><span>${acheteurTypeInitiales}</span></div>` : ''}
+                               ${acheteurNif ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>NIF:</strong></span><span>${acheteurNif}</span></div>` : ''}
+                               ${STORE_INFO.isf ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>ISF:</strong></span><span>${STORE_INFO.isf}</span></div>` : ''}
+                            </div>`;
+
+            // Construire les items du reçu avec les taxes par produit
             let itemsHtml = '';
             for (let i = 0; i < this.items.length; i++) {
                 const item = this.items[i];
+                const itemHT = item.prix * item.quantite;
+                const itemTax = itemHT * (item.tax_rate / 100);
+                const itemTTC = itemHT + itemTax;
+                const taxLabel = item.tax_etiquette || (item.tax_rate > 0 ? 'TVA ' + item.tax_rate + '%' : 'Exonere');
                 itemsHtml += `
                     <div class="receipt-item">
-                        <span class="item-name">${item.nom}</span>
+                        <span class="item-name">${item.nom}<span class="item-tax-badge">${taxLabel}</span></span>
                         <span class="item-qty">x${item.quantite}</span>
-                        <span class="item-price">${(item.prix * item.quantite).toFixed(2)}</span>
+                        <span class="item-price">${itemTTC.toFixed(2)}</span>
                     </div>
                 `;
             }
 
-            // Afficher le recu complet
+            // Afficher le recu complet (identique au preview mais avec QR code)
             $('#receipt-content').innerHTML = `
                 <div class="receipt">
                     <div class="receipt-header">
                         <div class="store-name">${STORE_INFO.name}</div>
                         <div class="store-info">
-                            ${STORE_INFO.address}<br>
-                            Tel: ${STORE_INFO.phone}<br>
-                            ICE: ${STORE_INFO.ice}
+                            <div>${STORE_INFO.address}</div>
+                            <div>Tel: ${STORE_INFO.phone}</div>
+                            <div>ICE: ${STORE_INFO.ice}</div>
+                            ${storeExtraInfo}
                         </div>
+                        ${infoSection}
                     </div>
 
                     <div class="receipt-meta">
@@ -764,7 +914,7 @@ const posCart = {
                             <span>${this.currentTotals.sous_total_ht.toFixed(2)} Fc</span>
                         </div>
                         <div class="receipt-total-row">
-                            <span>TVA (16%):</span>
+                            <span>TVA:</span>
                             <span>${this.currentTotals.tva.toFixed(2)} Fc</span>
                         </div>
                         <div class="receipt-total-row grand-total">
@@ -776,11 +926,10 @@ const posCart = {
                     ${dgiInfoHtml}
 
                     <div class="receipt-footer">
-                        <div class="vendeur-info">Vendeur: ${(typeof CURRENT_USER !== 'undefined' && CURRENT_USER.fullName) ? CURRENT_USER.fullName : STORE_INFO.name}</div>
                         <div id="${qrContainerId}" class="qrcode-container"></div>
                         <div class="barcode">${saleData.numero_facture}</div>
                         <div class="thank-you">Merci de votre visite!</div>
-                        <p style="margin-top: 5px; color: #555; font-size: 9px;">Conservez ce ticket pour tout echange</p>
+                        <div style="margin-top: 5px; font-size: 9px; font-style: italic;">Conservez ce ticket pour tout echange</div>
                     </div>
                 </div>
             `;
@@ -1278,15 +1427,15 @@ function confirmPayment() {
         alert('Le montant reçu est insuffisant!');
         return;
     }
-    
+
     if (!posCart.paymentAmount || posCart.paymentAmount <= 0) {
         alert('Veuillez entrer le montant reçu du client');
         return;
     }
-    
+
     // Fermer le modal de paiement
     closePaymentModal();
-    
+
     // Appeler confirmSale pour finaliser la vente
     posCart.confirmSale();
 }
@@ -1553,9 +1702,16 @@ document.addEventListener('DOMContentLoaded', () => {
 async function saveClientQuick() {
     const nom = document.getElementById('client-nom').value.trim();
     const numero = document.getElementById('client-number').value.trim();
+    const typeClientId = document.getElementById('client-type').value;
+    const nif = document.getElementById('client-nif').value.trim();
 
     if (!nom || !numero) {
         alert('Veuillez remplir le nom et le numéro du client');
+        return;
+    }
+
+    if (!typeClientId) {
+        alert('Veuillez sélectionner le type de client');
         return;
     }
 
@@ -1566,7 +1722,8 @@ async function saveClientQuick() {
             body: JSON.stringify({
                 nom: nom,
                 numero: numero,
-                type_client_id: 1
+                type_client_id: typeClientId,
+                nif: nif
             })
         });
 
@@ -1956,4 +2113,146 @@ function _printReceiptContent(content) {
             setTimeout(() => { if (iframe.parentNode) iframe.remove(); }, 2000);
         }, 400);
     };
+}
+
+// ==================== CLIENT SEARCH ====================
+
+async function searchClientByNumero() {
+    const numeroInput = document.getElementById('client-number');
+    const nomInput = document.getElementById('client-nom');
+    const typeInput = document.getElementById('client-type');
+    const messageDiv = document.getElementById('client-search-message');
+
+    if (!numeroInput) return;
+
+    const numero = numeroInput.value.trim();
+
+    if (!numero) {
+        showClientMessage('Veuillez entrer un numéro de téléphone', 'error');
+        return;
+    }
+
+    // Afficher le loader
+    const searchBtn = document.getElementById('btn-search-client');
+    if (searchBtn) {
+        searchBtn.disabled = true;
+        searchBtn.innerHTML = '<div class="loader-spinner" style="width:16px;height:16px;border-width:2px;"></div>';
+    }
+
+    try {
+        const res = await fetch(APP_URL + '/api/client/search?numero=' + encodeURIComponent(numero));
+        const data = await res.json();
+
+        if (data.success && data.client) {
+            // Client trouvé - remplir les champs
+            if (nomInput) {
+                nomInput.value = data.client.nom_client || '';
+                nomInput.style.borderColor = '#10b981';
+                nomInput.style.background = '#f0fdf4';
+            }
+
+            if (typeInput) {
+                // Essayer de trouver le type par ID d'abord, puis par code
+                const typeOptions = typeInput.querySelectorAll('option');
+                let found = false;
+
+                for (let i = 0; i < typeOptions.length; i++) {
+                    if (data.client.type_id && typeOptions[i].value == data.client.type_id) {
+                        typeInput.value = data.client.type_id;
+                        found = true;
+                        break;
+                    }
+                }
+
+                if (!found && data.client.type_code) {
+                    for (let i = 0; i < typeOptions.length; i++) {
+                        if (typeOptions[i].textContent.includes(data.client.type_code)) {
+                            typeInput.value = typeOptions[i].value;
+                            found = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (found) {
+                    typeInput.style.borderColor = '#10b981';
+                    typeInput.style.background = '#f0fdf4';
+                }
+            }
+
+            // Afficher le NIF
+            const nifInput = document.getElementById('client-nif');
+            if (nifInput) {
+                nifInput.value = data.client.nif || '';
+                nifInput.style.borderColor = '#10b981';
+                nifInput.style.background = '#f0fdf4';
+            }
+
+            // Sauvegarder le client dans le panier
+            if (posCart) {
+                posCart.currentClient = data.client;
+                posCart.clientNumber = numero;
+            }
+
+            showClientMessage('Client trouvé: ' + data.client.nom_client, 'success');
+        } else {
+            // Client non trouvé
+            if (nomInput) {
+                nomInput.value = '';
+                nomInput.style.borderColor = '#f44336';
+                nomInput.style.background = '#ffebee';
+            }
+
+            if (typeInput) {
+                typeInput.value = '';
+                typeInput.style.borderColor = '#f44336';
+                typeInput.style.background = '#ffebee';
+            }
+
+            const nifInput = document.getElementById('client-nif');
+            if (nifInput) {
+                nifInput.value = '';
+                nifInput.style.borderColor = '#f44336';
+                nifInput.style.background = '#ffebee';
+            }
+
+            if (posCart) {
+                posCart.currentClient = null;
+            }
+
+            showClientMessage('Client non trouvé. Vous pouvez l\'enregistrer.', 'error');
+        }
+    } catch (e) {
+        console.error('Erreur recherche client:', e);
+        showClientMessage('Erreur de connexion', 'error');
+    } finally {
+        // Retirer le loader
+        if (searchBtn) {
+            searchBtn.disabled = false;
+            searchBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>';
+        }
+    }
+}
+
+function showClientMessage(message, type) {
+    const messageDiv = document.getElementById('client-search-message');
+    if (!messageDiv) return;
+
+    messageDiv.textContent = message;
+    messageDiv.style.display = 'block';
+
+    if (type === 'success') {
+        messageDiv.style.color = '#10b981';
+        messageDiv.style.background = '#f0fdf4';
+        messageDiv.style.border = '1px solid #10b981';
+    } else {
+        messageDiv.style.color = '#f44336';
+        messageDiv.style.background = '#ffebee';
+        messageDiv.style.border = '1px solid #f44336';
+    }
+
+    // Masquer après 3 secondes
+    setTimeout(() => {
+        messageDiv.style.display = 'none';
+    }, 3000);
 }

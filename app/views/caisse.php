@@ -87,10 +87,31 @@
           </svg>
           Client
         </label>
+        <!-- Ligne 1: Nom + N° téléphone côte à côte -->
         <div style="display: flex; gap: 8px; margin-bottom: 8px;">
           <input type="text" id="client-nom" class="client-number-input" placeholder="Nom du client" style="flex: 1;">
-          <input type="text" id="client-number" class="client-number-input" placeholder="Numéro" style="width: 140px;">
+          <div style="position: relative; display: flex; align-items: center; flex: 1;">
+            <input type="text" id="client-number" class="client-number-input" placeholder="N° téléphone" style="width: 100%; padding-right: 40px;">
+            <button type="button" id="btn-search-client" onclick="searchClientByNumero()" style="position: absolute; right: 8px; background: none; border: none; cursor: pointer; padding: 4px; color: #0B5E88; display: flex; align-items: center; justify-content: center;" title="Rechercher client">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+            </button>
+          </div>
         </div>
+        <!-- Ligne 2: Type client + NIF côte à côte -->
+        <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+          <select id="client-type" class="client-number-input" style="flex: 1;">
+            <option value="">Type client</option>
+            <?php foreach ($clientTypes as $type): ?>
+              <option value="<?= $type['id'] ?>"><?= htmlspecialchars($type['code']) ?> - <?= htmlspecialchars($type['description']) ?></option>
+            <?php endforeach; ?>
+          </select>
+          <input type="text" id="client-nif" class="client-number-input" placeholder="NIF client" style="flex: 1;">
+        </div>
+        <!-- Message d'erreur/succès -->
+        <div id="client-search-message" style="font-size: 0.75rem; margin-bottom: 8px; display: none;"></div>
         <button type="button" id="btn-save-client" class="btn btn-secondary btn-small" onclick="saveClientQuick()" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px;">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
@@ -118,12 +139,24 @@
           <span id="total">0.00 Fc</span>
         </div>
       </div>
-      <button id="show-preview" class="btn btn-primary btn-full" disabled onclick="posCart.showPaymentModal()">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <polyline points="20 6 9 17 4 12"></polyline>
-        </svg>
-        Valider la vente
-      </button>
+      <div class="btn-group-valider">
+        <button id="btn-preview" class="btn btn-secondary" onclick="posCart.showPreview()" style="display: flex; align-items: center; gap: 6px;" title="Voir l'aperçu de la facture">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="4" y="2" width="16" height="20" rx="2"></rect>
+            <line x1="8" y1="6" x2="16" y2="6"></line>
+            <line x1="8" y1="10" x2="16" y2="10"></line>
+            <line x1="8" y1="14" x2="12" y2="14"></line>
+            <line x1="8" y1="18" x2="10" y2="18"></line>
+          </svg>
+          Calculatrice
+        </button>
+        <button id="show-preview" class="btn btn-primary btn-full" disabled onclick="posCart.showPreview()" style="flex: 1;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+          Valider la vente
+        </button>
+      </div>
     </div>
   </div>
 
@@ -140,7 +173,7 @@
         </h3>
         <button class="close-modal" onclick="closePaymentModal()" style="color: white;">&times;</button>
       </div>
-      
+
       <div style="padding: 1.5rem;">
         <!-- Total à payer -->
         <div style="background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); border-radius: 12px; padding: 1.25rem; text-align: center; margin-bottom: 1rem;">
@@ -174,14 +207,14 @@
         <!-- Entrée montant reçu -->
         <div style="margin-bottom: 1rem;">
           <label for="payment-received" id="payment-received-label" style="display: block; font-size: 0.875rem; font-weight: 600; color: #1a1a2e; margin-bottom: 0.5rem;">
-             Montant reçu (USD)
+            Montant reçu (USD)
           </label>
-          <input type="number" id="payment-received" 
-                 placeholder="Entrez le montant..." 
-                 step="0.01" 
-                 min="0"
-                 style="width: 100%; padding: 1rem; border: 2px solid #e2e8f0; border-radius: 10px; font-size: 1.25rem; text-align: center; font-weight: 600; outline: none; transition: border-color 0.2s;"
-                 oninput="posCart.calculateChange()">
+          <input type="number" id="payment-received"
+            placeholder="Entrez le montant..."
+            step="0.01"
+            min="0"
+            style="width: 100%; padding: 1rem; border: 2px solid #e2e8f0; border-radius: 10px; font-size: 1.25rem; text-align: center; font-weight: 600; outline: none; transition: border-color 0.2s;"
+            oninput="posCart.calculateChange()">
         </div>
 
         <!-- Résultat -->

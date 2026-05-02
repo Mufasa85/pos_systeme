@@ -25,6 +25,10 @@ Router::get("/facture-client/[i:id]", [\App\Controllers\InvoiceController::class
 Router::post("/api/facture/[i:id]/send", [\App\Controllers\InvoiceController::class, 'sendInvoice']);
 Router::get("/api/facture/[i:id]/pdf", [\App\Controllers\InvoiceController::class, 'downloadPdf']);
 
+// API route for client search
+Router::get("/api/client/search", [\App\Controllers\ClientController::class, 'searchByNumero']);
+Router::get("/api/client/types", [\App\Controllers\ClientController::class, 'getTypes']);
+
 /*
 $router->get('/', 'AuthController@showLogin');
 $router->post('/login', 'AuthController@login');

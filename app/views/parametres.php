@@ -23,59 +23,75 @@
               <p style="font-size: 0.85rem; color: var(--muted); margin-top: 0.25rem;">Configurez les informations affichées sur vos factures</p>
             </div>
             <div class="card-body" style="padding: 0px;">
-              <form id="store-form" class="settings-form">
-                <div style="background: var(--background); border-radius: var(--radius); padding: 1.25rem; margin-bottom: 1rem; ">
+              <div style="background: var(--background); border-radius: var(--radius); padding: 1.25rem; margin-bottom: 1rem; ">
+                <div class="form-group">
+                  <label>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;">
+                      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                      <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                    </svg>
+                    Nom du magasin
+                  </label>
+                  <input type="text" id="store-name" name="store_name" value="" placeholder="Ex: SuperMarché Express" readonly>
+                </div>
+                <div class="form-group">
+                  <label>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;">
+                      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                      <circle cx="12" cy="10" r="3"></circle>
+                    </svg>
+                    Adresse
+                  </label>
+                  <input type="text" id="store-address" name="store_address" value="" placeholder="Ex: 123 Rue Mohammed V, Casablanca" readonly>
+                </div>
+                <div class="form-row">
                   <div class="form-group">
                     <label>
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;">
-                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-                        <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
                       </svg>
-                      Nom du magasin
+                      Téléphone
                     </label>
-                    <input type="text" id="store-name" name="store_name" value="" placeholder="Ex: SuperMarché Express">
+                    <input type="text" id="store-phone" name="store_phone" value="" placeholder="Ex: +212 522 123 456" readonly>
                   </div>
                   <div class="form-group">
                     <label>
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;">
-                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-                        <circle cx="12" cy="10" r="3"></circle>
+                        <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+                        <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
                       </svg>
-                      Adresse
+                      ICE
                     </label>
-                    <input type="text" id="store-address" name="store_address" value="" placeholder="Ex: 123 Rue Mohammed V, Casablanca">
-                  </div>
-                  <div class="form-row">
-                    <div class="form-group">
-                      <label>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;">
-                          <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
-                        </svg>
-                        Téléphone
-                      </label>
-                      <input type="text" id="store-phone" name="store_phone" value="" placeholder="Ex: +212 522 123 456">
-                    </div>
-                    <div class="form-group">
-                      <label>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;">
-                          <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
-                          <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
-                        </svg>
-                        ICE
-                      </label>
-                      <input type="text" id="store-ice" name="store_ice" value="" placeholder="Ex: 001234567890123" style="font-family: 'JetBrains Mono', monospace;">
-                    </div>
+                    <input type="text" id="store-ice" name="store_ice" value="" placeholder="Ex: 001234567890123" style="font-family: 'JetBrains Mono', monospace;" readonly>
                   </div>
                 </div>
-                <button type="submit" class="btn btn-primary" style="width: 100%; padding: 0.875rem;">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
-                    <polyline points="17 21 17 13 7 13 7 21"></polyline>
-                    <polyline points="7 3 7 8 15 8"></polyline>
-                  </svg>
-                  Enregistrer les informations
-                </button>
-              </form>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                      </svg>
+                      RCCM
+                    </label>
+                    <input type="text" id="store-rccm" name="store_rccm" value="" placeholder="Ex: RC123456" readonly>
+                  </div>
+                  <div class="form-group">
+                    <label>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="12" y1="18" x2="12" y2="12"></line>
+                        <line x1="9" y1="15" x2="15" y2="15"></line>
+                      </svg>
+                      ISF
+                    </label>
+                    <input type="text" id="store-isf" name="store_isf" value="" placeholder="Ex: ISF123456" readonly>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -83,41 +99,40 @@
           <div class="card" style="padding:0px;">
             <div class="card-header" style="margin-bottom: 1.5rem;">
               <h3>
-
                 Paramètres TVA
               </h3>
               <p style="font-size: 0.85rem; color: var(--muted); margin-top: 0.25rem;">Définissez le taux de TVA pour vos ventes</p>
             </div>
             <div class="card-body">
-              <form id="tax-form" class="settings-form">
-                <div style="background: var(--background); border-radius: var(--radius); padding: 1.25rem; margin-bottom: 1rem;">
-                  <div class="form-group">
-                    <label>
-                      Taux TVA (%)
-                    </label>
-                    <div style="position: relative; display: flex; align-items: center;">
-                      <input type="number" id="tax-rate" name="tax_rate" value="16" min="0" max="100" style="padding-right: 50px; text-align: center; font-size: 1.25rem; font-weight: 600;">
-                      <span style="position: absolute; right: 16px; color: var(--muted); font-size: 1rem;">%</span>
-                    </div>
-
+              <div style="background: var(--background); border-radius: var(--radius); padding: 1.25rem; margin-bottom: 1rem;">
+                <div class="form-group">
+                  <label>
+                    Taux TVA (%)
+                  </label>
+                  <div style="position: relative; display: flex; align-items: center;">
+                    <input type="number" id="tax-rate" name="tax_rate" value="16" min="0" max="100" readonly style="padding-right: 50px; text-align: center; font-size: 1.25rem; font-weight: 600;">
+                    <span style="position: absolute; right: 16px; color: var(--muted); font-size: 1rem;">%</span>
                   </div>
-
-
                 </div>
-                <button type="submit" class="btn btn-primary" style="width: 100%; padding: 0.875rem;">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
-                    <polyline points="17 21 17 13 7 13 7 21"></polyline>
-                    <polyline points="7 3 7 8 15 8"></polyline>
-                  </svg>
-                  Enregistrer le taux
-                </button>
-              </form>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
+      <style>
+        #page-settings input[readonly] {
+          background-color: var(--background);
+          color: var(--text);
+          cursor: default;
+          opacity: 0.9;
+        }
+
+        #page-settings input[readonly]:focus {
+          border-color: var(--border);
+          outline: none;
+        }
+      </style>
       <script>
         // Charger les paramètres au démarrage
         async function loadSettings() {
@@ -125,50 +140,18 @@
             const res = await fetch(APP_URL + '/api/settings');
             const data = await res.json();
 
-            // Remplir les champs du formulaire
+            // Remplir les champs (readonly mais avec valeur pour affichage)
             document.getElementById('store-name').value = data.store_name || '';
             document.getElementById('store-address').value = data.store_address || '';
             document.getElementById('store-phone').value = data.store_phone || '';
             document.getElementById('store-ice').value = data.store_ice || '';
+            document.getElementById('store-rccm').value = data.store_rccm || '';
+            document.getElementById('store-isf').value = data.store_isf || '';
             document.getElementById('tax-rate').value = data.tax_rate || 16;
           } catch (e) {
             console.error('Erreur chargement settings:', e);
           }
         }
-
-        // Soumettre le formulaire du magasin
-        document.getElementById('store-form').addEventListener('submit', async (e) => {
-          e.preventDefault();
-          const formData = new FormData(e.target);
-
-          try {
-            const res = await fetch(APP_URL + '/api/settings/store', {
-              method: 'POST',
-              body: formData
-            });
-            const data = await res.json();
-            alert(data.message || 'Paramètres sauvegardés');
-          } catch (e) {
-            alert('Erreur lors de la sauvegarde');
-          }
-        });
-
-        // Soumettre le formulaire TVA
-        document.getElementById('tax-form').addEventListener('submit', async (e) => {
-          e.preventDefault();
-          const formData = new FormData(e.target);
-
-          try {
-            const res = await fetch(APP_URL + '/api/settings/tax', {
-              method: 'POST',
-              body: formData
-            });
-            const data = await res.json();
-            alert(data.message || 'Taux TVA sauvegardé');
-          } catch (e) {
-            alert('Erreur lors de la sauvegarde');
-          }
-        });
 
         // Charger au démarrage
         loadSettings();

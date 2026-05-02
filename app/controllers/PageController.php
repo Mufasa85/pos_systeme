@@ -126,7 +126,15 @@ class PageController
     {
         $categoryModel = new \App\Models\Category();
         $categories = $categoryModel->all();
-        $this->render('caisse', ['categories' => $categories]);
+
+        // Charger les types de clients pour le select
+        $typeClientModel = new \App\Models\TypeClient();
+        $clientTypes = $typeClientModel->getAll();
+
+        $this->render('caisse', [
+            'categories' => $categories,
+            'clientTypes' => $clientTypes
+        ]);
     }
 
     public function produits()

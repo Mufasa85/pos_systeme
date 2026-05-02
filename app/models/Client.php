@@ -19,10 +19,10 @@ class Client
      */
     public function getAll()
     {
-        $sql = "SELECT c.*, tc.nom as type_nom 
+        $sql = "SELECT c.*, tc.code as type_code, tc.description as type_description 
                 FROM {$this->table} c
                 LEFT JOIN type_client tc ON c.type_client_id = tc.id
-                ORDER BY c.nom ASC";
+                ORDER BY c.nom_client ASC";
         return $this->db->query($sql);
     }
 
@@ -31,7 +31,7 @@ class Client
      */
     public function findByNumero($numero)
     {
-        $sql = "SELECT c.*, tc.nom as type_nom, tc.description as type_description
+        $sql = "SELECT c.*, tc.code as type_code, tc.description as type_description
                 FROM {$this->table} c
                 LEFT JOIN type_client tc ON c.type_client_id = tc.id
                 WHERE c.numero = ?";
@@ -44,7 +44,7 @@ class Client
      */
     public function findById($id)
     {
-        $sql = "SELECT c.*, tc.nom as type_nom 
+        $sql = "SELECT c.*, tc.code as type_code, tc.description as type_description 
                 FROM {$this->table} c
                 LEFT JOIN type_client tc ON c.type_client_id = tc.id
                 WHERE c.id = ?";
@@ -60,22 +60,21 @@ class Client
         // Générer le code client automatiquement
         $lastId = $this->db->query("SELECT MAX(id) as max_id FROM {$this->table}");
         $nextNum = ($lastId && $lastId[0]['max_id']) ? $lastId[0]['max_id'] + 1 : 1;
-        $code_client = 'CLI-' . str_pad($nextNum, 5, '0', STR_PAD_LEFT);
+        $code_client = 'CLI-' . str_pad($nextNum, 3, '0', STR_PAD_LEFT);
 
         $sql = "INSERT INTO {$this->table} 
-                (nom, numero, code_client, type_client_id, adresse, email) 
-                VALUES (?, ?, ?, ?, ?, ?)";
-        
-        $result = $this->db->query($sql, [
-            $data['nom'],
+                (nom_client, numero, code_client, type_client_id, nif) 
+                VALUES (?, ?, ?, ?, ?)";
+
+        $this->db->execute($sql, [
+            $data['nom_client'],
             $data['numero'],
             $code_client,
             $data['type_client_id'] ?? 1,
-            $data['adresse'] ?? null,
-            $data['email'] ?? null
+            $data['nif'] ?? ''
         ]);
 
-        return $result ? $this->findById($this->db->lastInsertId()) : null;
+        return $this->db->lastInsertId();
     }
 
     /**
@@ -84,15 +83,13 @@ class Client
     public function update($id, $data)
     {
         $sql = "UPDATE {$this->table} 
-                SET nom = ?, numero = ?, type_client_id = ?, adresse = ?, email = ? 
+                SET nom_client = ?, numero = ?, type_client_id = ? 
                 WHERE id = ?";
-        
+
         return $this->db->query($sql, [
-            $data['nom'],
+            $data['nom_client'],
             $data['numero'],
             $data['type_client_id'] ?? 1,
-            $data['adresse'] ?? null,
-            $data['email'] ?? null,
             $id
         ]);
     }
@@ -111,7 +108,7 @@ class Client
      */
     public function getTypes()
     {
-        $sql = "SELECT * FROM type_client WHERE actif = 1 ORDER BY nom ASC";
+        $sql = "SELECT * FROM type_client ORDER BY code ASC";
         return $this->db->query($sql);
     }
 }

@@ -19,7 +19,7 @@ class Database
                 \PDO::ATTR_DEFAULT_FETCH_MODE => \PDO::FETCH_ASSOC,
                 \PDO::ATTR_EMULATE_PREPARES   => false,
             ];
-            $this->pdo = new \PDO($dsn, 'randy', 'MUFASA', $options);
+            $this->pdo = new \PDO($dsn, 'root', 'root', $options);
         } catch (\PDOException $e) {
             die("Database Connection failed: " . $e->getMessage());
         }
@@ -43,7 +43,7 @@ class Database
     {
         $stmt = $this->pdo->prepare($sql);
         $stmt->execute($params);
-        return $stmt;
+        return $stmt->fetchAll();
     }
 
     // Retourne true si la requête s'est exécutée sans erreur (indépendamment du nombre de lignes affectées)
@@ -63,12 +63,16 @@ class Database
 
     public function fetchAll($sql, $params = [])
     {
-        return $this->query($sql, $params)->fetchAll();
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->fetchAll();
     }
 
     public function fetch($sql, $params = [])
     {
-        return $this->query($sql, $params)->fetch();
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->fetch();
     }
 
     // 🔹 Gestion des transactions
@@ -85,5 +89,10 @@ class Database
     public function rollBack()
     {
         return $this->pdo->rollBack();
+    }
+
+    public function lastInsertId()
+    {
+        return $this->pdo->lastInsertId();
     }
 }

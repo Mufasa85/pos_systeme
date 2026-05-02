@@ -80,7 +80,9 @@ class SettingsController
             'store_name'    => $_POST['store_name'] ?? '',
             'store_address' => $_POST['store_address'] ?? '',
             'store_phone'   => $_POST['store_phone'] ?? '',
-            'store_ice'     => $_POST['store_ice'] ?? ''
+            'store_ice'     => $_POST['store_ice'] ?? '',
+            'store_rccm'    => $_POST['store_rccm'] ?? '',
+            'store_isf'     => $_POST['store_isf'] ?? ''
         ];
 
         try {

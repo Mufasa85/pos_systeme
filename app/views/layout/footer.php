@@ -35,12 +35,11 @@
         </div>
         <div class="modal-actions">
           <button type="button" class="btn btn-secondary" onclick="posCart.closePreview()">Annuler</button>
-          <button type="button" id="confirm-sale" class="btn btn-primary" onclick="posCart.closePreview(); posCart.showPaymentModal();">
+          <button type="button" id="confirm-sale" class="btn btn-primary" onclick="posCart.confirmSale()">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
-              <line x1="1" y1="10" x2="23" y2="10"></line>
+              <polyline points="20 6 9 17 4 12"></polyline>
             </svg>
-            Payer maintenant
+            Valider la facture
           </button>
         </div>
       </div>
@@ -86,7 +85,7 @@
                     <polyline points="17 8 12 3 7 8"></polyline>
                     <line x1="12" y1="3" x2="12" y2="15"></line>
                   </svg>
-                   image
+                  image
                 </label>
                 <button type="button" class="btn btn-ghost" onclick="clearProductImage();" id="clear-image-btn" style="display: none; margin-left: 0.5rem;">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

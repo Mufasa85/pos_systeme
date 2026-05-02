@@ -3,110 +3,195 @@
 namespace App\Controllers;
 
 use App\Models\Client;
+use App\Models\TypeClient;
+use App\Core\Database;
 
-class ClientController extends Controller
+class ClientController
 {
     private $clientModel;
+    private $typeClientModel;
 
     public function __construct()
     {
         $this->clientModel = new Client();
+        $this->typeClientModel = new TypeClient();
     }
 
     /**
-     * GET /api/clients - Liste tous les clients
+     * Liste tous les clients
+     * GET /api/clients
      */
     public function index()
     {
-        $clients = $this->clientModel->getAll();
-        $types = $this->clientModel->getTypes();
+        header('Content-Type: application/json');
 
-        echo json_encode([
-            'clients' => $clients,
-            'types' => $types
-        ]);
+        try {
+            $clients = $this->clientModel->getAll();
+            echo json_encode($clients);
+        } catch (\Exception $e) {
+            echo json_encode([
+                'success' => false,
+                'message' => 'Erreur: ' . $e->getMessage()
+            ]);
+        }
     }
 
     /**
-     * GET /api/client/lookup?numero=xxx - Recherche un client par numéro
+     * Rechercher un client par numéro
+     * GET /api/client/lookup?numero=...
      */
     public function lookup()
     {
+        header('Content-Type: application/json');
+
         $numero = $_GET['numero'] ?? '';
 
         if (empty($numero)) {
             echo json_encode([
-                'found' => false,
-                'message' => 'Numéro requis'
+                'success' => false,
+                'message' => 'Le numéro est requis'
             ]);
             return;
         }
 
-        $client = $this->clientModel->findByNumero($numero);
-
-        if ($client) {
+        try {
+            $client = $this->clientModel->findByNumero($numero);
             echo json_encode([
-                'found' => true,
+                'found' => !empty($client),
                 'client' => $client
             ]);
-        } else {
+        } catch (\Exception $e) {
             echo json_encode([
-                'found' => false,
-                'numero' => $numero
+                'success' => false,
+                'message' => 'Erreur: ' . $e->getMessage()
             ]);
         }
     }
 
     /**
-     * POST /api/client - Crée un nouveau client
+     * Créer un nouveau client
+     * POST /api/client
      */
     public function create()
     {
         header('Content-Type: application/json');
-        
-        $data = json_decode(file_get_contents('php://input'), true);
 
-        if (empty($data['nom']) || empty($data['numero'])) {
-            echo json_encode([
-                'success' => false,
-                'message' => 'Nom et numéro sont requis'
+        try {
+            $input = json_decode(file_get_contents('php://input'), true);
+
+            $nom = $input['nom'] ?? '';
+            $numero = $input['numero'] ?? '';
+            $typeClientId = $input['type_client_id'] ?? 1;
+            $nif = $input['nif'] ?? '';
+
+            if (empty($nom) || empty($numero)) {
+                echo json_encode([
+                    'success' => false,
+                    'message' => 'Le nom et le numéro sont requis'
+                ]);
+                return;
+            }
+
+            // Vérifier si le client existe déjà
+            $existing = $this->clientModel->findByNumero($numero);
+            if ($existing) {
+                echo json_encode([
+                    'success' => false,
+                    'message' => 'Ce numéro est déjà utilisé',
+                    'client' => $existing
+                ]);
+                return;
+            }
+
+            // Créer le client
+            $clientId = $this->clientModel->create([
+                'nom_client' => $nom,
+                'numero' => $numero,
+                'type_client_id' => $typeClientId,
+                'nif' => $nif
             ]);
-            return;
-        }
 
-        // Vérifier si le client existe déjà
-        $existing = $this->clientModel->findByNumero($data['numero']);
-        if ($existing) {
-            echo json_encode([
-                'success' => false,
-                'message' => 'Ce numéro existe déjà',
-                'client' => $existing
-            ]);
-            return;
-        }
+            // Récupérer le client créé
+            $client = $this->clientModel->findById($clientId);
 
-        $client = $this->clientModel->create($data);
-
-        if ($client) {
             echo json_encode([
                 'success' => true,
                 'message' => 'Client créé avec succès',
                 'client' => $client
             ]);
-        } else {
+        } catch (\Exception $e) {
             echo json_encode([
                 'success' => false,
-                'message' => 'Erreur lors de la création du client'
+                'message' => 'Erreur: ' . $e->getMessage()
             ]);
         }
     }
 
     /**
-     * GET /api/client/types - Liste les types de clients
+     * Récupérer tous les types de clients
+     * GET /api/client/types
      */
-    public function types()
+    public function getTypes()
     {
-        $types = $this->clientModel->getTypes();
-        echo json_encode($types);
+        header('Content-Type: application/json');
+
+        try {
+            $types = $this->typeClientModel->getAll();
+            echo json_encode($types);
+        } catch (\Exception $e) {
+            echo json_encode([
+                'success' => false,
+                'message' => 'Erreur: ' . $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Rechercher un client par numéro de téléphone
+     * GET /api/client/search?numero=0816069107
+     */
+    public function searchByNumero()
+    {
+        header('Content-Type: application/json');
+
+        $numero = $_GET['numero'] ?? '';
+
+        if (empty($numero)) {
+            echo json_encode([
+                'success' => false,
+                'message' => 'Le numéro de téléphone est requis'
+            ]);
+            return;
+        }
+
+        try {
+            $client = $this->clientModel->findByNumero($numero);
+
+            if ($client) {
+                echo json_encode([
+                    'success' => true,
+                    'client' => [
+                        'id' => $client['id'],
+                        'nom_client' => $client['nom_client'],
+                        'numero' => $client['numero'],
+                        'code_client' => $client['code_client'],
+                        'type_id' => $client['type_client_id'] ?? null,
+                        'type_code' => $client['type_code'] ?? '',
+                        'type_description' => $client['type_description'] ?? '',
+                        'nif' => $client['nif'] ?? ''
+                    ]
+                ]);
+            } else {
+                echo json_encode([
+                    'success' => false,
+                    'message' => 'Client non trouvé'
+                ]);
+            }
+        } catch (\Exception $e) {
+            echo json_encode([
+                'success' => false,
+                'message' => 'Erreur lors de la recherche: ' . $e->getMessage()
+            ]);
+        }
     }
 }

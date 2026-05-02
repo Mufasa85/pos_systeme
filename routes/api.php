@@ -7,6 +7,7 @@ use App\Controllers\ProductController;
 use App\Controllers\SaleController;
 use App\Controllers\UserController;
 use App\Controllers\SettingsController;
+use App\Controllers\ClientController;
 use App\Core\Router;
 
 Router::get("/api/produits", [ProductController::class, 'index']);
