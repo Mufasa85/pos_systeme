@@ -141,13 +141,16 @@ class PageController
     {
         $productModel = new Product();
         $categoryModel = new \App\Models\Category();
+        $taxModel = new \App\Models\Tax();
 
         $produits = $productModel->getAll();
         $categories = $categoryModel->all();
+        $taxes = $taxModel->getAll();
 
         $this->render('produits', [
             'produits' => $produits,
-            'categories' => $categories
+            'categories' => $categories,
+            'taxes' => $taxes
         ]);
     }
 

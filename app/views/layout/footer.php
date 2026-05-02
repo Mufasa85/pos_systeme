@@ -167,6 +167,23 @@
               <div class="form-group">
                 <label>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                  </svg>
+                  Type de taxe
+                </label>
+                <select id="product-tax" required>
+                  <option value="">Sélectionner le groupe de taxe</option>
+                  <?php foreach ($taxes ?? [] as $tax): ?>
+                    <option value="<?= $tax['id'] ?>"><?= htmlspecialchars($tax['groupe_taxe']) ?> - <?= htmlspecialchars($tax['etiquette']) ?> (<?= $tax['taux'] ?>%)</option>
+                  <?php endforeach; ?>
+                </select>
+              </div>
+            </div>
+            <div class="form-row" style="margin-top: 1rem;">
+              <div class="form-group" style="flex: 1;">
+                <label>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;">
                     <line x1="12" y1="1" x2="12" y2="23"></line>
                     <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
                   </svg>

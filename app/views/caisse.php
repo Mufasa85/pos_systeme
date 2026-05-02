@@ -53,12 +53,9 @@
         <!-- Loader pour le chargement des produits -->
         <div class="products-loader" id="products-loader">
           <div class="loader-spinner"></div>
-          <span>Chargement...</span>
         </div>
       </div>
-      <div id="products-grid" class="products-grid">
-        <div class="empty-state">Chargement des produits...</div>
-      </div>
+      <div id="products-grid" class="products-grid"></div>
     </div>
 
     <!-- Cart Section (Sidebar sur mobile) -->

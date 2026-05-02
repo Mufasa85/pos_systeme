@@ -145,20 +145,28 @@ const posCart = {
         const grid = $('#products-grid');
         if (!grid) return;
 
-        let html = list.map(p => `
-            <div class="product-card ${p.stock <= 0 ? 'out-of-stock' : ''}" 
+        let html = list.map(p => {
+            const name = p.nom || 'Sans nom';
+            const price = parseFloat(p.prix) || 0;
+            const barcode = p.code_barres || 'N/A';
+            const stock = parseInt(p.stock) || 0;
+            const image = p.image || '';
+            
+            return `
+            <div class="product-card ${stock <= 0 ? 'out-of-stock' : ''}" 
                  onclick="posCart.addToCart(${p.id})"
-                 ${p.stock <= 0 ? 'title="Rupture de stock"' : ''}>
+                 ${stock <= 0 ? 'title="Rupture de stock"' : ''}>
               <div class="product-image">
-                <img src="${p.image}" alt="${p.nom}" onerror="this.parentElement.innerHTML='<svg width=\\'40\\\' height=\\'50\\\' viewBox=\\'0 0 24 24\\\' fill=\\'none\\\' stroke=\\'currentColor\\\' stroke-width=\\'1.5\\\'><path d=\\'M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z\\\'></path><line x1=\\'3\\\' y1=\\'6\\\' x2=\\'21\\\' y2=\\'6\\\'></line><path d=\\'M16 10a4 4 0 0 1-8 0\\\'></path></svg>'">
+                ${image ? `<img src="${image}" alt="${name}" onerror="this.parentElement.innerHTML='<svg width=\\'40\\\' height=\\'50\\\' viewBox=\\'0 0 24 24\\\' fill=\\'none\\\' stroke=\\'currentColor\\\' stroke-width=\\'1.5\\\'><path d=\\'M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z\\\'></path><line x1=\\'3\\\' y1=\\'6\\\' x2=\\'21\\\' y2=\\'6\\\'></line><path d=\\'M16 10a4 4 0 0 1-8 0\\\'></path></svg>'">` : '<svg width="40" height="50" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>'}
               </div>
               <div class="product-info">
-                <div class="name">${p.nom}</div>
-                <div class="price">${formatCurrency(parseFloat(p.prix))}</div>
-                <div class="barcode-display">${p.code_barres}</div>
+                <div class="name">${name}</div>
+                <div class="price">${formatCurrency(price)}</div>
+                <div class="barcode-display">${barcode}</div>
               </div>
             </div>
-        `);
+            `;
+        });
 
         // Compléter jusqu'à 20 cartes avec des placeholders (PC/Tablette uniquement, pas mobile)
         const targetCards = 20;
@@ -966,6 +974,7 @@ const posCart = {
         formData.append('prix', $('#product-price').value);
         formData.append('stock', $('#product-stock').value);
         formData.append('stock_minimum', $('#product-min-stock').value);
+        formData.append('taxe_id', $('#product-tax').value);
         if ($('#product-image').files[0]) {
             formData.append('image', $('#product-image').files[0]);
         }
@@ -1028,6 +1037,12 @@ function setProductForm(product) {
     // Selectionner la bonne categorie
     const categorySelect = $('#product-category');
     categorySelect.value = product.category_id;
+
+    // Selectionner le type de taxe
+    const taxSelect = $('#product-tax');
+    if (taxSelect && product.taxe_id) {
+        taxSelect.value = product.taxe_id;
+    }
 
     $('#product-modal').classList.add('active');
 }
