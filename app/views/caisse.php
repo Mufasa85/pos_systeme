@@ -102,7 +102,7 @@
           <select id="client-type" class="client-number-input" style="flex: 1;">
             <option value="">Type client</option>
             <?php foreach ($clientTypes as $type): ?>
-              <option value="<?= $type['id'] ?>"><?= htmlspecialchars($type['code']) ?> - <?= htmlspecialchars($type['description']) ?></option>
+              <option value="<?= $type['id'] ?>"><?= htmlspecialchars($type['code']) ?></option>
             <?php endforeach; ?>
           </select>
           <input type="text" id="client-nif" class="client-number-input" placeholder="NIF client" style="flex: 1;">

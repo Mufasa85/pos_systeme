@@ -8,7 +8,7 @@
           <div id="receipt-content"></div>
         </div>
         <div class="receipt-actions">
-          <button id="close-receipt" class="btn btn-secondary" onclick="document.getElementById('receipt-modal').classList.remove('active')">
+          <button id="close-receipt" class="btn btn-secondary" onclick="closeReceiptModal()">
             Annuler
           </button>
           <button id="print-receipt" class="btn btn-primary">

@@ -3,6 +3,13 @@ const $$ = (s) => document.querySelectorAll(s);
 
 const formatCurrency = (amount) => amount.toFixed(2) + ' Fc';
 
+// Formater le numéro de téléphone pour masquer les 4 derniers chiffres
+const formatPhoneNumber = (phone) => {
+    if (!phone || phone.length < 6) return phone;
+    const visible = phone.substring(0, 6);
+    return visible + '****';
+};
+
 // DGI API Configuration - utilise le proxy local pour eviter CORS
 const DGI_API_URL = APP_URL + '/api/dgi';
 
@@ -63,7 +70,7 @@ async function loadClientTypes() {
             types.forEach(type => {
                 const option = document.createElement('option');
                 option.value = type.id;
-                option.textContent = `${type.code} - ${type.description}`;
+                option.textContent = `${type.code} `;
                 typeSelect.appendChild(option);
             });
         }
@@ -359,7 +366,7 @@ const posCart = {
             totalTax += itemTax;
         }
 
-        const subtotalTTC = subtotalHT + totalTax;
+        const subtotalTTC = subtotalHT ;
 
         $('#subtotal').textContent = formatCurrency(subtotalHT);
         $('#tax').textContent = formatCurrency(totalTax);
@@ -525,6 +532,18 @@ const posCart = {
     async showPreview() {
         if (this.items.length === 0) return;
 
+        // Fermer le panier mobile (sidebar) avant d'afficher la validation
+        const cart = document.getElementById('caisse-cart');
+        const overlay = document.getElementById('cart-sidebar-overlay');
+        if (cart) {
+            cart.classList.remove('open');
+            cart.classList.remove('mobile-open');
+        }
+        if (overlay) {
+            overlay.classList.remove('active');
+        }
+        document.body.style.overflow = '';
+
         // Si le mode calculatrice est activé, ouvrir le modal de paiement
         if (this.calcMode) {
             this.showPaymentModal();
@@ -634,7 +653,7 @@ const posCart = {
                 <div class="receipt-footer">
                     <div class="barcode">${invoiceNum}</div>
                     <div class="thank-you">Merci de votre visite!</div>
-                    <div style="margin-top: 5px; font-size: 9px; font-style: italic;">Conservez ce ticket pour tout echange</div>
+                    <div style="margin-top: 5px; font-size: 9px; font-style: italic;">---Powered By Osat----</div>
                 </div>
             </div>
         `;
@@ -847,14 +866,14 @@ const posCart = {
             };
 
             // Construire le HTML du recap DGI
-            let dgiInfoHtml = '<div style="background: #e8f5e9; border: 1px solid #4caf50; border-radius: 8px; padding: 10px; margin: 10px 0; text-align: center;"><div style="color: #2e7d32; font-weight: bold; font-size: 11px;">VALIDE DGI - ' + (dgiResponse.message || 'Facture generee avec succes') + '</div>';
+            let dgiInfoHtml = '<div style="background: #e8f5e9; border: 1px solid #4caf50; border-radius: 8px; padding: 10px; margin: 10px 0; text-align: center;"><div style="color: #2e7d32; font-weight: bold; font-size: 11px;">--- Elements de securite de la facture normalisee ---</div>';
             if (dgiResponse.data) {
                 console.log(dgiResponse)
-                dgiInfoHtml += '<div style="font-size: 14px; color: #555; margin-top: 5px;">';
-                if (dgiResponse.data.dateDGI) dgiInfoHtml += 'Date: ' + dgiResponse.data.dateDGI + '\n';
-                if (dgiResponse.data.counters) dgiInfoHtml += 'Compteur: ' + dgiResponse.data.counters;
-                if (dgiResponse.data.codeDEFDGI) dgiInfoHtml += '<br>DEF: ' + dgiResponse.data.codeDEFDGI;
-                if (dgiResponse.data.nim) dgiInfoHtml += '<br> NIM : ' + dgiResponse.data.nim;
+                dgiInfoHtml += '<div style="font-size: 12px; color: #555; margin-top: 4px;">';
+                if (dgiResponse.data.codeDEFDGI) dgiInfoHtml += 'CODE DEF/DGI: ' + dgiResponse.data.codeDEFDGI;
+                if (dgiResponse.data.nim) dgiInfoHtml += '<br> DEF NID : ' + dgiResponse.data.nim;
+                if (dgiResponse.data.counters) dgiInfoHtml += '<br> DEF Compteurs: ' + dgiResponse.data.counters;
+                if (dgiResponse.data.dateDGI) dgiInfoHtml += '<br> DEF Heure : ' + dgiResponse.data.dateDGI + '\n';
                 dgiInfoHtml += '</div>';
             }
             dgiInfoHtml += '</div>';
@@ -886,7 +905,7 @@ const posCart = {
             let infoSection = `<div style="border-top: 1px dashed #ccc; margin-top: 6px; padding-top: 6px; text-align: left; font-size: 11px; line-height: 1.5;">
                                <div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>Vendeur:</strong></span><span>${vendeur}</span></div>
                                ${acheteurNom ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>Client:</strong></span><span>${acheteurNom}</span></div>` : ''}
-                               ${acheteurNumero ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>Num:</strong></span><span>${acheteurNumero}</span></div>` : ''}
+                               ${acheteurNumero ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>Num:</strong></span><span>${formatPhoneNumber(acheteurNumero)}</span></div>` : ''}
                                ${acheteurTypeInitiales ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>Type:</strong></span><span>${acheteurTypeInitiales}</span></div>` : ''}
                                ${acheteurNif ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>NIF:</strong></span><span>${acheteurNif}</span></div>` : ''}
                                ${STORE_INFO.isf ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>ISF:</strong></span><span>${STORE_INFO.isf}</span></div>` : ''}
@@ -953,7 +972,7 @@ const posCart = {
                         <div id="${qrContainerId}" class="qrcode-container"></div>
                         <div class="barcode">${saleData.numero_facture}</div>
                         <div class="thank-you">Merci de votre visite!</div>
-                        <div style="margin-top: 5px; font-size: 9px; font-style: italic;">Conservez ce ticket pour tout echange</div>
+                        <div style="margin-top: 5px; font-size: 9px; font-style: italic;">---Powered By Osat---</div>
                     </div>
                 </div>
             `;
@@ -1396,7 +1415,7 @@ function viewSaleDetails(saleId) {
                         <div class="vendeur-info">Vendeur: ${sale.nom_vendeur || (typeof CURRENT_USER !== 'undefined' && CURRENT_USER.fullName ? CURRENT_USER.fullName : 'N/A')}</div>
                         <div class="barcode">||| ${sale.numero_facture} |||</div>
                         <div class="thank-you">Merci de votre visite!</div>
-                        <p style="margin-top: 5px; color: #555; font-size: 9px;">Conservez ce ticket pour tout echange</p>
+                        <p style="margin-top: 5px; color: #555; font-size: 9px;">---Powered By Osat---</p>
                     </div>
                 </div>
             `;
@@ -1419,6 +1438,31 @@ function closeProductModal() {
     $('#product-form').reset();
     $('#product-id').value = '';
     $('#product-modal-title').textContent = 'Ajouter un produit';
+}
+
+function closeReceiptModal() {
+    // Fermer le modal du reçu
+    const receiptModal = document.getElementById('receipt-modal');
+    if (receiptModal) {
+        receiptModal.classList.remove('active');
+    }
+    // Fermer le panier mobile (sidebar) si on est sur mobile
+    const cart = document.getElementById('caisse-cart');
+    const overlay = document.getElementById('cart-sidebar-overlay');
+    if (cart) {
+        cart.classList.remove('open');
+        cart.classList.remove('mobile-open');
+        cart.classList.remove('active');
+    }
+    if (overlay) {
+        overlay.classList.remove('active');
+    }
+    document.body.style.overflow = '';
+    // Cacher le bouton flottant si le panier est vide
+    const floatingBtn = document.getElementById('cart-floating-btn');
+    if (floatingBtn && posCart && posCart.items.length === 0) {
+        floatingBtn.style.display = 'none';
+    }
 }
 
 function generateBarcode() {

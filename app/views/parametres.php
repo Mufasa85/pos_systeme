@@ -93,20 +93,52 @@
             </div>
           </div>
 
-          <!-- Paramètres TVA -->
+          <!-- Abonnement -->
           <div class="card" style="padding: 1.5rem;">
             <div class="card-header" style="margin-bottom: 1.5rem; padding: 0;">
-              <h3>Paramètres TVA</h3>
-              <p style="font-size: 0.85rem; color: var(--muted); margin-top: 0.25rem;">Définissez le taux de TVA pour vos ventes</p>
+              <h3>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 8px; vertical-align: middle;">
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                  <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                </svg>
+                Abonnement
+              </h3>
             </div>
-            <div class="settings-form-container" style="background: var(--background); border-radius: var(--radius); padding: 1.25rem;">
-              <div class="form-group">
-                <label>Taux TVA (%)</label>
-                <div style="position: relative; display: flex; align-items: center;">
-                  <input type="number" id="tax-rate" name="tax_rate" value="16" min="0" max="100" readonly style="padding-right: 50px; text-align: center; font-size: 1.25rem; font-weight: 600; width: 100%;">
-                  <span style="position: absolute; right: 16px; color: var(--muted); font-size: 1rem;">%</span>
+            <div class="settings-form-container" style="background: var(--background); border-radius: var(--radius); padding: 1.25rem; text-align: center;">
+              <div style="background: linear-gradient(135deg, #e8f5e9 0%, #f1f8e9 100%); border: 1px solid #81c784; border-radius: 12px; padding: 16px; margin-bottom: 16px;">
+                <div style="font-size: 0.9rem; font-weight: 600; color: #2e7d32; margin-bottom: 12px;">
+                   Comment procéder au réabonnement ?
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 8px; text-align: left;">
+                  <div style="display: flex; align-items: center; gap: 10px; font-size: 0.85rem; color: #333;">
+                    <span style="background: #0B5E88; color: white; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.75rem;">1</span>
+                    <span>Cliquez sur le bouton <strong>"Recharger abonnement"</strong></span>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 10px; font-size: 0.85rem; color: #333;">
+                    <span style="background: #0B5E88; color: white; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.75rem;">2</span>
+                    <span>Accédez à la page de paiement</span>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 10px; font-size: 0.85rem; color: #333;">
+                    <span style="background: #0B5E88; color: white; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.75rem;">3</span>
+                    <span>Saisissez vos informations de paiement</span>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 10px; font-size: 0.85rem; color: #333;">
+                    <span style="background: #0B5E88; color: white; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.75rem;">4</span>
+                    <span>Validez votre paiement via <strong>USSD Mobile Money PIN</strong></span>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 10px; font-size: 0.85rem; color: #333;">
+                    <span style="background: #4caf50; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">✓</span>
+                    <span>Votre compte sera <strong>automatiquement crédité</strong></span>
+                  </div>
                 </div>
               </div>
+              <button type="button" id="btn-reload-subscription" class="btn btn-primary" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;" onclick="reloadSubscription()">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="23 4 23 10 17 10"></polyline>
+                  <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                </svg>
+                Recharger abonnement
+              </button>
             </div>
           </div>
         </div>
@@ -217,10 +249,48 @@
             document.getElementById('store-ice').value = data.store_ice || '';
             document.getElementById('store-rccm').value = data.store_rccm || '';
             document.getElementById('store-isf').value = data.store_isf || '';
-            document.getElementById('tax-rate').value = data.tax_rate || 16;
           } catch (e) {
             console.error('Erreur chargement settings:', e);
           }
+        }
+
+        // Recharger l'abonnement avec un code d'activation
+        async function reloadSubscription() {
+          const codeInput = document.getElementById('activation-code');
+          const btn = document.getElementById('btn-reload-subscription');
+          
+          if (!codeInput || !codeInput.value.trim()) {
+            alert('Veuillez entrer un code d\'activation');
+            return;
+          }
+
+          // Désactiver le bouton pendant le traitement
+          btn.disabled = true;
+          btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation: spin 1s linear infinite;"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg> Traitement en cours...';
+
+          try {
+            const res = await fetch(APP_URL + '/api/subscription/reload', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ activation_code: codeInput.value.trim() })
+            });
+            
+            const data = await res.json();
+            
+            if (data.success) {
+              alert('Abonnement rechargé avec succès !');
+              codeInput.value = '';
+            } else {
+              alert(data.message || 'Erreur lors du rechargement');
+            }
+          } catch (e) {
+            console.error('Erreur reloadSubscription:', e);
+            alert('Erreur de connexion');
+          }
+
+          // Réactiver le bouton
+          btn.disabled = false;
+          btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg> Recharger abonnement';
         }
 
         // Charger au démarrage

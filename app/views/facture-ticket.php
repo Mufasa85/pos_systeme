@@ -161,7 +161,7 @@
         <div style="font-style: italic; font-size: 0.875rem; color: #333;">
             Merci de votre visite!
         </div>
-        <p style="margin-top: 5px; color: #555; font-size: 9px;">Conservez ce ticket pour tout echange</p>
+        <p style="margin-top: 5px; color: #555; font-size: 9px;">---Powered By Osat---</p>
     </div>
 </div>
 

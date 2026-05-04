@@ -1,13 +1,13 @@
 <?php
 // config/config.php
 
-define('DB_HOST', 'localhost');
-define('DB_USER', 'root');
-define('DB_PASS', 'root');
-define('DB_NAME', 'pos_system');
+ define('DB_HOST', 'localhost');
+ define('DB_USER', 'randy');
+ define('DB_PASS', 'MUFASA');
+ define('DB_NAME', 'pos_system');
 
-define('APP_URL', 'http://localhost:8000');
-define('BASE_PATH', dirname(__DIR__) . '/');
+ define('APP_URL', 'http://localhost:8000');
+ define('BASE_PATH', dirname(__DIR__) . '/');
 
 
 // config/config.php
