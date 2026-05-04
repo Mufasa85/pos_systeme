@@ -124,15 +124,15 @@
       </div>
       <div class="cart-totals">
         <div class="total-row">
-          <span>Sous-total</span>
+          <span>Sous-total HT</span>
           <span id="subtotal">0.00 Fc</span>
         </div>
         <div class="total-row">
-          <span>TVA (16%)</span>
+          <span>TVA</span>
           <span id="tax">0.00 Fc</span>
         </div>
         <div class="total-row total-final">
-          <span>TOTAL</span>
+          <span>TOTAL TTC</span>
           <span id="total">0.00 Fc</span>
         </div>
       </div>

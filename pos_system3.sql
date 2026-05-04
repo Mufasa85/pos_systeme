@@ -181,6 +181,13 @@ CREATE TABLE `ventes` (
 
 ALTER TABLE settings ADD COLUMN RCCM TEXT NULL;
 ALTER TABLE settings ADD COLUMN NIF TEXT NULL;
+
+-- Add store_rccm and store_isf settings
+INSERT INTO settings (setting_key, value) VALUES ('store_rccm', '') ON DUPLICATE KEY UPDATE value = VALUES(value);
+INSERT INTO settings (setting_key, value) VALUES ('store_isf', '') ON DUPLICATE KEY UPDATE value = VALUES(value);
+
+-- Ajouter la colonne ISF à la table ventes (si elle n'existe pas)
+ALTER TABLE ventes ADD COLUMN isf VARCHAR(100) DEFAULT NULL;
 --
 -- Dumping data for table `ventes`
 --

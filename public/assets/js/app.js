@@ -36,6 +36,8 @@ async function loadStoreInfo() {
             rccm: data.store_rccm || '',
             isf: data.store_isf || ''
         };
+
+        console.log('Informations du magasin chargées:', data);
     } catch (e) {
         console.warn('Impossible de charger les paramètres du magasin, utilisation des valeurs par défaut');
     }
@@ -580,7 +582,7 @@ const posCart = {
                 <div class="receipt-item">
                     <span class="item-name">${item.nom}<span class="item-tax-badge">${taxLabel}</span></span>
                     <span class="item-qty">x${item.quantite}</span>
-                    <span class="item-price">${itemTTC.toFixed(2)}</span>
+                    <span class="item-price">${itemHT.toFixed(2)}</span>
                 </div>
             `;
         }
@@ -620,7 +622,8 @@ const posCart = {
                     <div class="store-info">
                         <div>${STORE_INFO.address}</div>
                         <div>Tel: ${STORE_INFO.phone}</div>
-                        <div>ICE: ${STORE_INFO.ice}</div>
+                        <div>ID Nat: ${STORE_INFO.ice}</div>
+                        <div>RCCM: ${STORE_INFO.rccm}</div>
                         ${storeExtraInfo}
                     </div>
                     ${infoSection}
@@ -874,6 +877,8 @@ const posCart = {
                 if (dgiResponse.data.nim) dgiInfoHtml += '<br> DEF NID : ' + dgiResponse.data.nim;
                 if (dgiResponse.data.counters) dgiInfoHtml += '<br> DEF Compteurs: ' + dgiResponse.data.counters;
                 if (dgiResponse.data.dateDGI) dgiInfoHtml += '<br> DEF Heure : ' + dgiResponse.data.dateDGI + '\n';
+                if (dgiResponse.data.isf) dgiInfoHtml += '<br> ISF : ' + dgiResponse.data.isf;
+                else dgiInfoHtml += '<br> ISF : 0';
                 dgiInfoHtml += '</div>';
             }
             dgiInfoHtml += '</div>';
@@ -917,7 +922,7 @@ const posCart = {
                 const item = this.items[i];
                 const itemHT = item.prix * item.quantite;
                 const itemTax = itemHT * (item.tax_rate / 100);
-                const itemTTC = itemHT + itemTax;
+                const itemTTC = itemHT ;
                 const taxLabel = item.tax_etiquette || (item.tax_rate > 0 ? 'TVA ' + item.tax_rate + '%' : 'Exonere');
                 itemsHtml += `
                     <div class="receipt-item">
@@ -936,12 +941,12 @@ const posCart = {
                         <div class="store-info">
                             <div>${STORE_INFO.address}</div>
                             <div>Tel: ${STORE_INFO.phone}</div>
-                            <div>ICE: ${STORE_INFO.ice}</div>
+                            <div>ID Nat: ${STORE_INFO.ice}</div>
+                            <div>RCCM: ${STORE_INFO.rccm}</div>
                             ${storeExtraInfo}
                         </div>
                         ${infoSection}
                     </div>
-
                     <div class="receipt-meta">
                         <span>${saleData.numero_facture}</span>
                         <span>${formattedDate}</span>
@@ -1383,7 +1388,8 @@ function viewSaleDetails(saleId) {
                         <div class="store-info">
                             ${STORE_INFO.address}<br>
                             Tel: ${STORE_INFO.phone}<br>
-                            ICE: ${STORE_INFO.ice}
+                            ID Nat: ${STORE_INFO.ice}<br>
+                            RCCM: ${STORE_INFO.rccm}
                         </div>
                     </div>
 
