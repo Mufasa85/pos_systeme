@@ -25,12 +25,6 @@
             <?= htmlspecialchars($storeInfo['address'] ?? '') ?><br>
             Tel: <?= htmlspecialchars($storeInfo['phone'] ?? '') ?><br>
             ID nat: <?= htmlspecialchars($storeInfo['ice'] ?? '') ?>
-            <?php if (!empty($storeInfo['rccm'])): ?>
-                <br>RCCM: <?= htmlspecialchars($storeInfo['rccm']) ?>
-            <?php endif; ?>
-            <?php if (!empty($storeInfo['isf'])): ?>
-                <br>ISF: <?= htmlspecialchars($storeInfo['isf']) ?>
-            <?php endif; ?>
         </div>
     </div>
 
@@ -72,12 +66,6 @@
                 <div style="display: flex; justify-content: space-between; gap: 10px;">
                     <span><strong>NIF:</strong></span>
                     <span><?= htmlspecialchars($clientNif) ?></span>
-                </div>
-            <?php endif; ?>
-            <?php if (!empty($storeInfo['isf'])): ?>
-                <div style="display: flex; justify-content: space-between; gap: 10px;">
-                    <span><strong>ISF:</strong></span>
-                    <span><?= htmlspecialchars($storeInfo['isf']) ?></span>
                 </div>
             <?php endif; ?>
         </div>

@@ -403,7 +403,6 @@ const posCart = {
                     store_phone: STORE_INFO.phone,
                     store_address: STORE_INFO.address,
                     store_ice: STORE_INFO.ice,
-                    store_rccm: STORE_INFO.rccm,
                     store_isf: STORE_INFO.isf,
                     seller_name: sellerName,
                     amount: this.currentTotals.total,
@@ -428,8 +427,7 @@ const posCart = {
                 store_phone: STORE_INFO.phone,
                 store_address: STORE_INFO.address,
                 store_ice: STORE_INFO.ice,
-                store_rccm: STORE_INFO.rccm,
-                store_isf: STORE_INFO.isf,
+                    store_isf: STORE_INFO.isf,
                 seller_name: sellerName,
                 amount: this.currentTotals.total,
                 client_number: clientNumero,
@@ -589,6 +587,7 @@ const posCart = {
             `;
         }
 
+<<<<<<< HEAD
         // Ajouter les infos RCCM et ISF si disponibles (chacun sur sa propre ligne)
         let storeExtraInfo = '';
         if (STORE_INFO.rccm) {
@@ -597,6 +596,8 @@ const posCart = {
         if (STORE_INFO.isf) {
             storeExtraInfo += `<div>Numero Impot: ${STORE_INFO.isf}</div>`;
         }
+=======
+>>>>>>> 4b45eb1 (ajout du panier)
 
         // Récupérer les infos de l'acheteur depuis les inputs du panier
         const acheteurNom = $('#client-nom')?.value || (this.currentClient?.nom || '');
@@ -625,15 +626,19 @@ const posCart = {
                         <div>${STORE_INFO.address}</div>
                         <div>Tel: ${STORE_INFO.phone}</div>
                         <div>ID Nat: ${STORE_INFO.ice}</div>
+<<<<<<< HEAD
                         <!--<div>RCCM: ${STORE_INFO.rccm}</div>-->
                         ${storeExtraInfo}
+=======
+                        <div>RCCM: ${STORE_INFO.rccm || ''}</div>
+>>>>>>> 4b45eb1 (ajout du panier)
                     </div>
                     ${infoSection}
                 </div>
 
                 <div class="receipt-meta">
                     <span>${invoiceNum}</span>
-                    <span>${formattedDate}</span>
+                    <span>${document.getElementById('invoice-type')?.value || 'FV'}</span>
                 </div>
 
                 <div class="receipt-items receipt-items-grid">
@@ -837,6 +842,7 @@ const posCart = {
                     sous_total_ht: this.currentTotals.sous_total_ht,
                     tva: this.currentTotals.tva,
                     total: this.currentTotals.total,
+                    type_facture: document.getElementById('invoice-type')?.value || 'FV',
                     dgi_data: {
                         dateDGI: dgiResponse.data ? dgiResponse.data.dateDGI : null,
                         qrCode: dgiResponse.data ? dgiResponse.data.qrCode : '',
@@ -898,6 +904,7 @@ const posCart = {
             const acheteurNumero = $('#client-number')?.value || (this.clientNumber || '');
             const vendeur = (typeof CURRENT_USER !== 'undefined' && CURRENT_USER.fullName) ? CURRENT_USER.fullName : STORE_INFO.name;
 
+<<<<<<< HEAD
             // Ajouter les infos RCCM et ISF si disponibles (chacun sur sa propre ligne)
             let storeExtraInfo = '';
             if (STORE_INFO.rccm) {
@@ -906,6 +913,8 @@ const posCart = {
             if (STORE_INFO.isf) {
                 storeExtraInfo += `<div>Numero Impot: ${STORE_INFO.isf}</div>`;
             }
+=======
+>>>>>>> 4b45eb1 (ajout du panier)
 
             // Construire les infos en une seule section
             let infoSection = `<div style="border-top: 1px dashed #ccc; margin-top: 6px; padding-top: 6px; text-align: left; font-size: 15px; line-height: 1.5;">
@@ -944,14 +953,18 @@ const posCart = {
                             <div>${STORE_INFO.address}</div>
                             <div>Tel: ${STORE_INFO.phone}</div>
                             <div>ID Nat: ${STORE_INFO.ice}</div>
+<<<<<<< HEAD
                             <!--<div>RCCM: ${STORE_INFO.rccm}</div>-->
                             ${storeExtraInfo}
+=======
+                            <div>RCCM: ${STORE_INFO.rccm || ''}</div>
+>>>>>>> 4b45eb1 (ajout du panier)
                         </div>
                         ${infoSection}
                     </div>
                     <div class="receipt-meta">
                         <span>${saleData.numero_facture}</span>
-                        <span>${formattedDate}</span>
+                        <span>${saleData.type_facture || document.getElementById('invoice-type')?.value || 'FV'}</span>
                     </div>
 
                     <div class="receipt-items receipt-items-grid">
@@ -1390,16 +1403,20 @@ function viewSaleDetails(saleId) {
                         <div class="store-info">
                             ${STORE_INFO.address}<br>
                             Tel: ${STORE_INFO.phone}<br>
+<<<<<<< HEAD
                             ID Nat: ${STORE_INFO.ice}<br>
                             RCCM: ${STORE_INFO.rccm}
                             ID Nat: ${STORE_INFO.ice}<br>
                             RCCM: ${STORE_INFO.rccm}
+=======
+                            ID Nat: ${STORE_INFO.ice}
+>>>>>>> 4b45eb1 (ajout du panier)
                         </div>
                     </div>
 
                     <div class="receipt-meta">
                         <span>${sale.numero_facture}</span>
-                        <span>${formattedDate}</span>
+                        <span>${document.getElementById('invoice-type')?.value || 'FV'}</span>
                     </div>
 
                     <div class="receipt-items receipt-items-grid">

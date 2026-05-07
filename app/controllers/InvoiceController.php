@@ -363,8 +363,6 @@ class InvoiceController extends Controller
             ' . htmlspecialchars($storeInfo['address']) . '<br>
             Tél: ' . htmlspecialchars($storeInfo['phone']) . '<br>
             ICE: ' . htmlspecialchars($storeInfo['ice']) . '
-            ' . (!empty($storeInfo['rccm']) ? '<br>RCCM: ' . htmlspecialchars($storeInfo['rccm']) : '') . '
-            ' . (!empty($storeInfo['isf']) ? '<br>ISF: ' . htmlspecialchars($storeInfo['isf']) : '') . '
         </div>
     </div>
 

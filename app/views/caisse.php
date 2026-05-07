@@ -77,6 +77,17 @@
         </button>
       </div>
       <div class="client-number-section">
+        <div style="margin-bottom: 10px;">
+          <label for="invoice-type" style="font-size: 0.75rem; font-weight: 600; color: #64748b; display: block; margin-bottom: 4px;">TYPE DE FACTURE</label>
+          <select id="invoice-type" class="client-number-input" style="width: 100%;">
+            <option value="FV">FV</option>
+            <option value="EV">EV</option>
+            <option value="FT">FT</option>
+            <option value="FA">FA</option>
+            <option value="EA">EA</option>
+            <option value="ET">ET</option>
+          </select>
+        </div>
         <label for="client-number" class="client-number-label">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
