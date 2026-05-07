@@ -125,9 +125,11 @@
       <div class="cart-totals">
         <div class="total-row">
           <span>Sous-total HT</span>
+          <span>Sous-total HT</span>
           <span id="subtotal">0.00 Fc</span>
         </div>
         <div class="total-row total-final">
+          <span>TOTAL TTC</span>
           <span>TOTAL TTC</span>
           <span id="total">0.00 Fc</span>
         </div>

@@ -38,6 +38,8 @@ async function loadStoreInfo() {
         };
 
         console.log('Informations du magasin chargées:', data);
+
+        console.log('Informations du magasin chargées:', data);
     } catch (e) {
         console.warn('Impossible de charger les paramètres du magasin, utilisation des valeurs par défaut');
     }
@@ -160,7 +162,7 @@ const posCart = {
             const barcode = p.code_barres || 'N/A';
             const stock = parseInt(p.stock) || 0;
             const image = p.image || '';
-            
+
             return `
             <div class="product-card ${stock <= 0 ? 'out-of-stock' : ''}" 
                  onclick="posCart.addToCart(${p.id})"
@@ -368,7 +370,7 @@ const posCart = {
             totalTax += itemTax;
         }
 
-        const subtotalTTC = subtotalHT ;
+        const subtotalTTC = subtotalHT;
 
         $('#subtotal').textContent = formatCurrency(subtotalHT);
         $('#total').textContent = formatCurrency(subtotalTTC);
@@ -581,6 +583,7 @@ const posCart = {
                 <div class="receipt-item">
                     <span class="item-name">${item.nom}<span class="item-tax-badge">${taxLabel}</span></span>
                     <span class="item-qty">x${item.quantite}</span>
+                    <span class="item-price">${itemHT.toFixed(2)}</span>
                     <span class="item-price">${itemHT.toFixed(2)}</span>
                 </div>
             `;
@@ -920,7 +923,8 @@ const posCart = {
                 const item = this.items[i];
                 const itemHT = item.prix * item.quantite;
                 const itemTax = itemHT * (item.tax_rate / 100);
-                const itemTTC = itemHT ;
+                const itemTTC = itemHT;
+                const itemTTC = itemHT;
                 const taxLabel = item.tax_etiquette || (item.tax_rate > 0 ? 'TVA ' + item.tax_rate + '%' : 'Exonere');
                 itemsHtml += `
                     <div class="receipt-item">
@@ -1386,6 +1390,8 @@ function viewSaleDetails(saleId) {
                         <div class="store-info">
                             ${STORE_INFO.address}<br>
                             Tel: ${STORE_INFO.phone}<br>
+                            ID Nat: ${STORE_INFO.ice}<br>
+                            RCCM: ${STORE_INFO.rccm}
                             ID Nat: ${STORE_INFO.ice}<br>
                             RCCM: ${STORE_INFO.rccm}
                         </div>
