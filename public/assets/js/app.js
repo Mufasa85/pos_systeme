@@ -118,6 +118,16 @@ const posCart = {
                     this.filterProducts('', e.target.value);
                 }
             });
+
+            // Recherche client par numero avec la touche Entrée
+            if ($('#client-number')) {
+                $('#client-number').addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        searchClientByNumero();
+                    }
+                });
+            }
         }
 
         // Produits page tabs
@@ -985,7 +995,10 @@ const posCart = {
                             <span>TOTAL TTC:</span>
                             <span>${this.currentTotals.total.toFixed(2)} Fc</span>
                         </div>
-                         ${(dgiResponse.comment || (dgiResponse.data && dgiResponse.data.comment)) ? `<div class="receipt-comment" style="margin: 10px 0; font-size: 11px; font-weight: bold; color: #333; border: 1px dashed #ccc; padding: 5px; border-radius: 4px;">${dgiResponse.comment || dgiResponse.data.comment}</div>` : ''}
+                         <div style="margin: 10px 0; font-size: 11px; color: #333; border: 1px dashed #ccc; padding: 8px; border-radius: 4px; text-align: left;">
+                            <div style="font-weight: bold; text-decoration: underline; margin-bottom: 4px;">Commentaire/Remarque :</div>
+                            <div>${(dgiResponse.comment || (dgiResponse.data && dgiResponse.data.comment)) || 'Aucun commentaire'}</div>
+                         </div>
                     </div>
 
                     ${dgiInfoHtml}
@@ -1443,7 +1456,10 @@ function viewSaleDetails(saleId) {
                     <div class="receipt-footer">
                         <div class="vendeur-info">Vendeur: ${sale.nom_vendeur || (typeof CURRENT_USER !== 'undefined' && CURRENT_USER.fullName ? CURRENT_USER.fullName : 'N/A')}</div>
                         <div class="barcode">||| ${sale.numero_facture} |||</div>
-                        ${sale.comment ? `<div class="receipt-comment" style="margin: 10px 0; font-size: 11px; font-weight: bold; color: #333; border: 1px dashed #ccc; padding: 5px; border-radius: 4px;">${sale.comment}</div>` : ''}
+                        <div style="margin: 10px 0; font-size: 11px; color: #333; border: 1px dashed #ccc; padding: 8px; border-radius: 4px; text-align: left;">
+                            <div style="font-weight: bold; text-decoration: underline; margin-bottom: 4px;">Commentaire/Remarque :</div>
+                            <div>${sale.comment || 'Aucun commentaire'}</div>
+                        </div>
                         <div class="thank-you">Merci de votre visite!</div>
                         <p style="margin-top: 5px; color: #555; font-size: 13px;">---Powered By Osat---</p>
                     </div>
