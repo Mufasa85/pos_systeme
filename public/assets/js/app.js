@@ -36,6 +36,8 @@ async function loadStoreInfo() {
             rccm: data.store_rccm || '',
             isf: data.store_isf || ''
         };
+
+        console.log('Informations du magasin chargées:', data);
     } catch (e) {
         console.warn('Impossible de charger les paramètres du magasin, utilisation des valeurs par défaut');
     }
@@ -369,7 +371,6 @@ const posCart = {
         const subtotalTTC = subtotalHT ;
 
         $('#subtotal').textContent = formatCurrency(subtotalHT);
-        $('#tax').textContent = formatCurrency(totalTax);
         $('#total').textContent = formatCurrency(subtotalTTC);
 
         this.currentTotals = { sous_total_ht: subtotalHT, tva: totalTax, total: subtotalTTC };
@@ -580,7 +581,7 @@ const posCart = {
                 <div class="receipt-item">
                     <span class="item-name">${item.nom}<span class="item-tax-badge">${taxLabel}</span></span>
                     <span class="item-qty">x${item.quantite}</span>
-                    <span class="item-price">${itemTTC.toFixed(2)}</span>
+                    <span class="item-price">${itemHT.toFixed(2)}</span>
                 </div>
             `;
         }
@@ -591,7 +592,7 @@ const posCart = {
             storeExtraInfo += `<div>RCCM: ${STORE_INFO.rccm}</div>`;
         }
         if (STORE_INFO.isf) {
-            storeExtraInfo += `<div>ISF: ${STORE_INFO.isf}</div>`;
+            storeExtraInfo += `<div>Numero Impot: ${STORE_INFO.isf}</div>`;
         }
 
         // Récupérer les infos de l'acheteur depuis les inputs du panier
@@ -610,7 +611,7 @@ const posCart = {
                            ${acheteurNumero ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>Num:</strong></span><span>${acheteurNumero}</span></div>` : ''}
                            ${acheteurTypeInitiales ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>Type:</strong></span><span>${acheteurTypeInitiales}</span></div>` : ''}
                            ${acheteurNif ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>NIF:</strong></span><span>${acheteurNif}</span></div>` : ''}
-                           ${STORE_INFO.isf ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>ISF:</strong></span><span>${STORE_INFO.isf}</span></div>` : ''}
+                           ${STORE_INFO.isf ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>Numero Impot:</strong></span><span>${STORE_INFO.isf}</span></div>` : ''}
                         </div>`;
 
         $('#preview-content').innerHTML = `
@@ -620,7 +621,8 @@ const posCart = {
                     <div class="store-info">
                         <div>${STORE_INFO.address}</div>
                         <div>Tel: ${STORE_INFO.phone}</div>
-                        <div>ICE: ${STORE_INFO.ice}</div>
+                        <div>ID Nat: ${STORE_INFO.ice}</div>
+                        <!--<div>RCCM: ${STORE_INFO.rccm}</div>-->
                         ${storeExtraInfo}
                     </div>
                     ${infoSection}
@@ -639,10 +641,6 @@ const posCart = {
                     <div class="receipt-total-row">
                         <span>Sous-total HT:</span>
                         <span>${this.currentTotals.sous_total_ht.toFixed(2)} Fc</span>
-                    </div>
-                    <div class="receipt-total-row">
-                        <span>TVA:</span>
-                        <span>${this.currentTotals.tva.toFixed(2)} Fc</span>
                     </div>
                     <div class="receipt-total-row grand-total">
                         <span>TOTAL TTC:</span>
@@ -841,7 +839,10 @@ const posCart = {
                         qrCode: dgiResponse.data ? dgiResponse.data.qrCode : '',
                         codeDEFDGI: dgiResponse.data ? dgiResponse.data.codeDEFDGI : '',
                         counters: dgiResponse.data ? dgiResponse.data.counters : null,
-                        nim: dgiResponse.data ? dgiResponse.data.nim : null
+                        nim: dgiResponse.data ? dgiResponse.data.nim : null,
+                        total: dgiResponse.data ? dgiResponse.data.total : null,
+                        vtotal: dgiResponse.data ? dgiResponse.data.vtotal : null,
+                        isf: dgiResponse.data ? dgiResponse.data.isf : null
                     }
                 })
             });
@@ -874,6 +875,8 @@ const posCart = {
                 if (dgiResponse.data.nim) dgiInfoHtml += '<br> DEF NID : ' + dgiResponse.data.nim;
                 if (dgiResponse.data.counters) dgiInfoHtml += '<br> DEF Compteurs: ' + dgiResponse.data.counters;
                 if (dgiResponse.data.dateDGI) dgiInfoHtml += '<br> DEF Heure : ' + dgiResponse.data.dateDGI + '\n';
+                //if (dgiResponse.data.isf) dgiInfoHtml += '<br> ISF : ' + dgiResponse.data.isf;
+                else dgiInfoHtml += '<br> ISF : 0';
                 dgiInfoHtml += '</div>';
             }
             dgiInfoHtml += '</div>';
@@ -898,11 +901,11 @@ const posCart = {
                 storeExtraInfo += `<div>RCCM: ${STORE_INFO.rccm}</div>`;
             }
             if (STORE_INFO.isf) {
-                storeExtraInfo += `<div>ISF: ${STORE_INFO.isf}</div>`;
+                storeExtraInfo += `<div>Numero Impot: ${STORE_INFO.isf}</div>`;
             }
 
             // Construire les infos en une seule section
-            let infoSection = `<div style="border-top: 1px dashed #ccc; margin-top: 6px; padding-top: 6px; text-align: left; font-size: 11px; line-height: 1.5;">
+            let infoSection = `<div style="border-top: 1px dashed #ccc; margin-top: 6px; padding-top: 6px; text-align: left; font-size: 15px; line-height: 1.5;">
                                <div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>Vendeur:</strong></span><span>${vendeur}</span></div>
                                ${acheteurNom ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>Client:</strong></span><span>${acheteurNom}</span></div>` : ''}
                                ${acheteurNumero ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>Num:</strong></span><span>${formatPhoneNumber(acheteurNumero)}</span></div>` : ''}
@@ -917,7 +920,7 @@ const posCart = {
                 const item = this.items[i];
                 const itemHT = item.prix * item.quantite;
                 const itemTax = itemHT * (item.tax_rate / 100);
-                const itemTTC = itemHT + itemTax;
+                const itemTTC = itemHT ;
                 const taxLabel = item.tax_etiquette || (item.tax_rate > 0 ? 'TVA ' + item.tax_rate + '%' : 'Exonere');
                 itemsHtml += `
                     <div class="receipt-item">
@@ -936,12 +939,12 @@ const posCart = {
                         <div class="store-info">
                             <div>${STORE_INFO.address}</div>
                             <div>Tel: ${STORE_INFO.phone}</div>
-                            <div>ICE: ${STORE_INFO.ice}</div>
+                            <div>ID Nat: ${STORE_INFO.ice}</div>
+                            <!--<div>RCCM: ${STORE_INFO.rccm}</div>-->
                             ${storeExtraInfo}
                         </div>
                         ${infoSection}
                     </div>
-
                     <div class="receipt-meta">
                         <span>${saleData.numero_facture}</span>
                         <span>${formattedDate}</span>
@@ -958,7 +961,7 @@ const posCart = {
                         </div>
                         <div class="receipt-total-row">
                             <span>TVA:</span>
-                            <span>${this.currentTotals.tva.toFixed(2)} Fc</span>
+                            <span>${dgiResponse.data.vtotal.toFixed(2)} Fc</span>
                         </div>
                         <div class="receipt-total-row grand-total">
                             <span>TOTAL TTC:</span>
@@ -1383,7 +1386,8 @@ function viewSaleDetails(saleId) {
                         <div class="store-info">
                             ${STORE_INFO.address}<br>
                             Tel: ${STORE_INFO.phone}<br>
-                            ICE: ${STORE_INFO.ice}
+                            ID Nat: ${STORE_INFO.ice}<br>
+                            RCCM: ${STORE_INFO.rccm}
                         </div>
                     </div>
 
@@ -1415,7 +1419,7 @@ function viewSaleDetails(saleId) {
                         <div class="vendeur-info">Vendeur: ${sale.nom_vendeur || (typeof CURRENT_USER !== 'undefined' && CURRENT_USER.fullName ? CURRENT_USER.fullName : 'N/A')}</div>
                         <div class="barcode">||| ${sale.numero_facture} |||</div>
                         <div class="thank-you">Merci de votre visite!</div>
-                        <p style="margin-top: 5px; color: #555; font-size: 9px;">---Powered By Osat---</p>
+                        <p style="margin-top: 5px; color: #555; font-size: 13px;">---Powered By Osat---</p>
                     </div>
                 </div>
             `;

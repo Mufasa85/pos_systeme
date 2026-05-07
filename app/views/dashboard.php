@@ -75,48 +75,12 @@
         </div>
 
         <!-- Graphique des ventes -->
-        <div class="dashboard-grid" style="margin-top: 1.5rem;">
-          <div class="card" style="padding: 1.5rem;">
-            <div class="card-header" style="margin-bottom: 1rem;">
-              <h3>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 8px; vertical-align: middle;">
-                  <line x1="18" y1="20" x2="18" y2="10"></line>
-                  <line x1="12" y1="20" x2="12" y2="4"></line>
-                  <line x1="6" y1="20" x2="6" y2="14"></line>
-                </svg>
-                Ventes des 7 derniers jours
-              </h3>
-            </div>
-            <div class="card-body" style="height: 300px; position: relative;">
-              <canvas id="sales-chart"></canvas>
-            </div>
-          </div>
+    
+          
 
-          <div class="card">
-            <div class="card-header">
-              <h3>Dernières ventes</h3>
-            </div>
-            <div class="card-body">
-              <div id="recent-sales" class="recent-list">
-                <?php if (!empty($ventes)): ?>
-                  <?php foreach (array_slice($ventes, 0, 5) as $v): ?>
-                    <div class="recent-item">
-                      <div>
-                        <strong><?= htmlspecialchars($v['numero_facture']) ?></strong>
-                        <span style="margin-left: 0.5rem; color: var(--muted);"><?= number_format($v['total'], 2) ?> Fc</span>
-                      </div>
-                      <span class="time"><?= date('d/m/Y H:i', strtotime($v['date'])) ?> par <?= htmlspecialchars($v['nom_vendeur'] ?? 'Inconnu') ?></span>
-                    </div>
-                  <?php endforeach; ?>
-                <?php else: ?>
-                  <div class="empty-state">Aucune vente récente</div>
-                <?php endif; ?>
-              </div>
-            </div>
-          </div>
-        </div>
+  
 
-        <div class="dashboard-grid" style="margin-top: 1.5rem;">
+
           <div class="card">
             <div class="card-header">
               <h3>Alertes de stock</h3>
@@ -137,36 +101,8 @@
             </div>
           </div>
 
-          <!-- Stats rapides -->
-          <div class="card">
-            <div class="card-header">
-              <h3>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 8px; vertical-align: middle;">
-                  <path d="M12 20V10"></path>
-                  <path d="M18 20V4"></path>
-                  <path d="M6 20v-4"></path>
-                </svg>
-                Performance
-              </h3>
-            </div>
-            <div class="card-body">
-              <div style="text-align: center; padding: 1rem 0;">
-                <?php
-                $avg_day = $ventes_semaine > 0 ? $ventes_semaine / 7 : 0;
-                $avg_ticket = $nb_ventes_semaine > 0 ? $ventes_semaine / $nb_ventes_semaine : 0;
-                ?>
-                <div style="margin-bottom: 1.5rem;">
-                  <div style="font-size: 2rem; font-weight: 700; color: var(--primary);"><?= number_format($avg_day, 2) ?> Fc</div>
-                  <div style="font-size: 0.85rem; color: var(--muted);">Panier moyen / jour</div>
-                </div>
-                <div>
-                  <div style="font-size: 2rem; font-weight: 700; color: var(--success);"><?= number_format($avg_ticket, 2) ?> Fc</div>
-                  <div style="font-size: 0.85rem; color: var(--muted);">Panier moyen / transaction</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+          
+       
       </div>
 
       <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>

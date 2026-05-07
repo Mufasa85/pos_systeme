@@ -24,7 +24,7 @@
         <div style="font-size: 0.8125rem; line-height: 1.5; color: #555;">
             <?= htmlspecialchars($storeInfo['address'] ?? '') ?><br>
             Tel: <?= htmlspecialchars($storeInfo['phone'] ?? '') ?><br>
-            ICE: <?= htmlspecialchars($storeInfo['ice'] ?? '') ?>
+            ID nat: <?= htmlspecialchars($storeInfo['ice'] ?? '') ?>
             <?php if (!empty($storeInfo['rccm'])): ?>
                 <br>RCCM: <?= htmlspecialchars($storeInfo['rccm']) ?>
             <?php endif; ?>

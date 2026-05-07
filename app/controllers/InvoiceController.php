@@ -61,7 +61,9 @@ class InvoiceController extends Controller
             'name' => $settingsModel->get('store_name') ?? 'Mon Magasin',
             'address' => $settingsModel->get('store_address') ?? '',
             'phone' => $settingsModel->get('store_phone') ?? '',
-            'ice' => $settingsModel->get('store_ice') ?? ''
+            'ice' => $settingsModel->get('store_ice') ?? '',
+            'rccm' => $settingsModel->get('store_rccm') ?? '',
+            'isf' => $settingsModel->get('store_isf') ?? ''
         ];
 
         // URL de base pour les liens
@@ -94,7 +96,7 @@ class InvoiceController extends Controller
             echo '.container{background:#fff;padding:2rem;border-radius:12px;max-width:500px;margin:2rem auto;box-shadow:0 2px 10px rgba(0,0,0,0.1)}';
             echo 'h1{color:#ef4444}p{color:#666}</style>';
             echo '</head><body><div class="container">';
-            echo '<h1>⚠️ Facture introuvable</h1>';
+            echo '<h1>Facture introuvable</h1>';
             echo '<p>Le numero de facture est requis.</p>';
             echo '<a href="/" style="color:#0B5E88;margin-top:1rem;display:inline-block;">Retour a l\'accueil</a>';
             echo '</div></body></html>';
@@ -116,7 +118,7 @@ class InvoiceController extends Controller
             echo '.container{background:#fff;padding:2rem;border-radius:12px;max-width:500px;margin:2rem auto;box-shadow:0 2px 10px rgba(0,0,0,0.1)}';
             echo 'h1{color:#ef4444}p{color:#666}</style>';
             echo '</head><body><div class="container">';
-            echo '<h1>⚠️ Facture introuvable</h1>';
+            echo '<h1> Facture introuvable</h1>';
             echo '<p>Cette facture n\'existe pas ou a été supprimée.</p>';
             echo '<a href="/" style="color:#0B5E88;margin-top:1rem;display:inline-block;">Retour a l\'accueil</a>';
             echo '</div></body></html>';
@@ -130,7 +132,9 @@ class InvoiceController extends Controller
             'name' => $settingsModel->get('store_name') ?? 'Mon Magasin',
             'address' => $settingsModel->get('store_address') ?? '',
             'phone' => $settingsModel->get('store_phone') ?? '',
-            'ice' => $settingsModel->get('store_ice') ?? ''
+            'ice' => $settingsModel->get('store_ice') ?? '',
+            'rccm' => $settingsModel->get('store_rccm') ?? '',
+            'isf' => $settingsModel->get('store_isf') ?? ''
         ];
 
         // URL de base pour les liens
@@ -159,7 +163,7 @@ class InvoiceController extends Controller
             echo '.container{background:#fff;padding:2rem;border-radius:12px;max-width:500px;margin:2rem auto;box-shadow:0 2px 10px rgba(0,0,0,0.1)}';
             echo 'h1{color:#ef4444}p{color:#666}</style>';
             echo '</head><body><div class="container">';
-            echo '<h1>⚠️ Facture introuvable</h1>';
+            echo '<h1> Facture introuvable</h1>';
             echo '<p>Cette facture n\'existe pas ou a été supprimée.</p>';
             echo '<a href="/" style="color:#0B5E88;margin-top:1rem;display:inline-block;">Retour à l\'accueil</a>';
             echo '</div></body></html>';
@@ -179,7 +183,7 @@ class InvoiceController extends Controller
             echo '.container{background:#fff;padding:2rem;border-radius:12px;max-width:500px;margin:2rem auto;box-shadow:0 2px 10px rgba(0,0,0,0.1)}';
             echo 'h1{color:#ef4444}p{color:#666}</style>';
             echo '</head><body><div class="container">';
-            echo '<h1>⚠️ Facture introuvable</h1>';
+            echo '<h1> Facture introuvable</h1>';
             echo '<p>Cette facture n\'existe pas ou a été supprimée.</p>';
             echo '<a href="/" style="color:#0B5E88;margin-top:1rem;display:inline-block;">Retour à l\'accueil</a>';
             echo '</div></body></html>';
@@ -193,7 +197,9 @@ class InvoiceController extends Controller
             'name' => $settingsModel->get('store_name') ?? 'Mon Magasin',
             'address' => $settingsModel->get('store_address') ?? '',
             'phone' => $settingsModel->get('store_phone') ?? '',
-            'ice' => $settingsModel->get('store_ice') ?? ''
+            'ice' => $settingsModel->get('store_ice') ?? '',
+            'rccm' => $settingsModel->get('store_rccm') ?? '',
+            'isf' => $settingsModel->get('store_isf') ?? ''
         ];
 
         // Définir l'URL de la facture publique
@@ -294,7 +300,9 @@ class InvoiceController extends Controller
             'name' => $settingsModel->get('store_name') ?? 'Mon Magasin',
             'address' => $settingsModel->get('store_address') ?? '',
             'phone' => $settingsModel->get('store_phone') ?? '',
-            'ice' => $settingsModel->get('store_ice') ?? ''
+            'ice' => $settingsModel->get('store_ice') ?? '',
+            'rccm' => $settingsModel->get('store_rccm') ?? '',
+            'isf' => $settingsModel->get('store_isf') ?? ''
         ];
 
         // Générer le contenu HTML de la facture
@@ -355,6 +363,8 @@ class InvoiceController extends Controller
             ' . htmlspecialchars($storeInfo['address']) . '<br>
             Tél: ' . htmlspecialchars($storeInfo['phone']) . '<br>
             ICE: ' . htmlspecialchars($storeInfo['ice']) . '
+            ' . (!empty($storeInfo['rccm']) ? '<br>RCCM: ' . htmlspecialchars($storeInfo['rccm']) : '') . '
+            ' . (!empty($storeInfo['isf']) ? '<br>ISF: ' . htmlspecialchars($storeInfo['isf']) : '') . '
         </div>
     </div>
 

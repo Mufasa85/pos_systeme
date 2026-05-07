@@ -59,7 +59,7 @@
                       <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
                       <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
                     </svg>
-                    ICE
+                    ID Nat 
                   </label>
                   <input type="text" id="store-ice" name="store_ice" value="" placeholder="Ex: 001234567890123" style="font-family: 'JetBrains Mono', monospace;" readonly>
                 </div>
@@ -254,43 +254,10 @@
           }
         }
 
-        // Recharger l'abonnement avec un code d'activation
-        async function reloadSubscription() {
-          const codeInput = document.getElementById('activation-code');
-          const btn = document.getElementById('btn-reload-subscription');
-          
-          if (!codeInput || !codeInput.value.trim()) {
-            alert('Veuillez entrer un code d\'activation');
-            return;
-          }
-
-          // Désactiver le bouton pendant le traitement
-          btn.disabled = true;
-          btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation: spin 1s linear infinite;"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg> Traitement en cours...';
-
-          try {
-            const res = await fetch(APP_URL + '/api/subscription/reload', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ activation_code: codeInput.value.trim() })
-            });
-            
-            const data = await res.json();
-            
-            if (data.success) {
-              alert('Abonnement rechargé avec succès !');
-              codeInput.value = '';
-            } else {
-              alert(data.message || 'Erreur lors du rechargement');
-            }
-          } catch (e) {
-            console.error('Erreur reloadSubscription:', e);
-            alert('Erreur de connexion');
-          }
-
-          // Réactiver le bouton
-          btn.disabled = false;
-          btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg> Recharger abonnement';
+        // Recharger l'abonnement - redirection vers Mobile Money
+        function reloadSubscription() {
+            // Redirection vers la page de paiement Mobile Money
+            window.open('https://osat-energie.com/money.php', '_blank');
         }
 
         // Charger au démarrage

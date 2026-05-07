@@ -523,7 +523,8 @@
       </div>
     </div>
 
-    <script src="./assets/js/app.js?v=1.0.4"></script>
+    <script src="./assets/js/app.js?v=1.0.497977491"></script>
+    
     </body>
 
     </html>
