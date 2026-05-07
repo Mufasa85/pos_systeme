@@ -18,13 +18,13 @@ class Database
     private function __construct()
     {
         try {
-            $dsn = "mysql:host=localhost;port=3306;dbname=u138949110_a;charset=utf8mb4";
+            $dsn = "mysql:host=localhost;port=3306;dbname=pos_system;charset=utf8mb4";
             $options = [
                 \PDO::ATTR_ERRMODE            => \PDO::ERRMODE_EXCEPTION,
                 \PDO::ATTR_DEFAULT_FETCH_MODE => \PDO::FETCH_ASSOC,
                 \PDO::ATTR_EMULATE_PREPARES   => false,
             ];
-            $this->pdo = new \PDO($dsn, 'u138949110_b', 'Cesarrandybernice2013@', $options);
+            $this->pdo = new \PDO($dsn, 'root', 'root', $options);
         } catch (\PDOException $e) {
             die("Database Connection failed: " . $e->getMessage());
         }

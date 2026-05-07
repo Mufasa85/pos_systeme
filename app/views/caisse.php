@@ -77,16 +77,22 @@
         </button>
       </div>
       <div class="client-number-section">
-        <div style="margin-bottom: 10px;">
-          <label for="invoice-type" style="font-size: 0.75rem; font-weight: 600; color: #64748b; display: block; margin-bottom: 4px;">TYPE DE FACTURE</label>
-          <select id="invoice-type" class="client-number-input" style="width: 100%;">
-            <option value="FV">FV</option>
-            <option value="EV">EV</option>
-            <option value="FT">FT</option>
-            <option value="FA">FA</option>
-            <option value="EA">EA</option>
-            <option value="ET">ET</option>
-          </select>
+        <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+          <div style="flex: 1;">
+            <label for="invoice-type" style="font-size: 0.75rem; font-weight: 600; color: #64748b; display: block; margin-bottom: 4px;">TYPE DE FACTURE</label>
+            <select id="invoice-type" class="client-number-input" style="width: 100%;">
+              <option value="FV">FV</option>
+              <option value="EV">EV</option>
+              <option value="FT">FT</option>
+              <option value="FA">FA</option>
+              <option value="EA">EA</option>
+              <option value="ET">ET</option>
+            </select>
+          </div>
+          <div style="flex: 1;">
+            <label for="invoice-ref" style="font-size: 0.75rem; font-weight: 600; color: #64748b; display: block; margin-bottom: 4px;">RÉF DOCUMENT</label>
+            <input type="text" id="invoice-ref" class="client-number-input" placeholder="Référence..." style="width: 100%;">
+          </div>
         </div>
         <label for="client-number" class="client-number-label">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -99,7 +105,7 @@
         <div style="display: flex; gap: 8px; margin-bottom: 8px;">
           <input type="text" id="client-nom" class="client-number-input" placeholder="Nom du client" style="flex: 1;">
           <div style="position: relative; display: flex; align-items: center; flex: 1;">
-            <input type="text" id="client-number" class="client-number-input" placeholder="N° téléphone" style="width: 100%; padding-right: 40px;">
+            <input type="text" id="client-number" class="client-number-input" placeholder="N° téléphone" value="0000" style="width: 100%; padding-right: 40px;">
             <button type="button" id="btn-search-client" onclick="searchClientByNumero()" style="position: absolute; right: 8px; background: none; border: none; cursor: pointer; padding: 4px; color: #0B5E88; display: flex; align-items: center; justify-content: center;" title="Rechercher client">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="11" cy="11" r="8"></circle>
@@ -120,15 +126,17 @@
         </div>
         <!-- Message d'erreur/succès -->
         <div id="client-search-message" style="font-size: 0.75rem; margin-bottom: 8px; display: none;"></div>
-        <button type="button" id="btn-save-client" class="btn btn-secondary btn-small" onclick="saveClientQuick()" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px;">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-            <circle cx="8.5" cy="7" r="4"></circle>
-            <line x1="20" y1="8" x2="20" y2="14"></line>
-            <line x1="23" y1="11" x2="17" y2="11"></line>
-          </svg>
-          Enregistrer client
-        </button>
+        <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin'): ?>
+          <button type="button" id="btn-save-client" class="btn btn-secondary btn-small" onclick="saveClientQuick()" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+              <circle cx="8.5" cy="7" r="4"></circle>
+              <line x1="20" y1="8" x2="20" y2="14"></line>
+              <line x1="23" y1="11" x2="17" y2="11"></line>
+            </svg>
+            Enregistrer client
+          </button>
+        <?php endif; ?>
       </div>
       <div id="cart-items" class="cart-items">
         <div class="cart-empty">Le panier est vide</div>
@@ -136,11 +144,10 @@
       <div class="cart-totals">
         <div class="total-row">
           <span>Sous-total HT</span>
-          <span>Sous-total HT</span>
+
           <span id="subtotal">0.00 Fc</span>
         </div>
         <div class="total-row total-final">
-          <span>TOTAL TTC</span>
           <span>TOTAL TTC</span>
           <span id="total">0.00 Fc</span>
         </div>

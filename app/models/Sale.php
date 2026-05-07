@@ -15,8 +15,8 @@ class Sale
 
     public function create($data)
     {
-        $sql = "INSERT INTO ventes (numero_facture, client_id, sous_total_ht, tva, total, vendeur_id, date, dateDGI, qrCode, codeDEFDGI, counters, nim) 
-                VALUES (:numero_facture, :client_id, :sous_total_ht, :tva, :total, :vendeur_id, :date, :dateDGI, :qrCode, :codeDEFDGI, :counters, :nim)";
+        $sql = "INSERT INTO ventes (numero_facture, client_id, sous_total_ht, tva, total, vendeur_id, date, dateDGI, qrCode, codeDEFDGI, counters, nim, comment) 
+                VALUES (:numero_facture, :client_id, :sous_total_ht, :tva, :total, :vendeur_id, :date, :dateDGI, :qrCode, :codeDEFDGI, :counters, :nim, :comment)";
         $this->db->query($sql, [
             ':numero_facture' => $data['numero_facture'],
             ':client_id'      => $data['client_id'] ?? null,
@@ -29,7 +29,8 @@ class Sale
             ':qrCode'         => $data['qrCode'] ?? null,
             ':codeDEFDGI'     => $data['codeDEFDGI'] ?? null,
             ':counters'       => $data['counters'] ?? null,
-            ':nim'            => $data['nim'] ?? null
+            ':nim'            => $data['nim'] ?? null,
+            ':comment'        => $data['comment'] ?? null
         ]);
         return $this->db->getConnection()->lastInsertId();
     }

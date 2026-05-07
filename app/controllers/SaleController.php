@@ -67,7 +67,8 @@ class SaleController extends Controller
                 'qrCode'         => $dgiData['qrCode'] ?? null,
                 'codeDEFDGI'     => $dgiData['codeDEFDGI'] ?? null,
                 'counters'       => $dgiData['counters'] ?? null,
-                'nim'            => $dgiData['nim'] ?? null
+                'nim'            => $dgiData['nim'] ?? null,
+                'comment'        => $dgiData['comment'] ?? null
             ]);
 
             foreach ($data['articles'] as $item) {

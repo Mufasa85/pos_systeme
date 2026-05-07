@@ -394,6 +394,10 @@ const posCart = {
             const clientNif = $('#client-nif')?.value || (this.currentClient?.nif || '');
             const clientNumero = $('#client-number')?.value || (this.clientNumber || '');
 
+            // Récupérer le type de facture et la référence document
+            const invoiceType = document.getElementById('invoice-type')?.value || 'FV';
+            const invoiceRef = document.getElementById('invoice-ref')?.value || '';
+
             // Envoyer les donnees en POST a l'API DGI
             const res = await fetch(DGI_API_URL, {
                 method: 'POST',
@@ -408,6 +412,8 @@ const posCart = {
                     amount: this.currentTotals.total,
                     client_number: clientNumero,
                     invoice_number: invoiceNum,
+                    invoice_type: invoiceType,
+                    invoice_ref: invoiceRef,
                     articles: this.items.map(item => ({
                         name: item.nom,
                         quantity: item.quantite,
@@ -427,7 +433,7 @@ const posCart = {
                 store_phone: STORE_INFO.phone,
                 store_address: STORE_INFO.address,
                 store_ice: STORE_INFO.ice,
-                    store_isf: STORE_INFO.isf,
+                store_isf: STORE_INFO.isf,
                 seller_name: sellerName,
                 amount: this.currentTotals.total,
                 client_number: clientNumero,
@@ -435,6 +441,8 @@ const posCart = {
                 client_type: clientTypeInitiales,
                 client_nif: clientNif,
                 invoice_number: invoiceNum,
+                invoice_type: invoiceType,
+                invoice_ref: invoiceRef,
                 articles: this.items.map(item => ({
                     name: item.nom,
                     quantity: item.quantite,
@@ -582,12 +590,10 @@ const posCart = {
                     <span class="item-name">${item.nom}<span class="item-tax-badge">${taxLabel}</span></span>
                     <span class="item-qty">x${item.quantite}</span>
                     <span class="item-price">${itemHT.toFixed(2)}</span>
-                    <span class="item-price">${itemHT.toFixed(2)}</span>
                 </div>
             `;
         }
 
-<<<<<<< HEAD
         // Ajouter les infos RCCM et ISF si disponibles (chacun sur sa propre ligne)
         let storeExtraInfo = '';
         if (STORE_INFO.rccm) {
@@ -596,8 +602,7 @@ const posCart = {
         if (STORE_INFO.isf) {
             storeExtraInfo += `<div>Numero Impot: ${STORE_INFO.isf}</div>`;
         }
-=======
->>>>>>> 4b45eb1 (ajout du panier)
+
 
         // Récupérer les infos de l'acheteur depuis les inputs du panier
         const acheteurNom = $('#client-nom')?.value || (this.currentClient?.nom || '');
@@ -626,12 +631,10 @@ const posCart = {
                         <div>${STORE_INFO.address}</div>
                         <div>Tel: ${STORE_INFO.phone}</div>
                         <div>ID Nat: ${STORE_INFO.ice}</div>
-<<<<<<< HEAD
+
                         <!--<div>RCCM: ${STORE_INFO.rccm}</div>-->
                         ${storeExtraInfo}
-=======
-                        <div>RCCM: ${STORE_INFO.rccm || ''}</div>
->>>>>>> 4b45eb1 (ajout du panier)
+
                     </div>
                     ${infoSection}
                 </div>
@@ -851,7 +854,8 @@ const posCart = {
                         nim: dgiResponse.data ? dgiResponse.data.nim : null,
                         total: dgiResponse.data ? dgiResponse.data.total : null,
                         vtotal: dgiResponse.data ? dgiResponse.data.vtotal : null,
-                        isf: dgiResponse.data ? dgiResponse.data.isf : null
+                        isf: dgiResponse.data ? dgiResponse.data.isf : null,
+                        comment: dgiResponse.comment || (dgiResponse.data ? dgiResponse.data.comment : null)
                     }
                 })
             });
@@ -904,7 +908,7 @@ const posCart = {
             const acheteurNumero = $('#client-number')?.value || (this.clientNumber || '');
             const vendeur = (typeof CURRENT_USER !== 'undefined' && CURRENT_USER.fullName) ? CURRENT_USER.fullName : STORE_INFO.name;
 
-<<<<<<< HEAD
+
             // Ajouter les infos RCCM et ISF si disponibles (chacun sur sa propre ligne)
             let storeExtraInfo = '';
             if (STORE_INFO.rccm) {
@@ -913,8 +917,7 @@ const posCart = {
             if (STORE_INFO.isf) {
                 storeExtraInfo += `<div>Numero Impot: ${STORE_INFO.isf}</div>`;
             }
-=======
->>>>>>> 4b45eb1 (ajout du panier)
+
 
             // Construire les infos en une seule section
             let infoSection = `<div style="border-top: 1px dashed #ccc; margin-top: 6px; padding-top: 6px; text-align: left; font-size: 15px; line-height: 1.5;">
@@ -933,7 +936,7 @@ const posCart = {
                 const itemHT = item.prix * item.quantite;
                 const itemTax = itemHT * (item.tax_rate / 100);
                 const itemTTC = itemHT;
-                const itemTTC = itemHT;
+
                 const taxLabel = item.tax_etiquette || (item.tax_rate > 0 ? 'TVA ' + item.tax_rate + '%' : 'Exonere');
                 itemsHtml += `
                     <div class="receipt-item">
@@ -953,12 +956,10 @@ const posCart = {
                             <div>${STORE_INFO.address}</div>
                             <div>Tel: ${STORE_INFO.phone}</div>
                             <div>ID Nat: ${STORE_INFO.ice}</div>
-<<<<<<< HEAD
+
                             <!--<div>RCCM: ${STORE_INFO.rccm}</div>-->
                             ${storeExtraInfo}
-=======
-                            <div>RCCM: ${STORE_INFO.rccm || ''}</div>
->>>>>>> 4b45eb1 (ajout du panier)
+
                         </div>
                         ${infoSection}
                     </div>
@@ -984,13 +985,16 @@ const posCart = {
                             <span>TOTAL TTC:</span>
                             <span>${this.currentTotals.total.toFixed(2)} Fc</span>
                         </div>
+                         ${(dgiResponse.comment || (dgiResponse.data && dgiResponse.data.comment)) ? `<div class="receipt-comment" style="margin: 10px 0; font-size: 11px; font-weight: bold; color: #333; border: 1px dashed #ccc; padding: 5px; border-radius: 4px;">${dgiResponse.comment || dgiResponse.data.comment}</div>` : ''}
                     </div>
 
                     ${dgiInfoHtml}
 
                     <div class="receipt-footer">
+                    
                         <div id="${qrContainerId}" class="qrcode-container"></div>
                         <div class="barcode">${saleData.numero_facture}</div>
+                       
                         <div class="thank-you">Merci de votre visite!</div>
                         <div style="margin-top: 5px; font-size: 9px; font-style: italic;">---Powered By Osat---</div>
                     </div>
@@ -1403,14 +1407,12 @@ function viewSaleDetails(saleId) {
                         <div class="store-info">
                             ${STORE_INFO.address}<br>
                             Tel: ${STORE_INFO.phone}<br>
-<<<<<<< HEAD
+
                             ID Nat: ${STORE_INFO.ice}<br>
                             RCCM: ${STORE_INFO.rccm}
                             ID Nat: ${STORE_INFO.ice}<br>
                             RCCM: ${STORE_INFO.rccm}
-=======
-                            ID Nat: ${STORE_INFO.ice}
->>>>>>> 4b45eb1 (ajout du panier)
+
                         </div>
                     </div>
 
@@ -1441,6 +1443,7 @@ function viewSaleDetails(saleId) {
                     <div class="receipt-footer">
                         <div class="vendeur-info">Vendeur: ${sale.nom_vendeur || (typeof CURRENT_USER !== 'undefined' && CURRENT_USER.fullName ? CURRENT_USER.fullName : 'N/A')}</div>
                         <div class="barcode">||| ${sale.numero_facture} |||</div>
+                        ${sale.comment ? `<div class="receipt-comment" style="margin: 10px 0; font-size: 11px; font-weight: bold; color: #333; border: 1px dashed #ccc; padding: 5px; border-radius: 4px;">${sale.comment}</div>` : ''}
                         <div class="thank-you">Merci de votre visite!</div>
                         <p style="margin-top: 5px; color: #555; font-size: 13px;">---Powered By Osat---</p>
                     </div>

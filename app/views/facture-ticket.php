@@ -146,6 +146,11 @@
         <div style="font-size: 1.125rem; letter-spacing: 3px; font-weight: 700; margin: 0.5rem 0; color: #000; font-family: 'JetBrains Mono', monospace;">
             <?= htmlspecialchars($sale['numero_facture'] ?? '') ?>
         </div>
+        <?php if (!empty($sale['comment'])): ?>
+            <div style="margin: 10px 0; font-size: 11px; font-weight: bold; color: #333; border: 1px dashed #ccc; padding: 5px; border-radius: 4px;">
+                <?= htmlspecialchars($sale['comment']) ?>
+            </div>
+        <?php endif; ?>
         <div style="font-style: italic; font-size: 0.875rem; color: #333;">
             Merci de votre visite!
         </div>
