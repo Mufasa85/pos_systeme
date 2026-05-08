@@ -25,8 +25,15 @@ class AuthController extends Controller
 
         $userModel = new User();
         $user = $userModel->login($username, $password);
-
+        
         if ($user) {
+            // Check if user is active
+            if (isset($user['actif']) && (int)$user['actif'] === 0) {
+                header('Content-Type: application/json');
+                echo json_encode(['success' => false, 'message' => 'votre compte presente un soucis, veillez contacter votre administrateur']);
+                exit;
+            }
+
             $_SESSION['user_id'] = $user['id'];
             $_SESSION['nom_utilisateur'] = $user['nom_utilisateur'];
             $_SESSION['nom_complet'] = $user['nom_complet'];

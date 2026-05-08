@@ -13,6 +13,28 @@ const formatPhoneNumber = (phone) => {
 // DGI API Configuration - utilise le proxy local pour eviter CORS
 const DGI_API_URL = APP_URL + '/api/dgi';
 
+// Fonction pour jouer un beep lors du scan
+function playScanBeep() {
+    try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+
+        oscillator.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+
+        oscillator.type = 'sine';
+        oscillator.frequency.value = 1000; // 1kHz
+        gainNode.gain.setValueAtTime(0.5, audioCtx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+
+        oscillator.start();
+        oscillator.stop(audioCtx.currentTime + 0.1);
+    } catch (e) {
+        console.warn('Audio feedback failed:', e);
+    }
+}
+
 // Variables globales pour les informations du magasin
 let STORE_INFO = {
     name: 'SuperMarche Express',
@@ -174,9 +196,8 @@ const posCart = {
             const image = p.image || '';
 
             return `
-            <div class="product-card ${stock <= 0 ? 'out-of-stock' : ''}" 
-                 onclick="posCart.addToCart(${p.id})"
-                 ${stock <= 0 ? 'title="Rupture de stock"' : ''}>
+            <div class="product-card" 
+                 onclick="posCart.addToCart(${p.id})">
               <div class="product-image">
                 ${image ? `<img src="${image}" alt="${name}" onerror="this.parentElement.innerHTML='<svg width=\\'40\\\' height=\\'50\\\' viewBox=\\'0 0 24 24\\\' fill=\\'none\\\' stroke=\\'currentColor\\\' stroke-width=\\'1.5\\\'><path d=\\'M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z\\\'></path><line x1=\\'3\\\' y1=\\'6\\\' x2=\\'21\\\' y2=\\'6\\\'></line><path d=\\'M16 10a4 4 0 0 1-8 0\\\'></path></svg>'">` : '<svg width="40" height="50" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>'}
               </div>
@@ -204,11 +225,11 @@ const posCart = {
 
     addToCart(id) {
         const product = this.allProducts.find(p => p.id == id);
-        if (!product || product.stock <= 0) return;
+        if (!product) return;
 
         const existing = this.items.find(i => i.produit_id == id);
         if (existing) {
-            if (existing.quantite < product.stock) existing.quantite++;
+            existing.quantite++;
         } else {
             this.items.push({
                 produit_id: product.id,
@@ -229,8 +250,6 @@ const posCart = {
         item.quantite += delta;
         if (item.quantite <= 0) {
             this.items = this.items.filter(i => i.produit_id != id);
-        } else if (item.quantite > item.maxStock) {
-            item.quantite = item.maxStock;
         }
         this.renderCart();
     },
@@ -1460,6 +1479,7 @@ function viewSaleDetails(saleId) {
             document.getElementById('sale-details-content').innerHTML = `
                 <div class="receipt">
                     <div class="receipt-header">
+                        <div style="text-align: center; font-weight: 800; font-size: 24px; color: #000; margin-bottom: 10px; border-bottom: 2px solid #000; padding-bottom: 5px;">PRO FORMAT</div>
                         <div class="store-name">${STORE_INFO.name}</div>
                         <div class="store-info">
                             <div>${STORE_INFO.address}</div>
@@ -1686,6 +1706,14 @@ function onInlineScanSuccess(code) {
 
     console.log('[SCANNER MODAL] Code détecté:', code);
 
+    // Feedback sonore et tactile
+    if (typeof playScanBeep === 'function') {
+        playScanBeep();
+    }
+    if ('vibrate' in navigator) {
+        navigator.vibrate(100);
+    }
+
     // Afficher le chargement
     const loadingEl = document.getElementById('scanner-loading');
     loadingEl.style.display = 'flex';
@@ -1731,21 +1759,14 @@ function onInlineProductFound(product, barcode) {
     document.getElementById('scanned-name').textContent = product.nom;
     document.getElementById('scanned-price').textContent = formatCurrency(product.prix);
 
-    // Arrêter le scanner et fermer le modal
-    try {
-        if (scannerHtml5QrCode && isScannerActive) {
-            scannerHtml5QrCode.stop().then(() => {
-                isScannerActive = false;
-            }).catch(() => { });
-        }
-    } catch (e) { }
-
-    // Fermer le modal immédiatement
-    const modal = document.getElementById('scanner-modal');
-    if (modal) {
-        modal.classList.remove('active');
-        document.body.style.overflow = '';
-    }
+    // NE PAS fermer le modal, NE PAS arrêter le scanner
+    // Réinitialiser pour le prochain scan après un court délai (cooldown)
+    setTimeout(() => {
+        scannerProcessing = false;
+        scannerLastCode = null; // Permet de rescanner le même produit
+        resultEl.style.display = 'none';
+        document.getElementById('scanner-product').classList.remove('show');
+    }, 1500); // 1.5 seconde de délai entre deux scans
 }
 
 function onInlineProductNotFound(barcode) {

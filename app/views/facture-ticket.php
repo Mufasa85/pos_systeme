@@ -1,9 +1,11 @@
 <!-- Facture Ticket Page - Style like showPreview -->
 <!-- Actions bar - will be hidden during print -->
-<div class="no-print" style="width: 100%; padding: 1rem 1rem; display: flex; justify-content: space-between; align-items: center;">
+<div class="no-print"
+    style="width: 100%; padding: 1rem; display: flex; justify-content: space-between; align-items: center; max-width: 420px; margin: 0 auto;">
     <h2 style="margin: 0; font-size: 1.125rem; color: #333;">Ticket de caisse</h2>
     <div style="display: flex; gap: 0.5rem; align-items: center;">
-        <button onclick="window.print()" style="display: inline-flex; align-items: center; gap: 0.375rem; padding: 0.5rem 1rem; background: #0B5E88; color: white; border: none; border-radius: 8px; font-size: 0.875rem; cursor: pointer;">
+        <button onclick="window.print()" class="btn btn-primary"
+            style="display: inline-flex; align-items: center; gap: 0.375rem;">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <polyline points="6 9 6 2 18 2 18 9"></polyline>
                 <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
@@ -15,35 +17,35 @@
 </div>
 
 <!-- Receipt - The actual ticket -->
-<div class="receipt" id="receipt-ticket" style="background: white; border-radius: 12px; overflow: hidden;">
-    <!-- Receipt Header -->
-    <div style="text-align: center; padding: 1.5rem 1rem 1rem; border-bottom: 2px solid #000; background: linear-gradient(135deg, #f8f9fa 0%, #fff 100%);">
-        <div style="font-size: 1.25rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #0B5E88; margin-bottom: 0.5rem;">
+<div class="receipt" id="receipt-ticket">
+    <div class="receipt-header">
+        <div style="text-align: center; font-weight: 800; font-size: 24px; color: #000; margin-bottom: 10px; border-bottom: 2px solid #000; padding-bottom: 5px;">PRO FORMAT</div>
+        <div class="store-name">
             <?= htmlspecialchars($storeInfo['name'] ?? 'SuperMarche Express') ?>
         </div>
-        <div style="font-size: 0.8125rem; line-height: 1.5; color: #555;">
-            <?= htmlspecialchars($storeInfo['address'] ?? '') ?><br>
-            Tel: <?= htmlspecialchars($storeInfo['phone'] ?? '') ?><br>
-            ID nat: <?= htmlspecialchars($storeInfo['ice'] ?? '') ?>
-        </div>
-    </div>
-
-    <!-- Info Section: Vendeur + Client -->
-    <?php
-    $vendeur = $sale['nom_vendeur'] ?? 'N/A';
-    $clientNom = $sale['client_nom'] ?? '';
-    $clientNumero = $sale['client_numero'] ?? '';
-    $clientType = $sale['client_type'] ?? '';
-    $clientNif = $sale['client_nif'] ?? '';
-    ?>
-    <?php if ($vendeur || $clientNom || $clientNumero || $clientType || $clientNif || !empty($storeInfo['isf'])): ?>
-        <div style="border-top: 1px dashed #ccc; margin: 0 1rem; padding: 0.75rem 0; text-align: left; font-size: 0.75rem; line-height: 1.5;">
-            <?php if ($vendeur && $vendeur !== 'N/A'): ?>
-                <div style="display: flex; justify-content: space-between; gap: 10px;">
-                    <span><strong>Vendeur:</strong></span>
-                    <span><?= htmlspecialchars($vendeur) ?></span>
-                </div>
+        <div class="store-info">
+            <div><?= htmlspecialchars($storeInfo['address'] ?? '') ?></div>
+            <div>Tel: <?= htmlspecialchars($storeInfo['phone'] ?? '') ?></div>
+            <div>ID Nat: <?= htmlspecialchars($storeInfo['ice'] ?? '') ?></div>
+            <?php if (!empty($storeInfo['isf'])): ?>
+                <div>Numero Impot: <?= htmlspecialchars($storeInfo['isf']) ?></div>
             <?php endif; ?>
+        </div>
+
+        <!-- Info Section (Vendeur, Client) -->
+        <?php
+        $vendeur = $sale['nom_vendeur'] ?? 'N/A';
+        $clientNom = $sale['client_nom'] ?? $sale['nom_client'] ?? '';
+        $clientNumero = $sale['client_numero'] ?? '';
+        $clientType = $sale['client_type_code'] ?? $sale['client_type'] ?? '';
+        $clientNif = $sale['client_nif'] ?? '';
+        ?>
+        <div
+            style="border-top: 1px dashed #ccc; margin-top: 6px; padding-top: 6px; text-align: left; font-size: 15px; line-height: 1.5;">
+            <div style="display: flex; justify-content: space-between; gap: 10px;">
+                <span><strong>Vendeur:</strong></span>
+                <span><?= htmlspecialchars($vendeur) ?></span>
+            </div>
             <?php if ($clientNom): ?>
                 <div style="display: flex; justify-content: space-between; gap: 10px;">
                     <span><strong>Client:</strong></span>
@@ -68,124 +70,123 @@
                     <span><?= htmlspecialchars($clientNif) ?></span>
                 </div>
             <?php endif; ?>
+            <?php if (!empty($storeInfo['isf'])): ?>
+                <div style="display: flex; justify-content: space-between; gap: 10px;">
+                    <span><strong>ISF:</strong></span>
+                    <span><?= htmlspecialchars($storeInfo['isf']) ?></span>
+                </div>
+            <?php endif; ?>
         </div>
-    <?php endif; ?>
-
-    <!-- Receipt Meta -->
-    <div style="display: flex; justify-content: space-between; font-size: 0.875rem; font-weight: 600; padding: 0.75rem 1rem; margin: 0 1rem; border-bottom: 2px solid #000;">
-        <span style="font-family: 'JetBrains Mono', monospace;"><?= htmlspecialchars($sale['numero_facture'] ?? '') ?></span>
-        <span style="color: #555;"><?= date('d/m/Y H:i', strtotime($sale['date'] ?? 'now')) ?></span>
     </div>
 
-    <!-- Receipt Items with Tax Badges -->
-    <div style="padding: 1rem;">
+    <!-- Receipt Meta -->
+    <div class="receipt-meta">
+        <span><?= htmlspecialchars($sale['numero_facture'] ?? '') ?></span>
+        <span><?= htmlspecialchars($sale['type_facture'] ?? 'FV') ?></span>
+    </div>
+
+    <!-- Receipt Items -->
+    <div class="receipt-items receipt-items-grid">
         <?php foreach (($details ?? []) as $item):
             $itemHT = floatval($item['quantite']) * floatval($item['prix']);
             $taxRate = floatval($item['tax_rate'] ?? 0);
             $itemTax = $itemHT * ($taxRate / 100);
             $itemTTC = $itemHT + $itemTax;
             $taxLabel = !empty($item['tax_etiquette']) ? htmlspecialchars($item['tax_etiquette']) : ($taxRate > 0 ? 'TVA ' . $taxRate . '%' : 'Exonere');
-        ?>
-            <div style="display: flex; justify-content: space-between; align-items: baseline; font-size: 0.875rem; margin-bottom: 0.5rem; gap: 0.5rem;">
-                <span style="flex: 2; min-width: 0; word-wrap: break-word;">
+            ?>
+            <div class="receipt-item">
+                <span class="item-name">
                     <?= htmlspecialchars($item['produit_nom'] ?? 'Produit') ?>
-                    <span style="display: inline-block; font-size: 0.625rem; background: <?= $taxRate > 0 ? '#e3f2fd' : '#f5f5f5' ?>; color: <?= $taxRate > 0 ? '#1565c0' : '#666' ?>; padding: 1px 4px; border-radius: 3px; margin-left: 4px; vertical-align: middle;">
-                        <?= $taxLabel ?>
-                    </span>
+                    <span class="item-tax-badge"><?= $taxLabel ?></span>
                 </span>
-                <span style="flex: 0 0 auto; white-space: nowrap; font-weight: 600;">x<?= $item['quantite'] ?></span>
-                <span style="flex: 1; text-align: right; font-weight: 700; white-space: nowrap;"><?= number_format($itemTTC, 2) ?></span>
+                <span class="item-qty">x<?= $item['quantite'] ?></span>
+                <span class="item-price"><?= number_format($itemTTC, 2, '.', '') ?></span>
             </div>
         <?php endforeach; ?>
     </div>
 
     <!-- Receipt Totals -->
-    <div style="padding: 0.75rem 1rem; border-top: 1px dashed #ccc; margin-top: 0.5rem;">
-        <div style="display: flex; justify-content: space-between; font-size: 0.875rem; margin-bottom: 0.375rem;">
+    <div class="receipt-totals">
+        <div class="receipt-total-row">
             <span>Sous-total HT:</span>
-            <span><?= number_format(floatval($sale['sous_total_ht'] ?? 0), 2) ?> Fc</span>
+            <span><?= number_format(floatval($sale['sous_total_ht'] ?? 0), 2, '.', '') ?> Fc</span>
         </div>
-        <div style="display: flex; justify-content: space-between; font-size: 0.875rem; margin-bottom: 0.375rem;">
+        <div class="receipt-total-row">
             <span>TVA:</span>
-            <span><?= number_format(floatval($sale['tva'] ?? 0), 2) ?> Fc</span>
+            <span><?= number_format(floatval($sale['tva'] ?? 0), 2, '.', '') ?> Fc</span>
         </div>
-        <div style="display: flex; justify-content: space-between; font-size: 1.125rem; font-weight: 700; border-top: 3px solid #000; border-bottom: 3px solid #000; padding: 0.5rem 0; margin-top: 0.5rem;">
+        <div class="receipt-total-row grand-total">
             <span>TOTAL TTC:</span>
-            <span><?= number_format(floatval($sale['total'] ?? 0), 2) ?> Fc</span>
+            <span><?= number_format(floatval($sale['total'] ?? 0), 2, '.', '') ?> Fc</span>
+        </div>
+        <div
+            style="margin: 10px 0; font-size: 11px; color: #333; border: 1px dashed #ccc; padding: 8px; border-radius: 4px; text-align: left;">
+            <div style="font-weight: bold; text-decoration: underline; margin-bottom: 4px;">Commentaire/Remarque :</div>
+            <div><?= !empty($sale['comment']) ? htmlspecialchars($sale['comment']) : 'Aucun commentaire' ?></div>
         </div>
     </div>
 
     <!-- DGI Validation -->
     <?php if (!empty($sale['counters'])): ?>
-        <div style="margin: 1rem; padding: 0.75rem; background: #e8f5e9; border: 1px solid #4caf50; border-radius: 8px; text-align: center;">
-            <div style="display: inline-flex; align-items: center; gap: 0.375rem; color: #2e7d32; font-weight: 600; font-size: 0.875rem;">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
-                </svg>
-                Validé DGI
-            </div>
-            <div style="font-size: 0.75rem; color: #555; margin-top: 0.375rem; line-height: 1.4;">
-                Compteur: <?= htmlspecialchars($sale['counters']) ?>
-                <?php if (!empty($sale['dateDGI'])): ?>
-                    <br>Date: <?= htmlspecialchars($sale['dateDGI']) ?>
-                <?php endif; ?>
+        <div
+            style="background: #e8f5e9; border: 1px solid #4caf50; border-radius: 8px; padding: 10px; margin: 10px 0; text-align: center;">
+            <div style="color: #2e7d32; font-weight: bold; font-size: 11px;">--- Elements de securite de la facture
+                normalisee ---</div>
+            <div style="font-size: 12px; color: #555; margin-top: 4px;">
                 <?php if (!empty($sale['codeDEFDGI'])): ?>
-                    <br>DEF: <?= htmlspecialchars($sale['codeDEFDGI']) ?>
+                    CODE DEF/DGI: <?= htmlspecialchars($sale['codeDEFDGI']) ?>
                 <?php endif; ?>
                 <?php if (!empty($sale['nim'])): ?>
-                    <br>NIM: <?= htmlspecialchars($sale['nim']) ?>
+                    <br> DEF NID : <?= htmlspecialchars($sale['nim']) ?>
                 <?php endif; ?>
+                <?php if (!empty($sale['counters'])): ?>
+                    <br> DEF Compteurs: <?= htmlspecialchars($sale['counters']) ?>
+                <?php endif; ?>
+                <?php if (!empty($sale['dateDGI'])): ?>
+                    <br> DEF Heure : <?= htmlspecialchars($sale['dateDGI']) ?>
+                <?php endif; ?>
+                <br> ISF : <?= htmlspecialchars($storeInfo['isf'] ?? '0') ?>
             </div>
         </div>
     <?php endif; ?>
 
     <!-- Receipt Footer -->
-    <div style="text-align: center; padding: 1rem; margin-top: 0.5rem; border-top: 2px solid #000;">
-        <div id="ticket-qrcode" style="margin: 10px auto; text-align: center;"></div>
-        <div style="font-size: 1.125rem; letter-spacing: 3px; font-weight: 700; margin: 0.5rem 0; color: #000; font-family: 'JetBrains Mono', monospace;">
+    <div class="receipt-footer">
+        <div id="ticket-qrcode" class="qrcode-container"></div>
+
+        <div class="barcode" style="margin: 0.5rem 0;">
             <?= htmlspecialchars($sale['numero_facture'] ?? '') ?>
         </div>
-        <div style="margin: 10px 0; font-size: 11px; color: #333; border: 1px dashed #ccc; padding: 8px; border-radius: 4px; text-align: left;">
-            <div style="font-weight: bold; text-decoration: underline; margin-bottom: 4px;">Commentaire/Remarque :</div>
-            <div><?= !empty($sale['comment']) ? htmlspecialchars($sale['comment']) : 'Aucun commentaire' ?></div>
-        </div>
-        <div style="font-style: italic; font-size: 0.875rem; color: #333;">
+
+        <div class="thank-you">
             Merci de votre visite!
         </div>
-        <p style="margin-top: 5px; color: #555; font-size: 9px;">---Powered By Osat---</p>
+        <p style="margin-top: 5px; color: #555; font-size: 9px; opacity: 0.7;">---Powered By Osat---</p>
     </div>
 </div>
 
 <?php if (!empty($sale['qrCode'])): ?>
+    <script src="https://cdn.jsdelivr.net/npm/qr-code-styling@1.5.0/lib/qr-code-styling.js"></script>
     <script>
-        // Generate QR Code for ticket
-        async function generateTicketQR() {
-            try {
-                const script = document.createElement('script');
-                script.src = 'https://cdn.jsdelivr.net/npm/qr-code-styling@1.5.0/lib/qr-code-styling.js';
-                script.onload = function() {
-                    const qrCode = new QRCodeStyling({
-                        width: 100,
-                        height: 100,
-                        type: "svg",
-                        data: "<?= htmlspecialchars($sale['qrCode'] ?? $sale['numero_facture'] ?? '') ?>",
-                        margin: 5,
-                        dotsOptions: {
-                            color: "#000000",
-                            type: "rounded"
-                        },
-                        backgroundOptions: {
-                            color: "#ffffff"
-                        }
-                    });
-                    qrCode.append(document.getElementById('ticket-qrcode'));
-                };
-                document.head.appendChild(script);
-            } catch (e) {
-                console.warn('QR Code generation failed:', e);
-            }
-        }
-        generateTicketQR();
+        document.addEventListener('DOMContentLoaded', function () {
+            const qrCode = new QRCodeStyling({
+                width: 140,
+                height: 140,
+                type: "svg",
+                data: "<?= addslashes($sale['qrCode']) ?>",
+                margin: 0,
+                dotsOptions: {
+                    color: "#000000",
+                    type: "rounded"
+                },
+                backgroundOptions: {
+                    color: "#ffffff"
+                },
+                cornersSquareOptions: {
+                    type: "extra-rounded"
+                }
+            });
+            qrCode.append(document.getElementById('ticket-qrcode'));
+        });
     </script>
 <?php endif; ?>
