@@ -1393,45 +1393,85 @@ function viewSaleDetails(saleId) {
             const sale = data.sale;
             const details = data.details;
 
+            // Construire les items du reçu avec les taxes par produit (comme dans confirmSale)
             let itemsHtml = '';
-            let totalItems = 0;
-
             details.forEach(item => {
-                totalItems += parseInt(item.quantite);
-                const subtotal = parseFloat(item.quantite) * parseFloat(item.prix);
+                const itemHT = parseFloat(item.prix) * parseFloat(item.quantite);
+                const taxRate = parseFloat(item.tax_rate || 0);
+                // Dans confirmSale line 948: const itemTTC = itemHT; (Semble être HT affiché comme TTC ou vice versa?)
+                // Mais dans facture-ticket.php line 97: number_format($itemTTC, 2)
+                // On va suivre confirmSale qui semble être la référence demandée.
+                const itemTTC = itemHT; 
+
+                const taxLabel = item.tax_etiquette || (taxRate > 0 ? 'TVA ' + taxRate + '%' : 'Exonere');
                 itemsHtml += `
                     <div class="receipt-item">
-                        <span class="item-name">${item.produit_nom || 'Produit #' + item.produit_id}</span>
+                        <span class="item-name">${item.produit_nom || 'Produit'}<span class="item-tax-badge">${taxLabel}</span></span>
                         <span class="item-qty">x${item.quantite}</span>
-                        <span class="item-price">${subtotal.toFixed(2)}</span>
+                        <span class="item-price">${itemTTC.toFixed(2)}</span>
                     </div>
                 `;
             });
 
-            const formattedDate = new Date(sale.date).toLocaleString('fr-FR', {
-                day: '2-digit', month: '2-digit', year: 'numeric',
-                hour: '2-digit', minute: '2-digit'
-            });
+            // Infos Magasin Extra (RCCM, ISF)
+            let storeExtraInfo = '';
+            if (STORE_INFO.rccm) {
+                storeExtraInfo += `<div>RCCM: ${STORE_INFO.rccm}</div>`;
+            }
+            if (STORE_INFO.isf) {
+                storeExtraInfo += `<div>Numero Impot: ${STORE_INFO.isf}</div>`;
+            }
 
+            // Section Infos (Vendeur, Client)
+            const vendeur = sale.nom_vendeur || 'N/A';
+            const acheteurNom = sale.nom_client || '';
+            const acheteurNumero = sale.client_numero || '';
+            const acheteurType = sale.client_type_code || '';
+            const acheteurNif = sale.client_nif || '';
+
+            let infoSection = `<div style="border-top: 1px dashed #ccc; margin-top: 6px; padding-top: 6px; text-align: left; font-size: 15px; line-height: 1.5;">
+                               <div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>Vendeur:</strong></span><span>${vendeur}</span></div>
+                               ${acheteurNom ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>Client:</strong></span><span>${acheteurNom}</span></div>` : ''}
+                               ${acheteurNumero ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>Num:</strong></span><span>${formatPhoneNumber(acheteurNumero)}</span></div>` : ''}
+                               ${acheteurType ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>Type:</strong></span><span>${acheteurType}</span></div>` : ''}
+                               ${acheteurNif ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>NIF:</strong></span><span>${acheteurNif}</span></div>` : ''}
+                               ${STORE_INFO.isf ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>ISF:</strong></span><span>${STORE_INFO.isf}</span></div>` : ''}
+                            </div>`;
+
+            // Recap DGI (si dispo)
+            let dgiInfoHtml = '';
+            if (sale.counters) {
+                dgiInfoHtml = `<div style="background: #e8f5e9; border: 1px solid #4caf50; border-radius: 8px; padding: 10px; margin: 10px 0; text-align: center;">
+                                <div style="color: #2e7d32; font-weight: bold; font-size: 11px;">--- Elements de securite de la facture normalisee ---</div>
+                                <div style="font-size: 12px; color: #555; margin-top: 4px;">
+                                    ${sale.codeDEFDGI ? 'CODE DEF/DGI: ' + sale.codeDEFDGI : ''}
+                                    ${sale.nim ? '<br> DEF NID : ' + sale.nim : ''}
+                                    ${sale.counters ? '<br> DEF Compteurs: ' + sale.counters : ''}
+                                    ${sale.dateDGI ? '<br> DEF Heure : ' + sale.dateDGI : ''}
+                                    <br> ISF : ${STORE_INFO.isf || '0'}
+                                </div>
+                            </div>`;
+            }
+
+            const qrContainerId = 'history-qrcode-container';
+            const qrCodeContent = sale.qrCode || sale.numero_facture;
+
+            // Assemblage du Reçu
             document.getElementById('sale-details-content').innerHTML = `
                 <div class="receipt">
                     <div class="receipt-header">
                         <div class="store-name">${STORE_INFO.name}</div>
                         <div class="store-info">
-                            ${STORE_INFO.address}<br>
-                            Tel: ${STORE_INFO.phone}<br>
-
-                            ID Nat: ${STORE_INFO.ice}<br>
-                            RCCM: ${STORE_INFO.rccm}
-                            ID Nat: ${STORE_INFO.ice}<br>
-                            RCCM: ${STORE_INFO.rccm}
-
+                            <div>${STORE_INFO.address}</div>
+                            <div>Tel: ${STORE_INFO.phone}</div>
+                            <div>ID Nat: ${STORE_INFO.ice}</div>
+                            ${storeExtraInfo}
                         </div>
+                        ${infoSection}
                     </div>
-
                     <div class="receipt-meta">
                         <span>${sale.numero_facture}</span>
-                        <span>${document.getElementById('invoice-type')?.value || 'FV'}</span>
+                        <span>${sale.type_facture || 'FV'}</span>
                     </div>
 
                     <div class="receipt-items receipt-items-grid">
@@ -1444,34 +1484,42 @@ function viewSaleDetails(saleId) {
                             <span>${parseFloat(sale.sous_total_ht).toFixed(2)} Fc</span>
                         </div>
                         <div class="receipt-total-row">
-                            <span>TVA (16%):</span>
+                            <span>TVA:</span>
                             <span>${parseFloat(sale.tva).toFixed(2)} Fc</span>
                         </div>
                         <div class="receipt-total-row grand-total">
                             <span>TOTAL TTC:</span>
                             <span>${parseFloat(sale.total).toFixed(2)} Fc</span>
                         </div>
-                    </div>
-
-                    <div class="receipt-footer">
-                        <div class="vendeur-info">Vendeur: ${sale.nom_vendeur || (typeof CURRENT_USER !== 'undefined' && CURRENT_USER.fullName ? CURRENT_USER.fullName : 'N/A')}</div>
-                        <div class="barcode">||| ${sale.numero_facture} |||</div>
                         <div style="margin: 10px 0; font-size: 11px; color: #333; border: 1px dashed #ccc; padding: 8px; border-radius: 4px; text-align: left;">
                             <div style="font-weight: bold; text-decoration: underline; margin-bottom: 4px;">Commentaire/Remarque :</div>
                             <div>${sale.comment || 'Aucun commentaire'}</div>
                         </div>
+                    </div>
+
+                    ${dgiInfoHtml}
+
+                    <div class="receipt-footer">
+                        <div id="${qrContainerId}" class="qrcode-container"></div>
+                        <div class="barcode">${sale.numero_facture}</div>
                         <div class="thank-you">Merci de votre visite!</div>
-                        <p style="margin-top: 5px; color: #555; font-size: 13px;">---Powered By Osat---</p>
+                        <div style="margin-top: 5px; font-size: 9px; font-style: italic;">---Powered By Osat---</div>
                     </div>
                 </div>
             `;
+
+            // Generer le QR code
+            posCart.generateDGIQRCode(qrCodeContent, qrContainerId);
 
             // Setup print button
             $('#print-sale-btn').onclick = () => printSaleReceipt(saleId);
 
             document.getElementById('sale-details-modal').classList.add('active');
         })
-        .catch(() => alert('Erreur serveur'));
+        .catch((e) => {
+            console.error('Error fetching sale details:', e);
+            alert('Erreur serveur lors de la récupération des détails');
+        });
 }
 
 function printSaleReceipt(saleId) {

@@ -31,9 +31,11 @@ class SaleDetail
 
     public function getBySaleId($saleId)
     {
-        $sql = "SELECT dv.*, p.nom as produit_nom, p.code_barres 
+        $sql = "SELECT dv.*, p.nom as produit_nom, p.code_barres,
+                       t.taux as tax_rate, t.etiquette as tax_etiquette
                 FROM details_vente dv 
                 LEFT JOIN produits p ON dv.produit_id = p.id 
+                LEFT JOIN taxes t ON p.taxe_id = t.id
                 WHERE dv.vente_id = ?";
         return $this->db->fetchAll($sql, [$saleId]);
     }

@@ -57,9 +57,13 @@ class Sale
     }
     public function exist($id)
     {
-        $sql = "SELECT v.*, u.nom_complet as nom_vendeur 
+        $sql = "SELECT v.*, u.nom_complet as nom_vendeur, 
+                       c.nom_client, c.code_client, c.numero as client_numero, c.nif as client_nif,
+                       tc.code as client_type_code
                 FROM ventes v 
                 LEFT JOIN utilisateurs u ON v.vendeur_id = u.id 
+                LEFT JOIN clients c ON v.client_id = c.id
+                LEFT JOIN type_client tc ON c.type_client_id = tc.id
                 WHERE v.id = ?";
         return $this->db->fetch($sql, [$id]);
     }
