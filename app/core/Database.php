@@ -6,9 +6,9 @@ namespace App\Core;
 
 
 $host = 'localhost';
-$dbname = 'u138949110_a';
-$user = 'u138949110_b';
-$pass = 'Cesarrandybernice2013@';
+$dbname = 'pos_system';
+$user = 'randy';
+$pass = 'MUFASA';
 
 class Database
 {
@@ -24,7 +24,7 @@ class Database
                 \PDO::ATTR_DEFAULT_FETCH_MODE => \PDO::FETCH_ASSOC,
                 \PDO::ATTR_EMULATE_PREPARES   => false,
             ];
-            $this->pdo = new \PDO($dsn, 'root', 'root', $options);
+            $this->pdo = new \PDO($dsn, 'randy', 'MUFASA', $options);
         } catch (\PDOException $e) {
             die("Database Connection failed: " . $e->getMessage());
         }
