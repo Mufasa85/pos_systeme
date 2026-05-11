@@ -6,97 +6,90 @@
     <!-- Products Section with scroll -->
     <div class="caisse-products" style="max-height: calc(100vh - 120px); overflow-y: auto; padding-right: 8px;">
       
-      <!-- Zone de recherche facture -->
-      <div class="recharge-search-section">
+      <!-- Recherche + Infos Client (bloc unique) -->
+      <div class="recharge-search-client-block">
         <h3 class="section-title">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="11" cy="11" r="8"></circle>
             <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
           </svg>
-          Recherche Facture
+          Recherche Facture & Informations Client
         </h3>
         
-        <div class="search-form-row">
-          <!-- Select Service (SNEL/REGIDESO) -->
-          <div class="form-group">
-            <label for="service-select">Service</label>
-            <div class="select-wrapper">
-              <select id="service-select" class="modern-select" onchange="loadRechargesByService(this.value)">
-                <option value="">-- Sélectionner --</option>
-                <option value="SNEL">⚡ SNEL (Électricité)</option>
-                <option value="REGIDESO">💧 REGIDESO (Eau)</option>
-              </select>
-              <div class="select-arrow">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <polyline points="6 9 12 15 18 9"></polyline>
-                </svg>
+        <div class="recharge-search-section">
+          <div class="search-form-row">
+            <!-- Select Service (SNEL/REGIDESO) -->
+            <div class="form-group">
+              <label for="service-select">Service</label>
+              <div class="select-wrapper">
+                <select id="service-select" class="modern-select" onchange="loadRechargesByService(this.value)">
+                  <option value="">-- Sélectionner --</option>
+                  <option value="SNEL">⚡ SNEL (Électricité)</option>
+                  <option value="REGIDESO">💧 REGIDESO (Eau)</option>
+                </select>
+                <div class="select-arrow">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                  </svg>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Numéro facture -->
+            <div class="form-group">
+              <label for="invoice-number">N° Facture</label>
+              <div class="input-with-btn">
+                <input type="text" id="invoice-number" class="client-number-input" placeholder="Entrez le numéro...">
+                <button class="btn btn-secondary" onclick="searchInvoice()">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                  </svg>
+                  Rechercher
+                </button>
               </div>
             </div>
           </div>
           
-          <!-- Numéro facture -->
-          <div class="form-group">
-            <label for="invoice-number">N° Facture</label>
-            <div class="input-with-btn">
-              <input type="text" id="invoice-number" class="client-number-input" placeholder="Entrez le numéro...">
-              <button class="btn btn-secondary" onclick="searchInvoice()">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <circle cx="11" cy="11" r="8"></circle>
-                  <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                </svg>
-                Rechercher
-              </button>
-            </div>
-          </div>
-        </div>
-        
-        <!-- Filtre année -->
-        <div class="search-form-row">
-          <div class="form-group">
-            <label for="year-filter">Année</label>
-            <div class="select-wrapper">
-              <select id="year-filter" class="modern-select" onchange="filterByYear(this.value)">
-                <option value="">Toutes les années</option>
-                <?php for ($y = date('Y'); $y >= date('Y') - 5; $y--): ?>
-                  <option value="<?= $y ?>"><?= $y ?></option>
-                <?php endfor; ?>
-              </select>
-              <div class="select-arrow">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <polyline points="6 9 12 15 18 9"></polyline>
-                </svg>
+          <!-- Filtre année -->
+          <div class="search-form-row">
+            <div class="form-group">
+              <label for="year-filter">Année</label>
+              <div class="select-wrapper">
+                <select id="year-filter" class="modern-select" onchange="filterByYear(this.value)">
+                  <option value="">Toutes les années</option>
+                  <?php for ($y = date('Y'); $y >= date('Y') - 5; $y--): ?>
+                    <option value="<?= $y ?>"><?= $y ?></option>
+                  <?php endfor; ?>
+                </select>
+                <div class="select-arrow">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                  </svg>
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
-      
-      <!-- Infos client -->
-      <div class="recharge-client-section">
-        <h3 class="section-title">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-            <circle cx="12" cy="7" r="4"></circle>
-          </svg>
-          Informations Client
-        </h3>
         
-        <div class="client-form-grid">
-          <div class="form-group">
-            <label for="client-nom">Nom</label>
-            <input type="text" id="client-nom" class="client-number-input" placeholder="Nom">
-          </div>
-          <div class="form-group">
-            <label for="client-postnom">Post-nom</label>
-            <input type="text" id="client-postnom" class="client-number-input" placeholder="Post-nom">
-          </div>
-          <div class="form-group">
-            <label for="client-prenom">Prénom</label>
-            <input type="text" id="client-prenom" class="client-number-input" placeholder="Prénom">
-          </div>
-          <div class="form-group">
-            <label for="client-tel">Téléphone</label>
-            <input type="text" id="client-tel" class="client-number-input" placeholder="N° téléphone" value="0000">
+        <div class="recharge-client-section">
+          <div class="client-form-grid">
+            <div class="form-group">
+              <label for="client-nom">Nom</label>
+              <input type="text" id="client-nom" class="client-number-input" placeholder="Nom">
+            </div>
+            <div class="form-group">
+              <label for="client-postnom">Post-nom</label>
+              <input type="text" id="client-postnom" class="client-number-input" placeholder="Post-nom">
+            </div>
+            <div class="form-group">
+              <label for="client-prenom">Prénom</label>
+              <input type="text" id="client-prenom" class="client-number-input" placeholder="Prénom">
+            </div>
+            <div class="form-group">
+              <label for="client-tel">Téléphone</label>
+              <input type="text" id="client-tel" class="client-number-input" placeholder="N° téléphone" value="0000">
+            </div>
           </div>
         </div>
       </div>
@@ -290,7 +283,7 @@ function addMockProductToCart(id, nom, prix, categorie) {
 </script>
 
 <style>
-.recharge-search-section {
+.recharge-search-client-block {
   background: white;
   border-radius: 12px;
   padding: 16px;
@@ -298,12 +291,17 @@ function addMockProductToCart(id, nom, prix, categorie) {
   box-shadow: 0 2px 8px rgba(0,0,0,0.08);
 }
 
+.recharge-search-section,
 .recharge-client-section {
-  background: white;
-  border-radius: 12px;
-  padding: 16px;
-  margin-bottom: 16px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  margin-bottom: 12px;
+  padding: 12px;
+  background: #f8fafc;
+  border-radius: 8px;
+}
+
+.recharge-search-section:last-child,
+.recharge-client-section:last-child {
+  margin-bottom: 0;
 }
 
 .recharge-list-section {
