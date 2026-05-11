@@ -10,6 +10,7 @@ Router::get("/logout", [AuthController::class, 'logout']);
 
 Router::get("/dashboard", [PageController::class, 'dashboard']);
 Router::get("/caisse", [PageController::class, 'caisse']);
+Router::get("/recharges", [PageController::class, 'recharges']);
 Router::get("/produits", [PageController::class, 'produits']);
 Router::get("/utilisateurs", [PageController::class, 'utilisateurs']);
 Router::get("/historique", [PageController::class, 'historique']);
