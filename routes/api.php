@@ -44,6 +44,52 @@ Router::post("/api/settings", [SettingsController::class, 'update']);
 Router::post("/api/settings/store", [SettingsController::class, 'updateStore']);
 Router::post("/api/settings/tax", [SettingsController::class, 'updateTax']);
 
+// Proxy Bill Payment API (OSAT-Energie pour éviter CORS)
+Router::get("/api/bill-payment", function () {
+    header('Content-Type: application/json');
+
+    $compteur = trim($_GET['compteur'] ?? '');
+    $service = trim($_GET['service'] ?? '');
+    $action = trim($_GET['action'] ?? 'fetch');
+
+    if ($action === 'fetch') {
+        if (empty($compteur) || empty($service)) {
+            echo json_encode(['success' => false, 'message' => 'Paramètres manquants']);
+            return;
+        }
+
+        // Appel API OSAT-Energie
+        $url = 'https://osat-energie.com/json.php?compteur=' . urlencode($compteur) . '&service=' . urlencode($service);
+
+        $context = stream_context_create([
+            'http' => [
+                'method' => 'GET',
+                'timeout' => 30,
+                'ignore_errors' => true
+            ]
+        ]);
+
+        $response = @file_get_contents($url, false, $context);
+
+        if ($response === false) {
+            echo json_encode(['success' => false, 'message' => 'Erreur connexion API OSAT']);
+            return;
+        }
+
+        $data = json_decode($response, true);
+
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            echo json_encode(['success' => false, 'message' => 'Réponse API invalide']);
+            return;
+        }
+
+        echo json_encode(['success' => true, 'data' => $data]);
+        return;
+    }
+
+    echo json_encode(['success' => false, 'message' => 'Action non reconnue']);
+});
+
 // Proxy DGI API - GET
 Router::get("/api/dgi", function () {
     header('Access-Control-Allow-Origin: *');

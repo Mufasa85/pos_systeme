@@ -440,7 +440,7 @@ const posCart = {
                     seller_name: sellerName,
                     amount: this.currentTotals.total,
                     client_number: clientNumero,
-                    invoice_number: invoiceNum,
+                    invoice_number: this.currentInvoiceNum,
                     invoice_type: invoiceType,
                     invoice_ref: invoiceRef,
                     articles: this.items.map(item => ({
@@ -469,7 +469,7 @@ const posCart = {
                 client_name: clientNom,
                 client_type: clientTypeInitiales,
                 client_nif: clientNif,
-                invoice_number: invoiceNum,
+                invoice_number: this.currentInvoiceNum,
                 invoice_type: invoiceType,
                 invoice_ref: invoiceRef,
                 articles: this.items.map(item => ({
@@ -1420,7 +1420,7 @@ function viewSaleDetails(saleId) {
                 // Dans confirmSale line 948: const itemTTC = itemHT; (Semble être HT affiché comme TTC ou vice versa?)
                 // Mais dans facture-ticket.php line 97: number_format($itemTTC, 2)
                 // On va suivre confirmSale qui semble être la référence demandée.
-                const itemTTC = itemHT; 
+                const itemTTC = itemHT;
 
                 const taxLabel = item.tax_etiquette || (taxRate > 0 ? 'TVA ' + taxRate + '%' : 'Exonere');
                 itemsHtml += `
@@ -1479,7 +1479,7 @@ function viewSaleDetails(saleId) {
             document.getElementById('sale-details-content').innerHTML = `
                 <div class="receipt">
                     <div class="receipt-header">
-                        <div style="text-align: center; font-weight: 800; font-size: 24px; color: #000; margin-bottom: 10px; border-bottom: 2px solid #000; padding-bottom: 5px;">PRO FORMAT</div>
+                        <div style="text-align: center; font-weight: 800; font-size: 24px; color: #000; margin-bottom: 10px; border-bottom: 2px solid #000; padding-bottom: 5px;">PROFORMA</div>
                         <div class="store-name">${STORE_INFO.name}</div>
                         <div class="store-info">
                             <div>${STORE_INFO.address}</div>

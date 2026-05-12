@@ -144,40 +144,9 @@ class PageController
         $typeClientModel = new \App\Models\TypeClient();
         $clientTypes = $typeClientModel->getAll();
 
-        // Mois en français
-        $mois = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
-        
-        // Données mock pour SNEL - par mois
-        $snelProducts = [];
-        $baseSnel = 5000;
-        for ($i = 0; $i < 12; $i++) {
-            $snelProducts[] = [
-                'id' => $i + 1,
-                'nom' => $mois[$i],
-                'description' => 'Abonnement ' . $mois[$i],
-                'prix' => $baseSnel * ($i + 1),
-                'categorie' => 'SNEL'
-            ];
-        }
-
-        // Données mock pour REGIDESO - par mois
-        $regidesoProducts = [];
-        $baseRegideso = 3000;
-        for ($i = 0; $i < 12; $i++) {
-            $regidesoProducts[] = [
-                'id' => 101 + $i,
-                'nom' => $mois[$i],
-                'description' => 'Abonnement ' . $mois[$i],
-                'prix' => $baseRegideso * ($i + 1),
-                'categorie' => 'REGIDESO'
-            ];
-        }
-
         $this->render('recharges', [
             'categories' => $categories,
-            'clientTypes' => $clientTypes,
-            'snelProducts' => $snelProducts,
-            'regidesoProducts' => $regidesoProducts
+            'clientTypes' => $clientTypes
         ]);
     }
 

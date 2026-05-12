@@ -33,9 +33,9 @@
         <div id="preview-content" class="preview-content">
           <!-- Contenu généré par JS -->
         </div>
-        <div class="modal-actions">
+        <div class="modal-actions" id="preview-modal-actions">
           <button type="button" class="btn btn-secondary" onclick="posCart.closePreview()">Annuler</button>
-          <button type="button" id="confirm-sale" class="btn btn-primary" onclick="posCart.confirmSale()">
+          <button type="button" id="confirm-sale" class="btn btn-primary" onclick="confirmSaleFromPreview()">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <polyline points="20 6 9 17 4 12"></polyline>
             </svg>
@@ -524,7 +524,8 @@
     </div>
 
     <script src="./assets/js/app.js?v=1.0.497977491"></script>
-    
+    <script src="./assets/js/recharges.js?v=1.0.3"></script>
+
     </body>
 
     </html>

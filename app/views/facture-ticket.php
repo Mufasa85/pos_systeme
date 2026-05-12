@@ -19,7 +19,7 @@
 <!-- Receipt - The actual ticket -->
 <div class="receipt" id="receipt-ticket">
     <div class="receipt-header">
-        <div style="text-align: center; font-weight: 800; font-size: 24px; color: #000; margin-bottom: 10px; border-bottom: 2px solid #000; padding-bottom: 5px;">PRO FORMAT</div>
+        <div style="text-align: center; font-weight: 800; font-size: 24px; color: #000; margin-bottom: 10px; border-bottom: 2px solid #000; padding-bottom: 5px;">PROFORMA</div>
         <div class="store-name">
             <?= htmlspecialchars($storeInfo['name'] ?? 'SuperMarche Express') ?>
         </div>
@@ -93,7 +93,7 @@
             $itemTax = $itemHT * ($taxRate / 100);
             $itemTTC = $itemHT + $itemTax;
             $taxLabel = !empty($item['tax_etiquette']) ? htmlspecialchars($item['tax_etiquette']) : ($taxRate > 0 ? 'TVA ' . $taxRate . '%' : 'Exonere');
-            ?>
+        ?>
             <div class="receipt-item">
                 <span class="item-name">
                     <?= htmlspecialchars($item['produit_nom'] ?? 'Produit') ?>
@@ -168,7 +168,7 @@
 <?php if (!empty($sale['qrCode'])): ?>
     <script src="https://cdn.jsdelivr.net/npm/qr-code-styling@1.5.0/lib/qr-code-styling.js"></script>
     <script>
-        document.addEventListener('DOMContentLoaded', function () {
+        document.addEventListener('DOMContentLoaded', function() {
             const qrCode = new QRCodeStyling({
                 width: 140,
                 height: 140,
