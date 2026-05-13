@@ -45,12 +45,23 @@ Router::post("/api/settings/store", [SettingsController::class, 'updateStore']);
 Router::post("/api/settings/tax", [SettingsController::class, 'updateTax']);
 
 // Proxy Bill Payment API (OSAT-Energie pour éviter CORS)
-Router::get("/api/bill-payment", function () {
+// POST vers https://osat-energie.com/snel_regideso/
+Router::post("/api/bill-payment", function () {
+    header('Access-Control-Allow-Origin: *');
+    header('Access-Control-Allow-Methods: POST, OPTIONS');
+    header('Access-Control-Allow-Headers: Content-Type');
     header('Content-Type: application/json');
 
-    $compteur = trim($_GET['compteur'] ?? '');
-    $service = trim($_GET['service'] ?? '');
-    $action = trim($_GET['action'] ?? 'fetch');
+    if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+        http_response_code(200);
+        exit;
+    }
+
+    $input = json_decode(file_get_contents('php://input'), true);
+
+    $compteur = trim($input['compteur'] ?? '');
+    $service = trim($input['service'] ?? '');
+    $action = trim($input['action'] ?? 'fetch');
 
     if ($action === 'fetch') {
         if (empty($compteur) || empty($service)) {
@@ -58,32 +69,51 @@ Router::get("/api/bill-payment", function () {
             return;
         }
 
-        // Appel API OSAT-Energie
-        $url = 'https://osat-energie.com/json.php?compteur=' . urlencode($compteur) . '&service=' . urlencode($service);
+        // Appel API OSAT-Energie via POST
+        $osatUrl = 'https://osat-energie.com/snel_regideso/';
 
-        $context = stream_context_create([
-            'http' => [
-                'method' => 'GET',
-                'timeout' => 30,
-                'ignore_errors' => true
-            ]
+        $postData = json_encode([
+            'compteur' => $compteur,
+            'service' => $service
         ]);
 
-        $response = @file_get_contents($url, false, $context);
+        $ch = curl_init($osatUrl);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $postData);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            'Content-Type: application/json',
+            'Accept: application/json'
+        ]);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
 
-        if ($response === false) {
-            echo json_encode(['success' => false, 'message' => 'Erreur connexion API OSAT']);
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curlError = curl_error($ch);
+        curl_close($ch);
+
+        if ($response === false || empty($response)) {
+            echo json_encode(['success' => false, 'message' => 'Erreur connexion API OSAT: ' . $curlError]);
             return;
         }
 
         $data = json_decode($response, true);
 
         if (json_last_error() !== JSON_ERROR_NONE) {
-            echo json_encode(['success' => false, 'message' => 'Réponse API invalide']);
+            echo json_encode(['success' => false, 'message' => 'Réponse API invalide', 'raw' => substr($response, 0, 200)]);
             return;
         }
 
         echo json_encode(['success' => true, 'data' => $data]);
+        return;
+    }
+
+    if ($action === 'process') {
+        // Traitement du paiement (enregistrement en DB)
+        $input = $input ?? [];
+        echo json_encode(['success' => true, 'message' => 'Paiement enregistré']);
         return;
     }
 

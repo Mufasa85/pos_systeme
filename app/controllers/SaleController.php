@@ -26,25 +26,10 @@ class SaleController extends Controller
         $saleModel = new Sale();
         $detailModel = new SaleDetail();
         $productModel = new Product();
-        $clientModel = new Client();
 
-        // Si pas de client_id, créer un client "Particulier" par défaut (type 1 = PP)
+        // Si pas de client_id, utiliser null (pas de client sélectionné)
+        // Pour les recharges, on n'a pas besoin de client dans la table clients
         $clientId = $data['client_id'] ?? null;
-        if (!$clientId) {
-            // Chercher si le client PP par défaut existe déjà
-            $defaultClient = $clientModel->findByNumero('0000000000');
-            if ($defaultClient) {
-                $clientId = $defaultClient['id'];
-            } else {
-                // Créer le client PP par défaut
-                $newClient = $clientModel->create([
-                    'nom' => 'Particulier',
-                    'numero' => '0000000000',
-                    'type_client_id' => 1
-                ]);
-                $clientId = $newClient['id'] ?? null;
-            }
-        }
 
         try {
             $db = \App\Core\Database::getInstance()->getConnection();
@@ -71,27 +56,33 @@ class SaleController extends Controller
                 'comment'        => $dgiData['comment'] ?? null
             ]);
 
-            foreach ($data['articles'] as $item) {
-                // Vérifier le stock avant de vendre
-                $product = $productModel->findById($item['produit_id']);
-                if (!$product || $product['stock'] < $item['quantite']) {
-                    $db->rollBack();
-                    $this->status(400)->json([
-                        'error' => 'Stock insuffisant pour le produit: ' . ($product['nom'] ?? $item['produit_id'])
+            // Si providerService existe (recharges), ne pas enregistrer dans details_vente
+            $isRecharge = !empty($data['providerService']);
+
+            if (!$isRecharge) {
+                foreach ($data['articles'] as $item) {
+                    $produitId = $item['produit_id'] ?? 0;
+
+                    // Vérifier le stock pour les vraies ventes
+                    $product = $productModel->findById($produitId);
+                    if (!$product || $product['stock'] < $item['quantite']) {
+                        $db->rollBack();
+                        $this->status(400)->json([
+                            'error' => 'Stock insuffisant pour le produit: ' . ($product['nom'] ?? $item['produit_id'])
+                        ]);
+                        return;
+                    }
+                    // Mettre à jour le stock (décrémenter)
+                    $productModel->updateStock($produitId, $item['quantite']);
+
+                    // Créer le détail
+                    $detailModel->create([
+                        'vente_id'   => $saleId,
+                        'produit_id' => $produitId,
+                        'quantite'   => $item['quantite'],
+                        'prix'       => $item['prix']
                     ]);
-                    return;
                 }
-
-                // Créer le détail
-                $detailModel->create([
-                    'vente_id'   => $saleId,
-                    'produit_id' => $item['produit_id'],
-                    'quantite'   => $item['quantite'],
-                    'prix'       => $item['prix']
-                ]);
-
-                // Mettre à jour le stock (décrémenter)
-                $productModel->updateStock($item['produit_id'], $item['quantite']);
             }
 
             $db->commit();

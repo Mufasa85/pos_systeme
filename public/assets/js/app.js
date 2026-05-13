@@ -427,37 +427,8 @@ const posCart = {
             const invoiceType = document.getElementById('invoice-type')?.value || 'FV';
             const invoiceRef = document.getElementById('invoice-ref')?.value || '';
 
-            // Envoyer les donnees en POST a l'API DGI
-            const res = await fetch(DGI_API_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    store_name: STORE_INFO.name,
-                    store_phone: STORE_INFO.phone,
-                    store_address: STORE_INFO.address,
-                    store_ice: STORE_INFO.ice,
-                    store_isf: STORE_INFO.isf,
-                    seller_name: sellerName,
-                    amount: this.currentTotals.total,
-                    client_number: clientNumero,
-                    invoice_number: this.currentInvoiceNum,
-                    invoice_type: invoiceType,
-                    invoice_ref: invoiceRef,
-                    articles: this.items.map(item => ({
-                        name: item.nom,
-                        quantity: item.quantite,
-                        price: item.prix,
-                        tax_rate: item.tax_rate || 0,
-                        tax_etiquette: item.tax_etiquette || ''
-                    })),
-                    // Infos client pour DGI
-                    client_name: clientNom,
-                    client_type: clientTypeInitiales,
-                    client_nif: clientNif
-                })
-            });
-
-            console.log(JSON.stringify({
+            // Construire le payload DGI
+            const dgiPayload = {
                 store_name: STORE_INFO.name,
                 store_phone: STORE_INFO.phone,
                 store_address: STORE_INFO.address,
@@ -466,9 +437,6 @@ const posCart = {
                 seller_name: sellerName,
                 amount: this.currentTotals.total,
                 client_number: clientNumero,
-                client_name: clientNom,
-                client_type: clientTypeInitiales,
-                client_nif: clientNif,
                 invoice_number: this.currentInvoiceNum,
                 invoice_type: invoiceType,
                 invoice_ref: invoiceRef,
@@ -478,8 +446,21 @@ const posCart = {
                     price: item.prix,
                     tax_rate: item.tax_rate || 0,
                     tax_etiquette: item.tax_etiquette || ''
-                }))
-            }))
+                })),
+                client_name: clientNom,
+                client_type: clientTypeInitiales,
+                client_nif: clientNif
+            };
+
+            // Log du payload DGI (CAISSE)
+            console.log('[DGI CAISSE] Payload envoyé:', JSON.stringify(dgiPayload, null, 2));
+
+            // Envoyer les donnees en POST a l'API DGI
+            const res = await fetch(DGI_API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(dgiPayload)
+            });
 
             // Vérifier si la réponse estOK
             if (!res.ok) {
@@ -498,7 +479,6 @@ const posCart = {
 
             // Parser le JSON
             try {
-
                 return JSON.parse(text);
             } catch (jsonErr) {
                 console.warn('[DGI] Réponse non-JSON:', text.substring(0, 200));

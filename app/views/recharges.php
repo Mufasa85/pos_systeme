@@ -109,6 +109,35 @@
                 </button>
               </div>
               <div class="modal-body">
+                <div class="client-info-display" id="client-info-display">
+                  <div class="info-row">
+                    <span class="info-label">Nom:</span>
+                    <span class="info-value" id="modal-client-nom-display">-</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">Post-nom:</span>
+                    <span class="info-value" id="modal-client-postnom-display">-</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">Prénom:</span>
+                    <span class="info-value" id="modal-client-prenom-display">-</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">Téléphone:</span>
+                    <span class="info-value" id="modal-client-tel-display">0000</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">N° Compteur:</span>
+                    <span class="info-value" id="modal-client-compteur-display">-</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">Service:</span>
+                    <span class="info-value" id="modal-client-service-display">-</span>
+                  </div>
+                </div>
+                <div style="margin-top: 16px; padding-top: 16px; border-top: 1px dashed #ccc;">
+                  <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 12px;">Modifiez les informations si nécessaire:</p>
+                </div>
                 <div class="form-group">
                   <label for="modal-client-nom">Nom</label>
                   <input type="text" id="modal-client-nom" class="client-number-input" placeholder="Nom">
@@ -127,7 +156,7 @@
                 </div>
               </div>
               <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="closeClientModalDirect()">Annuler</button>
+                <button class="btn btn-secondary" onclick="closeClientModalDirect()">Fermer</button>
                 <button class="btn btn-primary" onclick="saveClientInfo()">Enregistrer</button>
               </div>
             </div>
