@@ -9,7 +9,7 @@
   <link rel="stylesheet" href="./assets/css/styles.css?v=208">
   <link rel="stylesheet" href="./assets/css/mobile-caisse.css?v=209">
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="stylesheet" href="./assets/css/recharges.css?v=1">
+  <link rel="stylesheet" href="./assets/css/recharges.css?v=5">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <div id="page-recharges" class="page <?= $page == 'recharges' ? 'active' : '' ?>">
@@ -109,35 +109,6 @@
                 </button>
               </div>
               <div class="modal-body">
-                <div class="client-info-display" id="client-info-display">
-                  <div class="info-row">
-                    <span class="info-label">Nom:</span>
-                    <span class="info-value" id="modal-client-nom-display">-</span>
-                  </div>
-                  <div class="info-row">
-                    <span class="info-label">Post-nom:</span>
-                    <span class="info-value" id="modal-client-postnom-display">-</span>
-                  </div>
-                  <div class="info-row">
-                    <span class="info-label">Prénom:</span>
-                    <span class="info-value" id="modal-client-prenom-display">-</span>
-                  </div>
-                  <div class="info-row">
-                    <span class="info-label">Téléphone:</span>
-                    <span class="info-value" id="modal-client-tel-display">0000</span>
-                  </div>
-                  <div class="info-row">
-                    <span class="info-label">N° Compteur:</span>
-                    <span class="info-value" id="modal-client-compteur-display">-</span>
-                  </div>
-                  <div class="info-row">
-                    <span class="info-label">Service:</span>
-                    <span class="info-value" id="modal-client-service-display">-</span>
-                  </div>
-                </div>
-                <div style="margin-top: 16px; padding-top: 16px; border-top: 1px dashed #ccc;">
-                  <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 12px;">Modifiez les informations si nécessaire:</p>
-                </div>
                 <div class="form-group">
                   <label for="modal-client-nom">Nom</label>
                   <input type="text" id="modal-client-nom" class="client-number-input" placeholder="Nom">
@@ -156,7 +127,7 @@
                 </div>
               </div>
               <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="closeClientModalDirect()">Fermer</button>
+                <button class="btn btn-secondary" onclick="closeClientModalDirect()">Annuler</button>
                 <button class="btn btn-primary" onclick="saveClientInfo()">Enregistrer</button>
               </div>
             </div>
@@ -180,7 +151,7 @@
 
           <div id="months-section" class="recharge-service-block" style="display: none;">
             <div class="recharge-section-header">
-              <span class="section-icon">📋</span>
+              <span class="section-icon"></span>
               <span>Sélectionnez les mois à payer</span>
             </div>
             <div id="months-grid"></div>
@@ -207,7 +178,7 @@
           </button>
         </div>
 
-        <!-- Type facture -->
+        <!-- Type facture et Client -->
         <div class="client-number-section">
           <div style="display: flex; gap: 8px; margin-bottom: 10px;">
             <div style="flex: 1;">
@@ -222,6 +193,16 @@
               <label style="font-size: 0.75rem; font-weight: 600; color: #64748b; display: block; margin-bottom: 4px;">N° DOCUMENT</label>
               <input type="text" id="invoice-ref" class="client-number-input" placeholder="Auto" style="width: 100%;" readonly>
             </div>
+          </div>
+          <!-- Ligne Type client + NIF -->
+          <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+            <select id="client-type" class="client-number-input" style="flex: 1;">
+              <option value="">Type client</option>
+              <?php foreach ($clientTypes as $type): ?>
+                <option value="<?= $type['id'] ?>"><?= htmlspecialchars($type['code']) ?></option>
+              <?php endforeach; ?>
+            </select>
+            <input type="text" id="client-nif" class="client-number-input" placeholder="NIF client" style="flex: 1;">
           </div>
         </div>
 
