@@ -653,7 +653,9 @@ class BillPayment {
                     <div class="month-name">${monthName}</div>
                     <div class="month-year">${m.annee}</div>
                     <div class="month-amount">${isImpayé ? this.formatMoney(m.montant) + ' Fc' : '0.00 Fc'}</div>
-                    <div class="month-name">${numero_facture}</div>
+                    <div class="month-invoice-number">
+                        <span class="invoice-value">${numero_facture}</span>
+                    </div>
                 </div>
             `;
         });
