@@ -21,3 +21,30 @@
 "client_name": "NULL",
 "client_type": "PP",
 "client_nif": "NULL"
+
+{
+"store_name": "SuperMarche Express",
+"store_phone": "+243 81 00 00 000",
+"store_address": "Ngaliema",
+"store_ice": "001234567890123",
+"store_isf": "A900001T",
+"seller_name": "cesar",
+"amount": 8011.26,
+"client_number": "FEZ00000001A",
+"client_name": "Default Name FEZA",
+"client_type": "SNEL",
+"client_nif": "hhghdfdr",
+"invoice_number": "FAC-001093",
+"invoice_type": "FV",
+"invoice_ref": "",
+"articles": [
+{
+"name": "Août 2026 (SNEL)",
+"quantity": 1,
+"price": 8011.26,
+"tax_rate": 0,
+"tax_etiquette": "B"
+}
+]
+}
+,
