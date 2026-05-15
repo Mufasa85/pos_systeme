@@ -53,7 +53,7 @@ class BillPayment {
     async fetchBillInquiry(providerCode, numeroCompteur) {
         console.log('[BillPayment] Fetch inquiry:', providerCode, numeroCompteur);
 
-        const providerId = providerCode === 'SNEL' ? 1 : 2;
+        const providerId = providerCode === 'ELECTRICITE' ? 1 : 2;
         this.currentProvider = providerId;
 
         try {
@@ -291,6 +291,14 @@ class BillPayment {
             return { success: false, error: 'Panier vide' };
         }
 
+        // Vérifier que le type de client est sélectionné
+        const clientTypeSelect = document.getElementById('client-type');
+        const clientTypeValue = clientTypeSelect?.value;
+        if (!clientTypeValue || clientTypeValue === '') {
+            this.showError('Veuillez sélectionner le type de client');
+            return { success: false, error: 'Type client non sélectionné' };
+        }
+
         try {
             this.showLoading('Validation DGI...');
 
@@ -306,7 +314,9 @@ class BillPayment {
 
             this.showLoading('Sauvegarde en cours...');
 
-            const service = this.currentProvider === 1 ? 'SNEL' : 'REGIDESO';
+            console.log(this.currentProvider)
+
+            const service = this.currentProvider === 1 ? 'ELECTRICITE' : 'EAU';
             const total = this.selectedMonths.reduce((acc, m) => acc + m.montant, 0);
 
             // Étape 2: Sauvegarder dans la table ventes (comme pour les ventes normales)
@@ -369,7 +379,19 @@ class BillPayment {
                 type_facture: ventePayload.type_facture
             }, dgiResponse);
 
+            // Sauvegarder le numéro de compteur et service avant reset
+            const savedCompteur = document.getElementById('invoice-number')?.value;
+            const savedService = this.currentProvider === 1 ? 'ELECTRICITE' : 'EAU';
+
             this.reset();
+
+            // Recharger les données depuis l'API pour mettre à jour l'état des mois
+            if (savedCompteur) {
+                setTimeout(() => {
+                    this.fetchBillInquiry(savedService, savedCompteur);
+                }, 500);
+            }
+
             return { success: true, data: venteData, dgi: dgiResponse };
 
         } catch (error) {
@@ -386,7 +408,7 @@ class BillPayment {
 
     async validateWithDGI() {
         try {
-            const service = this.currentProvider === 1 ? 'SNEL' : 'REGIDESO';
+            const service = this.currentProvider === 1 ? 'ELECTRICITE' : 'EAU';
             const sellerName = (typeof CURRENT_USER !== 'undefined' && CURRENT_USER.fullName) ? CURRENT_USER.fullName : STORE_INFO.name;
 
             // Récupérer le numéro de facture
@@ -416,13 +438,24 @@ class BillPayment {
                 month: month.mois,
                 price: month.montant,
                 tax_rate: month.tva,
-                tax_etiquette: 'B'
+                tax_etiquette: 'B',
+                numero_facture: month.numero_facture
             }));
 
             const total = this.selectedMonths.reduce((acc, m) => acc + m.montant, 0);
 
-            const payload = {
+            // Récupérer les infos client pour DGI (type, NIF, numéro document)
+            // Utiliser le type de client du panier (select #client-type)
+            const clientTypeSelect = document.getElementById('client-type');
+            const clientType = clientTypeSelect?.options?.[clientTypeSelect.selectedIndex]?.text || 'PP';
+            const clientNif = document.getElementById('client-nif')?.value || this.apiResponse.client_nif || '';
+            const clientNumeroDoc = document.getElementById('invoice-ref')?.value || ''
 
+            // Récupérer client_number depuis le champ du panier
+            const clientNumberInput = document.getElementById('client-numero');
+            const clientNumber = clientNumberInput?.value;
+
+            const payload = {
                 store_name: STORE_INFO.name,
                 store_phone: STORE_INFO.phone,
                 store_address: STORE_INFO.address,
@@ -430,10 +463,11 @@ class BillPayment {
                 store_isf: STORE_INFO.isf || '',
                 seller_name: sellerName,
                 amount: total,
-                client_number: this.apiResponse.client_numero,
+                client_number: clientNumber,
                 client_name: this.apiResponse.client_nom,
-                client_type: "PP",
-                client_nif: '',
+                client_type: clientType,
+                client_nif: clientNif,
+                client_document: clientNumeroDoc,
                 invoice_number: invoiceNum,
                 invoice_type: invoiceType,
                 invoice_ref: invoiceRef,
@@ -529,6 +563,7 @@ class BillPayment {
                 client_province: user.province_users || '',
                 client_commune: user.COMMUNE || '',
                 client_category: user.CATEGORY || '',
+                client_nif: user.NIF || '',
                 results: results
             };
 
@@ -546,7 +581,7 @@ class BillPayment {
         // Stocker pour usage ultérieur
         this.clientInfo = client;
 
-        const service = this.currentProvider === 1 ? 'SNEL' : 'REGIDESO';
+        const service = this.currentProvider === 1 ? 'ELECTRICITE' : 'EAU';
         const numeroCompteur = document.getElementById('invoice-number')?.value || '';
 
         // Mettre à jour l'affichage du modal avec les nouvelles données
@@ -602,19 +637,22 @@ class BillPayment {
             const monthName = this.moisNoms[m.mois];
             const isImpayé = m.est_impaye;
             const isSelected = this.selectedMonths.some(sm => sm.id === m.id);
+            const numero_facture = m.numero_facture
 
+            const serviceIcon = this.currentProvider === 1 ? '⚡' : '💧';
             html += `
                 <div class="month-card ${isImpayé ? 'unpaid' : 'paid'} ${isSelected ? 'selected' : ''}" 
                      data-id="${m.id}"
                      onclick="billPayment.toggleMonth('${m.id}')">
                     <div class="month-header">
                         <span class="month-status ${isImpayé ? 'unpaid' : 'paid'}">
-                            ${isImpayé ? '⚡ Impayé' : '✓ Réglé'}
+                            ${isImpayé ? serviceIcon + ' Impayé' : '✓ Réglé'}
                         </span>
                     </div>
                     <div class="month-name">${monthName}</div>
                     <div class="month-year">${m.annee}</div>
                     <div class="month-amount">${isImpayé ? this.formatMoney(m.montant) + ' Fc' : '0.00 Fc'}</div>
+                    <div class="month-name">${numero_facture}</div>
                 </div>
             `;
         });
@@ -660,6 +698,14 @@ class BillPayment {
     async showPreview() {
         if (this.selectedMonths.length === 0) return;
 
+        // Vérifier que le type de client est sélectionné
+        const clientTypeSelect = document.getElementById('client-type');
+        const clientTypeValue = clientTypeSelect?.value;
+        if (!clientTypeValue || clientTypeValue === '') {
+            this.showError('Veuillez sélectionner le type de client');
+            return;
+        }
+
         // Récupérer le numéro de facture depuis la base de données
         let invoiceNum = 'FAC-000001';
         try {
@@ -674,7 +720,7 @@ class BillPayment {
         }
 
         const total = this.selectedMonths.reduce((acc, m) => acc + m.montant, 0);
-        const service = this.currentProvider === 1 ? 'SNEL' : 'REGIDESO';
+        const service = this.currentProvider === 1 ? 'ELECTRICITE' : 'EAU';
         const vendeur = (typeof CURRENT_USER !== 'undefined' && CURRENT_USER.fullName) ? CURRENT_USER.fullName : STORE_INFO.name;
 
         // Récupérer les infos client
@@ -823,9 +869,9 @@ class BillPayment {
     generateTicket(data, dgiResponse) {
         console.log('[BillPayment] Ticket généré avec DGI:', data, dgiResponse);
 
-        const service = this.currentProvider === 1 ? 'SNEL' : 'REGIDESO';
+        const service = this.currentProvider === 1 ? 'ELECTRICITE' : 'EAU';
         const total = this.selectedMonths.reduce((acc, m) => acc + m.montant, 0);
-        const invoiceNum = data.numero_transaction || 'RECHARGE-' + Date.now();
+        const invoiceNum = this.currentInvoiceNum
 
         // Construire items
         let itemsHtml = '';
@@ -894,7 +940,7 @@ class BillPayment {
                     </div>
                     <div style="margin: 10px 0; font-size: 11px; color: #333; border: 1px dashed #ccc; padding: 8px; border-radius: 4px; text-align: left;">
                         <div style="font-weight: bold; text-decoration: underline; margin-bottom: 4px;">Commentaire:</div>
-                        <div>${dgiResponse?.comment || dgiResponse?.data?.comment || 'Paiement facture ' + service}</div>
+                        <div>${dgiResponse?.comment || dgiResponse?.data?.comment || 'Paiement facture ' + "No comment"}</div>
                     </div>
                 </div>
                 ${dgiInfoHtml}

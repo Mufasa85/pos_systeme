@@ -37,8 +37,8 @@
                 <div class="select-wrapper">
                   <select id="service-select" class="modern-select" onchange="loadRechargesByService(this.value)">
                     <option value="">-- Sélectionner --</option>
-                    <option value="SNEL">⚡ SNEL (Électricité)</option>
-                    <option value="REGIDESO">💧 REGIDESO (Eau)</option>
+                    <option value="ELECTRICITE">⚡ELECTRICITE</option>
+                    <option value="EAU">💧 EAU</option>
                   </select>
                   <div class="select-arrow">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -110,15 +110,15 @@
               </div>
               <div class="modal-body">
                 <div class="form-group">
-                  <label for="modal-client-nom">Nom</label>
+                  <label for="modal-client-nom">Noms</label>
                   <input type="text" id="modal-client-nom" class="client-number-input" placeholder="Nom">
                 </div>
                 <div class="form-group">
-                  <label for="modal-client-postnom">Post-nom</label>
+                  <label for="modal-client-postnom">Commune</label>
                   <input type="text" id="modal-client-postnom" class="client-number-input" placeholder="Post-nom">
                 </div>
                 <div class="form-group">
-                  <label for="modal-client-prenom">Prénom</label>
+                  <label for="modal-client-prenom">Provinces</label>
                   <input type="text" id="modal-client-prenom" class="client-number-input" placeholder="Prénom">
                 </div>
                 <div class="form-group">
@@ -187,22 +187,31 @@
                 <option value="FV">FV</option>
                 <option value="EV">EV</option>
                 <option value="FT">FT</option>
+                <option value="FA">FA</option>
+                <option value="EA">EA</option>
+                <option value="ET">ET</option>
               </select>
             </div>
             <div style="flex: 1;">
               <label style="font-size: 0.75rem; font-weight: 600; color: #64748b; display: block; margin-bottom: 4px;">N° DOCUMENT</label>
-              <input type="text" id="invoice-ref" class="client-number-input" placeholder="Auto" style="width: 100%;" readonly>
+              <input type="text" id="invoice-ref" class="client-number-input" placeholder="Auto" style="width: 100%;">
             </div>
           </div>
           <!-- Ligne Type client + NIF -->
           <div style="display: flex; gap: 8px; margin-bottom: 8px;">
             <select id="client-type" class="client-number-input" style="flex: 1;">
-              <option value="">Type client</option>
+
               <?php foreach ($clientTypes as $type): ?>
                 <option value="<?= $type['id'] ?>"><?= htmlspecialchars($type['code']) ?></option>
               <?php endforeach; ?>
             </select>
             <input type="text" id="client-nif" class="client-number-input" placeholder="NIF client" style="flex: 1;">
+          </div>
+
+          <!-- Numéro Client -->
+          <div style="margin-bottom: 10px;">
+            <label for="client-numero" style="font-size: 0.75rem; font-weight: 600; color: #64748b; display: block; margin-bottom: 4px;">NUMÉRO CLIENT</label>
+            <input type="text" id="client-numero" class="client-number-input" placeholder="N° client (optionnel)" style="width: 100%;">
           </div>
         </div>
 
