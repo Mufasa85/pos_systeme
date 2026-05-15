@@ -461,6 +461,7 @@ class BillPayment {
                 store_address: STORE_INFO.address,
                 store_ice: STORE_INFO.ice,
                 store_isf: STORE_INFO.isf || '',
+                store_rccm: STORE_INFO.rccm,
                 seller_name: sellerName,
                 amount: total,
                 client_number: clientNumber,

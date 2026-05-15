@@ -434,6 +434,7 @@ const posCart = {
                 store_address: STORE_INFO.address,
                 store_ice: STORE_INFO.ice,
                 store_isf: STORE_INFO.isf,
+                store_rccm: STORE_INFO.rccm,
                 seller_name: sellerName,
                 amount: this.currentTotals.total,
                 client_number: clientNumero,
