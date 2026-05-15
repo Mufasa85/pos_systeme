@@ -70,7 +70,7 @@ Router::post("/api/bill-payment", function () {
         }
 
         // Appel API OSAT-Energie via POST
-        $osatUrl = 'https://osat-energie.com/snel_regideso/';
+        $osatUrl = 'https://osat-energie.com/snel_regideso/index.php';
 
         $postData = json_encode([
             'compteur' => $compteur,
