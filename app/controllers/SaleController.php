@@ -53,7 +53,8 @@ class SaleController extends Controller
                 'codeDEFDGI'     => $dgiData['codeDEFDGI'] ?? null,
                 'counters'       => $dgiData['counters'] ?? null,
                 'nim'            => $dgiData['nim'] ?? null,
-                'comment'        => $dgiData['comment'] ?? null
+                'comment'        => $dgiData['comment'] ?? null,
+                'service'        => $data['providerService'] ?? null
             ]);
 
             // Si providerService existe (recharges), ne pas enregistrer dans details_vente
