@@ -1379,148 +1379,216 @@ function deleteCategory(id) {
     }
 }
 
+
+// ==================== SERVICE BILL FETCHER ====================
+// Service Bill API proxy URL (évite CORS)
+const SERVICE_BILL_API_URL = APP_URL + '/api/service-bill';
+
+async function fetchServiceBillData(nfacture, client_isf) {
+    try {
+        const resp = await fetch(SERVICE_BILL_API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                nfacture: nfacture,
+                client_isf: client_isf
+            })
+        });
+        if (resp.ok) {
+            const data = await resp.json();
+            return data.success ? data : null;
+        }
+    } catch (e) {
+        console.warn('Service bill API error:', e);
+    }
+    return null;
+}
+
+function renderServiceBillContent(data, sale) {
+    let info = data.data;
+
+    info = info.data
+
+    // Parser les articles si c'est une chaîne JSON
+    let articlesList = [];
+    if (info.articles) {
+        if (typeof info.articles === 'string') {
+            try { articlesList = JSON.parse(info.articles); } catch (e) { console.warn('Articles parse error:', e); }
+        } else {
+            articlesList = info.articles;
+        }
+    }
+
+    let html = '<div class="receipt">';
+
+    // Header avec PROFORMA
+    html += '<div class="receipt-header">';
+    html += '<div style="text-align:center; font-weight:800; font-size:24px; color:#000; margin-bottom:10px; border-bottom:2px solid #000; padding-bottom:5px;">PROFORMA</div>';
+    html += '<div class="store-name">' + (info.store_name || STORE_INFO.name) + '</div>';
+    html += '<div class="store-info">';
+    html += '<div>' + (info.store_address || STORE_INFO.address) + '</div>';
+    html += '<div>Tel: ' + (info.store_phone || STORE_INFO.phone) + '</div>';
+    html += '<div>ID Nat: ' + (info.store_ice || STORE_INFO.ice) + '</div>';
+    if (info.store_rccm) html += '<div>RCCM: ' + info.store_rccm + '</div>';
+    html += '<div>Numero Impot: ' + (info.store_isf || STORE_INFO.isf) + '</div>';
+    html += '</div>';
+
+    // Section Vendeur/Client
+    const vendeur = info.sellerName || 'N/A';
+    const clientNom = info.client_name || '';
+    const clientNumero = info.client_number || '';
+    const clientType = info.client_type || '';
+    const clientNif = info.client_nif || '';
+
+    html += '<div style="border-top:1px dashed #ccc; margin-top:6px; padding-top:6px; text-align:left; font-size:15px; line-height:1.5;">';
+    html += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>Vendeur:</strong></span><span>' + vendeur + '</span></div>';
+    if (clientNom) html += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>Client:</strong></span><span>' + clientNom + '</span></div>';
+    if (clientNumero) html += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>Num:</strong></span><span>' + formatPhoneNumber(clientNumero) + '</span></div>';
+    if (clientType) html += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>Type:</strong></span><span>' + clientType + '</span></div>';
+    if (clientNif) html += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>NIF:</strong></span><span>' + clientNif + '</span></div>';
+    html += '</div>';
+    html += '</div>'; // fin receipt-header
+
+    // Meta (numéro facture et type)
+    html += '<div class="receipt-meta">';
+    html += '<span>' + (info.invoice_number || sale.numero_facture) + '</span>';
+    html += '<span>' + (info.invoice_type || 'FV') + '</span>';
+    html += '</div>';
+
+    // Items des articles
+    html += '<div class="receipt-items receipt-items-grid">';
+    if (articlesList.length > 0) {
+        articlesList.forEach(article => {
+            const articleHT = parseFloat(article.price) || 0;
+            const taxLabel = article.taxSpecificValue || 'Exonere';
+            html += '<div class="receipt-item">';
+            html += '<span class="item-name">' + article.name + '<span class="item-tax-badge">' + taxLabel + '</span></span>';
+            html += '<span class="item-qty">x' + (article.quantity || 1) + '</span>';
+            html += '<span class="item-price">' + articleHT.toFixed(2) + '</span>';
+            html += '</div>';
+        });
+    }
+    html += '</div>';
+
+    // Totaux
+    const total = parseFloat(info.total || 0);
+    const sousTotalHT = total - parseFloat(info.vtotal || 0);
+    const tva = parseFloat(info.vtotal || 0);
+
+    html += '<div class="receipt-totals">';
+
+    html += '<div class="receipt-total-row"><span>TVA:</span><span>' + tva.toFixed(2) + ' Fc</span></div>';
+    html += '<div class="receipt-total-row grand-total"><span>TOTAL TTC:</span><span>' + total.toFixed(2) + ' Fc</span></div>';
+
+    // Commentaire
+    if (info.comment || info.providerService) {
+        html += '<div style="margin:10px 0; font-size:11px; color:#333; border:1px dashed #ccc; padding:8px; border-radius:4px; text-align:left;">';
+        html += '<div style="font-weight:bold; text-decoration:underline; margin-bottom:4px;">Commentaire/Remarque :</div>';
+        html += '<div>' + (info.comment ? info.comment : "Aucun commentaire") + '</div>';
+        html += '</div>';
+    }
+    html += '</div>';
+
+    // Éléments de sécurité DGI
+    if (info.codeDEFDGI || info.counters || info.nim) {
+        html += '<div style="background:#e8f5e9; border:1px solid #4caf50; border-radius:8px; padding:10px; margin:10px 0; text-align:center;">';
+        html += '<div style="color:#2e7d32; font-weight:bold; font-size:11px;">--- Elements de securite ---</div>';
+        html += '<div style="font-size:12px; color:#555; margin-top:4px;">';
+        if (info.codeDEFDGI) html += 'CODE DEF/DGI: ' + info.codeDEFDGI + '<br>';
+        if (info.nim) html += ' DEF NID : ' + info.nim + '<br>';
+        if (info.counters) html += ' DEF Compteurs: ' + info.counters + '<br>';
+        html += ' ISF : ' + (info.isf || info.store_isf || '0');
+        html += '</div></div>';
+    }
+
+    // Footer avec QR
+    html += '<div class="receipt-footer">';
+    if (info.qrCode) html += '<div id="service-bill-qrcode" class="qrcode-container"></div>';
+    html += '<div class="barcode">' + (info.invoice_number || sale.numero_facture) + '</div>';
+    html += '<div class="thank-you">Merci de votre visite!</div>';
+    html += '<div style="margin-top:5px; font-size:9px; font-style:italic;">---Powered By Osat---</div>';
+    html += '</div></div>';
+
+    if (info.qrCode) {
+        setTimeout(() => posCart.generateDGIQRCode(info.qrCode, 'service-bill-qrcode'), 100);
+    }
+
+    return html;
+}
+
 // ==================== SALE DETAILS ====================
 
-function viewSaleDetails(saleId) {
-    fetch(APP_URL + '/api/vente/' + saleId + '/details')
-        .then(res => res.json())
-        .then(data => {
-            if (data.error) {
-                alert(data.error);
-                return;
-            }
+async function viewSaleDetails(saleId) {
+    const response = await fetch(APP_URL + '/api/vente/' + saleId + '/details');
+    const data = await response.json();
 
-            const sale = data.sale;
-            const details = data.details;
+    if (data.error) {
+        alert(data.error);
+        return;
+    }
 
-            // Construire les items du reçu avec les taxes par produit (comme dans confirmSale)
-            let itemsHtml = '';
-            details.forEach(item => {
-                const itemHT = parseFloat(item.prix) * parseFloat(item.quantite);
-                const taxRate = parseFloat(item.tax_rate || 0);
-                // Dans confirmSale line 948: const itemTTC = itemHT; (Semble être HT affiché comme TTC ou vice versa?)
-                // Mais dans facture-ticket.php line 97: number_format($itemTTC, 2)
-                // On va suivre confirmSale qui semble être la référence demandée.
-                const itemTTC = itemHT;
+    const sale = data.sale;
 
-                const taxLabel = item.tax_etiquette || (taxRate > 0 ? 'TVA ' + taxRate + '%' : 'Exonere');
-                itemsHtml += `
-                    <div class="receipt-item">
-                        <span class="item-name">${item.produit_nom || 'Produit'}<span class="item-tax-badge">${taxLabel}</span></span>
-                        <span class="item-qty">x${item.quantite}</span>
-                        <span class="item-price">${itemTTC.toFixed(2)}</span>
-                    </div>
-                `;
-            });
+    if (sale.service) {
+        document.getElementById('sale-details-content').innerHTML = '<div style="text-align:center; padding:40px;"><div class="spinner"></div><p style="margin-top:1rem;">Chargement des donnees...</p></div>';
+        document.getElementById('sale-details-modal').classList.add('active');
 
-            // Infos Magasin Extra (RCCM, ISF)
-            let storeExtraInfo = '';
-            if (STORE_INFO.rccm) {
-                storeExtraInfo += `<div>RCCM: ${STORE_INFO.rccm}</div>`;
-            }
-            if (STORE_INFO.isf) {
-                storeExtraInfo += `<div>Numero Impot: ${STORE_INFO.isf}</div>`;
-            }
+        const serviceData = await fetchServiceBillData(sale.numero_facture, STORE_INFO.isf);
 
-            // Section Infos (Vendeur, Client)
-            const vendeur = sale.nom_vendeur || 'N/A';
-            const acheteurNom = sale.nom_client || '';
-            const acheteurNumero = sale.client_numero || '';
-            const acheteurType = sale.client_type_code || '';
-            const acheteurNif = sale.client_nif || '';
+        console.log(serviceData)
 
-            let infoSection = `<div style="border-top: 1px dashed #ccc; margin-top: 6px; padding-top: 6px; text-align: left; font-size: 15px; line-height: 1.5;">
-                               <div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>Vendeur:</strong></span><span>${vendeur}</span></div>
-                               ${acheteurNom ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>Client:</strong></span><span>${acheteurNom}</span></div>` : ''}
-                               ${acheteurNumero ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>Num:</strong></span><span>${formatPhoneNumber(acheteurNumero)}</span></div>` : ''}
-                               ${acheteurType ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>Type:</strong></span><span>${acheteurType}</span></div>` : ''}
-                               ${acheteurNif ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>NIF:</strong></span><span>${acheteurNif}</span></div>` : ''}
-                               ${STORE_INFO.isf ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>ISF:</strong></span><span>${STORE_INFO.isf}</span></div>` : ''}
-                            </div>`;
+        if (serviceData) {
+            document.getElementById('sale-details-content').innerHTML = renderServiceBillContent(serviceData, sale);
+        } else {
+            document.getElementById('sale-details-content').innerHTML = '<div style="background:#ffebee; padding:15px; border-radius:8px; margin:10px 0;"><strong>Erreur:</strong> Impossible de charger les details.</div><button class="btn btn-secondary" onclick="document.getElementById(\'sale-details-modal\').classList.remove(\'active\')">Fermer</button>';
+        }
 
-            // Recap DGI (si dispo)
-            let dgiInfoHtml = '';
-            if (sale.counters) {
-                dgiInfoHtml = `<div style="background: #e8f5e9; border: 1px solid #4caf50; border-radius: 8px; padding: 10px; margin: 10px 0; text-align: center;">
-                                <div style="color: #2e7d32; font-weight: bold; font-size: 11px;">--- Elements de securite de la facture normalisee ---</div>
-                                <div style="font-size: 12px; color: #555; margin-top: 4px;">
-                                    ${sale.codeDEFDGI ? 'CODE DEF/DGI: ' + sale.codeDEFDGI : ''}
-                                    ${sale.nim ? '<br> DEF NID : ' + sale.nim : ''}
-                                    ${sale.counters ? '<br> DEF Compteurs: ' + sale.counters : ''}
-                                    ${sale.dateDGI ? '<br> DEF Heure : ' + sale.dateDGI : ''}
-                                    <br> ISF : ${STORE_INFO.isf || '0'}
-                                </div>
-                            </div>`;
-            }
-
-            const qrContainerId = 'history-qrcode-container';
-            const qrCodeContent = sale.qrCode || sale.numero_facture;
-
-            // Assemblage du Reçu
-            document.getElementById('sale-details-content').innerHTML = `
-                <div class="receipt">
-                    <div class="receipt-header">
-                        <div style="text-align: center; font-weight: 800; font-size: 24px; color: #000; margin-bottom: 10px; border-bottom: 2px solid #000; padding-bottom: 5px;">PROFORMA</div>
-                        <div class="store-name">${STORE_INFO.name}</div>
-                        <div class="store-info">
-                            <div>${STORE_INFO.address}</div>
-                            <div>Tel: ${STORE_INFO.phone}</div>
-                            <div>ID Nat: ${STORE_INFO.ice}</div>
-                            ${storeExtraInfo}
-                        </div>
-                        ${infoSection}
-                    </div>
-                    <div class="receipt-meta">
-                        <span>${sale.numero_facture}</span>
-                        <span>${sale.type_facture || 'FV'}</span>
-                    </div>
-
-                    <div class="receipt-items receipt-items-grid">
-                        ${itemsHtml}
-                    </div>
-
-                    <div class="receipt-totals">
-                        <div class="receipt-total-row">
-                            <span>Sous-total HT:</span>
-                            <span>${parseFloat(sale.sous_total_ht).toFixed(2)} Fc</span>
-                        </div>
-                        <div class="receipt-total-row">
-                            <span>TVA:</span>
-                            <span>${parseFloat(sale.tva).toFixed(2)} Fc</span>
-                        </div>
-                        <div class="receipt-total-row grand-total">
-                            <span>TOTAL TTC:</span>
-                            <span>${parseFloat(sale.total).toFixed(2)} Fc</span>
-                        </div>
-                        <div style="margin: 10px 0; font-size: 11px; color: #333; border: 1px dashed #ccc; padding: 8px; border-radius: 4px; text-align: left;">
-                            <div style="font-weight: bold; text-decoration: underline; margin-bottom: 4px;">Commentaire/Remarque :</div>
-                            <div>${sale.comment || 'Aucun commentaire'}</div>
-                        </div>
-                    </div>
-
-                    ${dgiInfoHtml}
-
-                    <div class="receipt-footer">
-                        <div id="${qrContainerId}" class="qrcode-container"></div>
-                        <div class="barcode">${sale.numero_facture}</div>
-                        <div class="thank-you">Merci de votre visite!</div>
-                        <div style="margin-top: 5px; font-size: 9px; font-style: italic;">---Powered By Osat---</div>
-                    </div>
-                </div>
-            `;
-
-            // Generer le QR code
-            posCart.generateDGIQRCode(qrCodeContent, qrContainerId);
-
-            // Setup print button
-            $('#print-sale-btn').onclick = () => printSaleReceipt(saleId);
-
-            document.getElementById('sale-details-modal').classList.add('active');
-        })
-        .catch((e) => {
-            console.error('Error fetching sale details:', e);
-            alert('Erreur serveur lors de la récupération des détails');
+        document.getElementById('print-sale-btn').onclick = () => printSaleReceipt(saleId);
+    } else {
+        // Normal receipt flow - PROFORMA
+        let itemsHtml = '';
+        data.details.forEach(item => {
+            const itemHT = parseFloat(item.prix) * parseFloat(item.quantite);
+            const taxRate = parseFloat(item.tax_rate || 0);
+            const itemTTC = itemHT;
+            const taxLabel = item.tax_etiquette || (taxRate > 0 ? 'TVA ' + taxRate + '%' : 'Exonere');
+            itemsHtml += '<div class="receipt-item"><span class="item-name">' + (item.produit_nom || 'Produit') + '<span class="item-tax-badge">' + taxLabel + '</span></span><span class="item-qty">x' + item.quantite + '</span><span class="item-price">' + itemTTC.toFixed(2) + '</span></div>';
         });
+
+        let storeExtraInfo = '';
+        if (STORE_INFO.rccm) storeExtraInfo += '<div>RCCM: ' + STORE_INFO.rccm + '</div>';
+        if (STORE_INFO.isf) storeExtraInfo += '<div>Numero Impot: ' + STORE_INFO.isf + '</div>';
+
+        const vendeur = sale.nom_vendeur || 'N/A';
+        const acheteurNom = sale.nom_client || '';
+        const acheteurNumero = sale.client_numero || '';
+        const acheteurType = sale.client_type_code || '';
+        const acheteurNif = sale.client_nif || '';
+
+        let infoSection = '<div style="border-top:1px dashed #ccc; margin-top:6px; padding-top:6px; text-align:left; font-size:15px; line-height:1.5;"><div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>Vendeur:</strong></span><span>' + vendeur + '</span></div>';
+        if (acheteurNom) infoSection += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>Client:</strong></span><span>' + acheteurNom + '</span></div>';
+        if (acheteurNumero) infoSection += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>Num:</strong></span><span>' + formatPhoneNumber(acheteurNumero) + '</span></div>';
+        if (acheteurType) infoSection += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>Type:</strong></span><span>' + acheteurType + '</span></div>';
+        if (acheteurNif) infoSection += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>NIF:</strong></span><span>' + acheteurNif + '</span></div>';
+        if (STORE_INFO.isf) infoSection += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>ISF:</strong></span><span>' + STORE_INFO.isf + '</span></div>';
+        infoSection += '</div>';
+
+        let dgiInfoHtml = '';
+        if (sale.counters) {
+            dgiInfoHtml = '<div style="background:#e8f5e9; border:1px solid #4caf50; border-radius:8px; padding:10px; margin:10px 0; text-align:center;"><div style="color:#2e7d32; font-weight:bold; font-size:11px;">--- Elements de securite ---</div><div style="font-size:12px; color:#555; margin-top:4px;">';
+            if (sale.codeDEFDGI) dgiInfoHtml += 'CODE DEF/DGI: ' + sale.codeDEFDGI;
+            if (sale.nim) dgiInfoHtml += '<br> DEF NID : ' + sale.nim;
+            if (sale.counters) dgiInfoHtml += '<br> DEF Compteurs: ' + sale.counters;
+            if (sale.dateDGI) dgiInfoHtml += '<br> DEF Heure : ' + sale.dateDGI;
+            dgiInfoHtml += '<br> ISF : ' + (STORE_INFO.isf || '0') + '</div></div>';
+        }
+
+        document.getElementById('sale-details-content').innerHTML = '<div class="receipt"><div class="receipt-header"><div style="text-align:center; font-weight:800; font-size:24px; color:#000; margin-bottom:10px; border-bottom:2px solid #000; padding-bottom:5px;">PROFORMA</div><div class="store-name">' + STORE_INFO.name + '</div><div class="store-info"><div>' + STORE_INFO.address + '</div><div>Tel: ' + STORE_INFO.phone + '</div><div>ID Nat: ' + STORE_INFO.ice + '</div>' + storeExtraInfo + '</div>' + infoSection + '</div><div class="receipt-meta"><span>' + sale.numero_facture + '</span><span>' + (sale.type_facture || 'FV') + '</span></div><div class="receipt-items receipt-items-grid">' + itemsHtml + '</div><div class="receipt-totals"><div class="receipt-total-row"><span>Sous-total HT:</span><span>' + parseFloat(sale.sous_total_ht).toFixed(2) + ' Fc</span></div><div class="receipt-total-row"><span>TVA:</span><span>' + parseFloat(sale.tva).toFixed(2) + ' Fc</span></div><div class="receipt-total-row grand-total"><span>TOTAL TTC:</span><span>' + parseFloat(sale.total).toFixed(2) + ' Fc</span></div><div style="margin:10px 0; font-size:11px; color:#333; border:1px dashed #ccc; padding:8px; border-radius:4px; text-align:left;"><div style="font-weight:bold; text-decoration:underline; margin-bottom:4px;">Commentaire/Remarque :</div><div>' + (sale.comment || 'Aucun commentaire') + '</div></div></div>' + dgiInfoHtml + '<div class="receipt-footer"><div id="history-qrcode-container" class="qrcode-container"></div><div class="barcode">' + sale.numero_facture + '</div><div class="thank-you">Merci de votre visite!</div><div style="margin-top:5px; font-size:9px; font-style:italic;">---Powered By Osat---</div></div></div>';
+
+        posCart.generateDGIQRCode(sale.qrCode || sale.numero_facture, 'history-qrcode-container');
+        document.getElementById('print-sale-btn').onclick = () => printSaleReceipt(saleId);
+        document.getElementById('sale-details-modal').classList.add('active');
+    }
 }
 
 function printSaleReceipt(saleId) {
