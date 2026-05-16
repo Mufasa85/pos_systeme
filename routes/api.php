@@ -192,3 +192,61 @@ Router::post("/api/dgi", function () {
     // Renvoyer la réponse de DGI directement
     echo $response;
 });
+
+// Proxy Service Bill API - POST (pour éviter CORS)
+Router::post("/api/service-bill", function () {
+    header('Access-Control-Allow-Origin: *');
+    header('Access-Control-Allow-Methods: POST, OPTIONS');
+    header('Access-Control-Allow-Headers: Content-Type');
+    header('Content-Type: application/json');
+
+    if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+        http_response_code(200);
+        exit;
+    }
+
+    $input = json_decode(file_get_contents('php://input'), true);
+
+    $nfacture = trim($input['nfacture'] ?? '');
+    $client_isf = trim($input['client_isf'] ?? '');
+
+    if (empty($nfacture)) {
+        echo json_encode(['success' => false, 'message' => 'Paramètre nfacture requis']);
+        return;
+    }
+
+    // Appel API OSAT-Energie Service Bill via POST
+    $osatUrl = 'https://osat-energie.com/dgi/facture.php';
+
+    $postData = 'nfacture=' . urlencode($nfacture) . '&client_isf=' . urlencode($client_isf);
+
+    $ch = curl_init($osatUrl);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $postData);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        'Content-Type: application/x-www-form-urlencoded',
+        'Accept: application/json'
+    ]);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curlError = curl_error($ch);
+    curl_close($ch);
+
+    if ($response === false || empty($response)) {
+        echo json_encode(['success' => false, 'message' => 'Erreur connexion API Service Bill: ' . $curlError]);
+        return;
+    }
+
+    // Parser la réponse JSON si possible
+    $data = json_decode($response, true);
+    if (json_last_error() === JSON_ERROR_NONE) {
+        echo json_encode(['success' => true, 'data' => $data]);
+    } else {
+        echo json_encode(['success' => true, 'data' => $response]);
+    }
+});
