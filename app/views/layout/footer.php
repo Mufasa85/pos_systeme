@@ -194,6 +194,21 @@
                   <span style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 0.875rem;">Fc</span>
                 </div>
               </div>
+              <div class="form-group">
+                <label>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                    <line x1="3" y1="9" x2="21" y2="9"></line>
+                    <line x1="9" y1="21" x2="9" y2="9"></line>
+                  </svg>
+                  Type de vente
+                </label>
+                <select id="product-type" required style="width: 100%;">
+                  <option value="unite">À l'unité</option>
+                  <option value="coupe">Vente à la coupe</option>
+                </select>
+                <small style="color: var(--muted);">"Au poids" pour charcuterie, fromage, etc.</small>
+              </div>
             </div>
           </div>
 

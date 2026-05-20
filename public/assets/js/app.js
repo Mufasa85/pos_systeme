@@ -1047,6 +1047,7 @@ const posCart = {
         formData.append('stock', $('#product-stock').value);
         formData.append('stock_minimum', $('#product-min-stock').value);
         formData.append('taxe_id', $('#product-tax').value);
+        formData.append('product_type', $('#product-type').value);
         if ($('#product-image').files[0]) {
             formData.append('image', $('#product-image').files[0]);
         }
@@ -1114,6 +1115,12 @@ function setProductForm(product) {
     const taxSelect = $('#product-tax');
     if (taxSelect && product.taxe_id) {
         taxSelect.value = product.taxe_id;
+    }
+
+    // Selectionner le type de vente (unite ou poids)
+    const typeSelect = $('#product-type');
+    if (typeSelect && product.product_type) {
+        typeSelect.value = product.product_type;
     }
 
     $('#product-modal').classList.add('active');

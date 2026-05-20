@@ -51,9 +51,7 @@
           </div>
         </div>
         <!-- Loader pour le chargement des produits -->
-        <div class="products-loader" id="products-loader">
-          <div class="loader-spinner"></div>
-        </div>
+
       </div>
       <div id="products-grid" class="products-grid"></div>
     </div>
