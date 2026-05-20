@@ -101,6 +101,9 @@
           <span>TOTAL TTC</span>
           <span id="total">0.00 Fc</span>
         </div>
+        <div class="total-row" style="font-size: 0.8rem; color: #64748b; justify-content: center; margin-top: 4px;">
+          <span id="total-usd">≈ $0.00 USD</span>
+        </div>
       </div>
       <div class="btn-group-valider">
         <label id="calculator-toggle" class="calculator-radio" title="Mode calculatrice">

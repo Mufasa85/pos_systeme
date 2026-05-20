@@ -3,7 +3,31 @@ const $$ = (s) => document.querySelectorAll(s);
 
 const formatCurrency = (amount) => amount.toFixed(2) + ' Fc';
 
-// Formater le numéro de téléphone pour masquer les 4 derniers chiffres
+// Taux de change USD (sera mis à jour depuis l'API)
+let USD_RATE = 2555; // Valeur par défaut
+
+// Charger le taux de change depuis l'API
+async function loadCurrencyRate() {
+    try {
+        const res = await fetch(APP_URL + '/api/currency');
+        const data = await res.json();
+
+        if (data.success && data.data) {
+            // Chercher le taux dans la réponse
+            let rate = data.data[0].rate;
+
+
+            if (rate && rate > 1) {
+                USD_RATE = rate;
+                console.log('[CURRENCY] Taux chargé: 1 USD = ' + rate + ' Fc');
+            }
+        }
+
+
+    } catch (e) {
+        console.warn('[CURRENCY] Impossible de charger le taux, utilisation par défaut:', e);
+    }
+}
 const formatPhoneNumber = (phone) => {
     if (!phone || phone.length < 6) return phone;
     const visible = phone.substring(0, 6);
@@ -448,6 +472,13 @@ const posCart = {
             $('#subtotal').textContent = formatCurrency(subtotalHT);
             $('#total').textContent = formatCurrency(subtotalTTC);
 
+            // Afficher l'équivalent USD (taux dynamique depuis API)
+            const totalUsd = subtotalTTC / USD_RATE;
+            const totalUsdEl = $('#total-usd');
+            if (totalUsdEl) {
+                totalUsdEl.textContent = '≈ $' + totalUsd.toFixed(2) + ' USD';
+            }
+
             this.currentTotals = { sous_total_ht: subtotalHT, tva: totalTax, total: subtotalTTC };
         }
     },
@@ -472,11 +503,27 @@ const posCart = {
             const invoiceType = document.getElementById('invoice-type')?.value || 'FV';
             const invoiceRef = document.getElementById('invoice-ref')?.value || '';
 
+            // Récupérer le type de paiement
+            const paymentTypeSelect = document.getElementById('modal-payment-type') || document.getElementById('payment-type');
+            const paymentType = paymentTypeSelect?.value || 'cash';
+
+            // Récupérer le type de client (via le modal ou les champs directs)
+            const clientTypeSelect = document.getElementById('modal-client-type');
+            console.log(clientTypeSelect)
+            let clientTypeValue = clientTypeInitiales;
+            if (!clientTypeValue && clientTypeSelect) {
+                const selectedOption = clientTypeSelect.querySelector('option:checked');
+                if (selectedOption) {
+                    clientTypeValue = selectedOption.textContent.split(' - ')[0].trim() || '';
+                }
+            }
+
             // Construire le payload DGI
             const dgiPayload = {
                 store_name: STORE_INFO.name,
                 store_phone: STORE_INFO.phone,
                 store_address: STORE_INFO.address,
+                store_email: STORE_INFO.email || '',
                 store_ice: STORE_INFO.ice,
                 store_isf: STORE_INFO.isf,
                 store_rccm: STORE_INFO.rccm,
@@ -486,6 +533,7 @@ const posCart = {
                 invoice_number: this.currentInvoiceNum,
                 invoice_type: invoiceType,
                 invoice_ref: invoiceRef,
+                payment_type: paymentType,
                 articles: this.items.map(item => ({
                     name: item.nom,
                     quantity: item.quantite,
@@ -494,7 +542,7 @@ const posCart = {
                     tax_etiquette: item.tax_etiquette || ''
                 })),
                 client_name: clientNom,
-                client_type: clientTypeInitiales,
+                client_type: clientTypeValue || clientTypeInitiales,
                 client_nif: clientNif
             };
 
@@ -712,6 +760,9 @@ const posCart = {
                     <div class="receipt-total-row grand-total">
                         <span>TOTAL TTC:</span>
                         <span>${this.currentTotals.total.toFixed(2)} Fc</span>
+                    </div>
+                    <div style="text-align: center; font-size: 0.85rem; color: #64748b; margin-top: 4px;">
+                        (≈ $${(this.currentTotals.total / USD_RATE).toFixed(2)} USD)
                     </div>
                 </div>
 
@@ -1041,6 +1092,9 @@ const posCart = {
                         <div class="receipt-total-row grand-total">
                             <span>TOTAL TTC:</span>
                             <span>${this.currentTotals.total.toFixed(2)} Fc</span>
+                        </div>
+                        <div style="text-align: center; font-size: 0.85rem; color: #64748b; margin-top: 4px;">
+                            (≈ $${(this.currentTotals.total / 2555).toFixed(2)} USD)
                         </div>
                          <div style="margin: 10px 0; font-size: 11px; color: #333; border: 1px dashed #ccc; padding: 8px; border-radius: 4px; text-align: left;">
                             <div style="font-weight: bold; text-decoration: underline; margin-bottom: 4px;">Commentaire/Remarque :</div>
@@ -2059,6 +2113,9 @@ async function saveClientQuick() {
 
 // Main initialization
 document.addEventListener('DOMContentLoaded', () => {
+    // Load currency rate from API first
+    loadCurrencyRate();
+
     // Initialize cart
     posCart.init();
 

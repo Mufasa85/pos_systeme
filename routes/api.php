@@ -250,3 +250,28 @@ Router::post("/api/service-bill", function () {
         echo json_encode(['success' => true, 'data' => $response]);
     }
 });
+
+// Proxy Currency API - GET (taux de change)
+Router::get("/api/currency", function () {
+    header('Access-Control-Allow-Origin: *');
+    header('Content-Type: application/json');
+
+    $currencyUrl = 'https://osat-energie.com/dgi/currency/index.php';
+    $response = @file_get_contents($currencyUrl);
+
+    if ($response === false) {
+        echo json_encode([
+            'success' => false,
+            'message' => 'Erreur de connexion Currency API'
+        ]);
+        return;
+    }
+
+    // Parser la réponse JSON si possible
+    $data = json_decode($response, true);
+    if (json_last_error() === JSON_ERROR_NONE) {
+        echo json_encode(['success' => true, 'data' => $data]);
+    } else {
+        echo $response;
+    }
+});
