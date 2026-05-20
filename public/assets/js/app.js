@@ -407,7 +407,7 @@ const posCart = {
         } else {
             cartItems.innerHTML = this.items.map(item => {
                 const isPoids = (item.product_type === 'coupe' || item.product_type === 'poids');
-                const unitLabel = isPoids ? 'kg' : 'unite';
+                const unitLabel = isPoids ? 'Unite' : 'Unite';
                 const step = isPoids ? 0.5 : 1;
                 return `
               <div class="cart-item">
