@@ -74,68 +74,20 @@
           Vider
         </button>
       </div>
-      <div class="client-number-section">
-        <div style="display: flex; gap: 8px; margin-bottom: 10px;">
-          <div style="flex: 1;">
-            <label for="invoice-type" style="font-size: 0.75rem; font-weight: 600; color: #64748b; display: block; margin-bottom: 4px;">TYPE DE FACTURE</label>
-            <select id="invoice-type" class="client-number-input" style="width: 100%;">
-              <option value="FV">FV</option>
-              <option value="EV">EV</option>
-              <option value="FT">FT</option>
-              <option value="FA">FA</option>
-              <option value="EA">EA</option>
-              <option value="ET">ET</option>
-            </select>
-          </div>
-          <div style="flex: 1;">
-            <label for="invoice-ref" style="font-size: 0.75rem; font-weight: 600; color: #64748b; display: block; margin-bottom: 4px;">RÉF DOCUMENT</label>
-            <input type="text" id="invoice-ref" class="client-number-input" placeholder="Référence..." style="width: 100%;">
-          </div>
-        </div>
-        <label for="client-number" class="client-number-label">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-            <circle cx="12" cy="7" r="4"></circle>
-          </svg>
-          Client
-        </label>
-        <!-- Ligne 1: Nom + N° téléphone côte à côte -->
-        <div style="display: flex; gap: 8px; margin-bottom: 8px;">
-          <input type="text" id="client-nom" class="client-number-input" placeholder="Nom du client" style="flex: 1;">
-          <div style="position: relative; display: flex; align-items: center; flex: 1;">
-            <input type="text" id="client-number" class="client-number-input" placeholder="N° téléphone" value="0000" style="width: 100%; padding-right: 40px;">
-            <button type="button" id="btn-search-client" onclick="searchClientByNumero()" style="position: absolute; right: 8px; background: none; border: none; cursor: pointer; padding: 4px; color: #0B5E88; display: flex; align-items: center; justify-content: center;" title="Rechercher client">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="11" cy="11" r="8"></circle>
-                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-              </svg>
-            </button>
-          </div>
-        </div>
-        <!-- Ligne 2: Type client + NIF côte à côte -->
-        <div style="display: flex; gap: 8px; margin-bottom: 8px;">
-          <select id="client-type" class="client-number-input" style="flex: 1;">
-            <option value="">Type client</option>
-            <?php foreach ($clientTypes as $type): ?>
-              <option value="<?= $type['id'] ?>"><?= htmlspecialchars($type['code']) ?></option>
-            <?php endforeach; ?>
-          </select>
-          <input type="text" id="client-nif" class="client-number-input" placeholder="NIF client" style="flex: 1;">
-        </div>
-        <!-- Message d'erreur/succès -->
-        <div id="client-search-message" style="font-size: 0.75rem; margin-bottom: 8px; display: none;"></div>
-        <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin'): ?>
-          <button type="button" id="btn-save-client" class="btn btn-secondary btn-small" onclick="saveClientQuick()" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px;">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-              <circle cx="8.5" cy="7" r="4"></circle>
-              <line x1="20" y1="8" x2="20" y2="14"></line>
-              <line x1="23" y1="11" x2="17" y2="11"></line>
-            </svg>
-            Enregistrer client
-          </button>
-        <?php endif; ?>
-      </div>
+      <!-- Hidden fields pour compatibilite JS (sera mis a jour depuis le modal) -->
+      <input type="hidden" id="invoice-type" value="FV">
+      <input type="hidden" id="invoice-ref" value="">
+      <input type="hidden" id="client-nom" value="">
+      <input type="hidden" id="client-number" value="0000">
+      <input type="hidden" id="client-type" value="">
+      <input type="hidden" id="client-nif" value="">
+      <!-- Bouton icone pour ouvrir les infos client/facture -->
+      <button type="button" onclick="openInvoiceInfoModal()" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 0.6rem; margin-bottom: 0.5rem; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 8px; cursor: pointer; color: #64748b; transition: all 0.2s;" title="Ajouter client / facture">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+          <circle cx="12" cy="7" r="4"></circle>
+        </svg>
+      </button>
       <div id="cart-items" class="cart-items">
         <div class="cart-empty">Le panier est vide</div>
       </div>
@@ -164,7 +116,7 @@
             Calculatrice
           </span>
         </label>
-        <button id="show-preview" class="btn btn-primary btn-full" disabled onclick="posCart.showPreview()">
+        <button id="show-preview" class="btn btn-primary btn-full" disabled onclick="openInvoiceInfoModal()">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="20 6 9 17 4 12"></polyline>
           </svg>
@@ -311,6 +263,138 @@
               <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
             </svg>
             Ajouter au panier
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL INVOICE INFO (Résumé facture avant validation) -->
+  <div id="invoice-info-modal" class="modal">
+    <div class="modal-content" style="max-width: 500px; padding: 0;">
+      <div class="modal-header" style="background: linear-gradient(135deg, #0B5E88 0%, #2AB7E6 100%); color: white; border: none;">
+        <h3 style="color: white;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 8px;">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <line x1="16" y1="13" x2="8" y2="13"></line>
+            <line x1="16" y1="17" x2="8" y2="17"></line>
+            <polyline points="10 9 9 9 8 9"></polyline>
+          </svg>
+          Informations Facture
+        </h3>
+        <button class="close-modal" onclick="closeInvoiceInfoModal()" style="color: white;">&times;</button>
+      </div>
+      <div style="padding: 1.5rem;">
+        <!-- Type et Référence -->
+        <div style="display: flex; gap: 12px; margin-bottom: 1rem;">
+          <div style="flex: 1;">
+            <label for="modal-invoice-type" style="font-size: 0.75rem; font-weight: 600; color: #64748b; display: block; margin-bottom: 4px;">TYPE DE FACTURE</label>
+            <select id="modal-invoice-type" class="client-number-input" style="width: 100%;">
+              <option value="FV">FV</option>
+              <option value="EV">EV</option>
+              <option value="FT">FT</option>
+              <option value="FA">FA</option>
+              <option value="EA">EA</option>
+              <option value="ET">ET</option>
+            </select>
+          </div>
+          <div style="flex: 1;">
+            <label for="modal-invoice-ref" style="font-size: 0.75rem; font-weight: 600; color: #64748b; display: block; margin-bottom: 4px;">RÉF DOCUMENT</label>
+            <input type="text" id="modal-invoice-ref" class="client-number-input" placeholder="Référence..." style="width: 100%;">
+          </div>
+        </div>
+
+        <!-- Mode de Paiement -->
+        <div style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border: 1px solid #86efac; border-radius: 12px; padding: 1rem; margin-bottom: 1rem;">
+          <div style="font-size: 0.75rem; font-weight: 600; color: #166534; margin-bottom: 0.75rem; text-transform: uppercase; display: flex; align-items: center; gap: 6px;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
+              <line x1="1" y1="10" x2="23" y2="10"></line>
+            </svg>
+            Mode de Paiement
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+            <div>
+              <label for="modal-payment-type" style="font-size: 0.7rem; color: #166534; display: block; margin-bottom: 4px;">Type de paiement</label>
+              <select id="modal-payment-type" class="client-number-input" style="width: 100%; background: #fff;">
+                <option value="cash">Espèces</option>
+                <option value="mobile_money">Mobile Money</option>
+                <option value="card">Carte Bancaire</option>
+                <option value="transfer">Virement</option>
+                <option value="credit">Crédit</option>
+              </select>
+            </div>
+
+          </div>
+          <div id="modal-payment-change" style="margin-top: 0.75rem; padding: 0.5rem; background: #fff; border-radius: 8px; text-align: center; font-weight: 600; display: none;">
+            <span style="color: #166534;">Monnaie à rendre: </span>
+            <span id="modal-change-amount" style="color: #0B5E88; font-size: 1.1rem;">0.00 Fc</span>
+          </div>
+        </div>
+
+        <!-- Info Client avec recherche -->
+        <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 1rem; margin-bottom: 1rem;">
+          <div style="font-size: 0.75rem; font-weight: 600; color: #64748b; margin-bottom: 0.75rem; text-transform: uppercase; display: flex; align-items: center; gap: 6px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+              <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+            Informations Client
+            <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin'): ?>
+              <button type="button" class="btn btn-success btn-tiny" onclick="saveClientFromModal()" style="margin-left: auto; padding: 4px 8px; font-size: 0.65rem;">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="12" y1="5" x2="12" y2="19"></line>
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                Nouveau
+              </button>
+            <?php endif; ?>
+          </div>
+          <!-- Recherche client -->
+          <div style="position: relative; margin-bottom: 8px;">
+            <input type="text" id="modal-client-number" class="client-number-input" placeholder="N° téléphone pour rechercher..." style="width: 100%; padding-right: 40px;" onkeypress="if(event.key==='Enter') searchClientFromModal()">
+            <button type="button" onclick="searchClientFromModal()" style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; padding: 4px; color: #0B5E88;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+            </button>
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+            <div>
+              <label for="modal-client-name" style="font-size: 0.7rem; color: #94a3b8; display: block; margin-bottom: 2px;">Nom</label>
+              <input type="text" id="modal-client-name" class="client-number-input" placeholder="Nom du client" style="width: 100%;">
+            </div>
+            <div>
+              <label for="modal-client-type" style="font-size: 0.7rem; color: #94a3b8; display: block; margin-bottom: 2px;">Type</label>
+              <select id="modal-client-type" class="client-number-input" style="width: 100%;">
+                <option value="">Type client</option>
+                <?php if (isset($clientTypes)): foreach ($clientTypes as $type): ?>
+                    <option value="<?= $type['id'] ?>"><?= htmlspecialchars($type['code']) ?></option>
+                <?php endforeach;
+                endif; ?>
+              </select>
+            </div>
+            <div style="grid-column: span 2;">
+              <label for="modal-client-nif" style="font-size: 0.7rem; color: #94a3b8; display: block; margin-bottom: 2px;">NIF</label>
+              <input type="text" id="modal-client-nif" class="client-number-input" placeholder="NIF client" style="width: 100%;">
+            </div>
+          </div>
+          <!-- Message de recherche -->
+          <div id="modal-client-search-message" style="font-size: 0.7rem; margin-top: 6px; display: none;"></div>
+        </div>
+
+        <!-- Boutons -->
+        <div style="display: flex; gap: 0.75rem;">
+          <button onclick="closeInvoiceInfoModal()" class="btn btn-secondary" style="flex: 1; padding: 0.875rem;">
+            Retour
+          </button>
+          <button onclick="confirmInvoiceInfo()" class="btn btn-primary" style="flex: 2; padding: 0.875rem; font-size: 1rem; font-weight: 600;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+            Continuer vers Preview
           </button>
         </div>
       </div>

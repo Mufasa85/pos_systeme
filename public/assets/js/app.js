@@ -2623,3 +2623,211 @@ function confirmAddPoids() {
     // Fermer le modal
     closePoidsModal();
 }
+
+// ==================== INVOICE INFO MODAL ====================
+
+// Ouvrir le modal d'informations facture
+function openInvoiceInfoModal() {
+    const modal = $('#invoice-info-modal');
+    if (!modal || posCart.items.length === 0) return;
+
+    // Fermer le panier mobile si ouvert
+    const cart = document.getElementById('caisse-cart');
+    const overlay = document.getElementById('cart-sidebar-overlay');
+    if (cart) {
+        cart.classList.remove('open');
+        cart.classList.remove('mobile-open');
+    }
+    if (overlay) {
+        overlay.classList.remove('active');
+    }
+    document.body.style.overflow = '';
+
+    // Récupérer TOUTES les infos depuis les champs du panier
+    const invoiceType = document.getElementById('invoice-type')?.value || 'FV';
+    const invoiceRef = document.getElementById('invoice-ref')?.value || '';
+    const clientNom = document.getElementById('client-nom')?.value || (posCart.currentClient?.nom || '');
+    const clientNumero = document.getElementById('client-number')?.value || (posCart.clientNumber || '');
+    const clientTypeId = document.getElementById('client-type')?.value || (posCart.currentClient?.type_id || '');
+    const clientNif = document.getElementById('client-nif')?.value || (posCart.currentClient?.nif || '');
+
+    // Remplir les champs du modal (TOUT est éditable)
+    document.getElementById('modal-invoice-type').value = invoiceType;
+    document.getElementById('modal-invoice-ref').value = invoiceRef;
+    document.getElementById('modal-client-name').value = clientNom;
+    document.getElementById('modal-client-number').value = clientNumero;
+    document.getElementById('modal-client-type').value = clientTypeId;
+    document.getElementById('modal-client-nif').value = clientNif;
+
+    // Remplir la liste des articles
+    const itemsList = document.getElementById('invoice-items-list');
+    const itemsCount = document.getElementById('invoice-items-count');
+    const modalTotal = document.getElementById('invoice-modal-total');
+
+    if (itemsList) {
+        let html = '';
+        posCart.items.forEach(item => {
+            const itemTotal = item.prix * item.quantite;
+            html += `<div style="display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid #e2e8f0;">
+                <span>${item.nom} x${item.quantite}</span>
+                <span style="font-weight: 500;">${formatCurrency(itemTotal)}</span>
+            </div>`;
+        });
+        itemsList.innerHTML = html;
+    }
+
+    if (itemsCount) {
+        itemsCount.textContent = posCart.items.length;
+    }
+
+    if (modalTotal && posCart.currentTotals) {
+        modalTotal.textContent = formatCurrency(posCart.currentTotals.total);
+    }
+
+    // Afficher le modal
+    modal.classList.add('active');
+}
+
+// Fermer le modal d'informations facture
+function closeInvoiceInfoModal() {
+    const modal = $('#invoice-info-modal');
+    if (modal) {
+        modal.classList.remove('active');
+    }
+}
+
+// Confirmer les informations facture et passer au preview
+function confirmInvoiceInfo() {
+    // Synchroniser TOUTES les valeurs modifiées dans le modal vers les champs du panier
+    const invoiceType = document.getElementById('modal-invoice-type').value;
+    const invoiceRef = document.getElementById('modal-invoice-ref').value;
+    const clientName = document.getElementById('modal-client-name').value;
+    const clientNumber = document.getElementById('modal-client-number').value;
+    const clientType = document.getElementById('modal-client-type').value;
+    const clientNif = document.getElementById('modal-client-nif').value;
+
+    // Mettre à jour les champs originaux
+    document.getElementById('invoice-type').value = invoiceType;
+    document.getElementById('invoice-ref').value = invoiceRef;
+    document.getElementById('client-nom').value = clientName;
+    document.getElementById('client-number').value = clientNumber;
+    document.getElementById('client-type').value = clientType;
+    document.getElementById('client-nif').value = clientNif;
+
+    // Fermer ce modal
+    closeInvoiceInfoModal();
+
+    // Ouvrir le modal de preview
+    posCart.showPreviewFromModal();
+}
+
+// Ajouter la méthode showPreviewFromModal à posCart
+const originalShowPreview = posCart.showPreview.bind(posCart);
+posCart.showPreviewFromModal = async function () {
+    await originalShowPreview();
+};
+
+// ==================== INVOICE MODAL PAYMENT CALCULATION ====================
+
+function calculateModalChange() {
+    const received = parseFloat(document.getElementById('modal-payment-amount')?.value) || 0;
+    const total = posCart.currentTotals?.total || 0;
+    const change = received - total;
+
+    const changeDiv = document.getElementById('modal-payment-change');
+    const changeAmount = document.getElementById('modal-change-amount');
+
+    if (changeDiv && changeAmount) {
+        if (received > 0) {
+            changeDiv.style.display = 'block';
+            if (change >= 0) {
+                changeDiv.style.background = '#dcfce7';
+                changeAmount.textContent = change.toFixed(2) + ' Fc';
+                changeAmount.style.color = '#166534';
+            } else {
+                changeDiv.style.background = '#fee2e2';
+                changeAmount.textContent = 'Manque ' + Math.abs(change).toFixed(2) + ' Fc';
+                changeAmount.style.color = '#dc2626';
+            }
+        } else {
+            changeDiv.style.display = 'none';
+        }
+    }
+}
+
+// ==================== MODAL CLIENT SEARCH & SAVE ====================
+
+async function searchClientFromModal() {
+    const numero = document.getElementById('modal-client-number')?.value?.trim();
+    const messageDiv = document.getElementById('modal-client-search-message');
+
+    if (!numero) {
+        showModalClientMessage('Veuillez entrer un numéro de téléphone', 'error');
+        return;
+    }
+
+    try {
+        const res = await fetch(APP_URL + '/api/client/search?numero=' + encodeURIComponent(numero));
+        const data = await res.json();
+
+        if (data.success && data.client) {
+            document.getElementById('modal-client-name').value = data.client.nom_client || '';
+            document.getElementById('modal-client-type').value = data.client.type_id || '';
+            document.getElementById('modal-client-nif').value = data.client.nif || '';
+            showModalClientMessage('Client trouvé: ' + data.client.nom_client, 'success');
+        } else {
+            showModalClientMessage('Client non trouvé. Créez-en un nouveau.', 'error');
+        }
+    } catch (e) {
+        showModalClientMessage('Erreur de connexion', 'error');
+    }
+}
+
+async function saveClientFromModal() {
+    const nom = document.getElementById('modal-client-name')?.value?.trim();
+    const numero = document.getElementById('modal-client-number')?.value?.trim();
+    const typeId = document.getElementById('modal-client-type')?.value;
+    const nif = document.getElementById('modal-client-nif')?.value?.trim();
+
+    if (!nom || !numero) {
+        showModalClientMessage('Veuillez remplir le nom et le numéro', 'error');
+        return;
+    }
+
+    try {
+        const res = await fetch(APP_URL + '/api/client', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nom, numero, type_client_id: typeId, nif })
+        });
+        const data = await res.json();
+
+        if (data.success && data.client) {
+            showModalClientMessage('Client enregistré: ' + data.client.nom_client, 'success');
+        } else {
+            showModalClientMessage(data.message || 'Erreur lors de l\'enregistrement', 'error');
+        }
+    } catch (e) {
+        showModalClientMessage('Erreur de connexion', 'error');
+    }
+}
+
+function showModalClientMessage(message, type) {
+    const messageDiv = document.getElementById('modal-client-search-message');
+    if (!messageDiv) return;
+
+    messageDiv.textContent = message;
+    messageDiv.style.display = 'block';
+
+    if (type === 'success') {
+        messageDiv.style.color = '#10b981';
+        messageDiv.style.background = '#f0fdf4';
+        messageDiv.style.border = '1px solid #10b981';
+    } else {
+        messageDiv.style.color = '#f44336';
+        messageDiv.style.background = '#ffebee';
+        messageDiv.style.border = '1px solid #f44336';
+    }
+
+    setTimeout(() => { messageDiv.style.display = 'none'; }, 3000);
+}
