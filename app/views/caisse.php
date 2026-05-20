@@ -265,6 +265,58 @@
     <span class="cart-floating-total" id="cart-floating-total">0.00 Fc</span>
   </button>
 
+  <!-- MODAL POIDS (Pour produits vendus au kilo) -->
+  <div id="poids-modal" class="modal">
+    <div class="modal-content" style="max-width: 380px; padding: 0;">
+      <div class="modal-header" style="background: linear-gradient(135deg, #0B5E88 0%, #2AB7E6 100%); color: white; border: none;">
+        <h3 style="color: white;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 8px;">
+            <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <path d="M16 10a4 4 0 0 1-8 0"></path>
+          </svg>
+          Produit au poids
+        </h3>
+        <button class="close-modal" onclick="closePoidsModal()" style="color: white;">&times;</button>
+      </div>
+      <div style="padding: 1.5rem;">
+        <div style="background: #f8fafc; border-radius: 12px; padding: 1rem; margin-bottom: 1rem; text-align: center;">
+          <div id="poids-product-name" style="font-size: 1.1rem; font-weight: 600; color: #1a1a2e; margin-bottom: 0.5rem;">-</div>
+          <div style="font-size: 0.9rem; color: #64748b;">Prix: <strong id="poids-product-price">0.00 Fc</strong>/L'unite</div>
+        </div>
+        <div style="margin-bottom: 1rem;">
+          <label for="poids-quantity" style="display: block; font-size: 0.875rem; font-weight: 600; color: #1a1a2e; margin-bottom: 0.5rem;">
+            Quantité ( ex : kg)
+          </label>
+          <input type="number" id="poids-quantity"
+            placeholder="Ex: 0.500"
+            step="0.001"
+            min="0.001"
+            style="width: 100%; padding: 1rem; border: 2px solid #e2e8f0; border-radius: 10px; font-size: 1.25rem; text-align: center; font-weight: 600; outline: none; transition: border-color 0.2s;"
+            oninput="updatePoidsTotal()">
+          <small style="color: #64748b; font-size: 0.75rem;">Entrez le poids en kilogrammes (ex: 0.500 pour 500g)</small>
+        </div>
+        <div style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border-radius: 12px; padding: 1rem; text-align: center; margin-bottom: 1rem;">
+          <div style="font-size: 0.8rem; color: #166534; margin-bottom: 0.25rem;">TOTAL</div>
+          <div id="poids-total" style="font-size: 1.75rem; font-weight: 700; color: #166534;">0.00 Fc</div>
+        </div>
+        <div style="display: flex; gap: 0.75rem;">
+          <button onclick="closePoidsModal()" class="btn btn-secondary" style="flex: 1; padding: 0.875rem;">
+            Annuler
+          </button>
+          <button id="btn-add-poids" onclick="confirmAddPoids()" class="btn btn-success" style="flex: 2; padding: 0.875rem; font-size: 1rem; font-weight: 600;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="9" cy="21" r="1"></circle>
+              <circle cx="20" cy="21" r="1"></circle>
+              <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+            </svg>
+            Ajouter au panier
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- MODAL SCANNER -->
   <div id="scanner-modal" class="scanner-modal">
     <div class="scanner-modal-content">
