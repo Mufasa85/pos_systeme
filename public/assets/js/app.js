@@ -417,7 +417,7 @@ const posCart = {
                 </div>
                 <div class="quantity-controls">
                   <button onclick="posCart.updateQty(${item.produit_id}, -${step})">-</button>
-                  <span>${item.quantite.toFixed(3)}</span>
+                  <span>${isPoids ? item.quantite.toFixed(2) : item.quantite}</span>
                   <button onclick="posCart.updateQty(${item.produit_id}, ${step})">+</button>
                 </div>
                 <div class="item-total">${formatCurrency(item.prix * item.quantite)}</div>
