@@ -54,6 +54,7 @@ async function loadStoreInfo() {
             name: data.store_name || STORE_INFO.name,
             address: data.store_address || STORE_INFO.address,
             phone: data.store_phone || STORE_INFO.phone,
+            email: data.store_email || '',
             ice: data.store_ice || STORE_INFO.ice,
             rccm: data.store_rccm || '',
             isf: data.store_isf || ''
@@ -223,10 +224,22 @@ const posCart = {
         grid.innerHTML = html.join('') || '<div class="empty-state">Aucun produit trouvé</div>';
     },
 
+    // Variable pour suivre le produit en attente de poids
+    pendingPoidsProduct: null,
+
+    // Ajouter un produit au panier (gère le cas des produits au poids)
     addToCart(id) {
         const product = this.allProducts.find(p => p.id == id);
         if (!product) return;
 
+        // Si le produit est au poids (pas "unite"), ouvrir le modal de poids
+        if (product.product_type === 'coupe') {
+            this.pendingPoidsProduct = product;
+            openPoidsModal(product);
+            return;
+        }
+
+        // Produit standard (à l'unité)
         const existing = this.items.find(i => i.produit_id == id);
         if (existing) {
             existing.quantite++;
@@ -237,8 +250,35 @@ const posCart = {
                 prix: parseFloat(product.prix),
                 quantite: 1,
                 maxStock: product.stock,
-                tax_rate: parseFloat(product.tax_rate) || 0,  // Taux de taxe du produit
-                tax_etiquette: product.tax_etiquette || ''
+                tax_rate: parseFloat(product.tax_rate) || 0,
+                tax_etiquette: product.tax_etiquette || '',
+                product_type: product.product_type || 'unite'
+            });
+        }
+        this.renderCart();
+    },
+
+    // Ajouter un produit au poids après confirmation du modal
+    addPoidsToCart(quantite) {
+        if (!this.pendingPoidsProduct) return;
+
+        const product = this.pendingPoidsProduct;
+        this.pendingPoidsProduct = null;
+
+        // Chercher si le produit existe déjà dans le panier
+        const existing = this.items.find(i => i.produit_id == product.id);
+        if (existing) {
+            existing.quantite += parseFloat(quantite);
+        } else {
+            this.items.push({
+                produit_id: product.id,
+                nom: product.nom,
+                prix: parseFloat(product.prix),
+                quantite: parseFloat(quantite),
+                maxStock: product.stock,
+                tax_rate: parseFloat(product.tax_rate) || 0,
+                tax_etiquette: product.tax_etiquette || '',
+                product_type: 'poids'
             });
         }
         this.renderCart();
@@ -365,16 +405,20 @@ const posCart = {
             `;
             $('#show-preview').disabled = true;
         } else {
-            cartItems.innerHTML = this.items.map(item => `
+            cartItems.innerHTML = this.items.map(item => {
+                const isPoids = (item.product_type === 'coupe' || item.product_type === 'poids');
+                const unitLabel = isPoids ? 'kg' : 'unite';
+                const step = isPoids ? 0.5 : 1;
+                return `
               <div class="cart-item">
                 <div class="info">
                   <div class="name">${item.nom}</div>
-                  <div class="price">${formatCurrency(item.prix)} / unite</div>
+                  <div class="price">${formatCurrency(item.prix)} / ${unitLabel}</div>
                 </div>
                 <div class="quantity-controls">
-                  <button onclick="posCart.updateQty(${item.produit_id}, -1)">-</button>
-                  <span>${item.quantite}</span>
-                  <button onclick="posCart.updateQty(${item.produit_id}, 1)">+</button>
+                  <button onclick="posCart.updateQty(${item.produit_id}, -${step})">-</button>
+                  <span>${item.quantite.toFixed(3)}</span>
+                  <button onclick="posCart.updateQty(${item.produit_id}, ${step})">+</button>
                 </div>
                 <div class="item-total">${formatCurrency(item.prix * item.quantite)}</div>
                 <button class="remove-item" onclick="posCart.removeFromCart(${item.produit_id})">
@@ -384,27 +428,28 @@ const posCart = {
                   </svg>
                 </button>
               </div>
-            `).join('');
+            `;
+            }).join('');
             $('#show-preview').disabled = false;
+
+            // Les prix sont maintenant HT (sans TVA), calculer la TVA par produit selon son taux
+            let subtotalHT = 0;
+            let totalTax = 0;
+
+            for (const item of this.items) {
+                const itemHT = item.prix * item.quantite;
+                const itemTax = itemHT * (item.tax_rate / 100);
+                subtotalHT += itemHT;
+                totalTax += itemTax;
+            }
+
+            const subtotalTTC = subtotalHT;
+
+            $('#subtotal').textContent = formatCurrency(subtotalHT);
+            $('#total').textContent = formatCurrency(subtotalTTC);
+
+            this.currentTotals = { sous_total_ht: subtotalHT, tva: totalTax, total: subtotalTTC };
         }
-
-        // Les prix sont maintenant HT (sans TVA), calculer la TVA par produit selon son taux
-        let subtotalHT = 0;
-        let totalTax = 0;
-
-        for (const item of this.items) {
-            const itemHT = item.prix * item.quantite;
-            const itemTax = itemHT * (item.tax_rate / 100);
-            subtotalHT += itemHT;
-            totalTax += itemTax;
-        }
-
-        const subtotalTTC = subtotalHT;
-
-        $('#subtotal').textContent = formatCurrency(subtotalHT);
-        $('#total').textContent = formatCurrency(subtotalTTC);
-
-        this.currentTotals = { sous_total_ht: subtotalHT, tva: totalTax, total: subtotalTTC };
     },
 
     // Appeler l'API DGI pour valider la facture
@@ -640,6 +685,7 @@ const posCart = {
                     <div class="store-info">
                         <div>${STORE_INFO.address}</div>
                         <div>Tel: ${STORE_INFO.phone}</div>
+                        ${STORE_INFO.email ? `<div>Email: ${STORE_INFO.email}</div>` : ''}
                         <div>ID Nat: ${STORE_INFO.ice}</div>
 
                         <!--<div>RCCM: ${STORE_INFO.rccm}</div>-->
@@ -965,6 +1011,7 @@ const posCart = {
                         <div class="store-info">
                             <div>${STORE_INFO.address}</div>
                             <div>Tel: ${STORE_INFO.phone}</div>
+                            ${STORE_INFO.email ? `<div>Email: ${STORE_INFO.email}</div>` : ''}
                             <div>ID Nat: ${STORE_INFO.ice}</div>
 
                             <!--<div>RCCM: ${STORE_INFO.rccm}</div>-->
@@ -2517,4 +2564,62 @@ function toggleCalcMode(enabled) {
             }
         }
     }
+}
+
+// ==================== POIDS MODAL (Produits au kilo) ====================
+
+function openPoidsModal(product) {
+    const modal = $('#poids-modal');
+    if (!modal) return;
+
+    // Remplir les infos du produit
+    $('#poids-product-name').textContent = product.nom;
+    $('#poids-product-price').textContent = formatCurrency(parseFloat(product.prix));
+
+    // Réinitialiser le champ
+    $('#poids-quantity').value = '';
+    $('#poids-total').textContent = '0.00 Fc';
+
+    // Afficher le modal
+    modal.classList.add('active');
+
+    // Focus sur le champ de poids
+    setTimeout(() => {
+        $('#poids-quantity').focus();
+    }, 100);
+}
+
+function closePoidsModal() {
+    const modal = $('#poids-modal');
+    if (modal) {
+        modal.classList.remove('active');
+    }
+    // Réinitialiser le produit en attente
+    if (posCart) {
+        posCart.pendingPoidsProduct = null;
+    }
+}
+
+function updatePoidsTotal() {
+    const quantity = parseFloat($('#poids-quantity').value) || 0;
+    const product = posCart.pendingPoidsProduct;
+    if (!product) return;
+
+    const total = quantity * parseFloat(product.prix);
+    $('#poids-total').textContent = formatCurrency(total);
+}
+
+function confirmAddPoids() {
+    const quantity = parseFloat($('#poids-quantity').value) || 0;
+
+    if (quantity <= 0) {
+        alert('Veuillez entrer un poids valide');
+        return;
+    }
+
+    // Ajouter au panier
+    posCart.addPoidsToCart(quantity);
+
+    // Fermer le modal
+    closePoidsModal();
 }
