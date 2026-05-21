@@ -6,13 +6,11 @@ const formatCurrency = (amount) => amount.toFixed(2) + ' Fc';
 // Types de factures et leurs significations
 const INVOICE_TYPES = {
     'FV': 'Facture de Vente',
-    'EV': 'Facture de Vente à l exportation',
-    'FT': 'Facture de Service',
-    'FA': 'Facture A',
-    'FB': 'Facture B',
-    'AV': 'Avoir',
-    'RF': 'Reçu Fiscal',
-    'PRO': 'Proforma'
+    'EV': 'Facture de Vente à l\'exportation',
+    'FT': 'Facture d\'acompte',
+    'FA': 'Facture d\'avoir',
+    'EA': 'Facture d\'avoir à l\'exportation',
+    'ET': 'Facture d\'acompte à l\'exportation',
 };
 
 // Obtenir le label complet du type de facture
