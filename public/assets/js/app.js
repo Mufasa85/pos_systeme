@@ -275,17 +275,39 @@ const posCart = {
         const product = this.allProducts.find(p => p.id == id);
         if (!product) return;
 
+        // Vérifier le stock avant d'ajouter
+        const currentStock = parseInt(product.stock) || 0;
+        const existingInCart = this.items.find(i => i.produit_id == id);
+        const currentQtyInCart = existingInCart ? existingInCart.quantite : 0;
+
+        // Si stock épuisé ou quantité au panier dépasse le stock
+        if (currentStock === 0) {
+            // Afficher une notification visuelle
+            this.showStockNotification(product.nom, 0);
+            return;
+        }
+
         // Si le produit est au poids (pas "unite"), ouvrir le modal de poids
         if (product.product_type === 'coupe') {
+            // Vérifier aussi le stock pour les produits au poids
+            if (currentStock <= 0) {
+                this.showStockNotification(product.nom, 0);
+                return;
+            }
             this.pendingPoidsProduct = product;
             openPoidsModal(product);
             return;
         }
 
+        // Vérifier si on ne dépasse pas le stock disponible
+        if (currentQtyInCart >= currentStock) {
+            this.showStockNotification(product.nom, currentStock);
+            return;
+        }
+
         // Produit standard (à l'unité)
-        const existing = this.items.find(i => i.produit_id == id);
-        if (existing) {
-            existing.quantite++;
+        if (existingInCart) {
+            existingInCart.quantite++;
         } else {
             this.items.push({
                 produit_id: product.id,
@@ -295,10 +317,44 @@ const posCart = {
                 maxStock: product.stock,
                 tax_rate: parseFloat(product.tax_rate) || 0,
                 tax_etiquette: product.tax_etiquette || '',
-                product_type: product.product_type || 'unite'
+                product_type: product.product_type || 'unite',
+                prod_service: product.prod_service || ''
             });
         }
         this.renderCart();
+    },
+
+    // Afficher une notification quand le stock est épuisé
+    showStockNotification(productName, availableStock) {
+        // Créer ou mettre à jour la notification
+        let notification = document.getElementById('stock-notification');
+        if (!notification) {
+            notification = document.createElement('div');
+            notification.id = 'stock-notification';
+            notification.style.cssText = 'position: fixed; top: 20px; right: 20px; background: linear-gradient(135deg, #f44336 0%, #c62828 100%); color: white; padding: 12px 20px; border-radius: 8px; font-size: 14px; font-weight: 500; box-shadow: 0 4px 12px rgba(0,0,0,0.3); z-index: 10000; display: flex; align-items: center; gap: 8px; animation: slideIn 0.3s ease;';
+            document.body.appendChild(notification);
+        }
+
+        notification.innerHTML = `
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="12"></line>
+                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+            <span>⚠️ Stock épuisé: ${productName}</span>
+        `;
+
+        notification.style.display = 'flex';
+
+        // Auto-hide après 3 secondes
+        setTimeout(() => {
+            if (notification) {
+                notification.style.animation = 'fadeOut 0.3s ease';
+                setTimeout(() => {
+                    if (notification) notification.style.display = 'none';
+                }, 300);
+            }
+        }, 3000);
     },
 
     // Ajouter un produit au poids après confirmation du modal
@@ -321,7 +377,8 @@ const posCart = {
                 maxStock: product.stock,
                 tax_rate: parseFloat(product.tax_rate) || 0,
                 tax_etiquette: product.tax_etiquette || '',
-                product_type: 'poids'
+                product_type: 'poids',
+                prod_service: product.prod_service || ''
             });
         }
         this.renderCart();
@@ -908,9 +965,10 @@ const posCart = {
             const itemTax = itemHT * (item.tax_rate / 100);
             const itemTTC = itemHT + itemTax;
             const taxLabel = item.tax_etiquette || (item.tax_rate > 0 ? 'TVA ' + item.tax_rate + '%' : 'Exonere');
+            const prodService = item.prod_service ? `<span class="item-prod-service">[${item.prod_service}]</span>` : '';
             itemsHtml += `
                 <div class="receipt-item">
-                    <span class="item-name">${item.nom}<span class="item-tax-badge">${taxLabel}</span></span>
+                    <span class="item-name">${item.nom}<span class="item-tax-badge">${taxLabel}</span>${prodService}</span>
                     <span class="item-qty">x${item.quantite}</span>
                     <span class="item-price">${itemHT.toFixed(2)}</span>
                 </div>
@@ -973,6 +1031,7 @@ const posCart = {
 
                     <div class="receipt-totals">
                         ${this.getTaxBreakdownHtml()}
+                        
                         <div class="receipt-total-row grand-total">
                             <span>TOTAL TTC:</span>
                             <span>${this.currentTotals.total.toFixed(2)} Fc</span>
@@ -1123,7 +1182,7 @@ const posCart = {
             resultDiv.style.display = 'block';
             resultDiv.style.background = '#e8f5e9';
             resultDiv.style.border = '2px solid #4caf50';
-            changeLabel.textContent = '💵 MONNAIE À RENDRE';
+            changeLabel.textContent = 'MONNAIE À RENDRE';
             changeLabel.style.color = '#2e7d32';
             changeFcEl.textContent = formatCurrency(Math.abs(restFc));
             changeFcEl.style.color = '#2e7d32';
@@ -1259,9 +1318,12 @@ const posCart = {
                 const itemTTC = itemHT;
 
                 const taxLabel = item.tax_etiquette || (item.tax_rate > 0 ? 'TVA ' + item.tax_rate + '%' : 'Exonere');
+                const prodService = item.prod_service ? `<span class="item-prod-service">[${item.prod_service}]</span>` : '';
+
+                console.log(item)
                 itemsHtml += `
                     <div class="receipt-item">
-                        <span class="item-name">${item.nom}<span class="item-tax-badge">${taxLabel}</span></span>
+                        <span class="item-name">${item.nom}<span class="item-tax-badge">${taxLabel}</span>${prodService}</span>
                         <span class="item-qty">x${item.quantite}</span>
                         <span class="item-price">${itemTTC.toFixed(2)}</span>
                     </div>
@@ -1295,6 +1357,10 @@ const posCart = {
 
                     <div class="receipt-totals">
                         ${this.getTaxBreakdownHtml(dgiResponse)}
+                        <div class="receipt-total-row">
+                            <span>Total TVA:</span>
+                            <span>${dgiResponse.data.vtotal.toFixed(2)} Fc</span>
+                        </div>
                         <div class="receipt-total-row grand-total">
                             <span>TOTAL TTC:</span>
                             <span>${this.currentTotals.total.toFixed(2)} Fc</span>
@@ -1354,6 +1420,7 @@ const posCart = {
         formData.append('stock_minimum', $('#product-min-stock').value);
         formData.append('taxe_id', $('#product-tax').value);
         formData.append('product_type', $('#product-type').value);
+        formData.append('prod_service', $('#product-prod-service').value || '');
         if ($('#product-image').files[0]) {
             formData.append('image', $('#product-image').files[0]);
         }
@@ -1427,6 +1494,12 @@ function setProductForm(product) {
     const typeSelect = $('#product-type');
     if (typeSelect && product.product_type) {
         typeSelect.value = product.product_type;
+    }
+
+    // Selectionner le type de service (BIE, SER, TAX)
+    const prodServiceSelect = $('#product-prod-service');
+    if (prodServiceSelect && product.prod_service) {
+        prodServiceSelect.value = product.prod_service;
     }
 
     $('#product-modal').classList.add('active');

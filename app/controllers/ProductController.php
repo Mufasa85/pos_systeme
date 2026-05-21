@@ -45,7 +45,8 @@ class ProductController extends Controller
             'stock' => (int)$this->sanitaze($_POST['stock']),
             'stock_minimum' => (int)$this->sanitaze($_POST['stock_minimum']),
             'taxe_id' => (int)$this->sanitaze($_POST['taxe_id']) ?: 1,
-            'product_type' => $this->sanitaze($_POST['product_type']) ?: 'unite'
+            'product_type' => $this->sanitaze($_POST['product_type']) ?: 'unite',
+            'prod_service' => $this->sanitaze($_POST['prod_service']) ?: null
         ];
 
         // Vérifier si le code-barres existe déjà
@@ -133,6 +134,7 @@ class ProductController extends Controller
             'stock_minimum' => (int)$this->sanitaze($_POST['stock_minimum']),
             'taxe_id' => (int)$this->sanitaze($_POST['taxe_id']) ?: 1,
             'product_type' => $this->sanitaze($_POST['product_type']) ?: 'unite',
+            'prod_service' => $this->sanitaze($_POST['prod_service']) ?: null,
             'image' => $oldImage // Par défaut, garder l'ancienne image
         ];
 
