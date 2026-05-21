@@ -51,10 +51,23 @@ class Sale
 
     public function generateInvoiceNumber()
     {
-        // Simple logic : prefixe FAC- et recupère l'id max + 1000
-        $max = $this->db->fetch("SELECT MAX(id) as max_id FROM ventes");
-        $nextId = ($max['max_id'] ? $max['max_id'] : 0) + 1000;
-        return 'FAC-' . str_pad($nextId, 6, '0', STR_PAD_LEFT);
+        // Format: AAAA/MMxxxxxx (ex: 2026/000001)
+        $year = date('Y');
+        $month = date('m');
+
+        // Récupérer le dernier numéro du mois en cours
+        $sql = "SELECT numero_facture FROM ventes 
+                WHERE YEAR(date) = YEAR(CURDATE()) AND MONTH(date) = MONTH(CURDATE())
+                ORDER BY id DESC LIMIT 1";
+        $last = $this->db->fetch($sql);
+
+        if ($last && preg_match('/^(\d{4})\/(\d{6})$/', $last['numero_facture'], $m)) {
+            $seq = intval($m[2]) + 1;
+        } else {
+            $seq = 1;
+        }
+
+        return $year . '/' . str_pad($seq, 6, '0', STR_PAD_LEFT);  // Ex: 2026/000001
     }
     public function exist($id)
     {

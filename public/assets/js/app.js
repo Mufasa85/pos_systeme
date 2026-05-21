@@ -623,8 +623,8 @@ const posCart = {
         try {
             await this.loadQRCodeLibrary();
             const qrCode = new QRCodeStyling({
-                width: 180,
-                height: 180,
+                width: 250,
+                height: 250,
                 type: "svg",
                 data: qrCodeContent,
                 margin: 10,
@@ -756,6 +756,7 @@ const posCart = {
     },
 
     // Generate tax breakdown HTML from DGI API response
+    // Only show exonerated items in final invoice (when dgiResponse is provided)
     getTaxBreakdownHtml(dgiResponse) {
         let html = '';
 
@@ -797,10 +798,6 @@ const posCart = {
             { key: 'hap', label: 'P' }
         ];
 
-        // Calculer les produits exonerés (taux 0 ou sans taxe) une seule fois
-        const exoneratedItems = this.items.filter(item => !item.tax_rate || item.tax_rate === 0);
-        const exoneratedTotal = exoneratedItems.reduce((sum, item) => sum + (item.prix * item.quantite), 0);
-
         categories.forEach(cat => {
             const ht = parseFloat(haData[cat.key]) || 0;
             const va = parseFloat(vaData['va' + cat.key.slice(-1)]) || 0;
@@ -819,12 +816,16 @@ const posCart = {
             }
         });
 
-        // Afficher les produits exonerés en dernier (hors champ ou exonéré)
-        if (exoneratedItems.length > 0 && exoneratedTotal > 0) {
-            html += `<div class="receipt-total-row" style="font-size: 11px; padding-left: 10px; color: #888;">
-                <span>HT[Exonere]:</span>
-                <span>${exoneratedTotal.toFixed(2)} Fc</span>
-            </div>`;
+        // Only show exonerated items in FINAL INVOICE (when dgiResponse is provided)
+        if (dgiResponse) {
+            const exoneratedItems = this.items.filter(item => !item.tax_rate || item.tax_rate === 0);
+            const exoneratedTotal = exoneratedItems.reduce((sum, item) => sum + (item.prix * item.quantite), 0);
+            if (exoneratedItems.length > 0 && exoneratedTotal > 0) {
+                html += `<div class="receipt-total-row" style="font-size: 11px; padding-left: 10px; color: #888;">
+                    <span>HT[Exonere]:</span>
+                    <span>${exoneratedTotal.toFixed(2)} Fc</span>
+                </div>`;
+            }
         }
 
         return html;
@@ -853,7 +854,7 @@ const posCart = {
                 <span>${totalQty % 1 === 0 ? totalQty : totalQty.toFixed(2)}</span>
             </div>
             
-            <div style="text-align: center; font-size: 10px; color: #888; font-style: italic; margin-top: 2px;">
+            <div style="text-align: center; font-size: 12px; color: #888; font-style: italic; margin-top: 2px;">
                 ${amountInWords}
             </div>
         `;
@@ -962,9 +963,8 @@ const posCart = {
                     ${infoSection}
                 </div>
 
-                <div class="receipt-meta">
-                    <span>${invoiceNum}</span>
-                    <span>${getInvoiceTypeLabel(document.getElementById('invoice-type')?.value)}</span>
+                <div class="receipt-meta" style="justify-content: center; font-size: 16px; font-weight: 700;">
+                    ${getInvoiceTypeLabel(document.getElementById('invoice-type')?.value)}
                 </div>
 
                 <div class="receipt-items receipt-items-grid">
@@ -1285,9 +1285,8 @@ const posCart = {
                         </div>
                         ${infoSection}
                     </div>
-                    <div class="receipt-meta">
-                        <span>${saleData.numero_facture}</span>
-                        <span>${getInvoiceTypeLabel(saleData.type_facture || document.getElementById('invoice-type')?.value)}</span>
+                    <div class="receipt-meta" style="justify-content: center; font-size: 16px; font-weight: 700;">
+                        ${getInvoiceTypeLabel(saleData.type_facture || document.getElementById('invoice-type')?.value)}
                     </div>
 
                     <div class="receipt-items receipt-items-grid">
@@ -1313,6 +1312,7 @@ const posCart = {
                     
                         <div id="${qrContainerId}" class="qrcode-container"></div>
                         <div class="barcode">${saleData.numero_facture}</div>
+                        ${dgiResponse.data?.dateDGI ? '<div style="font-size: 10px; color: #666; margin-top: 4px;">Date DGI: ' + dgiResponse.data.dateDGI + '</div>' : ''}
                        
                         <div class="thank-you">Merci de votre visite!</div>
                         <div style="margin-top: 5px; font-size: 9px; font-style: italic;">---Powered By Osat---</div>
@@ -1896,7 +1896,7 @@ async function viewSaleDetails(saleId) {
             dgiInfoHtml += '<br> ISF : ' + (STORE_INFO.isf || '0') + '</div></div>';
         }
 
-        document.getElementById('sale-details-content').innerHTML = '<div class="receipt"><div class="receipt-header"><div style="text-align:center; font-weight:800; font-size:24px; color:#000; margin-bottom:10px; border-bottom:2px solid #000; padding-bottom:5px;">PROFORMA</div><div class="store-name">' + STORE_INFO.name + '</div><div class="store-info"><div>' + STORE_INFO.address + '</div><div>Tel: ' + STORE_INFO.phone + '</div><div>ID Nat: ' + STORE_INFO.ice + '</div>' + storeExtraInfo + '</div>' + infoSection + '</div><div class="receipt-meta"><span>' + sale.numero_facture + '</span><span>' + getInvoiceTypeLabel(sale.type_facture) + '</span></div><div class="receipt-items receipt-items-grid">' + itemsHtml + '</div><div class="receipt-totals"><div class="receipt-total-row"><span>Sous-total HT:</span><span>' + parseFloat(sale.sous_total_ht).toFixed(2) + ' Fc</span></div><div class="receipt-total-row"><span>TVA:</span><span>' + parseFloat(sale.tva).toFixed(2) + ' Fc</span></div><div class="receipt-total-row grand-total"><span>TOTAL TTC:</span><span>' + parseFloat(sale.total).toFixed(2) + ' Fc</span></div><div style="margin:10px 0; font-size:11px; color:#333; border:1px dashed #ccc; padding:8px; border-radius:4px; text-align:left;"><div style="font-weight:bold; text-decoration:underline; margin-bottom:4px;">Commentaire/Remarque :</div><div>' + (sale.comment || 'Aucun commentaire') + '</div></div></div>' + dgiInfoHtml + '<div class="receipt-footer"><div id="history-qrcode-container" class="qrcode-container"></div><div class="barcode">' + sale.numero_facture + '</div><div class="thank-you">Merci de votre visite!</div><div style="margin-top:5px; font-size:9px; font-style:italic;">---Powered By Osat---</div></div></div>';
+        document.getElementById('sale-details-content').innerHTML = '<div class="receipt"><div class="receipt-header"><div style="text-align:center; font-weight:800; font-size:24px; color:#000; margin-bottom:10px; border-bottom:2px solid #000; padding-bottom:5px;">PROFORMA</div><div class="store-name">' + STORE_INFO.name + '</div><div class="store-info"><div>' + STORE_INFO.address + '</div><div>Tel: ' + STORE_INFO.phone + '</div><div>ID Nat: ' + STORE_INFO.ice + '</div>' + storeExtraInfo + '</div>' + infoSection + '</div><div class="receipt-meta" style="justify-content: center; font-size: 16px; font-weight: 700;">' + getInvoiceTypeLabel(sale.type_facture) + '</div><div class="receipt-items receipt-items-grid">' + itemsHtml + '</div><div class="receipt-totals"><div class="receipt-total-row"><span>Sous-total HT:</span><span>' + parseFloat(sale.sous_total_ht).toFixed(2) + ' Fc</span></div><div class="receipt-total-row"><span>TVA:</span><span>' + parseFloat(sale.tva).toFixed(2) + ' Fc</span></div><div class="receipt-total-row grand-total"><span>TOTAL TTC:</span><span>' + parseFloat(sale.total).toFixed(2) + ' Fc</span></div><div style="margin:10px 0; font-size:11px; color:#333; border:1px dashed #ccc; padding:8px; border-radius:4px; text-align:left;"><div style="font-weight:bold; text-decoration:underline; margin-bottom:4px;">Commentaire/Remarque :</div><div>' + (sale.comment || 'Aucun commentaire') + '</div></div></div>' + dgiInfoHtml + '<div class="receipt-footer"><div id="history-qrcode-container" class="qrcode-container"></div><div class="barcode">' + sale.numero_facture + '</div><div class="thank-you">Merci de votre visite!</div><div style="margin-top:5px; font-size:9px; font-style:italic;">---Powered By Osat---</div></div></div>';
 
         posCart.generateDGIQRCode(sale.qrCode || sale.numero_facture, 'history-qrcode-container');
         document.getElementById('print-sale-btn').onclick = () => printSaleReceipt(saleId);
