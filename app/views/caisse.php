@@ -296,7 +296,7 @@
             <select id="modal-invoice-type" class="client-number-input" style="width: 100%;">
               <option value="FV">FV</option>
               <option value="EV">EV</option>
-              <option value="FT">FT</option>
+              <option value="EV">FT</option>
               <option value="FA">FA</option>
               <option value="EA">EA</option>
               <option value="ET">ET</option>

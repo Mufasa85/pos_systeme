@@ -3,6 +3,23 @@ const $$ = (s) => document.querySelectorAll(s);
 
 const formatCurrency = (amount) => amount.toFixed(2) + ' Fc';
 
+// Types de factures et leurs significations
+const INVOICE_TYPES = {
+    'FV': 'Facture de Vente',
+    'EV': 'Facture de Vente à l exportation',
+    'FT': 'Facture de Service',
+    'FA': 'Facture A',
+    'FB': 'Facture B',
+    'AV': 'Avoir',
+    'RF': 'Reçu Fiscal',
+    'PRO': 'Proforma'
+};
+
+// Obtenir le label complet du type de facture
+function getInvoiceTypeLabel(code) {
+    return INVOICE_TYPES[code] || code || 'Facture de Vente';
+}
+
 // Taux de change USD (sera mis à jour depuis l'API)
 let USD_RATE = 2555; // Valeur par défaut
 
@@ -642,6 +659,206 @@ const posCart = {
         }
     },
 
+    // Helper function to calculate totals by tax category
+    calculateTaxBreakdown() {
+        const breakdown = {};
+        for (const item of this.items) {
+            const taxKey = item.tax_etiquette || (item.tax_rate > 0 ? 'TVA ' + item.tax_rate + '%' : 'Exonere');
+            const taxRate = item.tax_rate || 0;
+
+            if (!breakdown[taxKey]) {
+                breakdown[taxKey] = { ht: 0, tax: 0, rate: taxRate };
+            }
+
+            const itemHT = item.prix * item.quantite;
+            const itemTax = itemHT * (taxRate / 100);
+
+            breakdown[taxKey].ht += itemHT;
+            breakdown[taxKey].tax += itemTax;
+        }
+        return breakdown;
+    },
+
+    // Convert number to French words (for currency) - handles up to billions
+    numberToFrenchWords(num) {
+        const units = ['', 'un', 'deux', 'trois', 'quatre', 'cinq', 'six', 'sept', 'huit', 'neuf', 'dix',
+            'onze', 'douze', 'treize', 'quatorze', 'quinze', 'seize', 'dix-sept', 'dix-huit', 'dix-neuf'];
+        const tens = ['', '', 'vingt', 'trente', 'quarante', 'cinquante', 'soixante', 'soixante', 'quatre-vingt', 'quatre-vingt-dix'];
+
+        if (num === 0) return 'zéro';
+
+        const intPart = Math.floor(num);
+        const decPart = Math.round((num - intPart) * 100);
+
+        function threeDigitsToWords(n) {
+            if (n === 0) return '';
+            if (n < 20) return units[n];
+            if (n < 100) {
+                const ten = Math.floor(n / 10);
+                const unit = n % 10;
+                if (ten === 7 || ten === 9) {
+                    const base = ten === 7 ? 60 : 80;
+                    if (unit === 1) return base + '-et-' + units[unit];
+                    return base + '-' + units[unit];
+                }
+                if (ten === 8 && unit === 0) return 'quatre-vingts';
+                if (unit === 0) return tens[ten];
+                return tens[ten] + (unit === 1 ? '-et-' : '-') + units[unit];
+            }
+            if (n < 1000) {
+                const hundreds = Math.floor(n / 100);
+                const remainder = n % 100;
+                if (hundreds === 1) return remainder === 0 ? 'cent' : 'cent ' + threeDigitsToWords(remainder);
+                if (hundreds === 2) return remainder === 0 ? 'deux cents' : 'deux cent ' + threeDigitsToWords(remainder);
+                if (hundreds === 3) return remainder === 0 ? 'trois cents' : 'trois cent ' + threeDigitsToWords(remainder);
+                if (hundreds === 4) return remainder === 0 ? 'quatre cents' : 'quatre cent ' + threeDigitsToWords(remainder);
+                if (hundreds === 5) return remainder === 0 ? 'cinq cents' : 'cinq cent ' + threeDigitsToWords(remainder);
+                if (hundreds === 6) return remainder === 0 ? 'six cents' : 'six cent ' + threeDigitsToWords(remainder);
+                if (hundreds === 7) return remainder === 0 ? 'sept cents' : 'sept cent ' + threeDigitsToWords(remainder);
+                if (hundreds === 8) return remainder === 0 ? 'huit cents' : 'huit cent ' + threeDigitsToWords(remainder);
+                if (hundreds === 9) return remainder === 0 ? 'neuf cents' : 'neuf cent ' + threeDigitsToWords(remainder);
+                return units[hundreds] + ' cents ' + threeDigitsToWords(remainder);
+            }
+            return n.toString();
+        }
+
+        function convertChunk(n) {
+            if (n === 0) return '';
+            if (n < 1000) return threeDigitsToWords(n);
+            if (n < 1000000) {
+                const thousands = Math.floor(n / 1000);
+                const remainder = n % 1000;
+                if (thousands === 1) return remainder === 0 ? 'mille' : 'mille ' + threeDigitsToWords(remainder);
+                return threeDigitsToWords(thousands) + ' mille' + (remainder > 0 ? ' ' + threeDigitsToWords(remainder) : '');
+            }
+            if (n < 1000000000) {
+                const millions = Math.floor(n / 1000000);
+                const remainder = n % 1000000;
+                const millionsText = millions === 1 ? 'un million' : threeDigitsToWords(millions) + ' millions';
+                return millionsText + (remainder > 0 ? ' ' + convertChunk(remainder) : '');
+            }
+            // Billions
+            const billions = Math.floor(n / 1000000000);
+            const remainder = n % 1000000000;
+            const billionsText = billions === 1 ? 'un milliard' : threeDigitsToWords(billions) + ' milliards';
+            return billionsText + (remainder > 0 ? ' ' + convertChunk(remainder) : '');
+        }
+
+        let result = convertChunk(intPart);
+        if (intPart > 1) result += ' francs';
+        else if (intPart === 1) result += ' franc';
+
+        if (decPart > 0) {
+            result += ' ' + threeDigitsToWords(decPart) + ' centimes';
+        }
+
+        return result.charAt(0).toUpperCase() + result.slice(1);
+    },
+
+    // Generate tax breakdown HTML from DGI API response
+    getTaxBreakdownHtml(dgiResponse) {
+        let html = '';
+
+        // Try to parse ht_tva_group from DGI response
+        let haData = {};
+        let vaData = {};
+
+        try {
+            if (dgiResponse?.data?.ht_tva_group) {
+                const parsed = typeof dgiResponse.data.ht_tva_group === 'string'
+                    ? JSON.parse(dgiResponse.data.ht_tva_group)
+                    : dgiResponse.data.ht_tva_group;
+
+                if (parsed?.data) {
+                    haData = parsed.data.ha || {};
+                    vaData = parsed.data.va || {};
+                }
+            }
+        } catch (e) {
+            console.warn('Error parsing ht_tva_group:', e);
+        }
+
+        // Display each category (a=standard, b, c, d, e, f=reduced, g, h, i, j, k, l, m, n, o, p)
+        const categories = [
+            { key: 'hab', label: 'B' },
+            { key: 'hac', label: 'C' },
+            { key: 'had', label: 'D' },
+            { key: 'hae', label: 'E' },
+            { key: 'haf', label: 'F' },
+            { key: 'hag', label: 'G' },
+            { key: 'hah', label: 'H' },
+            { key: 'hai', label: 'I' },
+            { key: 'haj', label: 'J' },
+            { key: 'hak', label: 'K' },
+            { key: 'hal', label: 'L' },
+            { key: 'ham', label: 'M' },
+            { key: 'han', label: 'N' },
+            { key: 'hao', label: 'O' },
+            { key: 'hap', label: 'P' }
+        ];
+
+        // Calculer les produits exonerés (taux 0 ou sans taxe) une seule fois
+        const exoneratedItems = this.items.filter(item => !item.tax_rate || item.tax_rate === 0);
+        const exoneratedTotal = exoneratedItems.reduce((sum, item) => sum + (item.prix * item.quantite), 0);
+
+        categories.forEach(cat => {
+            const ht = parseFloat(haData[cat.key]) || 0;
+            const va = parseFloat(vaData['va' + cat.key.slice(-1)]) || 0;
+
+            if (ht > 0 || va > 0) {
+                html += `<div class="receipt-total-row" style="font-size: 11px; padding-left: 10px;">
+                    <span>HT[${cat.label}]:</span>
+                    <span>${ht.toFixed(2)} Fc</span>
+                </div>`;
+                if (va > 0) {
+                    html += `<div class="receipt-total-row" style="font-size: 11px; padding-left: 10px; color: #666;">
+                        <span>TVA[${cat.label}]:</span>
+                        <span>${va.toFixed(2)} Fc</span>
+                    </div>`;
+                }
+            }
+        });
+
+        // Afficher les produits exonerés en dernier (hors champ ou exonéré)
+        if (exoneratedItems.length > 0 && exoneratedTotal > 0) {
+            html += `<div class="receipt-total-row" style="font-size: 11px; padding-left: 10px; color: #888;">
+                <span>HT[Exonere]:</span>
+                <span>${exoneratedTotal.toFixed(2)} Fc</span>
+            </div>`;
+        }
+
+        return html;
+    },
+
+    // Generate payment info HTML for receipts (called after TOTAL TTC)
+    getPaymentInfoHtml() {
+        const totalQty = this.items.reduce((sum, item) => sum + item.quantite, 0);
+        const paymentTypeSelect = document.getElementById('modal-payment-type') || document.getElementById('payment-type');
+        const paymentType = paymentTypeSelect?.value || 'cash';
+        const paymentLabel = paymentType === 'cash' ? 'Espèces' : paymentType === 'card' ? 'Carte' : paymentType === 'transfer' ? 'Virement' : paymentType;
+        const amountInWords = this.numberToFrenchWords(this.currentTotals.total);
+
+        return `
+
+            <div class="receipt-total-row" style="font-size: 11px; color: #555">
+                <span>Equivalent en USD :</span>   
+                <span> ${(this.currentTotals.total / USD_RATE).toFixed(2)}$ </span>
+            </div>
+            <div class="receipt-total-row" style="font-size: 11px; color: #555;">
+                <span>Paiment : ${paymentLabel}</span>
+                <span>${this.currentTotals.total.toFixed(2)} Fc</span>
+            </div>
+            <div class="receipt-total-row" style="font-size: 11px; color: #555;">
+                <span>Qté:</span>
+                <span>${totalQty % 1 === 0 ? totalQty : totalQty.toFixed(2)}</span>
+            </div>
+            
+            <div style="text-align: center; font-size: 10px; color: #888; font-style: italic; margin-top: 2px;">
+                ${amountInWords}
+            </div>
+        `;
+    },
+
     // Afficher le récapitulatif de la vente (ticket final avec DGI)
     async showPreview() {
         if (this.items.length === 0) return;
@@ -747,26 +964,21 @@ const posCart = {
 
                 <div class="receipt-meta">
                     <span>${invoiceNum}</span>
-                    <span>${document.getElementById('invoice-type')?.value || 'FV'}</span>
+                    <span>${getInvoiceTypeLabel(document.getElementById('invoice-type')?.value)}</span>
                 </div>
 
                 <div class="receipt-items receipt-items-grid">
                     ${itemsHtml}
                 </div>
 
-                <div class="receipt-totals">
-                    <div class="receipt-total-row">
-                        <span>Sous-total HT:</span>
-                        <span>${this.currentTotals.sous_total_ht.toFixed(2)} Fc</span>
+                    <div class="receipt-totals">
+                        ${this.getTaxBreakdownHtml()}
+                        <div class="receipt-total-row grand-total">
+                            <span>TOTAL TTC:</span>
+                            <span>${this.currentTotals.total.toFixed(2)} Fc</span>
+                        </div>
+                        ${this.getPaymentInfoHtml()}
                     </div>
-                    <div class="receipt-total-row grand-total">
-                        <span>TOTAL TTC:</span>
-                        <span>${this.currentTotals.total.toFixed(2)} Fc</span>
-                    </div>
-                    <div style="text-align: center; font-size: 0.85rem; color: #64748b; margin-top: 4px;">
-                        (≈ $${(this.currentTotals.total / USD_RATE).toFixed(2)} USD)
-                    </div>
-                </div>
 
                 <div class="receipt-footer">
                     <div class="barcode">${invoiceNum}</div>
@@ -1075,7 +1287,7 @@ const posCart = {
                     </div>
                     <div class="receipt-meta">
                         <span>${saleData.numero_facture}</span>
-                        <span>${saleData.type_facture || document.getElementById('invoice-type')?.value || 'FV'}</span>
+                        <span>${getInvoiceTypeLabel(saleData.type_facture || document.getElementById('invoice-type')?.value)}</span>
                     </div>
 
                     <div class="receipt-items receipt-items-grid">
@@ -1083,21 +1295,12 @@ const posCart = {
                     </div>
 
                     <div class="receipt-totals">
-                        <div class="receipt-total-row">
-                            <span>Sous-total HT:</span>
-                            <span>${this.currentTotals.sous_total_ht.toFixed(2)} Fc</span>
-                        </div>
-                        <div class="receipt-total-row">
-                            <span>TVA:</span>
-                            <span>${dgiResponse.data.vtotal.toFixed(2)} Fc</span>
-                        </div>
+                        ${this.getTaxBreakdownHtml(dgiResponse)}
                         <div class="receipt-total-row grand-total">
                             <span>TOTAL TTC:</span>
                             <span>${this.currentTotals.total.toFixed(2)} Fc</span>
                         </div>
-                        <div style="text-align: center; font-size: 0.85rem; color: #64748b; margin-top: 4px;">
-                            (≈ $${(this.currentTotals.total / 2555).toFixed(2)} USD)
-                        </div>
+                        ${this.getPaymentInfoHtml()}
                          <div style="margin: 10px 0; font-size: 11px; color: #333; border: 1px dashed #ccc; padding: 8px; border-radius: 4px; text-align: left;">
                             <div style="font-weight: bold; text-decoration: underline; margin-bottom: 4px;">Commentaire/Remarque :</div>
                             <div>${(dgiResponse.comment || (dgiResponse.data && dgiResponse.data.comment)) || 'Aucun commentaire'}</div>
@@ -1562,7 +1765,7 @@ function renderServiceBillContent(data, sale) {
     // Meta (numéro facture et type)
     html += '<div class="receipt-meta">';
     html += '<span>' + (info.invoice_number || sale.numero_facture) + '</span>';
-    html += '<span>' + (info.invoice_type || 'FV') + '</span>';
+    html += '<span>' + getInvoiceTypeLabel(info.invoice_type) + '</span>';
     html += '</div>';
 
     // Items des articles
@@ -1693,7 +1896,7 @@ async function viewSaleDetails(saleId) {
             dgiInfoHtml += '<br> ISF : ' + (STORE_INFO.isf || '0') + '</div></div>';
         }
 
-        document.getElementById('sale-details-content').innerHTML = '<div class="receipt"><div class="receipt-header"><div style="text-align:center; font-weight:800; font-size:24px; color:#000; margin-bottom:10px; border-bottom:2px solid #000; padding-bottom:5px;">PROFORMA</div><div class="store-name">' + STORE_INFO.name + '</div><div class="store-info"><div>' + STORE_INFO.address + '</div><div>Tel: ' + STORE_INFO.phone + '</div><div>ID Nat: ' + STORE_INFO.ice + '</div>' + storeExtraInfo + '</div>' + infoSection + '</div><div class="receipt-meta"><span>' + sale.numero_facture + '</span><span>' + (sale.type_facture || 'FV') + '</span></div><div class="receipt-items receipt-items-grid">' + itemsHtml + '</div><div class="receipt-totals"><div class="receipt-total-row"><span>Sous-total HT:</span><span>' + parseFloat(sale.sous_total_ht).toFixed(2) + ' Fc</span></div><div class="receipt-total-row"><span>TVA:</span><span>' + parseFloat(sale.tva).toFixed(2) + ' Fc</span></div><div class="receipt-total-row grand-total"><span>TOTAL TTC:</span><span>' + parseFloat(sale.total).toFixed(2) + ' Fc</span></div><div style="margin:10px 0; font-size:11px; color:#333; border:1px dashed #ccc; padding:8px; border-radius:4px; text-align:left;"><div style="font-weight:bold; text-decoration:underline; margin-bottom:4px;">Commentaire/Remarque :</div><div>' + (sale.comment || 'Aucun commentaire') + '</div></div></div>' + dgiInfoHtml + '<div class="receipt-footer"><div id="history-qrcode-container" class="qrcode-container"></div><div class="barcode">' + sale.numero_facture + '</div><div class="thank-you">Merci de votre visite!</div><div style="margin-top:5px; font-size:9px; font-style:italic;">---Powered By Osat---</div></div></div>';
+        document.getElementById('sale-details-content').innerHTML = '<div class="receipt"><div class="receipt-header"><div style="text-align:center; font-weight:800; font-size:24px; color:#000; margin-bottom:10px; border-bottom:2px solid #000; padding-bottom:5px;">PROFORMA</div><div class="store-name">' + STORE_INFO.name + '</div><div class="store-info"><div>' + STORE_INFO.address + '</div><div>Tel: ' + STORE_INFO.phone + '</div><div>ID Nat: ' + STORE_INFO.ice + '</div>' + storeExtraInfo + '</div>' + infoSection + '</div><div class="receipt-meta"><span>' + sale.numero_facture + '</span><span>' + getInvoiceTypeLabel(sale.type_facture) + '</span></div><div class="receipt-items receipt-items-grid">' + itemsHtml + '</div><div class="receipt-totals"><div class="receipt-total-row"><span>Sous-total HT:</span><span>' + parseFloat(sale.sous_total_ht).toFixed(2) + ' Fc</span></div><div class="receipt-total-row"><span>TVA:</span><span>' + parseFloat(sale.tva).toFixed(2) + ' Fc</span></div><div class="receipt-total-row grand-total"><span>TOTAL TTC:</span><span>' + parseFloat(sale.total).toFixed(2) + ' Fc</span></div><div style="margin:10px 0; font-size:11px; color:#333; border:1px dashed #ccc; padding:8px; border-radius:4px; text-align:left;"><div style="font-weight:bold; text-decoration:underline; margin-bottom:4px;">Commentaire/Remarque :</div><div>' + (sale.comment || 'Aucun commentaire') + '</div></div></div>' + dgiInfoHtml + '<div class="receipt-footer"><div id="history-qrcode-container" class="qrcode-container"></div><div class="barcode">' + sale.numero_facture + '</div><div class="thank-you">Merci de votre visite!</div><div style="margin-top:5px; font-size:9px; font-style:italic;">---Powered By Osat---</div></div></div>';
 
         posCart.generateDGIQRCode(sale.qrCode || sale.numero_facture, 'history-qrcode-container');
         document.getElementById('print-sale-btn').onclick = () => printSaleReceipt(saleId);
