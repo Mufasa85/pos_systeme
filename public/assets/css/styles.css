@@ -2136,3 +2136,37 @@ body {
     display: none !important;
   }
 }
+
+/* ============================================
+   OUT OF STOCK PRODUCT STYLES
+   ============================================ */
+.product-card.out-of-stock {
+  opacity: 0.6;
+  cursor: not-allowed;
+  position: relative;
+}
+
+.product-card.out-of-stock:hover {
+  transform: none;
+  box-shadow: var(--shadow);
+}
+
+.product-card.out-of-stock .product-image img,
+.product-card.out-of-stock .product-image svg {
+  filter: grayscale(100%);
+}
+
+.stock-badge {
+  font-size: 0.65rem;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-align: center;
+  margin-top: 4px;
+}
+
+.out-of-stock-badge {
+  background: #fee2e2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}

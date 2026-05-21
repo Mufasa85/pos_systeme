@@ -219,10 +219,11 @@ const posCart = {
             const barcode = p.code_barres || 'N/A';
             const stock = parseInt(p.stock) || 0;
             const image = p.image || '';
+            const isOutOfStock = stock === 0;
 
             return `
-            <div class="product-card" 
-                 onclick="posCart.addToCart(${p.id})">
+            <div class="product-card ${isOutOfStock ? 'out-of-stock' : ''}" 
+                 onclick="${isOutOfStock ? 'event.stopPropagation()' : 'posCart.addToCart(' + p.id + ')'}">
               <div class="product-image">
                 ${image ? `<img src="${image}" alt="${name}" onerror="this.parentElement.innerHTML='<svg width=\\'40\\\' height=\\'50\\\' viewBox=\\'0 0 24 24\\\' fill=\\'none\\\' stroke=\\'currentColor\\\' stroke-width=\\'1.5\\\'><path d=\\'M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z\\\'></path><line x1=\\'3\\\' y1=\\'6\\\' x2=\\'21\\\' y2=\\'6\\\'></line><path d=\\'M16 10a4 4 0 0 1-8 0\\\'></path></svg>'">` : '<svg width="40" height="50" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>'}
               </div>
@@ -230,6 +231,7 @@ const posCart = {
                 <div class="name">${name}</div>
                 <div class="price">${formatCurrency(price)}</div>
                 <div class="barcode-display">${barcode}</div>
+                ${isOutOfStock ? '<div class="stock-badge out-of-stock-badge">Rupture de stock</div>' : ''}
               </div>
             </div>
             `;
