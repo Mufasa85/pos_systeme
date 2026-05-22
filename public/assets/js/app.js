@@ -316,7 +316,9 @@ const posCart = {
                 tax_rate: parseFloat(product.tax_rate) || 0,
                 tax_etiquette: product.tax_etiquette || '',
                 product_type: product.product_type || 'unite',
-                prod_service: product.prod_service || ''
+                prod_service: product.prod_service || '',
+                remise: product.remise || 0,
+                remise_cash: 0,
             });
         }
         this.renderCart();
@@ -376,7 +378,9 @@ const posCart = {
                 tax_rate: parseFloat(product.tax_rate) || 0,
                 tax_etiquette: product.tax_etiquette || '',
                 product_type: 'poids',
-                prod_service: product.prod_service || ''
+                prod_service: product.prod_service || '',
+                remise: product.remise || 0,
+                remise_cash: 0,
             });
         }
         this.renderCart();
