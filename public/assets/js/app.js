@@ -838,21 +838,21 @@ const posCart = {
 
         // Display each category (a=standard, b, c, d, e, f=reduced, g, h, i, j, k, l, m, n, o, p)
         const categories = [
-            { key: 'hab', label: 'B' },
-            { key: 'hac', label: 'C' },
-            { key: 'had', label: 'D' },
-            { key: 'hae', label: 'E' },
-            { key: 'haf', label: 'F' },
-            { key: 'hag', label: 'G' },
-            { key: 'hah', label: 'H' },
-            { key: 'hai', label: 'I' },
-            { key: 'haj', label: 'J' },
-            { key: 'hak', label: 'K' },
-            { key: 'hal', label: 'L' },
-            { key: 'ham', label: 'M' },
-            { key: 'han', label: 'N' },
-            { key: 'hao', label: 'O' },
-            { key: 'hap', label: 'P' }
+            { key: 'hab', label: 'B', tax: 16 },
+            { key: 'hac', label: 'C', tax: 5 },
+            { key: 'had', label: 'D', tax: 0 },
+            { key: 'hae', label: 'E', tax: 0 },
+            { key: 'haf', label: 'F', tax: 16 },
+            { key: 'hag', label: 'G', tax: 5 },
+            { key: 'hah', label: 'H', tax: 0 },
+            { key: 'hai', label: 'I', tax: 0 },
+            { key: 'haj', label: 'J', tax: 0 },
+            { key: 'hak', label: 'K', tax: 0 },
+            { key: 'hal', label: 'L', tax: 0 },
+            { key: 'ham', label: 'M', tax: 0 },
+            { key: 'han', label: 'N', tax: 0 },
+            { key: 'hao', label: 'O', tax: 1 },
+            { key: 'hap', label: 'P', tax: 1 }
         ];
 
         categories.forEach(cat => {
@@ -861,12 +861,12 @@ const posCart = {
 
             if (ht > 0 || va > 0) {
                 html += `<div class="receipt-total-row" style="font-size: 11px; padding-left: 10px;">
-                    <span>HT[${cat.label}] taxable ${(va / (ht + va) * 100).toFixed(2)} % :</span>
+                    <span>HT[${cat.label}] taxable ${cat.tax} % :</span>
                     <span>${ht.toFixed(2)} Fc</span>
                 </div>`;
                 if (va > 0) {
                     html += `<div class="receipt-total-row" style="font-size: 11px; padding-left: 10px; color: #666;">
-                        <span>TVA[${cat.label}] taxable ${(va / (ht + va) * 100).toFixed(2)} % :</span>
+                        <span>TVA[${cat.label}] taxable ${cat.tax} % :</span>
                         <span>${va.toFixed(2)} Fc</span>
                     </div>`;
                 }
