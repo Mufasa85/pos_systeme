@@ -614,7 +614,9 @@ const posCart = {
                     price: item.prix,
                     tax_rate: item.tax_rate || 0,
                     tax_etiquette: item.tax_etiquette || '',
-                    prod_service: item.prod_service || ''
+                    prod_service: item.prod_service || '',
+                    remise: item.remise || 0,
+                    remise_cash: 0,
 
                 })),
                 client_name: clientNom,
@@ -1423,6 +1425,7 @@ const posCart = {
         formData.append('taxe_id', $('#product-tax').value);
         formData.append('product_type', $('#product-type').value);
         formData.append('prod_service', $('#product-prod-service').value || '');
+        formData.append('remise', $('#product-remise').value || 0);
         if ($('#product-image').files[0]) {
             formData.append('image', $('#product-image').files[0]);
         }
@@ -1502,6 +1505,12 @@ function setProductForm(product) {
     const prodServiceSelect = $('#product-prod-service');
     if (prodServiceSelect && product.prod_service) {
         prodServiceSelect.value = product.prod_service;
+    }
+
+    // Selectionner la remise
+    const remiseInput = $('#product-remise');
+    if (remiseInput && product.remise !== undefined) {
+        remiseInput.value = product.remise || 0;
     }
 
     $('#product-modal').classList.add('active');
@@ -1844,7 +1853,7 @@ function renderServiceBillContent(data, sale) {
     html += '</div>';
 
     // Items des articles
-html += '<div class="receipt-items"><table class="receipt-table"><thead><tr><th>Article</th><th>Qté</th><th>Prix HT</th><th>Total HT</th></tr></thead><tbody>';
+    html += '<div class="receipt-items"><table class="receipt-table"><thead><tr><th>Article</th><th>Qté</th><th>Prix HT</th><th>Total HT</th></tr></thead><tbody>';
     if (articlesList.length > 0) {
         articlesList.forEach(article => {
             const articleHT = parseFloat(article.price) || 0;
