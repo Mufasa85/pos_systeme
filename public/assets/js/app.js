@@ -6,11 +6,11 @@ const formatCurrency = (amount) => amount.toFixed(2) + ' Fc';
 // Types de factures et leurs significations
 const INVOICE_TYPES = {
     'FV': 'Facture de Vente',
-    'EV': "Facture de Vente à l'exportation",
+    'EV': "Fac de Vente à l'exportation",
     'FT': "Facture d'acompte",
     'FA': "Facture d'avoir",
-    'EA': "Facture d'avoir à l'exportation",
-    'ET': "Facture d'acompte à l'exportation",
+    'EA': "Fac d'avoir à l'exportation",
+    'ET': "Fac d'acompte à l'exportation",
 };
 
 // Obtenir le label complet du type de facture
@@ -1021,7 +1021,7 @@ const posCart = {
                     ${infoSection}
                 </div>
 
-                <div class="receipt-meta" style="justify-content: center; font-size: 16px; font-weight: 700;">
+                <div class="receipt-meta" style="justify-content: center; font-size: 14px; font-weight: 555;">
                     ${getInvoiceTypeLabel(document.getElementById('invoice-type')?.value)}
                 </div>
 
@@ -1349,7 +1349,7 @@ const posCart = {
                         </div>
                         ${infoSection}
                     </div>
-                    <div class="receipt-meta" style="justify-content: center; font-size: 16px; font-weight: 700;">
+                    <div class="receipt-meta" style="justify-content: center; font-size: 14px; font-weight: 555;">
                         ${getInvoiceTypeLabel(saleData.type_facture || document.getElementById('invoice-type')?.value)}
                     </div>
 
@@ -1971,7 +1971,7 @@ async function viewSaleDetails(saleId) {
             dgiInfoHtml += '<br> ISF : ' + (STORE_INFO.isf || '0') + '</div></div>';
         }
 
-        document.getElementById('sale-details-content').innerHTML = '<div class="receipt"><div class="receipt-header"><div style="text-align:center; font-weight:800; font-size:24px; color:#000; margin-bottom:10px; border-bottom:2px solid #000; padding-bottom:5px;">PROFORMA</div><div class="store-name">' + STORE_INFO.name + '</div><div class="store-info"><div>' + STORE_INFO.address + '</div><div>Tel: ' + STORE_INFO.phone + '</div><div>ID Nat: ' + STORE_INFO.ice + '</div>' + storeExtraInfo + '</div>' + infoSection + '</div><div class="receipt-meta" style="justify-content: center; font-size: 16px; font-weight: 700;">' + getInvoiceTypeLabel(sale.type_facture) + '</div><div class="receipt-items receipt-items-grid">' + itemsHtml + '</div><div class="receipt-totals"><div class="receipt-total-row"><span>Sous-total HT:</span><span>' + parseFloat(sale.sous_total_ht).toFixed(2) + ' Fc</span></div><div class="receipt-total-row"><span>TVA:</span><span>' + parseFloat(sale.tva).toFixed(2) + ' Fc</span></div><div class="receipt-total-row grand-total"><span>TOTAL TTC:</span><span>' + parseFloat(sale.total).toFixed(2) + ' Fc</span></div><div style="margin:10px 0; font-size:11px; color:#333; border:1px dashed #ccc; padding:8px; border-radius:4px; text-align:left;"><div style="font-weight:bold; text-decoration:underline; margin-bottom:4px;">Commentaire/Remarque :</div><div>' + (sale.comment || 'Aucun commentaire') + '</div></div></div>' + dgiInfoHtml + '<div class="receipt-footer"><div id="history-qrcode-container" class="qrcode-container"></div><div class="barcode">' + sale.numero_facture + '</div><div class="thank-you">Merci de votre visite!</div><div style="margin-top:5px; font-size:9px; font-style:italic;">---Powered By Osat---</div></div></div>';
+        document.getElementById('sale-details-content').innerHTML = '<div class="receipt"><div class="receipt-header"><div style="text-align:center; font-weight:800; font-size:24px; color:#000; margin-bottom:10px; border-bottom:2px solid #000; padding-bottom:5px;">PROFORMA</div><div class="store-name">' + STORE_INFO.name + '</div><div class="store-info"><div>' + STORE_INFO.address + '</div><div>Tel: ' + STORE_INFO.phone + '</div><div>ID Nat: ' + STORE_INFO.ice + '</div>' + storeExtraInfo + '</div>' + infoSection + '</div><div class="receipt-meta" style="justify-content: center; font-size: 14px; font-weight: 555;">' + getInvoiceTypeLabel(sale.type_facture) + '</div><div class="receipt-items receipt-items-grid">' + itemsHtml + '</div><div class="receipt-totals"><div class="receipt-total-row"><span>Sous-total HT:</span><span>' + parseFloat(sale.sous_total_ht).toFixed(2) + ' Fc</span></div><div class="receipt-total-row"><span>TVA:</span><span>' + parseFloat(sale.tva).toFixed(2) + ' Fc</span></div><div class="receipt-total-row grand-total"><span>TOTAL TTC:</span><span>' + parseFloat(sale.total).toFixed(2) + ' Fc</span></div><div style="margin:10px 0; font-size:11px; color:#333; border:1px dashed #ccc; padding:8px; border-radius:4px; text-align:left;"><div style="font-weight:bold; text-decoration:underline; margin-bottom:4px;">Commentaire/Remarque :</div><div>' + (sale.comment || 'Aucun commentaire') + '</div></div></div>' + dgiInfoHtml + '<div class="receipt-footer"><div id="history-qrcode-container" class="qrcode-container"></div><div class="barcode">' + sale.numero_facture + '</div><div class="thank-you">Merci de votre visite!</div><div style="margin-top:5px; font-size:9px; font-style:italic;">---Powered By Osat---</div></div></div>';
 
         posCart.generateDGIQRCode(sale.qrCode || sale.numero_facture, 'history-qrcode-container');
         document.getElementById('print-sale-btn').onclick = () => printSaleReceipt(saleId);
