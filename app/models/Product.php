@@ -38,8 +38,8 @@ class Product
 
     public function create($data)
     {
-        $sql = "INSERT INTO produits (code_barres, nom, category_id, prix, stock, stock_minimum, image, taxe_id, product_type, prod_service)
-                VALUES (:code_barres, :nom, :category_id, :prix, :stock, :stock_minimum, :image, :taxe_id, :product_type, :prod_service)";
+        $sql = "INSERT INTO produits (code_barres, nom, category_id, prix, stock, stock_minimum, image, taxe_id, product_type, prod_service, remise)
+                VALUES (:code_barres, :nom, :category_id, :prix, :stock, :stock_minimum, :image, :taxe_id, :product_type, :prod_service, :remise)";
         $this->db->query($sql, [
             ':code_barres'   => $data['code_barres'],
             ':nom'           => $data['nom'],
@@ -50,7 +50,8 @@ class Product
             ':image'         => $data['image'] ?? '',
             ':taxe_id'       => $data['taxe_id'] ?? 1,
             ':product_type'  => $data['product_type'] ?? 'unite',
-            ':prod_service'  => $data['prod_service'] ?? null
+            ':prod_service'  => $data['prod_service'] ?? null,
+            ':remise'        => $data['remise'] ?? 0
         ]);
         return $this->db->getConnection()->lastInsertId();
     }
@@ -73,7 +74,8 @@ class Product
                 image = :image,
                 taxe_id = :taxe_id,
                 product_type = :product_type,
-                prod_service = :prod_service
+                prod_service = :prod_service,
+                remise = :remise
                 WHERE id = :id";
         return $this->db->query($sql, [
             ':id' => $id,
@@ -86,7 +88,8 @@ class Product
             ':image' => $data['image'] ?? '',
             ':taxe_id' => $data['taxe_id'] ?? 1,
             ':product_type' => $data['product_type'] ?? 'unite',
-            ':prod_service' => $data['prod_service'] ?? null
+            ':prod_service' => $data['prod_service'] ?? null,
+            ':remise' => $data['remise'] ?? 0
         ]);
     }
 
