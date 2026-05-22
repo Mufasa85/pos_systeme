@@ -46,7 +46,8 @@ class ProductController extends Controller
             'stock_minimum' => (int)$this->sanitaze($_POST['stock_minimum']),
             'taxe_id' => (int)$this->sanitaze($_POST['taxe_id']) ?: 1,
             'product_type' => $this->sanitaze($_POST['product_type']) ?: 'unite',
-            'prod_service' => $this->sanitaze($_POST['prod_service']) ?: null
+            'prod_service' => $this->sanitaze($_POST['prod_service']) ?: null,
+            'remise' => (float)$this->sanitaze($_POST['remise']) ?: 0
         ];
 
         // Vérifier si le code-barres existe déjà
@@ -135,7 +136,8 @@ class ProductController extends Controller
             'taxe_id' => (int)$this->sanitaze($_POST['taxe_id']) ?: 1,
             'product_type' => $this->sanitaze($_POST['product_type']) ?: 'unite',
             'prod_service' => $this->sanitaze($_POST['prod_service']) ?: null,
-            'image' => $oldImage // Par défaut, garder l'ancienne image
+            'remise' => (float)$this->sanitaze($_POST['remise']) ?: 0,
+            'image' => $oldImage
         ];
 
         // Image upload - seulement si une nouvelle image est uploadée
