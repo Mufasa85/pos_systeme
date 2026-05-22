@@ -878,8 +878,8 @@ const posCart = {
             const exoneratedItems = this.items.filter(item => !item.tax_rate || item.tax_rate === 0);
             const exoneratedTotal = exoneratedItems.reduce((sum, item) => sum + (item.prix * item.quantite), 0);
             if (exoneratedItems.length > 0 && exoneratedTotal > 0) {
-                html += `<div class="receipt-total-row" style="font-size: 11px; padding-left: 10px; color: #888;">
-                    <span>HT[Exonere]:</span>
+                html += `<div class="receipt-total-row" style="font-size: 11px; padding-left: 5px; color: #888;">
+                    <span>EXONERE ET HORS CHAMP:</span>
                     <span>${exoneratedTotal.toFixed(2)} Fc</span>
                 </div>`;
             }
