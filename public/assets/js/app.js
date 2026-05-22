@@ -6,11 +6,11 @@ const formatCurrency = (amount) => amount.toFixed(2) + ' Fc';
 // Types de factures et leurs significations
 const INVOICE_TYPES = {
     'FV': 'Facture de Vente',
-    'EV': 'Facture de Vente à l\'exportation',
-    'FT': 'Facture d\'acompte',
-    'FA': 'Facture d\'avoir',
-    'EA': 'Facture d\'avoir à l\'exportation',
-    'ET': 'Facture d\'acompte à l\'exportation',
+    'EV': "Facture de Vente à l'exportation",
+    'FT': "Facture d'acompte",
+    'FA': "Facture d'avoir",
+    'EA': "Facture d'avoir à l'exportation",
+    'ET': "Facture d'acompte à l'exportation",
 };
 
 // Obtenir le label complet du type de facture
@@ -613,7 +613,9 @@ const posCart = {
                     quantity: item.quantite,
                     price: item.prix,
                     tax_rate: item.tax_rate || 0,
-                    tax_etiquette: item.tax_etiquette || ''
+                    tax_etiquette: item.tax_etiquette || '',
+                    prod_service: item.prod_service || ''
+
                 })),
                 client_name: clientNom,
                 client_type: clientTypeValue || clientTypeInitiales,
@@ -859,12 +861,12 @@ const posCart = {
 
             if (ht > 0 || va > 0) {
                 html += `<div class="receipt-total-row" style="font-size: 11px; padding-left: 10px;">
-                    <span>HT[${cat.label}]:</span>
+                    <span>HT[${cat.label}] taxable ${(va / (ht + va) * 100).toFixed(2)} % :</span>
                     <span>${ht.toFixed(2)} Fc</span>
                 </div>`;
                 if (va > 0) {
                     html += `<div class="receipt-total-row" style="font-size: 11px; padding-left: 10px; color: #666;">
-                        <span>TVA[${cat.label}]:</span>
+                        <span>TVA[${cat.label}] taxable ${(va / (ht + va) * 100).toFixed(2)} % :</span>
                         <span>${va.toFixed(2)} Fc</span>
                     </div>`;
                 }
@@ -1038,12 +1040,14 @@ const posCart = {
                     </div>
 
                 <div class="receipt-footer">
-                    <div class="barcode">${invoiceNum}</div>
+                    <div class="barcode">FAC-${invoiceNum}</div>
                     <div class="thank-you">Merci de votre visite!</div>
                     <div style="margin-top: 5px; font-size: 9px; font-style: italic;">---Powered By Osat----</div>
                 </div>
             </div>
         `;
+
+        console.log(getInvoiceTypeLabel(document.getElementById('invoice-type')?.value), ": value " + document.getElementById('invoice-type')?.value + " : second value")
 
         $('#preview-modal').classList.add('active');
 
@@ -1375,8 +1379,8 @@ const posCart = {
                     <div class="receipt-footer">
                     
                         <div id="${qrContainerId}" class="qrcode-container"></div>
-                        <div class="barcode">${saleData.numero_facture}</div>
-                        ${dgiResponse.data?.dateDGI ? '<div style="font-size: 10px; color: #666; margin-top: 4px;">Date DGI: ' + dgiResponse.data.dateDGI + '</div>' : ''}
+                        <div class="barcode">FAC-${saleData.numero_facture}</div>
+                        ${dgiResponse.data?.dateDGI ? '<div style="font-size: 10px; color: #666; margin-top: 4px;">Date : ' + dgiResponse.data.dateDGI + '</div>' : ''}
                        
                         <div class="thank-you">Merci de votre visite!</div>
                         <div style="margin-top: 5px; font-size: 9px; font-style: italic;">---Powered By Osat---</div>
@@ -2498,7 +2502,7 @@ function updateCartFloatingButton() {
     const itemCount = posCart.items.reduce((sum, item) => sum + item.quantite, 0);
     const totalAmount = posCart.items.reduce((sum, item) => sum + (item.prix * item.quantite), 0);
 
-    badge.textContent = itemCount;
+    badge.textContent = itemCount.toFixed(2);
     total.textContent = totalAmount.toFixed(2) + ' Fc';
 }
 
