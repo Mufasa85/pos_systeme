@@ -1629,12 +1629,44 @@ body {
 .receipt-items {
   margin-bottom: 1rem;
   width: 100%;
+  overflow-x: auto;
 }
 
 .receipt-items-grid {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
+}
+
+.receipt-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+  margin: 0;
+}
+
+.receipt-table thead th {
+  text-align: left;
+  padding: 8px 6px;
+  border-bottom: 1px solid #333;
+  font-weight: 700;
+}
+
+.receipt-table tbody tr td {
+  padding: 8px 6px;
+  border-bottom: 1px dashed #ccc;
+  vertical-align: top;
+}
+
+.receipt-table .item-qty,
+.receipt-table .item-total {
+  text-align: left !important;
+  white-space: nowrap;
+}
+
+.receipt-table .item-price {
+  text-align: right;
+  white-space: nowrap;
 }
 
 .receipt-item {

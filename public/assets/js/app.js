@@ -561,7 +561,7 @@ const posCart = {
     async validateWithDGI() {
         try {
             // Generer le numero de facture
-            const invoiceNum = 'FAC-' + Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
+            const invoiceNum = 'FACTURE n°' + Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
 
             // Obtenir le nom du vendeur
             const sellerName = (typeof CURRENT_USER !== 'undefined' && CURRENT_USER.fullName) ? CURRENT_USER.fullName : STORE_INFO.name;
@@ -912,7 +912,7 @@ const posCart = {
             </div>
             
             <div style="text-align: center; font-size: 12px; color: #888; font-style: italic; margin-top: 2px;">
-                ${amountInWords}
+                Arrêté la présente facture à la somme de ${amountInWords} congolais toutes taxes comprises
             </div>
         `;
     },
@@ -958,22 +958,23 @@ const posCart = {
         const invoiceNum = this.currentInvoiceNum || 'FAC-000001';
 
         // Construire les items du reçu
-        let itemsHtml = '';
+        let itemsHtml = '<table class="receipt-table"><thead><tr><th>Article</th><th>Qté</th><th>Total HT</th></tr></thead><tbody>';
         for (let i = 0; i < this.items.length; i++) {
             const item = this.items[i];
-            const itemHT = item.prix * item.quantite;
-            const itemTax = itemHT * (item.tax_rate / 100);
-            const itemTTC = itemHT + itemTax;
+            const itemPrice = parseFloat(item.prix) || 0;
+            const itemQty = parseFloat(item.quantite) || 0;
+            const itemTotalHT = itemPrice * itemQty;
             const taxLabel = item.tax_etiquette || (item.tax_rate > 0 ? 'TVA ' + item.tax_rate + '%' : 'Exonere');
             const prodService = item.prod_service ? `<span class="item-prod-service">[${item.prod_service}]</span>` : '';
             itemsHtml += `
-                <div class="receipt-item">
-                    <span class="item-name">${item.nom}<span class="item-tax-badge">${taxLabel}</span>${prodService}</span>
-                    <span class="item-qty">x${item.quantite}</span>
-                    <span class="item-price">${itemHT.toFixed(2)}</span>
-                </div>
+                <tr>
+                    <td><span class="item-name">${item.nom}<span class="item-tax-badge">${taxLabel}</span>${prodService}</span></td>
+                    <td class="item-qty">${itemQty}</td>                
+                    <td class="item-total">${itemTotalHT.toFixed(2)} Fc</td>
+                </tr>
             `;
         }
+        itemsHtml += '</tbody></table>';
 
         // Ajouter les infos RCCM et ISF si disponibles (chacun sur sa propre ligne)
         let storeExtraInfo = '';
@@ -981,7 +982,7 @@ const posCart = {
             storeExtraInfo += `<div>RCCM: ${STORE_INFO.rccm}</div>`;
         }
         if (STORE_INFO.isf) {
-            storeExtraInfo += `<div>Numero Impot: ${STORE_INFO.isf}</div>`;
+            storeExtraInfo += `<div>Numero Agent: ${STORE_INFO.isf}</div>`;
         }
 
 
@@ -996,12 +997,12 @@ const posCart = {
 
         // Construire les infos en une seule section sans separarer vendeur/acheteur
         let infoSection = `<div style="border-top: 1px dashed #ccc; margin-top: 6px; padding-top: 6px; text-align: left; font-size: 11px; line-height: 1.5;">
-                           <div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>Vendeur:</strong></span><span>${vendeur}</span></div>
-                           ${acheteurNom ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>Client:</strong></span><span>${acheteurNom}</span></div>` : ''}
-                           ${acheteurNumero ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>Num:</strong></span><span>${acheteurNumero}</span></div>` : ''}
-                           ${acheteurTypeInitiales ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>Type:</strong></span><span>${acheteurTypeInitiales}</span></div>` : ''}
+                           <div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>VENDEUR:</strong></span><span>${vendeur}</span></div>
+                           ${acheteurNom ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>CLIENT:</strong></span><span>${acheteurNom}</span></div>` : ''}
+                           ${acheteurNumero ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>NUM:</strong></span><span>${acheteurNumero}</span></div>` : ''}
+                           ${acheteurTypeInitiales ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>TYPE:</strong></span><span>${acheteurTypeInitiales}</span></div>` : ''}
                            ${acheteurNif ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>NIF:</strong></span><span>${acheteurNif}</span></div>` : ''}
-                           ${STORE_INFO.isf ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>Numero Impot:</strong></span><span>${STORE_INFO.isf}</span></div>` : ''}
+                           ${STORE_INFO.isf ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>Numero Agent:</strong></span><span>${STORE_INFO.isf}</span></div>` : ''}
                         </div>`;
 
         $('#preview-content').innerHTML = `
@@ -1025,7 +1026,7 @@ const posCart = {
                     ${getInvoiceTypeLabel(document.getElementById('invoice-type')?.value)}
                 </div>
 
-                <div class="receipt-items receipt-items-grid">
+                <div class="receipt-items">
                     ${itemsHtml}
                 </div>
 
@@ -1040,7 +1041,7 @@ const posCart = {
                     </div>
 
                 <div class="receipt-footer">
-                    <div class="barcode">FAC-${invoiceNum}</div>
+                    <div class="thank-you">FACTURE n°${invoiceNum}</div>
                     <div class="thank-you">Merci de votre visite!</div>
                     <div style="margin-top: 5px; font-size: 9px; font-style: italic;">---Powered By Osat----</div>
                 </div>
@@ -1171,7 +1172,7 @@ const posCart = {
             resultDiv.style.display = 'block';
             resultDiv.style.background = '#ffebee';
             resultDiv.style.border = '2px solid #f44336';
-            changeLabel.textContent = '⚠️ MONTANT INSUFFISANT';
+            changeLabel.textContent = 'MONTANT INSUFFISANT';
             changeLabel.style.color = '#c62828';
             changeFcEl.textContent = 'Il manque ' + Math.abs(restFc).toFixed(2) + ' Fc';
             changeFcEl.style.color = '#c62828';
@@ -1297,40 +1298,39 @@ const posCart = {
                 storeExtraInfo += `<div>RCCM: ${STORE_INFO.rccm}</div>`;
             }
             if (STORE_INFO.isf) {
-                storeExtraInfo += `<div>Numero Impot: ${STORE_INFO.isf}</div>`;
+                storeExtraInfo += `<div>Numero Agent: ${STORE_INFO.isf}</div>`;
             }
 
 
             // Construire les infos en une seule section
             let infoSection = `<div style="border-top: 1px dashed #ccc; margin-top: 6px; padding-top: 6px; text-align: left; font-size: 15px; line-height: 1.5;">
-                               <div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>Vendeur:</strong></span><span>${vendeur}</span></div>
-                               ${acheteurNom ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>Client:</strong></span><span>${acheteurNom}</span></div>` : ''}
-                               ${acheteurNumero ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>Num:</strong></span><span>${formatPhoneNumber(acheteurNumero)}</span></div>` : ''}
-                               ${acheteurTypeInitiales ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>Type:</strong></span><span>${acheteurTypeInitiales}</span></div>` : ''}
+                               <div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>VENDEUR:</strong></span><span>${vendeur}</span></div>
+                               ${acheteurNom ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>CLIENT:</strong></span><span>${acheteurNom}</span></div>` : ''}
+                               ${acheteurNumero ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>NUM:</strong></span><span>${formatPhoneNumber(acheteurNumero)}</span></div>` : ''}
+                               ${acheteurTypeInitiales ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>TYPE:</strong></span><span>${acheteurTypeInitiales}</span></div>` : ''}
                                ${acheteurNif ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>NIF:</strong></span><span>${acheteurNif}</span></div>` : ''}
                                ${STORE_INFO.isf ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>ISF:</strong></span><span>${STORE_INFO.isf}</span></div>` : ''}
                             </div>`;
 
             // Construire les items du reçu avec les taxes par produit
-            let itemsHtml = '';
+            let itemsHtml = '<table class="receipt-table"><thead><tr><th>Article</th><th>Qté</th><th>Total HT</th></tr></thead><tbody>';
             for (let i = 0; i < this.items.length; i++) {
                 const item = this.items[i];
-                const itemHT = item.prix * item.quantite;
-                const itemTax = itemHT * (item.tax_rate / 100);
-                const itemTTC = itemHT;
-
+                const itemPrice = parseFloat(item.prix) || 0;
+                const itemQty = parseFloat(item.quantite) || 0;
+                const itemTotalHT = itemPrice * itemQty;
                 const taxLabel = item.tax_etiquette || (item.tax_rate > 0 ? 'TVA ' + item.tax_rate + '%' : 'Exonere');
                 const prodService = item.prod_service ? `<span class="item-prod-service">[${item.prod_service}]</span>` : '';
 
-                console.log(item)
                 itemsHtml += `
-                    <div class="receipt-item">
-                        <span class="item-name">${item.nom}<span class="item-tax-badge">${taxLabel}</span>${prodService}</span>
-                        <span class="item-qty">x${item.quantite}</span>
-                        <span class="item-price">${itemTTC.toFixed(2)}</span>
-                    </div>
+                    <tr>
+                        <td><span class="item-name">${item.nom}<span class="item-tax-badge">${taxLabel}</span>${prodService}</span></td>
+                        <td class="item-qty">${itemQty}</td>                       
+                        <td class="item-total">${itemTotalHT.toFixed(2)} Fc</td>
+                    </tr>
                 `;
             }
+            itemsHtml += '</tbody></table>';
 
             // Afficher le recu complet (identique au preview mais avec QR code)
             $('#receipt-content').innerHTML = `
@@ -1353,7 +1353,7 @@ const posCart = {
                         ${getInvoiceTypeLabel(saleData.type_facture || document.getElementById('invoice-type')?.value)}
                     </div>
 
-                    <div class="receipt-items receipt-items-grid">
+                    <div class="receipt-items">
                         ${itemsHtml}
                     </div>
 
@@ -1379,7 +1379,7 @@ const posCart = {
                     <div class="receipt-footer">
                     
                         <div id="${qrContainerId}" class="qrcode-container"></div>
-                        <div class="barcode">FAC-${saleData.numero_facture}</div>
+                        <div class="thank-you">FACTURE n°${saleData.numero_facture}</div>
                         ${dgiResponse.data?.dateDGI ? '<div style="font-size: 10px; color: #666; margin-top: 4px;">Date : ' + dgiResponse.data.dateDGI + '</div>' : ''}
                        
                         <div class="thank-you">Merci de votre visite!</div>
@@ -1815,10 +1815,10 @@ function renderServiceBillContent(data, sale) {
     html += '<div class="store-name">' + (info.store_name || STORE_INFO.name) + '</div>';
     html += '<div class="store-info">';
     html += '<div>' + (info.store_address || STORE_INFO.address) + '</div>';
-    html += '<div>Tel: ' + (info.store_phone || STORE_INFO.phone) + '</div>';
+    html += '<div>TEl: ' + (info.store_phone || STORE_INFO.phone) + '</div>';
     html += '<div>ID Nat: ' + (info.store_ice || STORE_INFO.ice) + '</div>';
     if (info.store_rccm) html += '<div>RCCM: ' + info.store_rccm + '</div>';
-    html += '<div>Numero Impot: ' + (info.store_isf || STORE_INFO.isf) + '</div>';
+    html += '<div>Numero Agent: ' + (info.store_isf || STORE_INFO.isf) + '</div>';
     html += '</div>';
 
     // Section Vendeur/Client
@@ -1844,19 +1844,22 @@ function renderServiceBillContent(data, sale) {
     html += '</div>';
 
     // Items des articles
-    html += '<div class="receipt-items receipt-items-grid">';
+html += '<div class="receipt-items"><table class="receipt-table"><thead><tr><th>Article</th><th>Qté</th><th>Prix HT</th><th>Total HT</th></tr></thead><tbody>';
     if (articlesList.length > 0) {
         articlesList.forEach(article => {
             const articleHT = parseFloat(article.price) || 0;
+            const quantity = parseFloat(article.quantity) || 1;
+            const articleTotal = articleHT * quantity;
             const taxLabel = article.taxSpecificValue || 'Exonere';
-            html += '<div class="receipt-item">';
-            html += '<span class="item-name">' + article.name + '<span class="item-tax-badge">' + taxLabel + '</span></span>';
-            html += '<span class="item-qty">x' + (article.quantity || 1) + '</span>';
-            html += '<span class="item-price">' + articleHT.toFixed(2) + '</span>';
-            html += '</div>';
+            html += '<tr>';
+            html += '<td><span class="item-name">' + article.name + '<span class="item-tax-badge">' + taxLabel + '</span></span></td>';
+            html += '<td class="item-qty">' + quantity + '</td>';
+            html += '<td class="item-price">' + articleHT.toFixed(2) + ' Fc</td>';
+            html += '<td class="item-total">' + articleTotal.toFixed(2) + ' Fc</td>';
+            html += '</tr>';
         });
     }
-    html += '</div>';
+    html += '</tbody></table></div>';
 
     // Totaux
     const total = parseFloat(info.total || 0);
@@ -1945,7 +1948,7 @@ async function viewSaleDetails(saleId) {
 
         let storeExtraInfo = '';
         if (STORE_INFO.rccm) storeExtraInfo += '<div>RCCM: ' + STORE_INFO.rccm + '</div>';
-        if (STORE_INFO.isf) storeExtraInfo += '<div>Numero Impot: ' + STORE_INFO.isf + '</div>';
+        if (STORE_INFO.isf) storeExtraInfo += '<div>Numero Agent: ' + STORE_INFO.isf + '</div>';
 
         const vendeur = sale.nom_vendeur || 'N/A';
         const acheteurNom = sale.nom_client || '';
@@ -1971,7 +1974,7 @@ async function viewSaleDetails(saleId) {
             dgiInfoHtml += '<br> ISF : ' + (STORE_INFO.isf || '0') + '</div></div>';
         }
 
-        document.getElementById('sale-details-content').innerHTML = '<div class="receipt"><div class="receipt-header"><div style="text-align:center; font-weight:800; font-size:24px; color:#000; margin-bottom:10px; border-bottom:2px solid #000; padding-bottom:5px;">PROFORMA</div><div class="store-name">' + STORE_INFO.name + '</div><div class="store-info"><div>' + STORE_INFO.address + '</div><div>Tel: ' + STORE_INFO.phone + '</div><div>ID Nat: ' + STORE_INFO.ice + '</div>' + storeExtraInfo + '</div>' + infoSection + '</div><div class="receipt-meta" style="justify-content: center; font-size: 14px; font-weight: 555;">' + getInvoiceTypeLabel(sale.type_facture) + '</div><div class="receipt-items receipt-items-grid">' + itemsHtml + '</div><div class="receipt-totals"><div class="receipt-total-row"><span>Sous-total HT:</span><span>' + parseFloat(sale.sous_total_ht).toFixed(2) + ' Fc</span></div><div class="receipt-total-row"><span>TVA:</span><span>' + parseFloat(sale.tva).toFixed(2) + ' Fc</span></div><div class="receipt-total-row grand-total"><span>TOTAL TTC:</span><span>' + parseFloat(sale.total).toFixed(2) + ' Fc</span></div><div style="margin:10px 0; font-size:11px; color:#333; border:1px dashed #ccc; padding:8px; border-radius:4px; text-align:left;"><div style="font-weight:bold; text-decoration:underline; margin-bottom:4px;">Commentaire/Remarque :</div><div>' + (sale.comment || 'Aucun commentaire') + '</div></div></div>' + dgiInfoHtml + '<div class="receipt-footer"><div id="history-qrcode-container" class="qrcode-container"></div><div class="barcode">' + sale.numero_facture + '</div><div class="thank-you">Merci de votre visite!</div><div style="margin-top:5px; font-size:9px; font-style:italic;">---Powered By Osat---</div></div></div>';
+        document.getElementById('sale-details-content').innerHTML = '<div class="receipt"><div class="receipt-header"><div style="text-align:center; font-weight:800; font-size:24px; color:#000; margin-bottom:10px; border-bottom:2px solid #000; padding-bottom:5px;">PROFORMA</div><div class="store-name">' + STORE_INFO.name + '</div><div class="store-info"><div>' + STORE_INFO.address + '</div><div>Tel: ' + STORE_INFO.phone + '</div><div>ID Nat: ' + STORE_INFO.ice + '</div>' + storeExtraInfo + '</div>' + infoSection + '</div><div class="receipt-meta" style="justify-content: center; font-size: 14px; font-weight: 555;">' + getInvoiceTypeLabel(sale.type_facture) + '</div><div class="receipt-items">' + itemsHtml + '</div><div class="receipt-totals"><div class="receipt-total-row"><span>Sous-total HT:</span><span>' + parseFloat(sale.sous_total_ht).toFixed(2) + ' Fc</span></div><div class="receipt-total-row"><span>TVA:</span><span>' + parseFloat(sale.tva).toFixed(2) + ' Fc</span></div><div class="receipt-total-row grand-total"><span>TOTAL TTC:</span><span>' + parseFloat(sale.total).toFixed(2) + ' Fc</span></div><div style="margin:10px 0; font-size:11px; color:#333; border:1px dashed #ccc; padding:8px; border-radius:4px; text-align:left;"><div style="font-weight:bold; text-decoration:underline; margin-bottom:4px;">Commentaire/Remarque :</div><div>' + (sale.comment || 'Aucun commentaire') + '</div></div></div>' + dgiInfoHtml + '<div class="receipt-footer"><div id="history-qrcode-container" class="qrcode-container"></div><div class="barcode">' + sale.numero_facture + '</div><div class="thank-you">Merci de votre visite!</div><div style="margin-top:5px; font-size:9px; font-style:italic;">---Powered By Osat---</div></div></div>';
 
         posCart.generateDGIQRCode(sale.qrCode || sale.numero_facture, 'history-qrcode-container');
         document.getElementById('print-sale-btn').onclick = () => printSaleReceipt(saleId);
