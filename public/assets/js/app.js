@@ -903,8 +903,8 @@ const posCart = {
                 <span> ${(this.currentTotals.total / USD_RATE).toFixed(2)}$ </span>
             </div>
             <div class="receipt-total-row" style="font-size: 11px; color: #555;">
-                <span>Paiment : ${paymentLabel}</span>
-                <span>${this.currentTotals.total.toFixed(2)} Fc</span>
+                <span>Paiment : </span>
+                <span>${paymentLabel}</span>
             </div>
             <div class="receipt-total-row" style="font-size: 11px; color: #555;">
                 <span>Qté:</span>
