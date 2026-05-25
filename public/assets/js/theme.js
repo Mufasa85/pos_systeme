@@ -208,7 +208,7 @@ const themes = {
     "--danger": "#ef4444"
   },
 
-midnight: {
+  midnight: {
     "--primary": "#0A2540",
     "--primary-dark": "#020B16",
     "--accent": "#032357",
@@ -223,7 +223,7 @@ midnight: {
     "--success": "#10B981",
     "--warning": "#F59E0B",
     "--danger": "#EF4444",
-},
+  },
 
   ice: {
     "--primary": "#7DD3FC",
@@ -255,10 +255,10 @@ function applyTheme(themeName) {
   }
 
   const root = document.documentElement;
-  
+
   // Apply CSS variables with smooth transition
   root.style.transition = 'background-color 0.3s ease, color 0.3s ease';
-  
+
   Object.entries(theme).forEach(([property, value]) => {
     root.style.setProperty(property, value);
   });
@@ -270,7 +270,7 @@ function applyTheme(themeName) {
 
   // Update active button visual state
   updateThemeButtons(themeName);
-  
+
   // Save to localStorage
   saveTheme(themeName);
 }
@@ -296,7 +296,7 @@ async function saveThemeToServer(themeName) {
   try {
     const formData = new FormData();
     formData.append('theme', themeName);
-    
+
     const response = await fetch('/api/settings/theme', {
       method: 'POST',
       body: formData
@@ -339,12 +339,15 @@ function getCurrentTheme() {
  * @param {string} activeTheme - Currently active theme name
  */
 function updateThemeButtons(activeTheme) {
-  document.querySelectorAll('.theme-btn').forEach(btn => {
-    if (btn.dataset.theme === activeTheme) {
+  const buttons = document.querySelectorAll('.theme-btn');
+  if (!buttons || buttons.length === 0) return;
+  buttons.forEach(function (btn) {
+    if (!btn) return;
+    if (btn.dataset && btn.dataset.theme === activeTheme) {
       btn.classList.add('active');
       btn.style.transform = 'scale(1.1)';
       btn.style.boxShadow = '0 4px 12px rgba(0,0,0,0.3)';
-    } else {
+    } else if (btn.classList) {
       btn.classList.remove('active');
       btn.style.transform = 'scale(1)';
       btn.style.boxShadow = '';
@@ -358,9 +361,51 @@ window.loadTheme = loadTheme;
 window.saveTheme = saveTheme;
 window.getCurrentTheme = getCurrentTheme;
 
-// Auto-load theme when DOM is ready
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', loadTheme);
-} else {
-  loadTheme();
-}
+// Prevent flash of default theme - hide body until theme is loaded
+(function () {
+  try {
+    // Function to show body when theme is ready
+    function showBody() {
+      try {
+        if (document.body) {
+          document.body.classList.remove('theme-loading');
+        }
+        if (document.documentElement) {
+          document.documentElement.classList.add('theme-ready');
+        }
+      } catch (e) {
+        console.warn('showBody error:', e);
+      }
+    }
+
+    // Function to hide body immediately
+    function hideBody() {
+      try {
+        if (document.body) {
+          document.body.classList.add('theme-loading');
+        }
+      } catch (e) {
+        console.warn('hideBody error:', e);
+      }
+    }
+
+    // If DOM already loaded, load theme and show
+    if (document.readyState !== 'loading') {
+      hideBody();
+      loadTheme().then(showBody);
+    } else {
+      // Hide body immediately before DOM loads
+      hideBody();
+      // Wait for DOM and apply immediately
+      document.addEventListener('DOMContentLoaded', function () {
+        // Apply theme synchronously if possible
+        loadThemeFromServer().then(function (themeName) {
+          applyTheme(themeName);
+          showBody();
+        });
+      });
+    }
+  } catch (e) {
+    console.warn('Theme init error:', e);
+  }
+})();
