@@ -321,7 +321,6 @@
           <div style="flex: 1;">
             <label for="modal-exoneration" style="font-size: 0.7rem; font-weight: 600; color: #64748b; display: block; margin-bottom: 4px;">EXONÉRATION</label>
             <select id="modal-exoneration" class="client-number-input" style="width: 100%;">
-              <option value="">-</option>
               <option value="RAM">RAM</option>
               <option value="RRR">RRR</option>
               <option value="RAN">RAN</option>

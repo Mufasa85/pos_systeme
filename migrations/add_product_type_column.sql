@@ -9,3 +9,6 @@ ADD COLUMN product_type VARCHAR(20) DEFAULT 'unite' COMMENT 'Type de vente: unit
 
 -- Index pour optimiser les requêtes par type de produit
 CREATE INDEX idx_produits_product_type ON produits (product_type);
+
+ALTER TABLE utilisateurs
+ADD COLUMN agent_code VARCHAR(50) UNIQUE DEFAULT NULL;
