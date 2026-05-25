@@ -39,13 +39,13 @@ class User
     }
 
     // 🔹 Création d'un utilisateur
-    public function create($username, $password, $fullname, $role = 'vendeur', $actif = 1, $agentCode = null, $apiToken = null)
+    public function create($username, $password, $fullname, $role = 'vendeur', $actif = 1, $agentCode = null)
     {
         $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
 
         $sql = "INSERT INTO utilisateurs 
-                (nom_utilisateur, mot_de_passe, nom_complet, role, actif, agent_code, api_token) 
-                VALUES (:username, :password, :fullname, :role, :actif, :agent_code, :api_token)";
+                (nom_utilisateur, mot_de_passe, nom_complet, role, actif, agent_code) 
+                VALUES (:username, :password, :fullname, :role, :actif, :agent_code)";
 
         return $this->db->query($sql, [
             ':username' => $username,
@@ -53,8 +53,7 @@ class User
             ':fullname' => $fullname,
             ':role'     => $role,
             ':actif'    => $actif,
-            ':agent_code' => $agentCode,
-            ':api_token'  => $apiToken
+            ':agent_code' => $agentCode
         ]);
     }
 
@@ -87,10 +86,6 @@ class User
         if (isset($data['agent_code'])) {
             $fields[] = "agent_code = :agent_code";
             $params[':agent_code'] = $data['agent_code'];
-        }
-        if (isset($data['api_token'])) {
-            $fields[] = "api_token = :api_token";
-            $params[':api_token'] = $data['api_token'];
         }
 
         if (empty($fields)) {

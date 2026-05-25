@@ -19,6 +19,7 @@ class UserController extends Controller
         $fullname = $this->sanitaze($_POST['fullname'] ?? null);
         $role     = $this->sanitaze($_POST['role'] ?? 'vendeur');
         $actif    = $this->sanitaze($_POST['actif'] ?? 1);
+        $agentCode = $this->sanitaze($_POST['agent_code'] ?? null);
 
         if (!$username || !$password || !$fullname) {
             $this->status(400)->json(['error' => 'Champs obligatoires manquants']);
@@ -26,7 +27,7 @@ class UserController extends Controller
         }
 
         $userModel = new \App\Models\User();
-        $userModel->create($username, $password, $fullname, $role, $actif);
+        $userModel->create($username, $password, $fullname, $role, $actif, $agentCode);
 
         $this->json(['success' => true, 'message' => 'user create !']);
     }
@@ -62,6 +63,9 @@ class UserController extends Controller
         }
         if (isset($_POST['actif'])) {
             $data['actif']           = $this->sanitaze($_POST['actif']);
+        }
+        if (isset($_POST['agent_code'])) {
+            $data['agent_code']      = $this->sanitaze($_POST['agent_code']);
         }
 
         error_log("User update - data to update: " . print_r($data, true));

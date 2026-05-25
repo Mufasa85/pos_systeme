@@ -598,7 +598,7 @@ const posCart = {
 
             // Construire le payload DGI
             const dgiPayload = {
-                store_name: STORE_INFO.name,
+
                 store_phone: STORE_INFO.phone,
                 store_address: STORE_INFO.address,
                 store_email: STORE_INFO.email || '',
@@ -606,6 +606,8 @@ const posCart = {
                 store_isf: STORE_INFO.isf,
                 store_rccm: STORE_INFO.rccm,
                 seller_name: sellerName,
+                seller_agent_code: (typeof CURRENT_USER !== 'undefined' && CURRENT_USER.agentCode) ? CURRENT_USER.agentCode : '',
+                store_name: STORE_INFO.name,
                 amount: this.currentTotals.total,
                 client_number: clientNumero,
                 invoice_number: this.currentInvoiceNum,
@@ -982,13 +984,20 @@ const posCart = {
         }
         itemsHtml += '</tbody></table>';
 
+        // Récupérer le code agent de l'utilisateur connecté
+        const agentCode = (typeof CURRENT_USER !== 'undefined' && CURRENT_USER.agentCode) ? CURRENT_USER.agentCode : '';
+
+        // Debug: voir ce que contient CURRENT_USER
+        console.log('[PREVIEW] CURRENT_USER:', JSON.stringify(CURRENT_USER));
+        console.log('[PREVIEW] agentCode:', agentCode);
+
         // Ajouter les infos RCCM et ISF si disponibles (chacun sur sa propre ligne)
         let storeExtraInfo = '';
         if (STORE_INFO.rccm) {
             storeExtraInfo += `<div>RCCM: ${STORE_INFO.rccm}</div>`;
         }
-        if (STORE_INFO.isf) {
-            storeExtraInfo += `<div>Numero Agent: ${STORE_INFO.isf}</div>`;
+        if (agentCode) {
+            storeExtraInfo += `<div>Numero Agent: ${agentCode}</div>`;
         }
 
 
@@ -1010,7 +1019,7 @@ const posCart = {
                            ${acheteurNumero ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>NUM:</strong></span><span>${acheteurNumero}</span></div>` : ''}
                            ${acheteurTypeInitiales ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>TYPE:</strong></span><span>${acheteurTypeInitiales}</span></div>` : ''}
                            ${acheteurNif ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>NIF:</strong></span><span>${acheteurNif}</span></div>` : ''}
-                           ${STORE_INFO.isf ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>Numero Agent:</strong></span><span>${STORE_INFO.isf}</span></div>` : ''}
+                           ${agentCode ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>Numero Agent:</strong></span><span>${agentCode}</span></div>` : ''}
                         </div>`;
 
         $('#preview-content').innerHTML = `
@@ -1299,14 +1308,16 @@ const posCart = {
             const acheteurNumero = $('#client-number')?.value || (this.clientNumber || '');
             const vendeur = (typeof CURRENT_USER !== 'undefined' && CURRENT_USER.fullName) ? CURRENT_USER.fullName : STORE_INFO.name;
 
+            // Récupérer le code agent de l'utilisateur connecté
+            const agentCode = (typeof CURRENT_USER !== 'undefined' && CURRENT_USER.agentCode) ? CURRENT_USER.agentCode : '';
 
-            // Ajouter les infos RCCM et ISF si disponibles (chacun sur sa propre ligne)
+            // Ajouter les infos RCCM et Agent Code si disponibles (chacun sur sa propre ligne)
             let storeExtraInfo = '';
             if (STORE_INFO.rccm) {
                 storeExtraInfo += `<div>RCCM: ${STORE_INFO.rccm}</div>`;
             }
-            if (STORE_INFO.isf) {
-                storeExtraInfo += `<div>Numero Agent: ${STORE_INFO.isf}</div>`;
+            if (agentCode) {
+                storeExtraInfo += `<div>Numero Agent: ${agentCode}</div>`;
             }
 
 
@@ -1317,7 +1328,7 @@ const posCart = {
                                ${acheteurNumero ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>NUM:</strong></span><span>${formatPhoneNumber(acheteurNumero)}</span></div>` : ''}
                                ${acheteurTypeInitiales ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>TYPE:</strong></span><span>${acheteurTypeInitiales}</span></div>` : ''}
                                ${acheteurNif ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>NIF:</strong></span><span>${acheteurNif}</span></div>` : ''}
-                               ${STORE_INFO.isf ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>ISF:</strong></span><span>${STORE_INFO.isf}</span></div>` : ''}
+                               ${agentCode ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>Numero Agent:</strong></span><span>${agentCode}</span></div>` : ''}
                             </div>`;
 
             // Construire les items du reçu avec les taxes par produit
@@ -1558,7 +1569,7 @@ function openAddUserModal() {
     document.getElementById('user-modal').style.display = 'flex';
 }
 
-function openEditUserModal(id, username, fullname, role, actif) {
+function openEditUserModal(id, username, fullname, role, actif, agentCode) {
     // Get elements
     const modal = document.getElementById('user-modal');
     const roleSelect = document.getElementById('user-role');
@@ -1569,6 +1580,7 @@ function openEditUserModal(id, username, fullname, role, actif) {
     document.getElementById('user-id').value = id;
     document.getElementById('user-username').value = username;
     document.getElementById('user-fullname').value = fullname;
+    document.getElementById('user-agent-code').value = agentCode || '';
     document.getElementById('user-password').value = '';
     document.getElementById('user-password').required = false;
     document.getElementById('password-hint').style.display = 'inline';
@@ -1606,6 +1618,7 @@ function saveUser(event) {
     const username = document.getElementById('user-username').value;
     const fullname = document.getElementById('user-fullname').value;
     const password = document.getElementById('user-password').value;
+    const agentCode = document.getElementById('user-agent-code').value;
 
     // Get role value directly from the select element
     const roleSelect = document.getElementById('user-role1');
@@ -1621,6 +1634,7 @@ function saveUser(event) {
         formData.append('nom_complet', fullname);
         formData.append('role', role);
         formData.append('actif', actif);
+        formData.append('agent_code', agentCode);
         if (password) {
             formData.append('mot_de_passe', password);
         }
@@ -1630,6 +1644,7 @@ function saveUser(event) {
         formData.append('password', password);
         formData.append('role', role);
         formData.append('actif', actif);
+        formData.append('agent_code', agentCode);
     }
 
     fetch(url, {
@@ -2722,7 +2737,7 @@ function _printReceiptContent(content) {
             .vendeur-info { margin-bottom: 8px; }
             .qrcode-container { width: 100%; text-align: center; margin: 10px 0; overflow: visible; }
             .qrcode-container > div { display: inline-block; overflow: visible; }
-            .qrcode-container svg, .qrcode-container img { display: block; margin: 0 auto; max-width: 160px; height: auto; overflow: visible; }
+            .qrcode-container svg, .qrcode-container img { display: block; margin: 0 auto; max-width: 250px; height: auto; overflow: visible; }
             .barcode { font-size: 18px; letter-spacing: 3px; font-weight: 700; margin: 8px 0; text-align: center; }
             .thank-you { font-style: italic; margin-top: 8px; font-size: 13px; }
         </style>

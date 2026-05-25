@@ -25,7 +25,7 @@ class AuthController extends Controller
 
         $userModel = new User();
         $user = $userModel->login($username, $password);
-        
+
         if ($user) {
             // Check if user is active
             if (isset($user['actif']) && (int)$user['actif'] === 0) {
@@ -38,6 +38,7 @@ class AuthController extends Controller
             $_SESSION['nom_utilisateur'] = $user['nom_utilisateur'];
             $_SESSION['nom_complet'] = $user['nom_complet'];
             $_SESSION['role'] = $user['role'];
+            $_SESSION['agent_code'] = $user['agent_code'] ?? '';
 
             // Repondre en JSON pour l'AJAX
             $this->json(['success' => true]);
