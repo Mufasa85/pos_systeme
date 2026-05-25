@@ -57,43 +57,61 @@
       </div>
 
       <!-- Modal Ajouter/Modifier Utilisateur -->
-      <div id="user-modal" class="modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center;">
-        <div class="modal-content" style="background:white; padding:2rem; border-radius:8px; width:400px; max-width:90%;">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
-            <h3 id="user-modal-title" style="margin:0;">Ajouter un utilisateur</h3>
-            <button onclick="closeUserModal()" style="background:none; border:none; font-size:1.5rem; cursor:pointer;">&times;</button>
+      <div id="user-modal" class="modal">
+        <div class="modal-content" style="max-width: 450px; padding: 0;">
+          <div class="modal-header">
+            <h3 id="user-modal-title">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 8px;">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+              </svg>
+              Ajouter un utilisateur
+            </h3>
+            <button class="close-modal" onclick="closeUserModal()">&times;</button>
           </div>
-          <form id="user-form" onsubmit="return saveUser(event)">
+          <form id="user-form" onsubmit="return saveUser(event)" style="padding: 1.5rem;">
             <input type="hidden" id="user-id" name="id" value="">
-            <div style="margin-bottom:1rem;">
-              <label style="display:block; margin-bottom:0.5rem; font-weight:500;">Nom d'utilisateur</label>
-              <input type="text" id="user-username" name="username" required style="width:100%; padding:0.5rem; border:1px solid #ddd; border-radius:4px;">
+            <div style="margin-bottom: 1rem;">
+              <label for="user-agent-code" style="font-size: 0.75rem; font-weight: 600; color: var(--muted); display: block; margin-bottom: 4px;">Code Agent</label>
+              <input type="text" id="user-agent-code" name="agent_code" class="client-number-input" style="width: 100%;" placeholder="Ex: AG001">
             </div>
-            <div style="margin-bottom:1rem;">
-              <label style="display:block; margin-bottom:0.5rem; font-weight:500;">Nom complet</label>
-              <input type="text" id="user-fullname" name="fullname" required style="width:100%; padding:0.5rem; border:1px solid #ddd; border-radius:4px;">
+            <div style="margin-bottom: 1rem;">
+              <label for="user-token" style="font-size: 0.75rem; font-weight: 600; color: var(--muted); display: block; margin-bottom: 4px;">Token API</label>
+              <input type="text" id="user-token" name="token" class="client-number-input" style="width: 100%;" placeholder="Token pour API externe">
             </div>
-            <div style="margin-bottom:1rem;">
-              <label style="display:block; margin-bottom:0.5rem; font-weight:500;">Mot de passe <span id="password-hint" style="font-weight:normal; color:#666;">(laisser vide pour ne pas changer)</span></label>
-              <input type="password" id="user-password" name="password" style="width:100%; padding:0.5rem; border:1px solid #ddd; border-radius:4px;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 1rem;">
+              <div>
+                <label for="user-username" style="font-size: 0.75rem; font-weight: 600; color: var(--muted); display: block; margin-bottom: 4px;">Nom d'utilisateur</label>
+                <input type="text" id="user-username" name="username" required class="client-number-input" style="width: 100%;">
+              </div>
+              <div>
+                <label for="user-fullname" style="font-size: 0.75rem; font-weight: 600; color: var(--muted); display: block; margin-bottom: 4px;">Nom complet</label>
+                <input type="text" id="user-fullname" name="fullname" required class="client-number-input" style="width: 100%;">
+              </div>
             </div>
-            <div style="margin-bottom:1rem;">
-              <label style="display:block; margin-bottom:0.5rem; font-weight:500;">Rôle</label>
-              <select id="user-role1" name="role" style="width:100%; padding:0.5rem; border:1px solid #ddd; border-radius:4px;">
-                <option value="vendeur">Vendeur</option>
-                <option value="admin">Admin</option>
-              </select>
+            <div style="margin-bottom: 1rem;">
+              <label for="user-password" style="font-size: 0.75rem; font-weight: 600; color: var(--muted); display: block; margin-bottom: 4px;">Mot de passe <span id="password-hint" style="font-weight: normal; font-size: 0.7rem;">(laisser vide pour ne pas changer)</span></label>
+              <input type="password" id="user-password" name="password" class="client-number-input" style="width: 100%;">
             </div>
-            <div style="margin-bottom:1.5rem;">
-              <label style="display:block; margin-bottom:0.5rem; font-weight:500;">Statut</label>
-              <select id="user-actif" name="actif" style="width:100%; padding:0.5rem; border:1px solid #ddd; border-radius:4px;">
-                <option value="1">Actif</option>
-                <option value="0">Inactif</option>
-              </select>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 1rem;">
+              <div>
+                <label for="user-role1" style="font-size: 0.75rem; font-weight: 600; color: var(--muted); display: block; margin-bottom: 4px;">Rôle</label>
+                <select id="user-role1" name="role" class="client-number-input" style="width: 100%;">
+                  <option value="vendeur">Vendeur</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+              <div>
+                <label for="user-actif" style="font-size: 0.75rem; font-weight: 600; color: var(--muted); display: block; margin-bottom: 4px;">Statut</label>
+                <select id="user-actif" name="actif" class="client-number-input" style="width: 100%;">
+                  <option value="1">Actif</option>
+                  <option value="0">Inactif</option>
+                </select>
+              </div>
             </div>
-            <div style="display:flex; gap:0.5rem; justify-content:flex-end;">
-              <button type="button" onclick="closeUserModal()" class="btn btn-secondary">Annuler</button>
-              <button type="submit" class="btn btn-primary">Enregistrer</button>
+            <div style="display: flex; gap: 0.75rem; margin-top: 1.5rem;">
+              <button type="button" onclick="closeUserModal()" class="btn btn-secondary" style="flex: 1;">Annuler</button>
+              <button type="submit" class="btn btn-primary" style="flex: 2;">Enregistrer</button>
             </div>
           </form>
         </div>

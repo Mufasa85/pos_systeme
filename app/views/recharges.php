@@ -9,7 +9,7 @@
   <link rel="stylesheet" href="./assets/css/styles.css?v=208">
   <link rel="stylesheet" href="./assets/css/mobile-caisse.css?v=209">
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="stylesheet" href="./assets/css/recharges.css?v=5">
+  <link rel="stylesheet" href="./assets/css/recharges.css?v=7">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <div id="page-recharges" class="page <?= $page == 'recharges' ? 'active' : '' ?>">

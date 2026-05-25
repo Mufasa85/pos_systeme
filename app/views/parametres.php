@@ -142,6 +142,65 @@
             </div>
           </div>
         </div>
+
+        <!-- Apparence / Thème - Full Width Row -->
+        <div class="card" style="padding: 1.5rem; margin-top: 1.5rem;">
+          <div class="card-header" style="margin-bottom: 1rem; padding: 0;">
+            <h3>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 8px; vertical-align: middle;">
+                <circle cx="13.5" cy="6.5" r="2.5"></circle>
+                <circle cx="6.5" cy="17.5" r="2.5"></circle>
+                <circle cx="17.5" cy="17.5" r="2.5"></circle>
+              </svg>
+              Apparence / Thème
+            </h3>
+            <p style="font-size: 0.85rem; color: var(--muted); margin-top: 0.25rem;">Personnalisez les couleurs de l'interface</p>
+          </div>
+          <div class="theme-selector-inline" id="theme-selector">
+            <button class="theme-btn" data-theme="blue" onclick="applyTheme('blue')" title="Bleu">
+              <span class="theme-preview" style="background: #0B5E88;"></span>
+            </button>
+            <button class="theme-btn" data-theme="green" onclick="applyTheme('green')" title="Vert">
+              <span class="theme-preview" style="background: #16A34A;"></span>
+            </button>
+            <button class="theme-btn" data-theme="purple" onclick="applyTheme('purple')" title="Violet">
+              <span class="theme-preview" style="background: #7C3AED;"></span>
+            </button>
+            <button class="theme-btn" data-theme="yellow" onclick="applyTheme('yellow')" title="Jaune">
+              <span class="theme-preview" style="background: #EAB308;"></span>
+            </button>
+            <button class="theme-btn" data-theme="orange" onclick="applyTheme('orange')" title="Orange">
+              <span class="theme-preview" style="background: #F97316;"></span>
+            </button>
+            <button class="theme-btn" data-theme="gray" onclick="applyTheme('gray')" title="Gris">
+              <span class="theme-preview" style="background: #64748B;"></span>
+            </button>
+            <button class="theme-btn" data-theme="red" onclick="applyTheme('red')" title="Rouge">
+              <span class="theme-preview" style="background: #DC2626;"></span>
+            </button>
+            <button class="theme-btn" data-theme="black" onclick="applyTheme('black')" title="Noir">
+              <span class="theme-preview" style="background: #111827;"></span>
+            </button>
+            <button class="theme-btn" data-theme="cyan" onclick="applyTheme('cyan')" title="🩵 Cyan">
+              <span class="theme-preview" style="background: #06B6D4;"></span>
+            </button>
+            <button class="theme-btn" data-theme="indigo" onclick="applyTheme('indigo')" title="🟦 Indigo">
+              <span class="theme-preview" style="background: #4F46E5;"></span>
+            </button>
+            <button class="theme-btn" data-theme="emerald" onclick="applyTheme('emerald')" title="🟩 Émeraude">
+              <span class="theme-preview" style="background: #10B981;"></span>
+            </button>
+            <button class="theme-btn" data-theme="gold" onclick="applyTheme('gold')" title="🥇 Gold">
+              <span class="theme-preview" style="background: #EAB308;"></span>
+            </button>
+            <button class="theme-btn" data-theme="midnight" onclick="applyTheme('midnight')" title="🌌 Midnight">
+              <span class="theme-preview" style="background: #032357",;"></span>
+            </button>
+            <button class="theme-btn" data-theme="ice" onclick="applyTheme('ice')" title="🧊 Ice">
+              <span class="theme-preview" style="background: #7DD3FC;"></span>
+            </button>
+          </div>
+        </div>
       </div>
 
       <style>

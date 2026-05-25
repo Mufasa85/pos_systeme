@@ -958,7 +958,7 @@ const posCart = {
         const invoiceNum = this.currentInvoiceNum || 'FAC-000001';
 
         // Construire les items du reçu
-        let itemsHtml = '<table class="receipt-table"><thead><tr><th>Article</th><th>Qté</th><th>Total HT</th></tr></thead><tbody>';
+        let itemsHtml = '<table class="receipt-table"><thead><tr><th>Article</th><th>Qté</th><th>HT</th></tr></thead><tbody>';
         for (let i = 0; i < this.items.length; i++) {
             const item = this.items[i];
             const itemPrice = parseFloat(item.prix) || 0;
@@ -1844,7 +1844,7 @@ function renderServiceBillContent(data, sale) {
     html += '</div>';
 
     // Items des articles
-html += '<div class="receipt-items"><table class="receipt-table"><thead><tr><th>Article</th><th>Qté</th><th>Prix HT</th><th>Total HT</th></tr></thead><tbody>';
+html += '<div class="receipt-items"><table class="receipt-table"><thead><tr><th>Article</th><th>Qté</th><th>HT</th></tr></thead><tbody>';
     if (articlesList.length > 0) {
         articlesList.forEach(article => {
             const articleHT = parseFloat(article.price) || 0;
@@ -1854,7 +1854,6 @@ html += '<div class="receipt-items"><table class="receipt-table"><thead><tr><th>
             html += '<tr>';
             html += '<td><span class="item-name">' + article.name + '<span class="item-tax-badge">' + taxLabel + '</span></span></td>';
             html += '<td class="item-qty">' + quantity + '</td>';
-            html += '<td class="item-price">' + articleHT.toFixed(2) + ' Fc</td>';
             html += '<td class="item-total">' + articleTotal.toFixed(2) + ' Fc</td>';
             html += '</tr>';
         });
