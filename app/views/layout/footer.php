@@ -226,6 +226,18 @@
                 </select>
                 <small style="color: var(--muted);">Affiché sur la facture après l'étiquette</small>
               </div>
+              <div class="form-group">
+                <label>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <path d="M16 8l-8 8"></path>
+                    <path d="M8 8l8 8"></path>
+                  </svg>
+                  Remise (%)
+                </label>
+                <input type="number" id="product-remise" min="0" max="100" step="0.01" value="0" placeholder="0.00" style="text-align: center;">
+                <small style="color: var(--muted);">Remise en pourcentage (0-100)</small>
+              </div>
             </div>
           </div>
 
