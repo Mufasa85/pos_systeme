@@ -361,59 +361,26 @@ window.loadTheme = loadTheme;
 window.saveTheme = saveTheme;
 window.getCurrentTheme = getCurrentTheme;
 
-// Prevent flash of default theme - hide body until theme is loaded
+// Prevent flash of default theme - load from localStorage first (synchronous)
 (function () {
   try {
-    // Don't hide body on login page (no CURRENT_USER needed)
-    const isLoginPage = document.body && (
-      document.body.classList.contains('login-page') ||
-      window.location.pathname.includes('/login') ||
-      window.location.pathname === '/'
-    );
+    // Load theme from localStorage immediately (synchronous)
+    const savedTheme = localStorage.getItem('theme') || 'blue';
+    applyTheme(savedTheme);
 
-    // Function to show body when theme is ready
-    function showBody() {
-      try {
-        if (document.body) {
-          document.body.classList.remove('theme-loading');
-        }
-        if (document.documentElement) {
-          document.documentElement.classList.add('theme-ready');
-        }
-      } catch (e) {
-        console.warn('showBody error:', e);
+    // Sync with server in background (non-blocking)
+    loadThemeFromServer().then(function (serverTheme) {
+      if (serverTheme && serverTheme !== savedTheme) {
+        // Server has different theme - update localStorage and apply
+        localStorage.setItem('theme', serverTheme);
+        applyTheme(serverTheme);
       }
-    }
-
-    // Function to hide body immediately
-    function hideBody() {
-      try {
-        // Only hide if not login page
-        if (!isLoginPage && document.body) {
-          document.body.classList.add('theme-loading');
-        }
-      } catch (e) {
-        console.warn('hideBody error:', e);
-      }
-    }
-
-    // If DOM already loaded, load theme and show
-    if (document.readyState !== 'loading') {
-      hideBody();
-      loadTheme().then(showBody);
-    } else {
-      // Hide body immediately before DOM loads
-      hideBody();
-      // Wait for DOM and apply immediately
-      document.addEventListener('DOMContentLoaded', function () {
-        // Apply theme synchronously if possible
-        loadThemeFromServer().then(function (themeName) {
-          applyTheme(themeName);
-          showBody();
-        });
-      });
-    }
+    }).catch(function () {
+      // Server sync failed - keep localStorage theme (already applied)
+    });
   } catch (e) {
     console.warn('Theme init error:', e);
+    // Fallback to default theme
+    applyTheme('blue');
   }
 })();
