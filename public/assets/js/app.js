@@ -994,12 +994,14 @@ const posCart = {
 
         // Récupérer les infos de l'acheteur depuis les inputs du panier
         const acheteurNom = $('#client-nom')?.value || (this.currentClient?.nom || '');
-        const acheteurTypeText = $('#client-type option:checked')?.textContent || (this.currentClient?.type_description || '');
+        const acheteurTypeText = $('#modal-client-type option:checked')?.textContent || (this.currentClient?.type_description || '');
         // Extraire juste les initiales (ex: "PP - Particulier" -> "PP")
         const acheteurTypeInitiales = acheteurTypeText.split(' - ')[0].trim() || '';
         const acheteurNif = $('#client-nif')?.value || (this.currentClient?.nif || '');
         const acheteurNumero = $('#client-number')?.value || (this.clientNumber || '');
         const vendeur = (typeof CURRENT_USER !== 'undefined' && CURRENT_USER.fullName) ? CURRENT_USER.fullName : STORE_INFO.name;
+
+        console.log(acheteurTypeText, " un ", acheteurTypeInitiales, " deux ", acheteurNif)
 
         // Construire les infos en une seule section sans separarer vendeur/acheteur
         let infoSection = `<div style="border-top: 1px dashed #ccc; margin-top: 6px; padding-top: 6px; text-align: left; font-size: 11px; line-height: 1.5;">
@@ -1291,7 +1293,7 @@ const posCart = {
 
             // Récupérer les infos client pour le reçu
             const acheteurNom = $('#client-nom')?.value || (this.currentClient?.nom || '');
-            const acheteurTypeText = $('#client-type option:checked')?.textContent || (this.currentClient?.type_description || '');
+            const acheteurTypeText = $('#modal-client-type option:checked')?.textContent || (this.currentClient?.type_description || '');
             const acheteurTypeInitiales = acheteurTypeText.split(' - ')[0].trim() || '';
             const acheteurNif = $('#client-nif')?.value || (this.currentClient?.nif || '');
             const acheteurNumero = $('#client-number')?.value || (this.clientNumber || '');
@@ -2737,8 +2739,8 @@ function _printReceiptContent(content) {
             try {
                 const iDoc = iframe.contentDocument;
                 iDoc.querySelectorAll('.qrcode-container svg').forEach(svg => {
-                    const origW = parseInt(svg.getAttribute('width') || 180);
-                    const origH = parseInt(svg.getAttribute('height') || 180);
+                    const origW = parseInt(svg.getAttribute('width') || 250);
+                    const origH = parseInt(svg.getAttribute('height') || 250);
                     if (!svg.getAttribute('viewBox')) {
                         svg.setAttribute('viewBox', `0 0 ${origW} ${origH}`);
                     }
