@@ -98,6 +98,17 @@
   /* Overlays & Modals */
   .sidebar-overlay.active { display: block !important; }
   .modal-content { width: 95% !important; margin: 10% auto !important; }
+  /* Modal actions: allow wrapping and stack on small screens */
+  .modal-content .modal-actions { display: flex; gap: 0.75rem; }
+  .modal-content .modal-client-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+
+  /* Stack modal action buttons on narrow screens */
+  @media (max-width: 480px) {
+    .modal-content .modal-actions { flex-direction: column !important; }
+    .modal-content .modal-actions .btn { width: 100% !important; }
+    .modal-content .modal-client-actions { justify-content: flex-end; }
+    .modal-content .modal-client-actions .btn { margin-top: 6px; }
+  }
   
   .form-row { grid-template-columns: 1fr !important; display: grid; }
   

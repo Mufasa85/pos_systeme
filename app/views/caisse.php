@@ -361,7 +361,7 @@
               <circle cx="12" cy="7" r="4"></circle>
             </svg>
             Informations Client
-            <div style="margin-left: auto; display: flex; gap: 6px;">
+            <div class="modal-client-actions" style="margin-left: auto; display: flex; gap: 6px;">
               <button type="button" class="btn btn-secondary btn-tiny" onclick="editClientFromModal()" style="padding: 4px 8px; font-size: 0.65rem;">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
@@ -417,7 +417,7 @@
           </div>
 
           <!-- Boutons -->
-          <div style="display: flex; gap: 0.75rem;">
+          <div class="modal-actions" style="display: flex; gap: 0.75rem;">
             <button onclick="closeInvoiceInfoModal()" class="btn btn-secondary" style="flex: 1; padding: 0.875rem;">
               Retour
             </button>
