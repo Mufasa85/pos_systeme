@@ -101,11 +101,17 @@
           <span>TOTAL TTC</span>
           <span id="total">0.00 Fc</span>
         </div>
-        <div class="total-row" style="font-size: 0.8rem; color: #64748b; justify-content: center; margin-top: 4px;">
-          <span id="currency-loader" style="display: none;">
-            <svg class="spinner" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation: spin 1s linear infinite; vertical-align: middle; margin-right: 4px;">
+        <div class="total-row" style="font-size: 0.8rem; color: #64748b; justify-content: center; margin-top: 4px; min-height: 24px;">
+          <span id="currency-loader" style="display: none; align-items: center; justify-content: center;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" style="animation: spin 1s linear infinite;">
               <circle cx="12" cy="12" r="10" stroke-opacity="0.25"></circle>
               <path d="M12 2a10 10 0 0 1 10 10" stroke-opacity="1"></path>
+            </svg>
+            <span style="margin-left: 4px; font-size: 11px; color: var(--muted);">Chargement...</span>
+          </span>
+          <span id="currency-status" style="display: none; margin-right: 4px;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="3">
+              <polyline points="20 6 9 17 4 12"></polyline>
             </svg>
           </span>
           <span id="total-usd">≈ $0.00 USD</span>

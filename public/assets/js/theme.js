@@ -364,20 +364,29 @@ window.getCurrentTheme = getCurrentTheme;
 // Prevent flash of default theme - load from localStorage first (synchronous)
 (function () {
   try {
+    // Check if theme key exists in localStorage
+    const hasThemeInStorage = localStorage.getItem('theme') !== null;
+
     // Load theme from localStorage immediately (synchronous)
     const savedTheme = localStorage.getItem('theme') || 'blue';
     applyTheme(savedTheme);
 
-    // Sync with server in background (non-blocking)
-    loadThemeFromServer().then(function (serverTheme) {
-      if (serverTheme && serverTheme !== savedTheme) {
-        // Server has different theme - update localStorage and apply
-        localStorage.setItem('theme', serverTheme);
-        applyTheme(serverTheme);
-      }
-    }).catch(function () {
-      // Server sync failed - keep localStorage theme (already applied)
-    });
+    // Only fetch from server if NO theme in localStorage (first visit)
+    if (!hasThemeInStorage) {
+      console.log('[THEME] No theme in localStorage, fetching from server...');
+      loadThemeFromServer().then(function (serverTheme) {
+        if (serverTheme && serverTheme !== savedTheme) {
+          // Server has theme - update localStorage and apply
+          localStorage.setItem('theme', serverTheme);
+          applyTheme(serverTheme);
+        }
+      }).catch(function () {
+        // Server failed - keep default theme (already applied)
+        console.log('[THEME] Could not fetch from server, using default blue');
+      });
+    } else {
+      console.log('[THEME] Theme found in localStorage:', savedTheme, '- no server fetch needed');
+    }
   } catch (e) {
     console.warn('Theme init error:', e);
     // Fallback to default theme

@@ -25,7 +25,12 @@ let USD_RATE = 2555; // Valeur par défaut
 async function loadCurrencyRate() {
     // Afficher le loader pendant le chargement
     const loaderEl = $('#currency-loader');
-    if (loaderEl) loaderEl.style.display = 'inline-flex';
+    const statusEl = $('#currency-status');
+    const totalUsdEl = $('#total-usd');
+    if (loaderEl) {
+        loaderEl.style.display = 'flex';
+        loaderEl.style.minWidth = '80px';
+    }
 
     try {
         const res = await fetch(APP_URL + '/api/currency');
@@ -35,19 +40,30 @@ async function loadCurrencyRate() {
             // Chercher le taux dans la réponse
             let rate = data.data[0].rate;
 
-
             if (rate && rate > 1) {
                 USD_RATE = rate;
                 console.log('[CURRENCY] Taux chargé: 1 USD = ' + rate + ' Fc');
             }
         }
-
-
     } catch (e) {
         console.warn('[CURRENCY] Impossible de charger le taux, utilisation par défaut:', e);
     } finally {
         // Cacher le loader une fois terminé
-        if (loaderEl) loaderEl.style.display = 'none';
+        if (loaderEl) {
+            loaderEl.style.display = 'none';
+        }
+        // Afficher l'icône de validation
+        if (statusEl) {
+            statusEl.style.display = 'inline-flex';
+            // Hide it after 2 seconds
+            setTimeout(() => {
+                statusEl.style.display = 'none';
+            }, 2000);
+        }
+        // Update USD display if cart has items
+        if (typeof updateCartUSDDisplay === 'function') {
+            updateCartUSDDisplay();
+        }
     }
 }
 const formatPhoneNumber = (phone) => {
@@ -587,6 +603,7 @@ const posCart = {
             // Récupérer le type de facture et la référence document
             const invoiceType = document.getElementById('invoice-type')?.value || 'FV';
             const invoiceRef = document.getElementById('invoice-ref')?.value || '';
+            const exoneration = document.getElementById('modal-exoneration')?.value || '';
 
             // Récupérer le type de paiement
             const paymentTypeSelect = document.getElementById('modal-payment-type') || document.getElementById('payment-type');
@@ -620,6 +637,7 @@ const posCart = {
                 invoice_number: this.currentInvoiceNum,
                 invoice_type: invoiceType,
                 invoice_ref: invoiceRef,
+                exoneration: exoneration,
                 payment_type: paymentType,
                 articles: this.items.map(item => ({
                     name: item.nom,
@@ -1004,7 +1022,7 @@ const posCart = {
             storeExtraInfo += `<div>RCCM: ${STORE_INFO.rccm}</div>`;
         }
         if (agentCode) {
-            storeExtraInfo += `<div>Numero Agent: ${agentCode}</div>`;
+            storeExtraInfo += `<div>Numero impot: ${STORE_INFO.isf}</div>`;
         }
 
 
@@ -1324,7 +1342,7 @@ const posCart = {
                 storeExtraInfo += `<div>RCCM: ${STORE_INFO.rccm}</div>`;
             }
             if (agentCode) {
-                storeExtraInfo += `<div>Numero Agent: ${agentCode}</div>`;
+                storeExtraInfo += `<div>Numero Impot: ${STORE_INFO.isf}</div>`;
             }
 
 
