@@ -115,4 +115,34 @@ class SettingsController
             $this->status(500)->json(['error' => 'Erreur: ' . $e->getMessage()]);
         }
     }
+
+    // POST /api/settings/theme - Sauvegarder le thème (Admin only)
+    public function saveTheme()
+    {
+        if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
+            $this->status(403)->json(['error' => 'Accès réservé aux administrateurs']);
+            return;
+        }
+
+        $theme = $_POST['theme'] ?? null;
+
+        if ($theme === null) {
+            $this->status(400)->json(['error' => 'Thème non fourni']);
+            return;
+        }
+
+        try {
+            $this->settingsModel->set('theme', $theme);
+            $this->json(['success' => true, 'message' => 'Thème sauvegardé']);
+        } catch (\Exception $e) {
+            $this->status(500)->json(['error' => 'Erreur: ' . $e->getMessage()]);
+        }
+    }
+
+    // GET /api/settings/theme - Récupérer le thème actuel
+    public function getTheme()
+    {
+        $theme = $this->settingsModel->get('theme') ?? 'blue';
+        $this->json(['theme' => $theme]);
+    }
 }

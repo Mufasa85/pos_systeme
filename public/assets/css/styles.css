@@ -2202,3 +2202,66 @@ body {
   color: #dc2626;
   border: 1px solid #fecaca;
 }
+
+/* ============================================
+   THEME SELECTOR (Settings Page - Inline)
+   ============================================ */
+.theme-selector-inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: flex-start;
+}
+
+.theme-selector-inline .theme-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem;
+  border: 2px solid var(--border);
+  border-radius: 50%;
+  background: var(--card);
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.theme-selector-inline .theme-btn:hover {
+  border-color: var(--accent);
+  transform: scale(1.1);
+}
+
+.theme-selector-inline .theme-btn.active {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px var(--primary);
+}
+
+.theme-selector-inline .theme-preview {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid rgba(0, 0, 0, 0.15);
+  transition: transform 0.25s ease;
+}
+
+.theme-selector-inline .theme-btn:hover .theme-preview {
+  transform: scale(1.1);
+}
+
+/* Responsive Theme Selector */
+@media (max-width: 600px) {
+  .theme-selector-inline {
+    gap: 0.4rem;
+  }
+  
+  .theme-selector-inline .theme-preview {
+    width: 30px;
+    height: 30px;
+  }
+}
+
+@media (max-width: 400px) {
+  .theme-selector-inline .theme-preview {
+    width: 28px;
+    height: 28px;
+  }
+}

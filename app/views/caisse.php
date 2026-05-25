@@ -132,8 +132,8 @@
   <!-- MODAL PAIEMENT (Popup séparé pour calculer la monnaie) -->
   <div id="payment-modal" class="modal">
     <div class="modal-content" style="max-width: 400px; padding: 0;">
-      <div class="modal-header" style="background: linear-gradient(135deg, #0B5E88 0%, #2AB7E6 100%); color: white; border: none;">
-        <h3 style="color: white;">
+      <div class="modal-header">
+        <h3>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 8px;">
             <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
             <line x1="1" y1="10" x2="23" y2="10"></line>
@@ -223,8 +223,8 @@
   <!-- MODAL POIDS (Pour produits vendus au kilo) -->
   <div id="poids-modal" class="modal">
     <div class="modal-content" style="max-width: 380px; padding: 0;">
-      <div class="modal-header" style="background: linear-gradient(135deg, #0B5E88 0%, #2AB7E6 100%); color: white; border: none;">
-        <h3 style="color: white;">
+      <div class="modal-header">
+        <h3>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 8px;">
             <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
             <line x1="3" y1="6" x2="21" y2="6"></line>
@@ -275,8 +275,8 @@
   <!-- MODAL INVOICE INFO (Résumé facture avant validation) -->
   <div id="invoice-info-modal" class="modal">
     <div class="modal-content" style="max-width: 500px; padding: 0;">
-      <div class="modal-header" style="background: linear-gradient(135deg, #0B5E88 0%, #2AB7E6 100%); color: white; border: none;">
-        <h3 style="color: white;">
+      <div class="modal-header">
+        <h3>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 8px;">
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
             <polyline points="14 2 14 8 20 8"></polyline>
@@ -286,13 +286,13 @@
           </svg>
           Informations Facture
         </h3>
-        <button class="close-modal" onclick="closeInvoiceInfoModal()" style="color: white;">&times;</button>
+        <button class="close-modal" onclick="closeInvoiceInfoModal()">&times;</button>
       </div>
       <div style="padding: 1.5rem;">
-        <!-- Type et Référence -->
-        <div style="display: flex; gap: 12px; margin-bottom: 1rem;">
-          <div style="flex: 1;">
-            <label for="modal-invoice-type" style="font-size: 0.75rem; font-weight: 600; color: #64748b; display: block; margin-bottom: 4px;">TYPE DE FACTURE</label>
+        <!-- Type, Référence et Exonération -->
+        <div style="display: flex; gap: 12px; margin-bottom: 1rem; align-items: flex-end;">
+          <div style="flex: 0 0 100px;">
+            <label for="modal-invoice-type" style="font-size: 0.7rem; font-weight: 600; color: #64748b; display: block; margin-bottom: 4px;">TYPE</label>
             <select id="modal-invoice-type" class="client-number-input" style="width: 100%;">
               <option value="FV">FV</option>
               <option value="EV">EV</option>
@@ -302,9 +302,18 @@
               <option value="ET">ET</option>
             </select>
           </div>
-          <div style="flex: 1;">
-            <label for="modal-invoice-ref" style="font-size: 0.75rem; font-weight: 600; color: #64748b; display: block; margin-bottom: 4px;">RÉF DOCUMENT</label>
+          <div style="flex: 2;">
+            <label for="modal-invoice-ref" style="font-size: 0.7rem; font-weight: 600; color: #64748b; display: block; margin-bottom: 4px;">RÉF DOCUMENT</label>
             <input type="text" id="modal-invoice-ref" class="client-number-input" placeholder="Référence..." style="width: 100%;">
+          </div>
+          <div style="flex: 1;">
+            <label for="modal-exoneration" style="font-size: 0.7rem; font-weight: 600; color: #64748b; display: block; margin-bottom: 4px;">EXONÉRATION</label>
+            <select id="modal-exoneration" class="client-number-input" style="width: 100%;">
+              <option value="">-</option>
+              <option value="RAM">RAM</option>
+              <option value="RRR">RRR</option>
+              <option value="RAN">RAN</option>
+            </select>
           </div>
         </div>
 
@@ -317,18 +326,15 @@
             </svg>
             Mode de Paiement
           </div>
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-            <div>
-              <label for="modal-payment-type" style="font-size: 0.7rem; color: #166534; display: block; margin-bottom: 4px;">Type de paiement</label>
-              <select id="modal-payment-type" class="client-number-input" style="width: 100%; background: #fff;">
-                <option value="cash">Espèces</option>
-                <option value="mobile_money">Mobile Money</option>
-                <option value="card">Carte Bancaire</option>
-                <option value="transfer">Virement</option>
-                <option value="credit">Crédit</option>
-              </select>
-            </div>
-
+          <div>
+            <label for="modal-payment-type" style="font-size: 0.7rem; color: #166534; display: block; margin-bottom: 4px;">Type de paiement</label>
+            <select id="modal-payment-type" class="client-number-input" style="width: 100%; background: #fff;">
+              <option value="cash">Espèces</option>
+              <option value="mobile_money">Mobile Money</option>
+              <option value="card">Carte Bancaire</option>
+              <option value="transfer">Virement</option>
+              <option value="credit">Crédit</option>
+            </select>
           </div>
           <div id="modal-payment-change" style="margin-top: 0.75rem; padding: 0.5rem; background: #fff; border-radius: 8px; text-align: center; font-weight: 600; display: none;">
             <span style="color: #166534;">Monnaie à rendre: </span>
@@ -344,20 +350,31 @@
               <circle cx="12" cy="7" r="4"></circle>
             </svg>
             Informations Client
-            <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin'): ?>
-              <button type="button" class="btn btn-success btn-tiny" onclick="saveClientFromModal()" style="margin-left: auto; padding: 4px 8px; font-size: 0.65rem;">
+            <div style="margin-left: auto; display: flex; gap: 6px;">
+              <button type="button" class="btn btn-secondary btn-tiny" onclick="editClientFromModal()" style="padding: 4px 8px; font-size: 0.65rem;">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <line x1="12" y1="5" x2="12" y2="19"></line>
-                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                 </svg>
-                Nouveau
+                Modifier
               </button>
-            <?php endif; ?>
+              <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin'): ?>
+                <button type="button" class="btn btn-success btn-tiny" onclick="saveClientFromModal()" style="padding: 4px 8px; font-size: 0.65rem;">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                  </svg>
+                  Nouveau
+                </button>
+              <?php endif; ?>
+            </div>
           </div>
           <!-- Recherche client -->
-          <div style="position: relative; margin-bottom: 8px;">
-            <input type="text" id="modal-client-number" class="client-number-input" placeholder="N° téléphone pour rechercher..." style="width: 100%; padding-right: 40px;" onkeypress="if(event.key==='Enter') searchClientFromModal()">
-            <button type="button" onclick="searchClientFromModal()" style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; padding: 4px; color: #0B5E88;">
+          <div style="margin-bottom: 8px;">
+            <label for="modal-client-number" style="font-size: 0.7rem; color: #94a3b8; display: block; margin-bottom: 4px;">N° Téléphone</label>
+            <div style="position: relative;">
+              <input type="text" id="modal-client-number" class="client-number-input" placeholder="N° téléphone pour rechercher..." style="width: 100%; padding-right: 40px;" onkeypress="if(event.key==='Enter') searchClientFromModal()">
+              <button type="button" onclick="searchClientFromModal()" style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; padding: 4px; color: #0B5E88;">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="11" cy="11" r="8"></circle>
                 <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
