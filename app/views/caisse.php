@@ -324,6 +324,7 @@
               <option value="RAM">RAM</option>
               <option value="RRR">RRR</option>
               <option value="RAN">RAN</option>
+              <option value="COR">COR</option>
             </select>
           </div>
         </div>
