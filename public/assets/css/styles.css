@@ -2,17 +2,7 @@
    POS SYSTEM - PROFESSIONAL STYLESHEET
    ============================================ */
 
-/* CSS Variables */
-/* Hide body until theme is loaded to prevent flash */
-body.theme-loading {
-  visibility: hidden !important;
-}
-
-/* Immediately hide body while waiting for theme script */
-html:not(.theme-ready) body {
-  visibility: hidden;
-}
-
+/* CSS Variables - Default theme (blue) */
 :root {
   --primary: #0B5E88;
   --primary-dark: #003B5C;

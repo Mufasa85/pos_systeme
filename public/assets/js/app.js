@@ -23,6 +23,10 @@ let USD_RATE = 2555; // Valeur par défaut
 
 // Charger le taux de change depuis l'API
 async function loadCurrencyRate() {
+    // Afficher le loader pendant le chargement
+    const loaderEl = $('#currency-loader');
+    if (loaderEl) loaderEl.style.display = 'inline-flex';
+
     try {
         const res = await fetch(APP_URL + '/api/currency');
         const data = await res.json();
@@ -41,6 +45,9 @@ async function loadCurrencyRate() {
 
     } catch (e) {
         console.warn('[CURRENCY] Impossible de charger le taux, utilisation par défaut:', e);
+    } finally {
+        // Cacher le loader une fois terminé
+        if (loaderEl) loaderEl.style.display = 'none';
     }
 }
 const formatPhoneNumber = (phone) => {
