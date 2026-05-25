@@ -364,6 +364,13 @@ window.getCurrentTheme = getCurrentTheme;
 // Prevent flash of default theme - hide body until theme is loaded
 (function () {
   try {
+    // Don't hide body on login page (no CURRENT_USER needed)
+    const isLoginPage = document.body && (
+      document.body.classList.contains('login-page') ||
+      window.location.pathname.includes('/login') ||
+      window.location.pathname === '/'
+    );
+
     // Function to show body when theme is ready
     function showBody() {
       try {
@@ -381,7 +388,8 @@ window.getCurrentTheme = getCurrentTheme;
     // Function to hide body immediately
     function hideBody() {
       try {
-        if (document.body) {
+        // Only hide if not login page
+        if (!isLoginPage && document.body) {
           document.body.classList.add('theme-loading');
         }
       } catch (e) {

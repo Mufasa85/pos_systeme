@@ -102,6 +102,12 @@
           <span id="total">0.00 Fc</span>
         </div>
         <div class="total-row" style="font-size: 0.8rem; color: #64748b; justify-content: center; margin-top: 4px;">
+          <span id="currency-loader" style="display: none;">
+            <svg class="spinner" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation: spin 1s linear infinite; vertical-align: middle; margin-right: 4px;">
+              <circle cx="12" cy="12" r="10" stroke-opacity="0.25"></circle>
+              <path d="M12 2a10 10 0 0 1 10 10" stroke-opacity="1"></path>
+            </svg>
+          </span>
           <span id="total-usd">≈ $0.00 USD</span>
         </div>
       </div>
@@ -375,88 +381,88 @@
             <div style="position: relative;">
               <input type="text" id="modal-client-number" class="client-number-input" placeholder="N° téléphone pour rechercher..." style="width: 100%; padding-right: 40px;" onkeypress="if(event.key==='Enter') searchClientFromModal()">
               <button type="button" onclick="searchClientFromModal()" style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; padding: 4px; color: #0B5E88;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="11" cy="11" r="8"></circle>
+                  <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+              </button>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+              <div>
+                <label for="modal-client-name" style="font-size: 0.7rem; color: #94a3b8; display: block; margin-bottom: 2px;">Nom</label>
+                <input type="text" id="modal-client-name" class="client-number-input" placeholder="Nom du client" style="width: 100%;">
+              </div>
+              <div>
+                <label for="modal-client-type" style="font-size: 0.7rem; color: #94a3b8; display: block; margin-bottom: 2px;">Type</label>
+                <select id="modal-client-type" class="client-number-input" style="width: 100%;">
+                  <option value="">Type client</option>
+                  <?php if (isset($clientTypes)): foreach ($clientTypes as $type): ?>
+                      <option value="<?= $type['id'] ?>"><?= htmlspecialchars($type['code']) ?></option>
+                  <?php endforeach;
+                  endif; ?>
+                </select>
+              </div>
+              <div style="grid-column: span 2;">
+                <label for="modal-client-nif" style="font-size: 0.7rem; color: #94a3b8; display: block; margin-bottom: 2px;">NIF</label>
+                <input type="text" id="modal-client-nif" class="client-number-input" placeholder="NIF client" style="width: 100%;">
+              </div>
+            </div>
+            <!-- Message de recherche -->
+            <div id="modal-client-search-message" style="font-size: 0.7rem; margin-top: 6px; display: none;"></div>
+          </div>
+
+          <!-- Boutons -->
+          <div style="display: flex; gap: 0.75rem;">
+            <button onclick="closeInvoiceInfoModal()" class="btn btn-secondary" style="flex: 1; padding: 0.875rem;">
+              Retour
+            </button>
+            <button onclick="confirmInvoiceInfo()" class="btn btn-primary" style="flex: 2; padding: 0.875rem; font-size: 1rem; font-weight: 600;">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="11" cy="11" r="8"></circle>
-                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                <polyline points="20 6 9 17 4 12"></polyline>
               </svg>
+              Continuer vers Preview
             </button>
           </div>
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-            <div>
-              <label for="modal-client-name" style="font-size: 0.7rem; color: #94a3b8; display: block; margin-bottom: 2px;">Nom</label>
-              <input type="text" id="modal-client-name" class="client-number-input" placeholder="Nom du client" style="width: 100%;">
-            </div>
-            <div>
-              <label for="modal-client-type" style="font-size: 0.7rem; color: #94a3b8; display: block; margin-bottom: 2px;">Type</label>
-              <select id="modal-client-type" class="client-number-input" style="width: 100%;">
-                <option value="">Type client</option>
-                <?php if (isset($clientTypes)): foreach ($clientTypes as $type): ?>
-                    <option value="<?= $type['id'] ?>"><?= htmlspecialchars($type['code']) ?></option>
-                <?php endforeach;
-                endif; ?>
-              </select>
-            </div>
-            <div style="grid-column: span 2;">
-              <label for="modal-client-nif" style="font-size: 0.7rem; color: #94a3b8; display: block; margin-bottom: 2px;">NIF</label>
-              <input type="text" id="modal-client-nif" class="client-number-input" placeholder="NIF client" style="width: 100%;">
-            </div>
-          </div>
-          <!-- Message de recherche -->
-          <div id="modal-client-search-message" style="font-size: 0.7rem; margin-top: 6px; display: none;"></div>
         </div>
+      </div>
+    </div>
 
-        <!-- Boutons -->
-        <div style="display: flex; gap: 0.75rem;">
-          <button onclick="closeInvoiceInfoModal()" class="btn btn-secondary" style="flex: 1; padding: 0.875rem;">
-            Retour
-          </button>
-          <button onclick="confirmInvoiceInfo()" class="btn btn-primary" style="flex: 2; padding: 0.875rem; font-size: 1rem; font-weight: 600;">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polyline points="20 6 9 17 4 12"></polyline>
+    <!-- MODAL SCANNER -->
+    <div id="scanner-modal" class="scanner-modal">
+      <div class="scanner-modal-content">
+        <div class="scanner-modal-header">
+          <h3> Scanner Code-barres</h3>
+          <button class="scanner-close-btn" onclick="closeScannerModal()">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
             </svg>
-            Continuer vers Preview
           </button>
+        </div>
+
+        <!-- État de chargement -->
+        <div id="scanner-loading" class="scanner-status loading">
+          <div class="scanner-spinner"></div>
+          <span>Recherche du produit...</span>
+        </div>
+
+        <!-- Résultat -->
+        <div id="scanner-result" class="scanner-status"></div>
+
+        <!-- Info produit -->
+        <div id="scanner-product" class="scanner-product-info">
+          <div class="scanner-product-name" id="scanned-name">-</div>
+          <div class="scanner-product-price" id="scanned-price">-</div>
+        </div>
+
+        <!-- Zone de scan -->
+        <div id="scanner-reader"></div>
+
+        <!-- Actions -->
+        <div class="scanner-actions">
+          <button id="scanner-cancel-btn" class="scanner-btn-cancel" onclick="closeScannerModal()">Fermer</button>
+          <button id="scanner-rescan-btn" class="scanner-btn-rescan" onclick="restartScanner()" style="display:none;">Scanner à nouveau</button>
         </div>
       </div>
     </div>
   </div>
-
-  <!-- MODAL SCANNER -->
-  <div id="scanner-modal" class="scanner-modal">
-    <div class="scanner-modal-content">
-      <div class="scanner-modal-header">
-        <h3> Scanner Code-barres</h3>
-        <button class="scanner-close-btn" onclick="closeScannerModal()">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="18" y1="6" x2="6" y2="18"></line>
-            <line x1="6" y1="6" x2="18" y2="18"></line>
-          </svg>
-        </button>
-      </div>
-
-      <!-- État de chargement -->
-      <div id="scanner-loading" class="scanner-status loading">
-        <div class="scanner-spinner"></div>
-        <span>Recherche du produit...</span>
-      </div>
-
-      <!-- Résultat -->
-      <div id="scanner-result" class="scanner-status"></div>
-
-      <!-- Info produit -->
-      <div id="scanner-product" class="scanner-product-info">
-        <div class="scanner-product-name" id="scanned-name">-</div>
-        <div class="scanner-product-price" id="scanned-price">-</div>
-      </div>
-
-      <!-- Zone de scan -->
-      <div id="scanner-reader"></div>
-
-      <!-- Actions -->
-      <div class="scanner-actions">
-        <button id="scanner-cancel-btn" class="scanner-btn-cancel" onclick="closeScannerModal()">Fermer</button>
-        <button id="scanner-rescan-btn" class="scanner-btn-rescan" onclick="restartScanner()" style="display:none;">Scanner à nouveau</button>
-      </div>
-    </div>
-  </div>
-</div>

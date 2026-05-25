@@ -3,14 +3,24 @@
    ============================================ */
 
 /* CSS Variables */
-/* Hide body until theme is loaded to prevent flash */
+/* Theme flash prevention - hide body until theme is loaded */
 body.theme-loading {
   visibility: hidden !important;
 }
 
-/* Immediately hide body while waiting for theme script */
-html:not(.theme-ready) body {
-  visibility: hidden;
+/* Show body immediately on login page and after theme loads */
+body.login-page,
+html.theme-ready body {
+  visibility: visible !important;
+}
+
+/* Safety fallback - always ensure body is visible after 2 seconds */
+@keyframes showBodyFallback {
+  from { visibility: hidden; }
+  to { visibility: visible; }
+}
+body {
+  animation: showBodyFallback 0s 2s forwards;
 }
 
 :root {
