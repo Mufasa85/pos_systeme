@@ -13,6 +13,20 @@ const INVOICE_TYPES = {
     'ET': "Fac d'acompte à l'exportation",
 };
 
+// Types de clients et leurs descriptions complètes
+const CLIENT_TYPES = {
+    'PP': 'Personne Physique',
+    'PM': 'Personne Morale',
+    'PC': 'Personne Physique Commerçante',
+    'PL': 'Profession Libérale',
+    'AO': 'Ambassades et Organisations Internationales',
+};
+
+// Obtenir la description complète du type de client
+function getClientTypeLabel(code) {
+    return CLIENT_TYPES[code] || code || 'Type inconnu';
+}
+
 // Obtenir le label complet du type de facture
 function getInvoiceTypeLabel(code) {
     return INVOICE_TYPES[code] || code || 'Facture de Vente';
@@ -651,7 +665,8 @@ const posCart = {
 
                 })),
                 client_name: clientNom,
-                client_type: clientTypeValue || clientTypeInitiales,
+                client_type: clientTypeInitiales,
+                client_type_val: getClientTypeLabel(clientTypeInitiales),
                 client_nif: clientNif
             };
 
@@ -1042,7 +1057,7 @@ const posCart = {
                            <div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>VENDEUR:</strong></span><span>${vendeur}</span></div>
                            ${acheteurNom ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>CLIENT:</strong></span><span>${acheteurNom}</span></div>` : ''}
                            ${acheteurNumero ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>NUM:</strong></span><span>${acheteurNumero}</span></div>` : ''}
-                           ${acheteurTypeInitiales ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>TYPE:</strong></span><span>${acheteurTypeInitiales}</span></div>` : ''}
+                           ${acheteurTypeInitiales ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>TYPE:</strong></span><span>${getClientTypeLabel(acheteurTypeInitiales)}</span></div>` : ''}
                            ${acheteurNif ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>NIF:</strong></span><span>${acheteurNif}</span></div>` : ''}
                            ${agentCode ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>Numero Agent:</strong></span><span>${agentCode}</span></div>` : ''}
                         </div>`;
@@ -1351,7 +1366,7 @@ const posCart = {
                                <div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>VENDEUR:</strong></span><span>${vendeur}</span></div>
                                ${acheteurNom ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>CLIENT:</strong></span><span>${acheteurNom}</span></div>` : ''}
                                ${acheteurNumero ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>NUM:</strong></span><span>${formatPhoneNumber(acheteurNumero)}</span></div>` : ''}
-                               ${acheteurTypeInitiales ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>TYPE:</strong></span><span>${acheteurTypeInitiales}</span></div>` : ''}
+                               ${acheteurTypeInitiales ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>TYPE:</strong></span><span>${getClientTypeLabel(acheteurTypeInitiales)}</span></div>` : ''}
                                ${acheteurNif ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>NIF:</strong></span><span>${acheteurNif}</span></div>` : ''}
                                ${agentCode ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>Numero Agent:</strong></span><span>${agentCode}</span></div>` : ''}
                             </div>`;
@@ -1588,6 +1603,7 @@ function openAddUserModal() {
     document.getElementById('user-fullname').value = '';
     document.getElementById('user-password').value = '';
     document.getElementById('user-password').required = true;
+    document.getElementById('user-agent-code').value = 'AG001';
     document.getElementById('user-role').value = 'vendeur';
     document.getElementById('user-actif').value = '1';
     document.getElementById('password-hint').style.display = 'none';
@@ -1605,7 +1621,8 @@ function openEditUserModal(id, username, fullname, role, actif, agentCode) {
     document.getElementById('user-id').value = id;
     document.getElementById('user-username').value = username;
     document.getElementById('user-fullname').value = fullname;
-    document.getElementById('user-agent-code').value = agentCode || '';
+    // Pre-fill agent code with default 'AG001' if empty
+    document.getElementById('user-agent-code').value = agentCode || 'AG001';
     document.getElementById('user-password').value = '';
     document.getElementById('user-password').required = false;
     document.getElementById('password-hint').style.display = 'inline';
@@ -2132,6 +2149,8 @@ let scannerProcessing = false;
 
 function openScannerModal() {
     const modal = document.getElementById('scanner-modal');
+
+    console.log(modal)
     if (!modal) return;
 
     modal.classList.add('active');

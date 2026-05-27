@@ -400,10 +400,10 @@
               </div>
               <div>
                 <label for="modal-client-type" style="font-size: 0.7rem; color: #94a3b8; display: block; margin-bottom: 2px;">Type</label>
-                <select id="modal-client-type" class="client-number-input" style="width: 100%;">
+                <select id="modal-client-type" class="client-number-input" style="width: 100%;" onchange="updateClientTypeDisplay(this)">
                   <option value="">Type client</option>
                   <?php if (isset($clientTypes)): foreach ($clientTypes as $type): ?>
-                      <option value="<?= $type['id'] ?>"><?= htmlspecialchars($type['code']) ?></option>
+                      <option value="<?= $type['id'] ?>"><?= htmlspecialchars($type['code']) ?> - <?= htmlspecialchars($type['description'] ?? $type['nom'] ?? '') ?></option>
                   <?php endforeach;
                   endif; ?>
                 </select>
@@ -432,43 +432,43 @@
         </div>
       </div>
     </div>
+  </div>
 
-    <!-- MODAL SCANNER -->
-    <div id="scanner-modal" class="scanner-modal">
-      <div class="scanner-modal-content">
-        <div class="scanner-modal-header">
-          <h3> Scanner Code-barres</h3>
-          <button class="scanner-close-btn" onclick="closeScannerModal()">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <line x1="18" y1="6" x2="6" y2="18"></line>
-              <line x1="6" y1="6" x2="18" y2="18"></line>
-            </svg>
-          </button>
-        </div>
+  <!-- MODAL SCANNER (EN DEHORS de invoice-info-modal) -->
+  <div id="scanner-modal" class="scanner-modal">
+    <div class="scanner-modal-content">
+      <div class="scanner-modal-header">
+        <h3> Scanner Code-barres</h3>
+        <button class="scanner-close-btn" onclick="closeScannerModal()">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
 
-        <!-- État de chargement -->
-        <div id="scanner-loading" class="scanner-status loading">
-          <div class="scanner-spinner"></div>
-          <span>Recherche du produit...</span>
-        </div>
+      <!-- État de chargement -->
+      <div id="scanner-loading" class="scanner-status loading">
+        <div class="scanner-spinner"></div>
+        <span>Recherche du produit...</span>
+      </div>
 
-        <!-- Résultat -->
-        <div id="scanner-result" class="scanner-status"></div>
+      <!-- Résultat -->
+      <div id="scanner-result" class="scanner-status"></div>
 
-        <!-- Info produit -->
-        <div id="scanner-product" class="scanner-product-info">
-          <div class="scanner-product-name" id="scanned-name">-</div>
-          <div class="scanner-product-price" id="scanned-price">-</div>
-        </div>
+      <!-- Info produit -->
+      <div id="scanner-product" class="scanner-product-info">
+        <div class="scanner-product-name" id="scanned-name">-</div>
+        <div class="scanner-product-price" id="scanned-price">-</div>
+      </div>
 
-        <!-- Zone de scan -->
-        <div id="scanner-reader"></div>
+      <!-- Zone de scan -->
+      <div id="scanner-reader"></div>
 
-        <!-- Actions -->
-        <div class="scanner-actions">
-          <button id="scanner-cancel-btn" class="scanner-btn-cancel" onclick="closeScannerModal()">Fermer</button>
-          <button id="scanner-rescan-btn" class="scanner-btn-rescan" onclick="restartScanner()" style="display:none;">Scanner à nouveau</button>
-        </div>
+      <!-- Actions -->
+      <div class="scanner-actions">
+        <button id="scanner-cancel-btn" class="btn btn-secondary" style="width: 100%;" onclick="closeScannerModal()">Fermer</button>
+        <button id="scanner-rescan-btn" class="scanner-btn-rescan" onclick="restartScanner()" style="display:none;">Scanner à nouveau</button>
       </div>
     </div>
   </div>
