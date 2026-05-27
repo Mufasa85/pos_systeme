@@ -609,8 +609,10 @@ const posCart = {
 
             // Récupérer les infos client pour la DGI
             const clientNom = $('#client-nom')?.value || (this.currentClient?.nom || '');
-            const clientTypeText = $('#client-type option:checked')?.textContent || (this.currentClient?.type_description || '');
-            const clientTypeInitiales = clientTypeText.split(' - ')[0].trim() || '';
+            const acheteurTypeText = $('#modal-client-type option:checked')?.textContent || (this.currentClient?.type_description || '');
+            // Extraire juste les initiales (ex: "PP - Particulier" -> "PP")
+            const acheteurTypeInitiales = acheteurTypeText.split(' - ')[0].trim() || '';
+
             const clientNif = $('#client-nif')?.value || (this.currentClient?.nif || '');
             const clientNumero = $('#client-number')?.value || (this.clientNumber || '');
 
@@ -625,8 +627,8 @@ const posCart = {
 
             // Récupérer le type de client (via le modal ou les champs directs)
             const clientTypeSelect = document.getElementById('modal-client-type');
-            console.log(clientTypeSelect)
-            let clientTypeValue = clientTypeInitiales;
+            console.warn(acheteurTypeInitiales)
+            let clientTypeValue = acheteurTypeInitiales;
             if (!clientTypeValue && clientTypeSelect) {
                 const selectedOption = clientTypeSelect.querySelector('option:checked');
                 if (selectedOption) {
@@ -665,8 +667,8 @@ const posCart = {
 
                 })),
                 client_name: clientNom,
-                client_type: clientTypeInitiales,
-                client_type_val: getClientTypeLabel(clientTypeInitiales),
+                client_type: acheteurTypeInitiales,
+                client_type_val: getClientTypeLabel(acheteurTypeInitiales),
                 client_nif: clientNif
             };
 
@@ -885,45 +887,46 @@ const posCart = {
         }
 
         // Display each category (a=standard, b, c, d, e, f=reduced, g, h, i, j, k, l, m, n, o, p)
-        const categories = [
-            { key: 'hab', label: 'B', tax: 16 },
-            { key: 'hac', label: 'C', tax: 5 },
-            { key: 'had', label: 'D', tax: 0 },
-            { key: 'hae', label: 'E', tax: 0 },
-            { key: 'haf', label: 'F', tax: 16 },
-            { key: 'hag', label: 'G', tax: 5 },
-            { key: 'hah', label: 'H', tax: 0 },
-            { key: 'hai', label: 'I', tax: 0 },
-            { key: 'haj', label: 'J', tax: 0 },
-            { key: 'hak', label: 'K', tax: 0 },
-            { key: 'hal', label: 'L', tax: 0 },
-            { key: 'ham', label: 'M', tax: 0 },
-            { key: 'han', label: 'N', tax: 0 },
-            { key: 'hao', label: 'O', tax: 1 },
-            { key: 'hap', label: 'P', tax: 1 }
+        const TAX_CATEGORIES = [
+            { key: 'haa', label: 'A', tax: 0, description: 'EXONERE ET HORS CHAMP' },
+            { key: 'hab', label: 'B', tax: 16, description: 'Taxable' },
+            { key: 'hac', label: 'C', tax: 5, description: 'Taxable' },
+            { key: 'had', label: 'D', tax: 0, description: 'Régimes dérogatoires TVA' },
+            { key: 'hae', label: 'E', tax: 0, description: 'Exportation et opération assimilées' },
+            { key: 'haf', label: 'F', tax: 16, description: 'TVA marché public à financement exterieur ' },
+            { key: 'hag', label: 'G', tax: 5, description: 'TVA marché public à financement exterieur ' },
+            { key: 'hah', label: 'H', tax: 0, description: 'consignation/déconsignation emballage' },
+            { key: 'hai', label: 'I', tax: 0, description: 'Garantie et caution' },
+            { key: 'haj', label: 'J', tax: 0, description: 'Débours' },
+            { key: 'hak', label: 'K', tax: 0, description: 'Opérations réalisées par les non-assujettis' },
+            { key: 'hal', label: 'L', tax: 0, description: 'Prélèvements sur les ventes' },
+            { key: 'ham', label: 'M', tax: 0, description: 'Ventes réglemntées TVA spécifique' },
+            { key: 'han', label: 'N', tax: 0, description: 'TVA spécifique' },
+            { key: 'hao', label: 'O', tax: 1, description: 'Taxable' },
+            { key: 'hap', label: 'P', tax: 1, description: 'TVA marché public à financement extérieur' }
         ];
 
-        categories.forEach(cat => {
+        TAX_CATEGORIES.forEach(cat => {
             const ht = parseFloat(haData[cat.key]) || 0;
             const va = parseFloat(vaData['va' + cat.key.slice(-1)]) || 0;
 
             if (ht > 0 || va > 0) {
                 html += `<div class="receipt-total-row" style="font-size: 11px; padding-left: 10px;">
-                    <span>HT[${cat.label}] taxable ${cat.tax} % :</span>
+                    <span>HT[${cat.label}] ${cat.description} ${cat.tax} % :</span>
                     <span>${ht.toFixed(2)} Fc</span>
                 </div>`;
                 if (va > 0) {
                     html += `<div class="receipt-total-row" style="font-size: 11px; padding-left: 10px; color: #666;">
-                        <span>TVA[${cat.label}] taxable ${cat.tax} % :</span>
+                        <span>TVA[${cat.label}] ${cat.description} ${cat.tax} % :</span>
                         <span>${va.toFixed(2)} Fc</span>
                     </div>`;
                 }
             }
         });
 
-        // Only show exonerated items in FINAL INVOICE (when dgiResponse is provided)
+        // Only show exonerated items when tax_etiquette is "A" (haa)
         if (dgiResponse) {
-            const exoneratedItems = this.items.filter(item => !item.tax_rate || item.tax_rate === 0);
+            const exoneratedItems = this.items.filter(item => item.tax_etiquette === 'A' || item.tax_etiquette === 'haa');
             const exoneratedTotal = exoneratedItems.reduce((sum, item) => sum + (item.prix * item.quantite), 0);
             if (exoneratedItems.length > 0 && exoneratedTotal > 0) {
                 html += `<div class="receipt-total-row" style="font-size: 11px; padding-left: 5px; color: #888;">
@@ -1016,7 +1019,7 @@ const posCart = {
             const prodService = item.prod_service ? `<span class="item-prod-service">[${item.prod_service}]</span>` : '';
             itemsHtml += `
                 <tr>
-                    <td><span class="item-name">${item.nom}<span class="item-tax-badge">${taxLabel}</span>${prodService}</span></td>
+                    <td><span class="item-name">Point de vente : ${item.nom}<span class="item-tax-badge">${taxLabel}</span>${prodService}</span></td>
                     <td class="item-qty">${itemQty}</td>                
                     <td class="item-total">${itemTotalHT.toFixed(2)} Fc</td>
                 </tr>
@@ -1067,7 +1070,7 @@ const posCart = {
                 <div class="receipt-header">
                     <div class="store-name">${STORE_INFO.name}</div>
                     <div class="store-info">
-                        <div>${STORE_INFO.address}</div>
+                        <div>Point de vente : ${STORE_INFO.address}</div>
                         <div>Tel: ${STORE_INFO.phone}</div>
                         ${STORE_INFO.email ? `<div>Email: ${STORE_INFO.email}</div>` : ''}
                         <div>ID Nat: ${STORE_INFO.ice}</div>
@@ -1343,6 +1346,7 @@ const posCart = {
             // Récupérer les infos client pour le reçu
             const acheteurNom = $('#client-nom')?.value || (this.currentClient?.nom || '');
             const acheteurTypeText = $('#modal-client-type option:checked')?.textContent || (this.currentClient?.type_description || '');
+            // Extraire juste les initiales (ex: "PP - Particulier" -> "PP")
             const acheteurTypeInitiales = acheteurTypeText.split(' - ')[0].trim() || '';
             const acheteurNif = $('#client-nif')?.value || (this.currentClient?.nif || '');
             const acheteurNumero = $('#client-number')?.value || (this.clientNumber || '');
@@ -1350,6 +1354,8 @@ const posCart = {
 
             // Récupérer le code agent de l'utilisateur connecté
             const agentCode = (typeof CURRENT_USER !== 'undefined' && CURRENT_USER.agentCode) ? CURRENT_USER.agentCode : '';
+
+            console.warn(acheteurTypeText)
 
             // Ajouter les infos RCCM et Agent Code si disponibles (chacun sur sa propre ligne)
             let storeExtraInfo = '';
@@ -1397,7 +1403,7 @@ const posCart = {
                     <div class="receipt-header">
                         <div class="store-name">${STORE_INFO.name}</div>
                         <div class="store-info">
-                            <div>${STORE_INFO.address}</div>
+                            <div>Point de vente : ${STORE_INFO.address}</div>
                             <div>Tel: ${STORE_INFO.phone}</div>
                             ${STORE_INFO.email ? `<div>Email: ${STORE_INFO.email}</div>` : ''}
                             <div>ID Nat: ${STORE_INFO.ice}</div>
@@ -2030,7 +2036,7 @@ async function viewSaleDetails(saleId) {
         let infoSection = '<div style="border-top:1px dashed #ccc; margin-top:6px; padding-top:6px; text-align:left; font-size:15px; line-height:1.5;"><div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>Vendeur:</strong></span><span>' + vendeur + '</span></div>';
         if (acheteurNom) infoSection += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>Client:</strong></span><span>' + acheteurNom + '</span></div>';
         if (acheteurNumero) infoSection += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>Num:</strong></span><span>' + formatPhoneNumber(acheteurNumero) + '</span></div>';
-        if (acheteurType) infoSection += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>Type:</strong></span><span>' + acheteurType + '</span></div>';
+        if (acheteurType) infoSection += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>Type:</strong></span><span>' + getClientTypeLabel(acheteurType) + '</span></div>';
         if (acheteurNif) infoSection += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>NIF:</strong></span><span>' + acheteurNif + '</span></div>';
         if (STORE_INFO.isf) infoSection += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>ISF:</strong></span><span>' + STORE_INFO.isf + '</span></div>';
         infoSection += '</div>';

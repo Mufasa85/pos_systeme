@@ -276,15 +276,78 @@ function applyTheme(themeName) {
 }
 
 /**
+ * Theme cache configuration
+ */
+const THEME_CACHE_DURATION = 15 * 60 * 1000; // 15 minutes in milliseconds
+
+/**
+ * Get cached theme data from localStorage
+ * @returns {object|null} Cached theme data or null
+ */
+function getCachedThemeData() {
+  try {
+    const cached = localStorage.getItem('theme_cache');
+    return cached ? JSON.parse(cached) : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+/**
+ * Save theme data to localStorage with timestamp
+ * @param {string} themeName - Theme name to cache
+ */
+function cacheThemeData(themeName) {
+  try {
+    const cacheData = {
+      theme: themeName,
+      timestamp: Date.now()
+    };
+    localStorage.setItem('theme_cache', JSON.stringify(cacheData));
+  } catch (e) {
+    console.warn('Could not cache theme data');
+  }
+}
+
+/**
  * Load theme from server (for all users to have same theme)
+ * Only fetches if cache is expired (> 15 minutes)
  */
 async function loadThemeFromServer() {
+  // Check localStorage cache first
+  const cached = getCachedThemeData();
+
+  if (cached && cached.theme) {
+    // Check if cache is still valid
+    const now = Date.now();
+    const cacheAge = now - cached.timestamp;
+
+    if (cacheAge < THEME_CACHE_DURATION) {
+      console.log('[THEME] Using cached theme:', cached.theme, '(age:', Math.round(cacheAge / 1000), 's)');
+      return cached.theme;
+    }
+
+    console.log('[THEME] Cache expired, fetching from server...');
+  }
+
   try {
     const response = await fetch('/api/settings/theme');
     const data = await response.json();
-    return data.theme || 'blue';
+    const themeName = data.theme || 'blue';
+
+    // Cache the result with timestamp
+    cacheThemeData(themeName);
+
+    return themeName;
   } catch (e) {
-    console.warn('Could not load theme from server, using localStorage');
+    console.warn('Could not load theme from server, using cached/localStorage');
+
+    // Fallback to cached theme even if expired
+    if (cached && cached.theme) {
+      return cached.theme;
+    }
+
+    // Last fallback
     return localStorage.getItem('theme') || 'blue';
   }
 }
