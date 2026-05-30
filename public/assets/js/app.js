@@ -32,6 +32,18 @@ function getInvoiceTypeLabel(code) {
     return INVOICE_TYPES[code] || code || 'Facture de Vente';
 }
 
+// Types d'exonération et leurs descriptions complètes
+const EXONERATION_TYPES = {
+    'RAM': 'Avoir suite reprise',
+    'RRR': 'Remise,Ristourne,Rabais',
+    'RAN': 'Annulation',
+    'COR': 'Correction',
+};
+
+function getExonerationLabel(code) {
+    return EXONERATION_TYPES[code] || code || 'Exonération inconnue';
+}
+
 // Taux de change USD (sera mis à jour depuis l'API)
 let USD_RATE = 2555; // Valeur par défaut
 
@@ -619,6 +631,7 @@ const posCart = {
             // Récupérer le type de facture et la référence document
             const invoiceType = document.getElementById('invoice-type')?.value || 'FV';
             const invoiceRef = document.getElementById('invoice-ref')?.value || '';
+            const refFacture = document.getElementById('modal-invoice-num')?.value || '';
             const exoneration = document.getElementById('modal-exoneration')?.value || '';
 
             // Récupérer le type de paiement
@@ -653,6 +666,7 @@ const posCart = {
                 invoice_number: this.currentInvoiceNum,
                 invoice_type: invoiceType,
                 invoice_ref: invoiceRef,
+                ref_facture: refFacture,
                 exoneration: exoneration,
                 payment_type: paymentType,
                 articles: this.items.map(item => ({
@@ -950,6 +964,10 @@ const posCart = {
         return `
 
             <div class="receipt-total-row" style="font-size: 11px; color: #555">
+                <span>TAUX DU JOUR :</span>
+                <span>${USD_RATE} Fc/USD</span>
+            </div>
+            <div class="receipt-total-row" style="font-size: 11px; color: #555">
                 <span>Equivalent en USD :</span>   
                 <span> ${(this.currentTotals.total / USD_RATE).toFixed(2)}$ </span>
             </div>
@@ -1019,7 +1037,7 @@ const posCart = {
             const prodService = item.prod_service ? `<span class="item-prod-service">[${item.prod_service}]</span>` : '';
             itemsHtml += `
                 <tr>
-                    <td><span class="item-name">Point de vente : ${item.nom}<span class="item-tax-badge">${taxLabel}</span>${prodService}</span></td>
+                    <td><span class="item-name"> ${item.nom}<span class="item-tax-badge">${taxLabel}</span>${prodService}</span></td>
                     <td class="item-qty">${itemQty}</td>                
                     <td class="item-total">${itemTotalHT.toFixed(2)} Fc</td>
                 </tr>
@@ -1070,7 +1088,7 @@ const posCart = {
                 <div class="receipt-header">
                     <div class="store-name">${STORE_INFO.name}</div>
                     <div class="store-info">
-                        <div>Point de vente : ${STORE_INFO.address}</div>
+<div><strong>Point de vente :</strong> ${STORE_INFO.address}</div>
                         <div>Tel: ${STORE_INFO.phone}</div>
                         ${STORE_INFO.email ? `<div>Email: ${STORE_INFO.email}</div>` : ''}
                         <div>ID Nat: ${STORE_INFO.ice}</div>
@@ -1085,6 +1103,9 @@ const posCart = {
                 <div class="receipt-meta" style="justify-content: center; font-size: 14px; font-weight: 555;">
                     ${getInvoiceTypeLabel(document.getElementById('invoice-type')?.value)}
                 </div>
+                
+                ${document.getElementById('invoice-ref')?.value ?? `<div style="text-align: center; font-size: 12px; color: #666;">Réf: ${document.getElementById('invoice-ref').value}</div>`}
+                ${document.getElementById('invoice-ref')?.value ?? document.getElementById('modal-exoneration')?.value ? `<div style="text-align: center; font-size: 11px; color: #888; font-style: italic;">Exonération: ${getExonerationLabel(document.getElementById('modal-exoneration').value)}</div>` : ''}
 
                 <div class="receipt-items">
                     ${itemsHtml}
@@ -1403,7 +1424,7 @@ const posCart = {
                     <div class="receipt-header">
                         <div class="store-name">${STORE_INFO.name}</div>
                         <div class="store-info">
-                            <div>Point de vente : ${STORE_INFO.address}</div>
+                           <div><strong>Point de vente :</strong> ${STORE_INFO.address}</div>
                             <div>Tel: ${STORE_INFO.phone}</div>
                             ${STORE_INFO.email ? `<div>Email: ${STORE_INFO.email}</div>` : ''}
                             <div>ID Nat: ${STORE_INFO.ice}</div>
@@ -1414,10 +1435,15 @@ const posCart = {
                         </div>
                         ${infoSection}
                     </div>
-                    <div class="receipt-meta" style="justify-content: center; font-size: 14px; font-weight: 555;">
-                        ${getInvoiceTypeLabel(saleData.type_facture || document.getElementById('invoice-type')?.value)}
+                    <div class="receipt-meta" style="justify-content: center; font-size: 14px; font-weight: 555; display: flex; flex-direction: column; text-align: center; gap: 4px;">
+                        <div>${getInvoiceTypeLabel(saleData.type_facture || document.getElementById('invoice-type')?.value)}</div>
+                        ${dgiResponse.data?.refDocument ? `<div style="text-align: center; font-size: 11px; color: #888; font-style: italic;">${dgiResponse.data.actionFacture || ''}</div>` : ''}
+                       
+                        ${dgiResponse.data?.refDocument ? `<div style="text-align: center; font-size: 11px; color: #888; font-style: italic;">${dgiResponse.data.refFacture || ''}</div>` : ''}
+                         ${dgiResponse.data?.refDocument ? `<div style="text-align: center; font-size: 11px; color: #888; font-style: italic;">${dgiResponse.data.refDocument}</div>` : ''}
                     </div>
-
+                    
+                   
                     <div class="receipt-items">
                         ${itemsHtml}
                     </div>
@@ -1433,9 +1459,8 @@ const posCart = {
                             <span>${this.currentTotals.total.toFixed(2)} Fc</span>
                         </div>
                         ${this.getPaymentInfoHtml()}
-                         <div style="margin: 10px 0; font-size: 11px; color: #333; border: 1px dashed #ccc; padding: 8px; border-radius: 4px; text-align: left;">
-                            <div style="font-weight: bold; text-decoration: underline; margin-bottom: 4px;">Commentaire/Remarque :</div>
-                            <div>${(dgiResponse.comment || (dgiResponse.data && dgiResponse.data.comment)) || 'Aucun commentaire'}</div>
+                         <div style="margin: 10px 0; font-size: 11px; color: #333; border: 1px dashed #ccc; padding: 8px; border-radius: 4px; text-align: center;">
+                            ISF : ${dgiResponse.data?.isf}
                          </div>
                     </div>
 
@@ -3225,6 +3250,61 @@ async function saveClientFromModal() {
             showModalClientMessage('Client enregistré: ' + data.client.nom_client, 'success');
         } else {
             showModalClientMessage(data.message || 'Erreur lors de l\'enregistrement', 'error');
+        }
+    } catch (e) {
+        showModalClientMessage('Erreur de connexion', 'error');
+    }
+}
+
+async function editClientFromModal() {
+    const currentClient = posCart?.currentClient;
+    const clientNumberInput = document.getElementById('modal-client-number');
+    const clientNameInput = document.getElementById('modal-client-name');
+    const clientTypeSelect = document.getElementById('modal-client-type');
+    const clientNifInput = document.getElementById('modal-client-nif');
+
+    if (!clientNameInput || !clientNumberInput) return;
+
+    if (!currentClient || !currentClient.id) {
+        showModalClientMessage('Aucun client sélectionné. Recherchez d\'abord.', 'error');
+        return;
+    }
+
+    const nom = clientNameInput.value?.trim();
+    const numero = clientNumberInput.value?.trim();
+    const typeId = clientTypeSelect?.value;
+    const nif = clientNifInput?.value?.trim();
+
+    if (!nom || !numero) {
+        showModalClientMessage('Veuillez remplir le nom et le numéro', 'error');
+        return;
+    }
+
+    try {
+        const res = await fetch(APP_URL + '/api/client/' + currentClient.id, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nom, numero, type_client_id: typeId, nif })
+        });
+        const data = await res.json();
+
+        if (data.success && data.client) {
+            if (posCart) {
+                posCart.currentClient = data.client;
+                posCart.clientNumber = data.client.numero;
+                posCart.displayClientName(data.client);
+            }
+            showModalClientMessage('Client modifié: ' + data.client.nom_client, 'success');
+            const nomField = document.getElementById('client-nom');
+            const numberField = document.getElementById('client-number');
+            const typeField = document.getElementById('client-type');
+            const nifField = document.getElementById('client-nif');
+            if (nomField) nomField.value = data.client.nom_client || '';
+            if (numberField) numberField.value = data.client.numero || '';
+            if (typeField) typeField.value = data.client.type_id || '';
+            if (nifField) nifField.value = data.client.nif || '';
+        } else {
+            showModalClientMessage(data.message || 'Erreur lors de la modification', 'error');
         }
     } catch (e) {
         showModalClientMessage('Erreur de connexion', 'error');

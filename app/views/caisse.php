@@ -301,11 +301,11 @@
         <button class="close-modal" onclick="closeInvoiceInfoModal()">&times;</button>
       </div>
       <div style="padding: 1.5rem;">
-        <!-- Type, Référence et Exonération -->
-        <div style="display: flex; gap: 12px; margin-bottom: 1rem; align-items: flex-end;">
-          <div style="flex: 0 0 100px;">
+        <!-- Type et Référence Document -->
+        <div style="display: grid; grid-template-columns: 80px 1fr; gap: 12px; margin-bottom: 0.75rem; align-items: flex-end;">
+          <div>
             <label for="modal-invoice-type" style="font-size: 0.7rem; font-weight: 600; color: #64748b; display: block; margin-bottom: 4px;">TYPE</label>
-            <select id="modal-invoice-type" class="client-number-input" style="width: 100%;">
+            <select id="modal-invoice-type" class="client-number-input" style="width: 100%; padding: 6px 8px; font-size: 0.8rem;">
               <option value="FV">FV</option>
               <option value="EV">EV</option>
               <option value="FT">FT</option>
@@ -314,13 +314,20 @@
               <option value="ET">ET</option>
             </select>
           </div>
-          <div style="flex: 2;">
+          <div>
             <label for="modal-invoice-ref" style="font-size: 0.7rem; font-weight: 600; color: #64748b; display: block; margin-bottom: 4px;">RÉF DOCUMENT</label>
-            <input type="text" id="modal-invoice-ref" class="client-number-input" placeholder="Référence..." style="width: 100%;">
+            <input type="text" id="modal-invoice-ref" class="client-number-input" placeholder="Réf..." style="width: 100%;">
           </div>
-          <div style="flex: 1;">
-            <label for="modal-exoneration" style="font-size: 0.7rem; font-weight: 600; color: #64748b; display: block; margin-bottom: 4px;">EXONÉRATION</label>
-            <select id="modal-exoneration" class="client-number-input" style="width: 100%;">
+        </div>
+        <!-- Ref Facture et Exonération -->
+        <div style="display: grid; grid-template-columns: 1fr 80px; gap: 12px; margin-bottom: 1rem; align-items: flex-end;">
+          <div>
+            <label for="modal-invoice-num" style="font-size: 0.7rem; font-weight: 600; color: #64748b; display: block; margin-bottom: 4px;">REF FACTURE</label>
+            <input type="text" id="modal-invoice-num" class="client-number-input" placeholder="N° facture..." style="width: 100%;">
+          </div>
+          <div>
+            <label for="modal-exoneration" style="font-size: 0.7rem; font-weight: 600; color: #64748b; display: block; margin-bottom: 4px;"></label>
+            <select id="modal-exoneration" class="client-number-input" style="width: 100%; padding: 6px 4px; font-size: 0.75rem;">
               <option value="RAM">RAM</option>
               <option value="RRR">RRR</option>
               <option value="RAN">RAN</option>

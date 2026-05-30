@@ -278,7 +278,7 @@ function applyTheme(themeName) {
 /**
  * Theme cache configuration
  */
-const THEME_CACHE_DURATION = 15 * 60 * 1000; // 15 minutes in milliseconds
+const THEME_CACHE_DURATION = 5 * 1000; // 15 minutes in milliseconds
 
 /**
  * Get cached theme data from localStorage
@@ -287,7 +287,7 @@ const THEME_CACHE_DURATION = 15 * 60 * 1000; // 15 minutes in milliseconds
 function getCachedThemeData() {
   try {
     const cached = localStorage.getItem('theme_cache');
-    return cached ? JSON.parse(cached) : null;
+    return cached ? JSON.parse(cached) : null;-
   } catch (e) {
     return null;
   }

@@ -18,7 +18,22 @@ class BillPayment {
         this.selectedMonths = [];
         this.dgiResponse = null;
 
+        // Types de factures
+        this.invoiceTypes = {
+            'FV': 'Facture de Vente',
+            'EV': "Fac de Vente à l'exportation",
+            'FT': "Facture d'acompte",
+            'FA': "Facture d'avoir",
+            'EA': "Fac d'avoir à l'exportation",
+            'ET': "Fac d'acompte à l'exportation",
+        };
+
         console.log('[BillPayment] Initialisé, session:', this.sessionId);
+    }
+
+    // Obtenir le label complet du type de facture
+    getInvoiceTypeLabel(code) {
+        return this.invoiceTypes[code] || code || 'Facture de Vente';
     }
 
     // ==========================================
@@ -729,6 +744,7 @@ class BillPayment {
         // Récupérer les infos client
         const clientNom = document.getElementById('client-nom')?.value || this.clientInfo?.nom || '';
         const clientNumero = document.getElementById('invoice-number')?.value || '';
+        const invoiceType = document.getElementById('invoice-type')?.value || 'FV';
 
         // Infos RCCM et ISF
         let storeExtraInfo = '';
@@ -739,60 +755,58 @@ class BillPayment {
             storeExtraInfo += `<div>Numero Impot: ${STORE_INFO.isf}</div>`;
         }
 
-        // Construire les items du reçu
-        let itemsHtml = '';
+        // Construire les items du reçu avec tableau (style caisse)
+        let itemsHtml = '<table class="receipt-table"><thead><tr><th>Article</th><th>Qté</th><th>HT</th></tr></thead><tbody>';
         this.selectedMonths.forEach(month => {
             const monthName = this.moisNoms[month.mois];
             itemsHtml += `
-                <div class="receipt-item">
-                    <span class="item-name">${monthName} ${month.annee}</span>
-                    <span class="item-qty">x1</span>
-                    <span class="item-price">${this.formatMoney(month.montant)}</span>
-                </div>
+                <tr>
+                    <td><span class="item-name">${monthName} ${month.annee}<span class="item-tax-badge">B</span>[SER]</span></td>
+                    <td class="item-qty">1</td>
+                    <td class="item-total">${this.formatMoney(month.montant)} Fc</td>
+                </tr>
             `;
         });
+        itemsHtml += '</tbody></table>';
 
-        // Section infos (Vendeur + Client)
+        // Section infos (Vendeur + Client) - style caisse
         let infoSection = `<div style="border-top: 1px dashed #ccc; margin-top: 6px; padding-top: 6px; text-align: left; font-size: 11px; line-height: 1.5;">
-                           <div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>Vendeur:</strong></span><span>${vendeur}</span></div>
-                           ${clientNom ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>Client:</strong></span><span>${clientNom}</span></div>` : ''}
-                           ${clientNumero ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>N° Compteur:</strong></span><span>${clientNumero}</span></div>` : ''}
-                           <div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>Service:</strong></span><span>${service}</span></div>
+                           <div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>VENDEUR:</strong></span><span>${vendeur}</span></div>
+                           ${clientNom ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>CLIENT:</strong></span><span>${clientNom}</span></div>` : ''}
+                           ${clientNumero ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>N° COMPTEUR:</strong></span><span>${clientNumero}</span></div>` : ''}
+                           <div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>SERVICE:</strong></span><span>${service}</span></div>
                            ${STORE_INFO.isf ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>ISF:</strong></span><span>${STORE_INFO.isf}</span></div>` : ''}
-                        </div>`;
+                         </div>`;
 
         $('#preview-content').innerHTML = `
             <div class="receipt">
                 <div class="receipt-header">
                     <div class="store-name">${STORE_INFO.name}</div>
                     <div class="store-info">
-                        <div>${STORE_INFO.address}</div>
+                        <div><strong>Point de vente :</strong> ${STORE_INFO.address}</div>
                         <div>Tel: ${STORE_INFO.phone}</div>
                         <div>ID Nat: ${STORE_INFO.ice}</div>
                         ${storeExtraInfo}
                     </div>
                     ${infoSection}
                 </div>
-                <div class="receipt-meta">
-                    <span>${invoiceNum}</span>
-                    <span>${document.getElementById('invoice-type')?.value || 'FV'}</span>
+        <div class="receipt-meta" style="justify-content: center; font-size: 14px; font-weight: 555;">
+                    ${this.getInvoiceTypeLabel(invoiceType)}
                 </div>
-                <div class="receipt-items receipt-items-grid">
+                <div class="receipt-items">
                     ${itemsHtml}
                 </div>
-                <div class="receipt-totals">
-                    <div class="receipt-total-row">
-                        <span>Sous-total:</span>
-                        <span>${this.formatMoney(total)} Fc</span>
-                    </div>
+        <div class="receipt-totals">
+                    ${this.getTaxBreakdownHtml()}
                     <div class="receipt-total-row grand-total">
                         <span>TOTAL TTC:</span>
                         <span>${this.formatMoney(total)} Fc</span>
                     </div>
+                    ${this.getPaymentInfoHtml()}
                 </div>
                 <div class="receipt-footer">
-                    <div class="barcode">${invoiceNum}</div>
-                    <div class="thank-you">Paiement facture ${service}</div>
+                    <div class="thank-you">FACTURE n°${invoiceNum}</div>
+                    <div class="thank-you">Paiement ${service}</div>
                     <div style="margin-top: 5px; font-size: 9px; font-style: italic;">---Powered By Osat---</div>
                 </div>
             </div>
@@ -874,25 +888,45 @@ class BillPayment {
 
         const service = this.currentProvider === 1 ? 'ELECTRICITE' : 'EAU';
         const total = this.selectedMonths.reduce((acc, m) => acc + m.montant, 0);
-        const invoiceNum = this.currentInvoiceNum
+        const invoiceNum = this.currentInvoiceNum;
+        const invoiceType = document.getElementById('invoice-type')?.value || 'FV';
 
-        // Construire items
-        let itemsHtml = '';
+        // Construire items avec tableau (style caisse)
+        let itemsHtml = '<table class="receipt-table"><thead><tr><th>Article</th><th>Qté</th><th>HT</th></tr></thead><tbody>';
         this.selectedMonths.forEach(month => {
             const monthName = this.moisNoms[month.mois];
             itemsHtml += `
-                <div class="receipt-item">
-                    <span class="item-name">${monthName} ${month.annee}</span>
-                    <span class="item-qty">x1</span>
-                    <span class="item-price">${this.formatMoney(month.montant)}</span>
-                </div>
+                <tr>
+                    <td><span class="item-name">${monthName} ${month.annee}<span class="item-tax-badge">Exonere</span></span></td>
+                    <td class="item-qty">1</td>
+                    <td class="item-total">${this.formatMoney(month.montant)} Fc</td>
+                </tr>
             `;
         });
+        itemsHtml += '</tbody></table>';
 
         // Récupérer client info
         const clientNom = document.getElementById('client-nom')?.value || '';
         const clientNumero = document.getElementById('invoice-number')?.value || '';
         const vendeur = (typeof CURRENT_USER !== 'undefined' && CURRENT_USER.fullName) ? CURRENT_USER.fullName : STORE_INFO.name;
+
+        // Infos RCCM et ISF
+        let storeExtraInfo = '';
+        if (STORE_INFO.rccm) {
+            storeExtraInfo += `<div>RCCM: ${STORE_INFO.rccm}</div>`;
+        }
+        if (STORE_INFO.isf) {
+            storeExtraInfo += `<div>Numero Impot: ${STORE_INFO.isf}</div>`;
+        }
+
+        // Section infos (Vendeur + Client) - style caisse
+        let infoSection = `<div style="border-top: 1px dashed #ccc; margin-top: 6px; padding-top: 6px; text-align: left; font-size: 11px; line-height: 1.5;">
+                           <div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>VENDEUR:</strong></span><span>${vendeur}</span></div>
+                           ${clientNom ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>CLIENT:</strong></span><span>${clientNom}</span></div>` : ''}
+                           ${clientNumero ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>N° COMPTEUR:</strong></span><span>${clientNumero}</span></div>` : ''}
+                           <div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>SERVICE:</strong></span><span>${service}</span></div>
+                           ${STORE_INFO.isf ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>ISF:</strong></span><span>${STORE_INFO.isf}</span></div>` : ''}
+                         </div>`;
 
         // Infos DGI
         let dgiInfoHtml = '';
@@ -911,46 +945,41 @@ class BillPayment {
 
         const qrContainerId = 'dgi-qrcode-container';
 
-        // Afficher le modal ticket
+        // Afficher le modal ticket (style caisse)
         $('#receipt-content').innerHTML = `
             <div class="receipt">
                 <div class="receipt-header">
                     <div class="store-name">${STORE_INFO.name}</div>
                     <div class="store-info">
-                        <div>${STORE_INFO.address}</div>
+                        <div><strong>Point de vente :</strong> ${STORE_INFO.address}</div>
                         <div>Tel: ${STORE_INFO.phone}</div>
                         <div>ID Nat: ${STORE_INFO.ice}</div>
-                        ${STORE_INFO.isf ? `<div>Numero Impot: ${STORE_INFO.isf}</div>` : ''}
+                        ${storeExtraInfo}
                     </div>
-                    <div style="border-top: 1px dashed #ccc; margin-top: 6px; padding-top: 6px; text-align: left; font-size: 15px; line-height: 1.5;">
-                        <div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>Vendeur:</strong></span><span>${vendeur}</span></div>
-                        ${clientNom ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>Client:</strong></span><span>${clientNom}</span></div>` : ''}
-                        ${clientNumero ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>N° Compteur:</strong></span><span>${clientNumero}</span></div>` : ''}
-                        <div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>Service:</strong></span><span>${service}</span></div>
-                    </div>
+                    ${infoSection}
                 </div>
-                <div class="receipt-meta">
-                    <span>${invoiceNum}</span>
-                    <span>${document.getElementById('invoice-type')?.value || 'FV'}</span>
+                <div class="receipt-meta" style="justify-content: center; font-size: 14px; font-weight: 555;">
+                    ${this.getInvoiceTypeLabel(invoiceType)}
                 </div>
-                <div class="receipt-items receipt-items-grid">
+                <div class="receipt-items">
                     ${itemsHtml}
                 </div>
                 <div class="receipt-totals">
+                    ${this.getTaxBreakdownHtml(dgiResponse)}
                     <div class="receipt-total-row grand-total">
                         <span>TOTAL TTC:</span>
                         <span>${this.formatMoney(total)} Fc</span>
                     </div>
-                    <div style="margin: 10px 0; font-size: 11px; color: #333; border: 1px dashed #ccc; padding: 8px; border-radius: 4px; text-align: left;">
-                        <div style="font-weight: bold; text-decoration: underline; margin-bottom: 4px;">Commentaire:</div>
-                        <div>${dgiResponse?.comment || dgiResponse?.data?.comment || 'Paiement facture ' + "No comment"}</div>
+                    ${this.getPaymentInfoHtml()}
+                    <div style="margin: 10px 0; font-size: 11px; color: #333; border: 1px dashed #ccc; padding: 8px; border-radius: 4px; text-align: center;">
+                        ISF : ${dgiResponse?.data?.isf || '0'}
                     </div>
                 </div>
                 ${dgiInfoHtml}
                 <div class="receipt-footer">
                     <div id="${qrContainerId}" class="qrcode-container"></div>
-                    <div class="barcode">${invoiceNum}</div>
-                    <div class="thank-you">Paiement facture ${service}</div>
+                    <div class="thank-you">FACTURE n°${invoiceNum}</div>
+                    <div class="thank-you">Paiement ${service}</div>
                     <div style="margin-top: 5px; font-size: 9px; font-style: italic;">---Powered By Osat---</div>
                 </div>
             </div>
@@ -969,8 +998,8 @@ class BillPayment {
         }
         try {
             const qrCode = new QRCodeStyling({
-                width: 180,
-                height: 180,
+                width: 250,
+                height: 250,
                 type: "svg",
                 data: qrCodeContent,
                 margin: 10,
@@ -1019,6 +1048,193 @@ class BillPayment {
 
     formatMoney(amount) {
         return parseFloat(amount).toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+    }
+
+    // Generate tax breakdown HTML (simplified for exonerated recharges)
+    getTaxBreakdownHtml(dgiResponse) {
+        // Recharges are exonerated - show EXONERE ET HORS CHAMP
+        let html = '';
+
+        // Try to parse ht_tva_group from DGI response
+        let haData = {};
+        let vaData = {};
+
+        try {
+            if (dgiResponse?.data?.ht_tva_group) {
+                const parsed = typeof dgiResponse.data.ht_tva_group === 'string'
+                    ? JSON.parse(dgiResponse.data.ht_tva_group)
+                    : dgiResponse.data.ht_tva_group;
+
+                if (parsed?.data) {
+                    haData = parsed.data.ha || {};
+                    vaData = parsed.data.va || {};
+                }
+            }
+        } catch (e) {
+            console.warn('Error parsing ht_tva_group:', e);
+        }
+
+        // Display each category (a=standard, b, c, d, e, f=reduced, g, h, i, j, k, l, m, n, o, p)
+        const TAX_CATEGORIES = [
+            { key: 'haa', label: 'A', tax: 0, description: 'EXONERE ET HORS CHAMP' },
+            { key: 'hab', label: 'B', tax: 16, description: 'Taxable' },
+            { key: 'hac', label: 'C', tax: 5, description: 'Taxable' },
+            { key: 'had', label: 'D', tax: 0, description: 'Régimes dérogatoires TVA' },
+            { key: 'hae', label: 'E', tax: 0, description: 'Exportation et opération assimilées' },
+            { key: 'haf', label: 'F', tax: 16, description: 'TVA marché public à financement exterieur ' },
+            { key: 'hag', label: 'G', tax: 5, description: 'TVA marché public à financement exterieur ' },
+            { key: 'hah', label: 'H', tax: 0, description: 'consignation/déconsignation emballage' },
+            { key: 'hai', label: 'I', tax: 0, description: 'Garantie et caution' },
+            { key: 'haj', label: 'J', tax: 0, description: 'Débours' },
+            { key: 'hak', label: 'K', tax: 0, description: 'Opérations réalisées par les non-assujettis' },
+            { key: 'hal', label: 'L', tax: 0, description: 'Prélèvements sur les ventes' },
+            { key: 'ham', label: 'M', tax: 0, description: 'Ventes réglemntées TVA spécifique' },
+            { key: 'han', label: 'N', tax: 0, description: 'TVA spécifique' },
+            { key: 'hao', label: 'O', tax: 1, description: 'Taxable' },
+            { key: 'hap', label: 'P', tax: 1, description: 'TVA marché public à financement extérieur' }
+        ];
+
+        TAX_CATEGORIES.forEach(cat => {
+            const ht = parseFloat(haData[cat.key]) || 0;
+            const va = parseFloat(vaData['va' + cat.key.slice(-1)]) || 0;
+
+            if (ht > 0 || va > 0) {
+                html += `<div class="receipt-total-row" style="font-size: 11px; padding-left: 10px;">
+                    <span>HT[${cat.label}] ${cat.description} ${cat.tax} % :</span>
+                    <span>${ht.toFixed(2)} Fc</span>
+                </div>`;
+                if (va > 0) {
+                    html += `<div class="receipt-total-row" style="font-size: 11px; padding-left: 10px; color: #666;">
+                        <span>TVA[${cat.label}] ${cat.description} ${cat.tax} % :</span>
+                        <span>${va.toFixed(2)} Fc</span>
+                    </div>`;
+                }
+            }
+        });
+
+        // Only show exonerated items when tax_etiquette is "A" (haa)
+        if (dgiResponse) {
+            const exoneratedItems = this.months.filter(item => item.tax_etiquette === 'A' || item.tax_etiquette === 'haa');
+            const exoneratedTotal = exoneratedItems.reduce((sum, item) => sum + (item.prix * item.quantite), 0);
+            if (exoneratedItems.length > 0 && exoneratedTotal > 0) {
+                html += `<div class="receipt-total-row" style="font-size: 11px; padding-left: 5px; color: #888;">
+                    <span>EXONERE ET HORS CHAMP:</span>
+                    <span>${exoneratedTotal.toFixed(2)} Fc</span>
+                </div>`;
+            }
+        }
+
+        return html;
+    }
+
+    // Generate payment info HTML for receipts (called after TOTAL TTC)
+    getPaymentInfoHtml() {
+        const totalQty = this.selectedMonths.reduce((sum, m) => sum + 1, 0);
+        const paymentTypeSelect = document.getElementById('modal-payment-type') || document.getElementById('payment-type');
+        const paymentType = paymentTypeSelect?.value || 'cash';
+        const paymentLabel = paymentType === 'cash' ? 'Espèces' : paymentType === 'card' ? 'Carte' : paymentType === 'transfer' ? 'Virement' : paymentType;
+        const amountInWords = this.numberToFrenchWords(this.currentTotals?.total || 0);
+
+        const total = this.selectedMonths.reduce((acc, m) => acc + m.montant, 0);
+
+        return `
+            <div class="receipt-total-row" style="font-size: 11px; color: #555">
+                <span>TAUX DU JOUR :</span>
+                <span>${USD_RATE} Fc/USD</span>
+            </div>
+            <div class="receipt-total-row" style="font-size: 11px; color: #555">
+                <span>Equivalent en USD :</span>   
+                <span> ${(total / USD_RATE).toFixed(2)}$ </span>
+            </div>
+            <div class="receipt-total-row" style="font-size: 11px; color: #555;">
+                <span>Paiment : </span>
+                <span>${paymentLabel}</span>
+            </div>
+            <div class="receipt-total-row" style="font-size: 11px; color: #555;">
+                <span>Qté:</span>
+                <span>${totalQty}</span>
+            </div>
+            
+            <div style="text-align: center; font-size: 12px; color: #888; font-style: italic; margin-top: 2px;">
+                Arrêté la présente facture à la somme de ${amountInWords} congolais toutes taxes comprises
+            </div>
+        `;
+    }
+
+    // Convert number to French words (for currency) - handles up to billions
+    numberToFrenchWords(num) {
+        const units = ['', 'un', 'deux', 'trois', 'quatre', 'cinq', 'six', 'sept', 'huit', 'neuf', 'dix',
+            'onze', 'douze', 'treize', 'quatorze', 'quinze', 'seize', 'dix-sept', 'dix-huit', 'dix-neuf'];
+        const tens = ['', '', 'vingt', 'trente', 'quarante', 'cinquante', 'soixante', 'soixante', 'quatre-vingt', 'quatre-vingt-dix'];
+
+        if (num === 0) return 'zéro';
+
+        const intPart = Math.floor(num);
+        const decPart = Math.round((num - intPart) * 100);
+
+        function threeDigitsToWords(n) {
+            if (n === 0) return '';
+            if (n < 20) return units[n];
+            if (n < 100) {
+                const ten = Math.floor(n / 10);
+                const unit = n % 10;
+                if (ten === 7 || ten === 9) {
+                    const base = ten === 7 ? 60 : 80;
+                    if (unit === 1) return base + '-et-' + units[unit];
+                    return base + '-' + units[unit];
+                }
+                if (ten === 8 && unit === 0) return 'quatre-vingts';
+                if (unit === 0) return tens[ten];
+                return tens[ten] + (unit === 1 ? '-et-' : '-') + units[unit];
+            }
+            if (n < 1000) {
+                const hundreds = Math.floor(n / 100);
+                const remainder = n % 100;
+                if (hundreds === 1) return remainder === 0 ? 'cent' : 'cent ' + threeDigitsToWords(remainder);
+                if (hundreds === 2) return remainder === 0 ? 'deux cents' : 'deux cent ' + threeDigitsToWords(remainder);
+                if (hundreds === 3) return remainder === 0 ? 'trois cents' : 'trois cent ' + threeDigitsToWords(remainder);
+                if (hundreds === 4) return remainder === 0 ? 'quatre cents' : 'quatre cent ' + threeDigitsToWords(remainder);
+                if (hundreds === 5) return remainder === 0 ? 'cinq cents' : 'cinq cent ' + threeDigitsToWords(remainder);
+                if (hundreds === 6) return remainder === 0 ? 'six cents' : 'six cent ' + threeDigitsToWords(remainder);
+                if (hundreds === 7) return remainder === 0 ? 'sept cents' : 'sept cent ' + threeDigitsToWords(remainder);
+                if (hundreds === 8) return remainder === 0 ? 'huit cents' : 'huit cent ' + threeDigitsToWords(remainder);
+                if (hundreds === 9) return remainder === 0 ? 'neuf cents' : 'neuf cent ' + threeDigitsToWords(remainder);
+                return units[hundreds] + ' cents ' + threeDigitsToWords(remainder);
+            }
+            return n.toString();
+        }
+
+        function convertChunk(n) {
+            if (n === 0) return '';
+            if (n < 1000) return threeDigitsToWords(n);
+            if (n < 1000000) {
+                const thousands = Math.floor(n / 1000);
+                const remainder = n % 1000;
+                if (thousands === 1) return remainder === 0 ? 'mille' : 'mille ' + threeDigitsToWords(remainder);
+                return threeDigitsToWords(thousands) + ' mille' + (remainder > 0 ? ' ' + threeDigitsToWords(remainder) : '');
+            }
+            if (n < 1000000000) {
+                const millions = Math.floor(n / 1000000);
+                const remainder = n % 1000000;
+                const millionsText = millions === 1 ? 'un million' : threeDigitsToWords(millions) + ' millions';
+                return millionsText + (remainder > 0 ? ' ' + convertChunk(remainder) : '');
+            }
+            // Billions
+            const billions = Math.floor(n / 1000000000);
+            const remainder = n % 1000000000;
+            const billionsText = billions === 1 ? 'un milliard' : threeDigitsToWords(billions) + ' milliards';
+            return billionsText + (remainder > 0 ? ' ' + convertChunk(remainder) : '');
+        }
+
+        let result = convertChunk(intPart);
+        if (intPart > 1) result += ' francs';
+        else if (intPart === 1) result += ' franc';
+
+        if (decPart > 0) {
+            result += ' ' + threeDigitsToWords(decPart) + ' centimes';
+        }
+
+        return result.charAt(0).toUpperCase() + result.slice(1);
     }
 }
 
