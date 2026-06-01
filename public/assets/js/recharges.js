@@ -897,7 +897,7 @@ class BillPayment {
             const monthName = this.moisNoms[month.mois];
             itemsHtml += `
                 <tr>
-                    <td><span class="item-name">${monthName} ${month.annee}<span class="item-tax-badge">Exonere</span></span></td>
+                    <td><span class="item-name">${monthName} ${month.annee}<span class="item-tax-badge">B</span>[SER]</span></td>
                     <td class="item-qty">1</td>
                     <td class="item-total">${this.formatMoney(month.montant)} Fc</td>
                 </tr>
@@ -1133,9 +1133,10 @@ class BillPayment {
         const paymentTypeSelect = document.getElementById('modal-payment-type') || document.getElementById('payment-type');
         const paymentType = paymentTypeSelect?.value || 'cash';
         const paymentLabel = paymentType === 'cash' ? 'Espèces' : paymentType === 'card' ? 'Carte' : paymentType === 'transfer' ? 'Virement' : paymentType;
-        const amountInWords = this.numberToFrenchWords(this.currentTotals?.total || 0);
-
         const total = this.selectedMonths.reduce((acc, m) => acc + m.montant, 0);
+
+        const amountInWords = this.numberToFrenchWords(total || 0);
+
 
         return `
             <div class="receipt-total-row" style="font-size: 11px; color: #555">
@@ -1163,6 +1164,7 @@ class BillPayment {
 
     // Convert number to French words (for currency) - handles up to billions
     numberToFrenchWords(num) {
+        alert(num)
         const units = ['', 'un', 'deux', 'trois', 'quatre', 'cinq', 'six', 'sept', 'huit', 'neuf', 'dix',
             'onze', 'douze', 'treize', 'quatorze', 'quinze', 'seize', 'dix-sept', 'dix-huit', 'dix-neuf'];
         const tens = ['', '', 'vingt', 'trente', 'quarante', 'cinquante', 'soixante', 'soixante', 'quatre-vingt', 'quatre-vingt-dix'];
