@@ -140,6 +140,130 @@
           <input type="hidden" id="client-tel">
         </div>
 
+        <!-- MODAL INVOICE INFO (Résumé facture avant validation) -->
+        <div id="invoice-info-modal" class="modal">
+          <div class="modal-content" style="max-width: 500px; padding: 0;">
+            <div class="modal-header">
+              <h3>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 8px;">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                  <line x1="16" y1="13" x2="8" y2="13"></line>
+                  <line x1="16" y1="17" x2="8" y2="17"></line>
+                  <polyline points="10 9 9 9 8 9"></polyline>
+                </svg>
+                Informations Facture
+              </h3>
+              <button class="close-modal" onclick="closeInvoiceInfoModalRecharge()">&times;</button>
+            </div>
+            <div style="padding: 1.5rem;">
+              <!-- Type et Référence Document -->
+              <div style="display: grid; grid-template-columns: 80px 1fr; gap: 12px; margin-bottom: 0.75rem; align-items: flex-end;">
+                <div>
+                  <label for="modal-invoice-type" style="font-size: 0.7rem; font-weight: 600; color: #64748b; display: block; margin-bottom: 4px;">TYPE</label>
+                  <select id="modal-invoice-type" class="client-number-input" style="width: 100%; padding: 6px 8px; font-size: 0.8rem;">
+                    <option value="FV">FV</option>
+                    <option value="EV">EV</option>
+                    <option value="FT">FT</option>
+                    <option value="FA">FA</option>
+                    <option value="EA">EA</option>
+                    <option value="ET">ET</option>
+                  </select>
+                </div>
+                <div>
+                  <label for="modal-invoice-ref" style="font-size: 0.7rem; font-weight: 600; color: #64748b; display: block; margin-bottom: 4px;">RÉF DOCUMENT</label>
+                  <input type="text" id="modal-invoice-ref" class="client-number-input" placeholder="Réf..." style="width: 100%;">
+                </div>
+              </div>
+              <!-- Ref Facture et Exonération -->
+              <div style="display: grid; grid-template-columns: 1fr 80px; gap: 12px; margin-bottom: 1rem; align-items: flex-end;">
+                <div>
+                  <label for="modal-invoice-num" style="font-size: 0.7rem; font-weight: 600; color: #64748b; display: block; margin-bottom: 4px;">REF FACTURE</label>
+                  <input type="text" id="modal-invoice-num" class="client-number-input" placeholder="N° facture..." style="width: 100%;">
+                </div>
+                <div>
+                  <label for="modal-exoneration" style="font-size: 0.7rem; font-weight: 600; color: #64748b; display: block; margin-bottom: 4px;"></label>
+                  <select id="modal-exoneration" class="client-number-input" style="width: 100%; padding: 6px 4px; font-size: 0.75rem;">
+                    <option value="RAM">RAM</option>
+                    <option value="RRR">RRR</option>
+                    <option value="RAN">RAN</option>
+                    <option value="COR">COR</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Mode de Paiement -->
+              <div style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border: 1px solid #86efac; border-radius: 12px; padding: 1rem; margin-bottom: 1rem;">
+                <div style="font-size: 0.75rem; font-weight: 600; color: #166534; margin-bottom: 0.75rem; text-transform: uppercase; display: flex; align-items: center; gap: 6px;">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
+                    <line x1="1" y1="10" x2="23" y2="10"></line>
+                  </svg>
+                  Mode de Paiement
+                </div>
+                <div>
+                  <label for="modal-payment-type" style="font-size: 0.7rem; color: #166534; display: block; margin-bottom: 4px;">Type de paiement</label>
+                  <select id="modal-payment-type" class="client-number-input" style="width: 100%; background: #fff;">
+                    <option value="cash">Espèces</option>
+                    <option value="mobile_money">Mobile Money</option>
+                    <option value="card">Carte Bancaire</option>
+                    <option value="transfer">Virement</option>
+                    <option value="credit">Crédit</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Info Client avec données pré-remplies -->
+              <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 1rem; margin-bottom: 1rem;">
+                <div style="font-size: 0.75rem; font-weight: 600; color: #64748b; margin-bottom: 0.75rem; text-transform: uppercase; display: flex; align-items: center; gap: 6px;">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="12" cy="7" r="4"></circle>
+                  </svg>
+                  Informations Client
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                  <div>
+                    <label for="modal-client-name" style="font-size: 0.7rem; color: #94a3b8; display: block; margin-bottom: 2px;">Nom</label>
+                    <input type="text" id="modal-client-name" class="client-number-input" placeholder="Nom du client" style="width: 100%;">
+                  </div>
+                  <div>
+                    <label for="modal-client-tel" style="font-size: 0.7rem; color: #94a3b8; display: block; margin-bottom: 2px;">Téléphone</label>
+                    <input type="text" id="modal-client-tel1" class="client-number-input" placeholder="N° téléphone" style="width: 100%;">
+                  </div>
+                  <div>
+                    <label for="modal-client-type" style="font-size: 0.7rem; color: #94a3b8; display: block; margin-bottom: 2px;">Type</label>
+                    <select id="modal-client-type" class="client-number-input" style="width: 100%;">
+                      <option value="">Type client</option>
+                      <?php if (isset($clientTypes)): foreach ($clientTypes as $type): ?>
+                          <option value="<?= $type['code'] ?>"><?= htmlspecialchars($type['code']) ?> - <?= htmlspecialchars($type['description'] ?? $type['nom'] ?? '') ?></option>
+                      <?php endforeach;
+                      endif; ?>
+                    </select>
+                  </div>
+                  <div>
+                    <label for="modal-client-nif" style="font-size: 0.7rem; color: #94a3b8; display: block; margin-bottom: 2px;">NIF</label>
+                    <input type="text" id="modal-client-nif" class="client-number-input" placeholder="NIF client" style="width: 100%;">
+                  </div>
+                </div>
+              </div>
+
+              <!-- Boutons -->
+              <div class="modal-actions" style="display: flex; gap: 0.75rem;">
+                <button onclick="closeInvoiceInfoModalRecharge()" class="btn btn-secondary" style="flex: 1; padding: 0.875rem;">
+                  Retour
+                </button>
+                <button onclick="confirmInvoiceInfoRecharge()" class="btn btn-primary" style="flex: 2; padding: 0.875rem; font-size: 1rem; font-weight: 600;">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                  Continuer vers Preview
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Mois à payer (après recherche API) -->
         <div class="recharge-list-section">
           <h3 class="section-title">
@@ -178,42 +302,12 @@
           </button>
         </div>
 
-        <!-- Type facture et Client -->
-        <div class="client-number-section">
-          <div style="display: flex; gap: 8px; margin-bottom: 10px;">
-            <div style="flex: 1;">
-              <label for="invoice-type" style="font-size: 0.75rem; font-weight: 600; color: #64748b; display: block; margin-bottom: 4px;">TYPE FACTURE</label>
-              <select id="invoice-type" class="client-number-input" style="width: 100%;">
-                <option value="FV">FV</option>
-                <option value="EV">EV</option>
-                <option value="FT">FT</option>
-                <option value="FA">FA</option>
-                <option value="EA">EA</option>
-                <option value="ET">ET</option>
-              </select>
-            </div>
-            <div style="flex: 1;">
-              <label style="font-size: 0.75rem; font-weight: 600; color: #64748b; display: block; margin-bottom: 4px;">N° DOCUMENT</label>
-              <input type="text" id="invoice-ref" class="client-number-input" placeholder="Auto" style="width: 100%;">
-            </div>
-          </div>
-          <!-- Ligne Type client + NIF -->
-          <div style="display: flex; gap: 8px; margin-bottom: 8px;">
-            <select id="client-type" class="client-number-input" style="flex: 1;">
-
-              <?php foreach ($clientTypes as $type): ?>
-                <option value="<?= $type['id'] ?>"><?= htmlspecialchars($type['code']) ?></option>
-              <?php endforeach; ?>
-            </select>
-            <input type="text" id="client-nif" class="client-number-input" placeholder="NIF client" style="flex: 1;">
-          </div>
-
-          <!-- Numéro Client -->
-          <div style="margin-bottom: 10px;">
-            <label for="client-numero" style="font-size: 0.75rem; font-weight: 600; color: #64748b; display: block; margin-bottom: 4px;">NUMÉRO CLIENT</label>
-            <input type="text" id="client-numero" class="client-number-input" placeholder="N° client (optionnel)" style="width: 100%;">
-          </div>
-        </div>
+        <!-- Champs cachés pour les infos client (utilisés par le modal) -->
+        <input type="hidden" id="invoice-type" value="FV">
+        <input type="hidden" id="invoice-ref" value="">
+        <input type="hidden" id="client-type" value="">
+        <input type="hidden" id="client-nif" value="">
+        <input type="hidden" id="client-numero" value="">
 
         <div id="cart-items" class="cart-items">
           <div class="cart-empty">Le panier est vide</div>
@@ -347,5 +441,18 @@
       document.getElementById('client-tel').value = tel;
 
       closeClientModalDirect();
+    }
+
+    // Fonctions pour le nouveau flow Recharges
+    function closeInvoiceInfoModalRecharge() {
+      if (typeof billPayment !== 'undefined') {
+        billPayment.closeInvoiceInfoModalRecharge();
+      }
+    }
+
+    function confirmInvoiceInfoRecharge() {
+      if (typeof billPayment !== 'undefined') {
+        billPayment.confirmInvoiceInfoRecharge();
+      }
     }
   </script>
