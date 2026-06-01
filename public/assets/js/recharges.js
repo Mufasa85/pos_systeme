@@ -439,7 +439,7 @@ class BillPayment {
                 }
             }
 
-            // Infos client
+            // Infos client depuis le modal (pré-rempli)
             const clientNom = document.getElementById('client-nom')?.value || this.clientInfo?.nom || 'Client';
             const clientNumero = document.getElementById('invoice-number')?.value || '';
             const invoiceType = document.getElementById('invoice-type')?.value || 'FV';
@@ -459,37 +459,57 @@ class BillPayment {
 
             const total = this.selectedMonths.reduce((acc, m) => acc + m.montant, 0);
 
-            // Récupérer les infos client pour DGI (type, NIF, numéro document)
-            // Utiliser le type de client du panier (select #client-type)
+            // Récupérer les infos client pour DGI depuis le modal
             const clientTypeSelect = document.getElementById('client-type');
             const clientType = clientTypeSelect?.options?.[clientTypeSelect.selectedIndex]?.text || 'PP';
-            const clientNif = document.getElementById('client-nif')?.value || this.apiResponse.client_nif || '';
-            const clientNumeroDoc = document.getElementById('invoice-ref')?.value || ''
+            const clientNif = document.getElementById('client-nif')?.value || this.apiResponse?.client_nif || '';
+            const clientNumeroDoc = document.getElementById('invoice-ref')?.value || '';
 
             // Récupérer client_number depuis le champ du panier
             const clientNumberInput = document.getElementById('client-numero');
             const clientNumber = clientNumberInput?.value;
 
+            // Récupérer téléphone: d'abord depuis le modal, sinon depuis l'API
+            const modalClientTel = document.getElementById('modal-client-tel1')?.value;
+            const refFacture = document.getElementById('modal-invoice-num')?.value || '';
+            const exoneration = document.getElementById('modal-exoneration')?.value || '';
+            const paymentTypeSelect = document.getElementById('modal-payment-type') || document.getElementById('payment-type');
+            const paymentType = paymentTypeSelect?.value || 'cash';
+
+            const clientTel = (modalClientTel && modalClientTel !== '0000') ? modalClientTel : (this.clientInfo?.numero || this.apiResponse?.client_numero || '');
+            const clientCommune = this.clientInfo?.commune || this.apiResponse?.client_commune || '';
+
             const payload = {
-                store_name: STORE_INFO.name,
+
                 store_phone: STORE_INFO.phone,
                 store_address: STORE_INFO.address,
+                store_email: STORE_INFO.email,
                 store_ice: STORE_INFO.ice,
                 store_isf: STORE_INFO.isf || '',
                 store_rccm: STORE_INFO.rccm,
                 seller_name: sellerName,
+                seller_agent_code: (typeof CURRENT_USER !== 'undefined' && CURRENT_USER.agentCode) ? CURRENT_USER.agentCode : '',
+                store_name: STORE_INFO.name,
                 amount: total,
-                client_number: clientNumber,
-                client_name: this.apiResponse.client_nom,
-                client_type: clientType,
-                client_nif: clientNif,
-                client_document: clientNumeroDoc,
+                client_number: clientTel,
+
+                client_commune: clientCommune,
                 invoice_number: invoiceNum,
                 invoice_type: invoiceType,
                 invoice_ref: invoiceRef,
+
                 articles: articles,
                 providerService: service,
-                deviceId: this.apiResponse.deviceid
+                deviceId: this.apiResponse?.deviceid,
+
+                //
+                ref_facture: refFacture,
+                exoneration: exoneration,
+                payment_type: paymentType,
+                client_name: clientNom,
+                client_type: clientType,
+                client_nif: clientNif,
+                client_document: clientNumeroDoc,
             };
 
             console.log('[DGI] Payload:', JSON.stringify(payload, null, 2));
@@ -716,14 +736,81 @@ class BillPayment {
     async showPreview() {
         if (this.selectedMonths.length === 0) return;
 
-        // Vérifier que le type de client est sélectionné
-        const clientTypeSelect = document.getElementById('client-type');
-        const clientTypeValue = clientTypeSelect?.value;
-        if (!clientTypeValue || clientTypeValue === '') {
-            this.showError('Veuillez sélectionner le type de client');
+        // Au lieu d'ouvrir directement le preview, ouvrir le modal client avec infos pré-remplies
+        this.openInvoiceInfoModalRecharge();
+    }
+
+    // Ouvrir le modal d'informations client avec données pré-remplies depuis l'API
+    openInvoiceInfoModalRecharge() {
+        const modal = document.getElementById('invoice-info-modal');
+        if (!modal) {
+            console.error('[BillPayment] Modal invoice-info-modal non trouvé');
             return;
         }
 
+        // Pré-remplir les champs avec les données du client depuis l'API
+        const clientNom = this.clientInfo?.nom || this.apiResponse?.client_nom || '';
+        const clientNif = this.apiResponse?.client_nif || '';
+        const clientNumero = this.clientInfo?.numero || this.apiResponse?.client_numero || '';
+        const clientCommune = this.clientInfo?.commune || this.apiResponse?.client_commune || '';
+
+        // Récupérer les valeurs existantes du panier
+        const invoiceType = document.getElementById('invoice-type')?.value || 'FV';
+        const invoiceRef = document.getElementById('invoice-ref')?.value || '';
+        const clientType = document.getElementById('client-type')?.value || '';
+
+        // Remplir le modal
+        document.getElementById('modal-invoice-type').value = invoiceType;
+        document.getElementById('modal-invoice-ref').value = invoiceRef;
+        document.getElementById('modal-client-name').value = clientNom;
+        document.getElementById('modal-client-tel').value = clientNumero;
+        document.getElementById('modal-client-nif').value = clientNif;
+
+        // Sélectionner le type de client si disponible
+        if (clientType) {
+            document.getElementById('modal-client-type').value = clientType;
+        }
+
+        // Afficher le modal
+        modal.classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+
+    // Fermer le modal client
+    closeInvoiceInfoModalRecharge() {
+        const modal = document.getElementById('invoice-info-modal');
+        if (modal) {
+            modal.classList.remove('active');
+            document.body.style.overflow = '';
+        }
+    }
+
+    // Confirmer les infos client et ouvrir le preview
+    async confirmInvoiceInfoRecharge() {
+        // Sauvegarder les valeurs du modal vers les champs du panier
+        const modalInvoiceType = document.getElementById('modal-invoice-type')?.value || 'FV';
+        const modalInvoiceRef = document.getElementById('modal-invoice-ref')?.value || '';
+        const modalClientName = document.getElementById('modal-client-name')?.value || '';
+        const modalClientType = document.getElementById('modal-client-type')?.value || '';
+        const modalClientNif = document.getElementById('modal-client-nif')?.value || '';
+        const modalPaymentType = document.getElementById('modal-payment-type')?.value || 'cash';
+
+        // Mettre à jour les champs cachés du panier
+        document.getElementById('invoice-type').value = modalInvoiceType;
+        document.getElementById('invoice-ref').value = modalInvoiceRef;
+        document.getElementById('client-nom').value = modalClientName;
+        document.getElementById('client-type').value = modalClientType;
+        document.getElementById('client-nif').value = modalClientNif;
+
+        // Fermer le modal client
+        this.closeInvoiceInfoModalRecharge();
+
+        // Ouvrir le preview
+        await this.showPreviewFinal();
+    }
+
+    // Générer et afficher le preview (après confirmation client)
+    async showPreviewFinal() {
         // Récupérer le numéro de facture depuis la base de données
         let invoiceNum = 'FAC-000001';
         try {
@@ -731,7 +818,7 @@ class BillPayment {
             const data = await res.json();
             if (data.invoice_number) {
                 invoiceNum = data.invoice_number;
-                this.currentInvoiceNum = invoiceNum; // Stocker pour DGI
+                this.currentInvoiceNum = invoiceNum;
             }
         } catch (e) {
             console.warn('Erreur récupération numéro facture:', e);
@@ -740,11 +827,35 @@ class BillPayment {
         const total = this.selectedMonths.reduce((acc, m) => acc + m.montant, 0);
         const service = this.currentProvider === 1 ? 'ELECTRICITE' : 'EAU';
         const vendeur = (typeof CURRENT_USER !== 'undefined' && CURRENT_USER.fullName) ? CURRENT_USER.fullName : STORE_INFO.name;
+        const agentNumero = (typeof CURRENT_USER !== 'undefined' && CURRENT_USER.id) ? CURRENT_USER.agentCode : '';
 
-        // Récupérer les infos client
+        // Récupérer les infos client depuis les champs
         const clientNom = document.getElementById('client-nom')?.value || this.clientInfo?.nom || '';
         const clientNumero = document.getElementById('invoice-number')?.value || '';
+        const clientTelNum = document.getElementById('modal-client-tel1')?.value
+        console.log(clientTelNum)
+        const clientType = document.getElementById('client-type')?.value || '';
+
+        const clientNif = document.getElementById('modal-client-nif')?.value || '';
         const invoiceType = document.getElementById('invoice-type')?.value || 'FV';
+
+        // Masquer les 4 derniers chiffres du numéro client
+        const maskClientNumero = (num) => {
+            if (!num || num.length < 6) return num || '';
+            return num.substring(0, num.length - 4) + '****';
+        };
+
+        // Obtenir le label complet du type de client
+        const getClientTypeLabel = (code) => {
+            const types = {
+                'PP': 'Personne Physique',
+                'PM': 'Personne Morale',
+                'PC': 'Personne Physique Commerçante',
+                'PL': 'Profession Libérale',
+                'AO': 'Ambassades et Organisations Internationales',
+            };
+            return types[code] || code || '';
+        };
 
         // Infos RCCM et ISF
         let storeExtraInfo = '';
@@ -769,14 +880,20 @@ class BillPayment {
         });
         itemsHtml += '</tbody></table>';
 
+
+
         // Section infos (Vendeur + Client) - style caisse
         let infoSection = `<div style="border-top: 1px dashed #ccc; margin-top: 6px; padding-top: 6px; text-align: left; font-size: 11px; line-height: 1.5;">
                            <div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>VENDEUR:</strong></span><span>${vendeur}</span></div>
+                           ${agentNumero ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>CODE AGENT:</strong></span><span>${agentNumero}</span></div>` : ''}
                            ${clientNom ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>CLIENT:</strong></span><span>${clientNom}</span></div>` : ''}
+                           ${clientTelNum ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>N° CLIENT:</strong></span><span>${maskClientNumero(clientTelNum)}</span></div>` : ''}
+                           ${clientType ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>TYPE CLIENT:</strong></span><span>${getClientTypeLabel(clientType)}</span></div>` : ''}
+                           ${clientNif ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>NIF:</strong></span><span>${clientNif}</span></div>` : ''}
                            ${clientNumero ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>N° COMPTEUR:</strong></span><span>${clientNumero}</span></div>` : ''}
                            <div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>SERVICE:</strong></span><span>${service}</span></div>
-                           ${STORE_INFO.isf ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>ISF:</strong></span><span>${STORE_INFO.isf}</span></div>` : ''}
-                         </div>`;
+                          
+                          </div>`;
 
         $('#preview-content').innerHTML = `
             <div class="receipt">
@@ -785,6 +902,7 @@ class BillPayment {
                     <div class="store-info">
                         <div><strong>Point de vente :</strong> ${STORE_INFO.address}</div>
                         <div>Tel: ${STORE_INFO.phone}</div>
+                          
                         <div>ID Nat: ${STORE_INFO.ice}</div>
                         ${storeExtraInfo}
                     </div>
@@ -823,7 +941,7 @@ class BillPayment {
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
-                    Confirmer le paiement
+                    Valider la facture
                 </button>
             `;
         }
@@ -908,7 +1026,29 @@ class BillPayment {
         // Récupérer client info
         const clientNom = document.getElementById('client-nom')?.value || '';
         const clientNumero = document.getElementById('invoice-number')?.value || '';
+        const clientTelNum = document.getElementById('modal-client-tel1')?.value || this.apiResponse.client_numero;
+        const clientType = document.getElementById('client-type')?.value || '';
+        const clientNif = document.getElementById('client-nif')?.value || '';
         const vendeur = (typeof CURRENT_USER !== 'undefined' && CURRENT_USER.fullName) ? CURRENT_USER.fullName : STORE_INFO.name;
+        const agentNumero = (typeof CURRENT_USER !== 'undefined' && CURRENT_USER.agentCode) ? CURRENT_USER.agentCode : '';
+
+        // Masquer les 4 derniers chiffres du numéro client
+        const maskClientNumero = (num) => {
+            if (!num || num.length < 6) return num || '';
+            return num.substring(0, num.length - 4) + '****';
+        };
+
+        // Obtenir le label complet du type de client
+        const getClientTypeLabel = (code) => {
+            const types = {
+                'PP': 'Personne Physique',
+                'PM': 'Personne Morale',
+                'PC': 'Personne Physique Commerçante',
+                'PL': 'Profession Libérale',
+                'AO': 'Ambassades et Organisations Internationales',
+            };
+            return types[code] || code || '';
+        };
 
         // Infos RCCM et ISF
         let storeExtraInfo = '';
@@ -922,10 +1062,14 @@ class BillPayment {
         // Section infos (Vendeur + Client) - style caisse
         let infoSection = `<div style="border-top: 1px dashed #ccc; margin-top: 6px; padding-top: 6px; text-align: left; font-size: 11px; line-height: 1.5;">
                            <div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>VENDEUR:</strong></span><span>${vendeur}</span></div>
+                           ${agentNumero ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>N° AGENT:</strong></span><span>${agentNumero}</span></div>` : ''}
                            ${clientNom ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>CLIENT:</strong></span><span>${clientNom}</span></div>` : ''}
+                           ${clientTelNum ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>N° CLIENT:</strong></span><span>${maskClientNumero(clientTelNum)}</span></div>` : ''}
+                           ${clientType ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>TYPE CLIENT:</strong></span><span>${getClientTypeLabel(clientType)}</span></div>` : ''}
+                           ${clientNif ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>NIF:</strong></span><span>${clientNif}</span></div>` : ''}
                            ${clientNumero ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>N° COMPTEUR:</strong></span><span>${clientNumero}</span></div>` : ''}
                            <div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>SERVICE:</strong></span><span>${service}</span></div>
-                           ${STORE_INFO.isf ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>ISF:</strong></span><span>${STORE_INFO.isf}</span></div>` : ''}
+                        
                          </div>`;
 
         // Infos DGI
@@ -953,6 +1097,7 @@ class BillPayment {
                     <div class="store-info">
                         <div><strong>Point de vente :</strong> ${STORE_INFO.address}</div>
                         <div>Tel: ${STORE_INFO.phone}</div>
+                        ${STORE_INFO.email ? `<div>Email: ${STORE_INFO.email}</div>` : ''}
                         <div>ID Nat: ${STORE_INFO.ice}</div>
                         ${storeExtraInfo}
                     </div>
@@ -1164,7 +1309,7 @@ class BillPayment {
 
     // Convert number to French words (for currency) - handles up to billions
     numberToFrenchWords(num) {
-        alert(num)
+
         const units = ['', 'un', 'deux', 'trois', 'quatre', 'cinq', 'six', 'sept', 'huit', 'neuf', 'dix',
             'onze', 'douze', 'treize', 'quatorze', 'quinze', 'seize', 'dix-sept', 'dix-huit', 'dix-neuf'];
         const tens = ['', '', 'vingt', 'trente', 'quarante', 'cinquante', 'soixante', 'soixante', 'quatre-vingt', 'quatre-vingt-dix'];
