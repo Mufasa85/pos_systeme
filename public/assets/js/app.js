@@ -72,6 +72,7 @@ async function loadCurrencyRate() {
             }
         }
     } catch (e) {
+        alert("Impossible de charger le taux, veillez verifier votre connexion internet")
         console.warn('[CURRENCY] Impossible de charger le taux, utilisation par défaut:', e);
     } finally {
         // Cacher le loader une fois terminé
@@ -636,6 +637,8 @@ const posCart = {
 
             // Récupérer le type de paiement
             const paymentTypeSelect = document.getElementById('modal-payment-type') || document.getElementById('payment-type');
+
+
             const paymentType = paymentTypeSelect?.value || 'cash';
 
             // Récupérer le type de client (via le modal ou les champs directs)
