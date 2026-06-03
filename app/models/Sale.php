@@ -51,24 +51,24 @@ class Sale
 
     public function generateInvoiceNumber()
     {
-        // Format: AAAA/MMxxxxxx (ex: 2026/000001)
+        // Format: AAAA/xxxxxx (ex: 2026/000001) - Compteur global annuel
         $year = date('Y');
-        $month = date('m');
 
-        // Récupérer le dernier numéro du mois en cours
+        // Récupérer le dernier numéro de l'année en cours
         $sql = "SELECT numero_facture FROM ventes 
-                WHERE YEAR(date) = YEAR(CURDATE()) AND MONTH(date) = MONTH(CURDATE())
+                WHERE YEAR(date) = YEAR(CURDATE())
                 ORDER BY id DESC LIMIT 1";
         $last = $this->db->fetch($sql);
 
-        if ($last && preg_match('/^(\d{4})\/(\d{6})$/', $last['numero_facture'], $m)) {
+        if ($last && preg_match('/^(\d{4})\/(\d+)$/', $last['numero_facture'], $m)) {
             $seq = intval($m[2]) + 1;
         } else {
             $seq = 1;
         }
 
-        return $year . '/' . str_pad($seq, 6, '0', STR_PAD_LEFT);  // Ex: 2026/000001
+        return $year . '/' . str_pad($seq, 6, '0', STR_PAD_LEFT);
     }
+
     public function exist($id)
     {
         $sql = "SELECT v.*, u.nom_complet as nom_vendeur, 
