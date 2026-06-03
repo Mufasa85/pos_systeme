@@ -509,7 +509,7 @@ class BillPayment {
                 client_name: clientNom,
                 client_type: clientType,
                 client_nif: clientNif,
-                client_document: clientNumeroDoc,
+                //client_document: clientNumeroDoc,
             };
 
             console.log('[DGI] Payload:', JSON.stringify(payload, null, 2));
