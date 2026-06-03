@@ -5,7 +5,40 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title id="page-title-base">Caisse - <?= htmlspecialchars($storeName ?? 'Mon Magasin') ?></title>
-  <link rel="stylesheet" href="./assets/css/styles.css?v=2089999999999">
+
+  <!-- Favicon & Icons -->
+  <link rel="icon" type="image/svg+xml" href="./assets/img/favicon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="./assets/img/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="./assets/img/favicon-16x16.png">
+  <link rel="apple-touch-icon" href="./assets/img/apple-touch-icon.png">
+
+  <!-- Meta Tags -->
+  <meta name="description" content="Système de caisse POS - <?= htmlspecialchars($storeName ?? 'Mon Magasin') ?> - Gestion des ventes, recharges et factures">
+  <meta name="keywords" content="caisse, POS, vente, facturation, <?= htmlspecialchars($storeName ?? 'magasin') ?>">
+  <meta name="author" content="<?= htmlspecialchars($storeName ?? 'Mon Magasin') ?>">
+  <meta name="robots" content="noindex, nofollow">
+
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="<?= (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . $_SERVER['REQUEST_URI'] ?>">
+  <meta property="og:title" content="Caisse - <?= htmlspecialchars($storeName ?? 'Mon Magasin') ?>">
+  <meta property="og:description" content="Système de caisse POS - Gestion des ventes, recharges Electricité/Eau et factures">
+  <meta property="og:image" content="./assets/img/og-image.png">
+  <meta property="og:locale" content="fr_CD">
+  <meta property="og:site_name" content="<?= htmlspecialchars($storeName ?? 'POS System') ?>">
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Caisse - <?= htmlspecialchars($storeName ?? 'Mon Magasin') ?>">
+  <meta name="twitter:description" content="Système de caisse POS - Gestion des ventes et factures">
+  <meta name="twitter:image" content="./assets/img/og-image.png">
+
+  <!-- Theme Color -->
+  <meta name="theme-color" content="#0B5E88">
+  <meta name="msapplication-TileColor" content="#0B5E88">
+  <meta name="msapplication-config" content="./assets/img/browserconfig.xml">
+
+  <link rel="stylesheet" href="./assets/css/styles.css?v=208999999999999">
   <link rel="stylesheet" href="./assets/css/mobile-caisse.css?v=999999999999999999999999999">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

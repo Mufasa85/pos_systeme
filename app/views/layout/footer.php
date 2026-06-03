@@ -567,7 +567,7 @@
       </div>
     </div>
 
-    <script src="./assets/js/app.js?v=1.0.998899999999999999999"></script>
+    <script src="./assets/js/app.js?v=1.0.998899999999999999999999"></script>
     <script src="./assets/js/recharges.js?v=1.0.6"></script>
 
     </body>
