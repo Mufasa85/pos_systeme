@@ -1017,6 +1017,7 @@ const posCart = {
             const data = await res.json();
             if (data.invoice_number) {
                 this.currentInvoiceNum = data.invoice_number;
+                alert(data.invoice_number)
             }
         } catch (e) {
             console.warn('Erreur récupération numéro facture:', e);
