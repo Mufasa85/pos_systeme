@@ -45,6 +45,9 @@ Router::post("/api/settings/store", [SettingsController::class, 'updateStore']);
 Router::post("/api/settings/tax", [SettingsController::class, 'updateTax']);
 Router::post("/api/settings/theme", [SettingsController::class, 'saveTheme']);
 Router::get("/api/settings/theme", [SettingsController::class, 'getTheme']);
+// Format d'impression (papier)
+Router::post("/api/settings/paper-type", [SettingsController::class, 'updatePaperType']);
+Router::get("/api/settings/paper-type", [SettingsController::class, 'getPaperType']);
 
 // Proxy Bill Payment API (OSAT-Energie pour éviter CORS)
 // POST vers https://osat-energie.com/snel_regideso/
