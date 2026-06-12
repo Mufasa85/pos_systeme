@@ -1,0 +1,671 @@
+/**
+ * paper-type.js
+ * Override _printReceiptContent pour appliquer le format d'impression configuré
+ * dans la table `settings` (clé: paper_type).
+ * Formats supportés : 80mm, 57mm, A4, A5, Letter, Legal
+ * Pour A4/A5/Letter/Legal : mise en page facture classique (en-tête horizontal)
+ */
+(function () {
+    'use strict';
+
+    // Cache du format d'impression (chargé depuis /api/settings/paper-type)
+    let currentPaperType = '80mm';
+
+    // Formats considérés comme "large" (facture classique horizontale)
+    const LARGE_FORMATS = ['A4', 'A5', 'Letter', 'Legal'];
+
+    function isLargeFormat(pt) {
+        return LARGE_FORMATS.indexOf(pt) !== -1;
+    }
+
+    // Inject print styles into the main document head to support standard window.print()
+    function injectDocumentPrintStyles(paperType) {
+        var existingStyle = document.getElementById('dynamic-document-print-styles');
+        if (existingStyle) existingStyle.remove();
+
+        var pt = paperType || currentPaperType || '80mm';
+        var sizeRule = '';
+        var maxWidth = '76mm';
+        var bodyFont = "'Courier New', Courier, monospace";
+        var bodyFontSize = '14px';
+
+        switch (pt) {
+            case '57mm': sizeRule = '57mm auto'; maxWidth = '53mm'; bodyFontSize = '11px'; break;
+            case '80mm': sizeRule = '80mm auto'; maxWidth = '76mm'; bodyFontSize = '14px'; break;
+            case 'A4': sizeRule = 'A4 portrait'; maxWidth = '190mm'; bodyFontSize = '12px'; bodyFont = "'Helvetica Neue', Arial, sans-serif"; break;
+            case 'A5': sizeRule = 'A5 portrait'; maxWidth = '128mm'; bodyFontSize = '11px'; bodyFont = "'Helvetica Neue', Arial, sans-serif"; break;
+            case 'Letter': sizeRule = 'Letter portrait'; maxWidth = '190mm'; bodyFontSize = '12px'; bodyFont = "'Helvetica Neue', Arial, sans-serif"; break;
+            case 'Legal': sizeRule = 'Legal portrait'; maxWidth = '190mm'; bodyFontSize = '12px'; bodyFont = "'Helvetica Neue', Arial, sans-serif"; break;
+            default: sizeRule = '80mm auto'; maxWidth = '76mm'; bodyFontSize = '14px';
+        }
+
+        var css;
+        if (isLargeFormat(pt)) {
+            css = '@media print {\n' +
+                '  body * { visibility: hidden !important; }\n' +
+                '  .invoice-classic, .invoice-classic * { visibility: visible !important; }\n' +
+                '  .invoice-classic {\n' +
+                '    position: absolute !important; left: 0 !important; top: 0 !important;\n' +
+                '    width: 100% !important; padding: 0 !important; margin: 0 auto !important;\n' +
+                '    font-family: ' + bodyFont + ' !important;\n' +
+                '    font-size: ' + bodyFontSize + ' !important;\n' +
+                '  }\n' +
+                '  .receipt { display: none !important; }\n' +
+                '  .no-print { display: none !important; }\n' +
+                '  @page { margin: 10mm; size: ' + sizeRule + '; }\n' +
+                '}';
+        } else {
+            css = '@media print {\n' +
+                '  body * { visibility: hidden !important; }\n' +
+                '  .receipt, .receipt * { visibility: visible !important; }\n' +
+                '  .receipt {\n' +
+                '    position: absolute !important; left: 0 !important; top: 0 !important;\n' +
+                '    width: 100% !important; max-width: ' + maxWidth + ' !important;\n' +
+                '    padding: 0 !important; margin: 0 auto !important;\n' +
+                '    font-family: ' + bodyFont + ' !important;\n' +
+                '    font-size: ' + bodyFontSize + ' !important;\n' +
+                '  }\n' +
+                '  .page-facture-ticket { padding: 0 !important; min-height: auto !important; }\n' +
+                '  .ticket-wrapper { box-shadow: none !important; max-width: ' + maxWidth + ' !important; border-radius: 0 !important; }\n' +
+                '  .no-print { display: none !important; }\n' +
+                '  @page { margin: 5mm; size: ' + sizeRule + '; }\n' +
+                '}';
+        }
+
+        var style = document.createElement('style');
+        style.id = 'dynamic-document-print-styles';
+        style.type = 'text/css';
+        style.appendChild(document.createTextNode(css));
+        document.head.appendChild(style);
+    }
+
+    // Charger le format depuis l'API
+    function loadPaperType(cb) {
+        try {
+            fetch(APP_URL + '/api/settings/paper-type', { credentials: 'same-origin' })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    if (data && data.paper_type) currentPaperType = data.paper_type;
+                    injectDocumentPrintStyles(currentPaperType);
+                    if (typeof cb === 'function') cb(currentPaperType);
+                })
+                .catch(function () {
+                    injectDocumentPrintStyles(currentPaperType);
+                    if (typeof cb === 'function') cb(currentPaperType);
+                });
+        } catch (e) {
+            injectDocumentPrintStyles(currentPaperType);
+            if (typeof cb === 'function') cb(currentPaperType);
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // TRANSFORMATION : reçu ticket ➜ facture classique (layout A4/A5)
+    // ──────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Convertit un nombre en toutes lettres (français) – utilisé pour le bloc
+     * "Arrêté la présente facture à la somme de ... francs congolais".
+     */
+    function numberToFrenchWords(n) {
+        n = Math.floor(Number(n) || 0);
+        if (n === 0) return 'zéro';
+        var units = ['', 'un', 'deux', 'trois', 'quatre', 'cinq', 'six', 'sept', 'huit', 'neuf'];
+        var teens = ['dix', 'onze', 'douze', 'treize', 'quatorze', 'quinze', 'seize', 'dix-sept', 'dix-huit', 'dix-neuf'];
+        var tens = ['', 'dix', 'vingt', 'trente', 'quarante', 'cinquante', 'soixante', 'soixante', 'quatre-vingt', 'quatre-vingt'];
+        var out = [];
+        if (n >= 1000000) {
+            var m = Math.floor(n / 1000000); n %= 1000000;
+            out.push((m === 1 ? 'un million' : numberToFrenchWords(m) + ' millions'));
+        }
+        if (n >= 1000) {
+            var t = Math.floor(n / 1000); n %= 1000;
+            out.push((t === 1 ? 'mille' : numberToFrenchWords(t) + ' mille'));
+        }
+        if (n >= 100) {
+            var h = Math.floor(n / 100); n %= 100;
+            out.push((h === 1 ? 'cent' : units[h] + (n === 0 ? ' cents' : ' cent')));
+        }
+        if (n > 0) {
+            if (n < 10) out.push(units[n]);
+            else if (n < 20) out.push(teens[n - 10]);
+            else {
+                var td = Math.floor(n / 10), ud = n % 10;
+                if (td === 7) {
+                    out.push(ud === 1 ? 'soixante et onze' : 'soixante-' + teens[ud]);
+                } else if (td === 9) {
+                    out.push('quatre-vingt-' + teens[ud]);
+                } else {
+                    if (ud === 1 && td !== 8) out.push(tens[td] + ' et un');
+                    else if (ud > 0) out.push(tens[td] + '-' + units[ud]);
+                    else out.push(tens[td] + (td === 8 ? 's' : ''));
+                }
+            }
+        }
+        return out.join(' ').trim();
+    }
+
+    /**
+     * Extrait le montant total TTC numérique depuis le HTML des totaux du reçu.
+     */
+    function extractGrandTotalNumber(totalsEl) {
+        if (!totalsEl) return 0;
+        var rows = totalsEl.querySelectorAll('.receipt-total-row');
+        for (var i = rows.length - 1; i >= 0; i--) {
+            var spans = rows[i].querySelectorAll('span');
+            if (spans.length >= 2) {
+                var raw = (spans[1].textContent || '').replace(/[^\d.,-]/g, '').replace(/\s/g, '').replace(',', '.');
+                var v = parseFloat(raw);
+                if (!isNaN(v)) return v;
+            }
+        }
+        return 0;
+    }
+
+    /**
+     * Transforme le HTML d'un .receipt (ticket vertical) en HTML d'une facture
+     * classique A4/A5 avec le layout :
+     *   1. [Bloc information super marché | Bloc informations clients/vendeur]
+     *   2. [Bloc informations articles                    (pleine largeur)]
+     *   3. [Bloc informations total         (aligné à droite)]
+     *   4. [Bloc total en lettre            (pleine largeur)]
+     *   5. [Code QR                          | Information DGI]
+     *   6. [Commentaire DGI                  (pleine largeur)]
+     * @param {string} receiptHtml  - innerHTML du contenu à imprimer
+     * @param {string} paperType    - 'A4', 'A5', 'Letter', 'Legal'
+     * @returns {string}            - nouveau HTML complet pour l'iframe
+     */
+    function transformReceiptToInvoice(receiptHtml, paperType) {
+        var tmp = document.createElement('div');
+        tmp.innerHTML = receiptHtml;
+
+        var receipt = tmp.querySelector('.receipt');
+        if (!receipt) {
+            return receiptHtml;
+        }
+
+        // ── Données magasin ─────────────────────────────────────────────────
+        var storeNameEl = receipt.querySelector('.store-name');
+        var storeName = storeNameEl ? storeNameEl.textContent.trim() : '';
+        var storeInfoEl = receipt.querySelector('.store-info');
+        var storeInfoHtml = storeInfoEl ? storeInfoEl.innerHTML : '';
+
+        // ── Section vendeur/client (div avec border-top dashed dans le header) ──
+        var infoSectionEl = null;
+        var headerEl = receipt.querySelector('.receipt-header');
+        if (headerEl) {
+            var headerChildren = headerEl.children;
+            for (var i = headerChildren.length - 1; i >= 0; i--) {
+                var child = headerChildren[i];
+                var styleAttr = (child.getAttribute && child.getAttribute('style')) || (child.style ? child.style.cssText : '') || '';
+                if (styleAttr.indexOf('dashed') !== -1) {
+                    infoSectionEl = child;
+                    break;
+                }
+            }
+        }
+        var clientInfoHtml = infoSectionEl ? infoSectionEl.innerHTML : '';
+
+        // ── Numéro de facture ────────────────────────────────────────────────
+        // 1) Cherche un .barcode, 2) sinon un .thank-you avec "FACTURE n°"
+        var barcodeEl = receipt.querySelector('.barcode');
+        var barcode = barcodeEl ? barcodeEl.textContent.trim() : '';
+        if (!barcode) {
+            var thankYouEls = receipt.querySelectorAll('.thank-you');
+            for (var t = 0; t < thankYouEls.length; t++) {
+                var tyText = (thankYouEls[t].textContent || '').trim();
+                var mNum = tyText.match(/FACTURE\s*n[°ºo]?\s*:?\s*([A-Za-z0-9\-_/]+)/i);
+                if (mNum) { barcode = mNum[1].trim(); break; }
+            }
+        }
+        var invoiceNum = barcode;
+        var invoiceDate = ''; // sera rempli depuis le bloc DGI ou le footer
+
+        // ── Items ────────────────────────────────────────────────────────────
+        var itemsEl = receipt.querySelector('.receipt-items');
+        var itemsHtml = itemsEl ? itemsEl.innerHTML : '';
+
+        // ── Totaux + extraction du commentaire et du grand total ────────────
+        var totalsEl = receipt.querySelector('.receipt-totals');
+        var totalsHtml = totalsEl ? totalsEl.innerHTML : '';
+        var grandTotalNum = extractGrandTotalNumber(totalsEl);
+
+        // Bloc "Commentaire/Remarque" présent dans le totals : on l'extrait
+        // pour le déplacer en bas de la facture.
+        var commentHtml = '';
+        if (totalsEl) {
+            var childs = totalsEl.children;
+            for (var c = 0; c < childs.length; c++) {
+                var ch = childs[c];
+                if (ch.classList && ch.classList.contains('receipt-total-row')) continue;
+                var txt = (ch.textContent || '').toLowerCase();
+                if (txt.indexOf('commentaire') !== -1 || txt.indexOf('remarque') !== -1) {
+                    commentHtml = ch.outerHTML;
+                    break;
+                }
+            }
+        }
+
+        // ── Type de facture (receipt-meta) ───────────────────────────────────
+        var metaEl = receipt.querySelector('.receipt-meta');
+        var invoiceTypeLabel = '';
+        if (metaEl) {
+            var metaSpans = metaEl.querySelectorAll('span');
+            if (metaSpans.length >= 2) {
+                invoiceTypeLabel = metaSpans[1].textContent.trim() || metaSpans[0].textContent.trim();
+            } else if (metaSpans.length === 1) {
+                invoiceTypeLabel = metaSpans[0].textContent.trim();
+            } else {
+                invoiceTypeLabel = metaEl.textContent.trim();
+            }
+        }
+
+        // ── Bloc DGI (fond vert e8f5e9 / 4caf50) ─────────────────────────────
+        var dgiEl = null;
+        var allDivs = receipt.querySelectorAll('div');
+        for (var j = 0; j < allDivs.length; j++) {
+            var d = allDivs[j];
+            // On lit la chaîne brute de l'attribut style car .style.background est
+            // parsé par le navigateur (rgb(...) au lieu du #e8f5e9 original).
+            var rawStyle = d.getAttribute('style') || '';
+            var cs = (typeof window !== 'undefined' && window.getComputedStyle) ? window.getComputedStyle(d) : null;
+            var bg = rawStyle + ' | ' + (d.style.background || '') + ' | ' + (d.style.backgroundColor || '') +
+                (cs ? ' | ' + cs.background + ' | ' + cs.backgroundColor : '');
+            if (bg.indexOf('e8f5e9') !== -1 || bg.indexOf('4caf50') !== -1 ||
+                bg.indexOf('232, 245, 233') !== -1 || bg.indexOf('76, 175, 80') !== -1) {
+                dgiEl = d;
+                break;
+            }
+        }
+        var dgiHtml = dgiEl ? dgiEl.outerHTML : '';
+
+        // ── Parsing des champs DGI (CODE DEF/DGI, NID, Compteurs, Heure, ISF) ─
+        var dgiFields = { codeDEF: '', nim: '', counters: '', date: '', isf: '' };
+        if (dgiEl) {
+            var dgiText = dgiEl.textContent || '';
+            var m;
+            m = dgiText.match(/CODE\s*DEF\/DGI\s*[:\-]?\s*([^\n<]+?)(?=\s*(?:DEF|ISF|$))/i);
+            if (m) dgiFields.codeDEF = m[1].trim();
+            m = dgiText.match(/DEF\s*NID\s*[:\-]?\s*([^\n<]+?)(?=\s*(?:DEF|ISF|$))/i);
+            if (m) dgiFields.nim = m[1].trim();
+            m = dgiText.match(/DEF\s*Compteurs\s*[:\-]?\s*([^\n<]+?)(?=\s*(?:DEF|ISF|$))/i);
+            if (m) dgiFields.counters = m[1].trim();
+            m = dgiText.match(/DEF\s*Heure\s*[:\-]?\s*([^\n<]+?)(?=\s*ISF|$)/i);
+            if (m) dgiFields.date = m[1].trim();
+            m = dgiText.match(/ISF\s*[:\-]?\s*([^\n<]+?)$/i);
+            if (m) dgiFields.isf = m[1].trim();
+        }
+
+        // Fallback ISF depuis le receipt-totals (le reçu confirmSale stocke ISF dans totals)
+        if (!dgiFields.isf && totalsEl) {
+            var isfInTotals = totalsEl.textContent.match(/ISF\s*[:\-]?\s*([^\n<]+?)(?=\s*(?:[A-Z][a-z]|$))/i);
+            if (isfInTotals) dgiFields.isf = isfInTotals[1].trim();
+        }
+
+        // Fallback date depuis le footer (le reçu confirmSale met "Date : xxx" dans le footer)
+        if (!invoiceDate) invoiceDate = dgiFields.date;
+        if (!invoiceDate) {
+            var footerEl = receipt.querySelector('.receipt-footer');
+            if (footerEl) {
+                var dateText = footerEl.textContent.match(/Date\s*[:\-]?\s*([0-9\/\-\s:]+)/i);
+                if (dateText) invoiceDate = dateText[1].trim();
+            }
+        }
+
+        // ── QR code container ───────────────────────────────────────────────
+        var qrEl = receipt.querySelector('.qrcode-container');
+        var qrHtml = qrEl ? qrEl.outerHTML : '';
+
+        // ── Paires client (key/value) ────────────────────────────────────────
+        var clientRows = '';
+        if (clientInfoHtml) {
+            var tmpClient = document.createElement('div');
+            tmpClient.innerHTML = clientInfoHtml;
+            var pairs = tmpClient.querySelectorAll('div[style*="space-between"], div[style*="flex"]');
+            if (pairs.length === 0) {
+                // Fallback : on prend tout le contenu
+                clientRows = '<tr><td colspan="2" style="font-size:11px;padding:3px 0;">' + clientInfoHtml + '</td></tr>';
+            } else {
+                pairs.forEach(function (row) {
+                    var spans = row.querySelectorAll('span');
+                    if (spans.length >= 2) {
+                        var label = spans[0].textContent.trim();
+                        var value = spans[1].textContent.trim();
+                        clientRows += '<tr><td style="color:#666;padding:3px 8px 3px 0;font-size:11px;white-space:nowrap;">' + label + '</td>' +
+                            '<td style="font-weight:600;padding:3px 0;font-size:11px;">' + value + '</td></tr>';
+                    }
+                });
+            }
+        }
+
+        // ── Tableau des articles ────────────────────────────────────────────
+        var itemTableHtml = '';
+        var tmpItems = document.createElement('div');
+        tmpItems.innerHTML = itemsHtml;
+        var existingTable = tmpItems.querySelector('table.receipt-table, table');
+        if (existingTable) {
+            itemTableHtml = existingTable.outerHTML;
+        } else {
+            var rows = '';
+            var itemEls = tmpItems.querySelectorAll('.receipt-item');
+            itemEls.forEach(function (el) {
+                var nameEl2 = el.querySelector('.item-name');
+                var qtyEl = el.querySelector('.item-qty');
+                var priceEl = el.querySelector('.item-price, .item-total');
+                var name = nameEl2 ? nameEl2.textContent.trim() : el.textContent.trim();
+                var qty = qtyEl ? qtyEl.textContent.trim() : '';
+                var price = priceEl ? priceEl.textContent.trim() : '';
+                rows += '<tr>' +
+                    '<td style="padding:6px 8px;border-bottom:1px solid #eee;">' + name + '</td>' +
+                    '<td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:center;">' + qty + '</td>' +
+                    '<td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;font-weight:600;">' + price + '</td>' +
+                    '</tr>';
+            });
+            itemTableHtml = '<table style="width:100%;border-collapse:collapse;">' +
+                '<thead><tr style="background:#f5f5f5;">' +
+                '<th style="padding:8px;text-align:left;border-bottom:2px solid #333;">Article</th>' +
+                '<th style="padding:8px;text-align:center;border-bottom:2px solid #333;">Qté</th>' +
+                '<th style="padding:8px;text-align:right;border-bottom:2px solid #333;">Montant</th>' +
+                '</tr></thead><tbody>' + rows + '</tbody></table>';
+        }
+
+        // ── Bloc totaux (aligné à droite, sans le commentaire déjà extrait) ─
+        var totTableHtml = '';
+        var tmpTotals = document.createElement('div');
+        tmpTotals.innerHTML = totalsHtml;
+        var totalRows = tmpTotals.querySelectorAll('.receipt-total-row');
+        if (totalRows.length > 0) {
+            var tRows = '';
+            totalRows.forEach(function (row) {
+                var spans = row.querySelectorAll('span');
+                if (spans.length >= 2) {
+                    var isGrand = row.classList.contains('grand-total');
+                    var style = isGrand
+                        ? 'font-weight:700;font-size:14px;border-top:2px solid #333;'
+                        : 'font-size:12px;';
+                    tRows += '<tr style="' + style + '">' +
+                        '<td style="padding:5px 8px;text-align:right;color:#555;">' + spans[0].textContent.trim() + '</td>' +
+                        '<td style="padding:5px 8px;text-align:right;font-weight:' + (isGrand ? '700' : '500') + ';">' + spans[1].textContent.trim() + '</td>' +
+                        '</tr>';
+                }
+            });
+            totTableHtml = '<table style="width:100%;border-collapse:collapse;margin-left:auto;max-width:300px;">' +
+                '<tbody>' + tRows + '</tbody></table>';
+        } else {
+            totTableHtml = totalsHtml;
+        }
+
+        // ── Bloc "Total en lettre" ──────────────────────────────────────────
+        var totalEnLettre = numberToFrenchWords(grandTotalNum);
+        var totalEnLettreHtml =
+            '<div class="inv-amount-spelled">' +
+            '  Arrêté la présente facture à la somme de <strong>' +
+            '  <span style="text-transform:capitalize;">' + totalEnLettre + '</span> francs congolais' +
+            (grandTotalNum > 0 ? ' (' + grandTotalNum.toFixed(2).replace('.', ',') + ' Fc)' : '') +
+            '  </strong> toutes taxes comprises.' +
+            '</div>';
+
+        // ── Choisir la taille de page ────────────────────────────────────────
+        var sizeMap = { A4: 'A4 portrait', A5: 'A5 portrait', Letter: 'Letter portrait', Legal: 'Legal portrait' };
+        var sizeRule = sizeMap[paperType] || 'A4 portrait';
+        var fontSize = (paperType === 'A5') ? '11px' : '12px';
+
+        // ── Assembler le HTML final ──────────────────────────────────────────
+        var html = '<!DOCTYPE html><html><head><meta charset="UTF-8">' +
+            '<style>\n' +
+            '@page { margin: 12mm 15mm; size: ' + sizeRule + '; }\n' +
+            '* { box-sizing: border-box; margin: 0; padding: 0; }\n' +
+            'html, body { width: 100%; font-family: \'Helvetica Neue\', Arial, sans-serif; font-size: ' + fontSize + '; color: #000; background: #fff; line-height: 1.5; }\n' +
+            '.invoice-wrap { width: 100%; max-width: 100%; }\n' +
+
+            /* ── Rangée 1 : infos magasin (gauche) | infos client/vendeur (droite) ── */
+            '.inv-top-row { display: flex; gap: 16px; border-bottom: 3px solid #000; padding-bottom: 14px; margin-bottom: 16px; align-items: stretch; }\n' +
+            '.inv-top-row .store-block { flex: 1; padding: 10px 14px; border: 1px solid #ddd; border-radius: 6px; background: #fff; }\n' +
+            '.inv-top-row .client-block { flex: 1; padding: 10px 14px; border: 1px solid #ddd; border-radius: 6px; background: #fafafa; }\n' +
+            '.inv-top-row .store-block .store-name { font-size: 18px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: #111; margin-bottom: 6px; }\n' +
+            '.inv-top-row .store-block .store-info { font-size: 11px; color: #444; line-height: 1.6; }\n' +
+            '.inv-top-row .client-block h4 { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #888; margin-bottom: 6px; }\n' +
+            '.inv-top-row .client-block table { border-collapse: collapse; width: 100%; }\n' +
+            '.inv-top-row .client-block td { vertical-align: top; }\n' +
+            '.inv-top-row .client-block .invoice-type-big { font-size: 18px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: #111; margin-bottom: 4px; }\n' +
+            '.inv-top-row .client-block .invoice-num-line { font-size: 12px; color: #333; margin-bottom: 2px; }\n' +
+            '.inv-top-row .client-block .invoice-date-line { font-size: 11px; color: #666; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid #ddd; }\n' +
+
+            /* ── Bloc articles (pleine largeur) ── */
+            '.inv-items { margin-bottom: 16px; }\n' +
+            '.inv-items table { width: 100%; border-collapse: collapse; border: 2px solid #000 !important; }\n' +
+            '.inv-items table thead tr { background: #111; color: #fff; }\n' +
+            '.inv-items table thead th { padding: 8px 10px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; border: 1px solid #000 !important; border-bottom: 2px solid #000 !important; background: #111 !important; color: #fff !important; }\n' +
+            '.inv-items table thead th:last-child { text-align: right; }\n' +
+            '.inv-items table thead th:nth-child(2) { text-align: center; }\n' +
+            '.inv-items table tbody tr:nth-child(even) { background: #f5f5f5 !important; }\n' +
+            '.inv-items table tbody td { padding: 7px 10px; font-size: 12px; border: 1px solid #333 !important; border-bottom: 1px solid #ccc !important; vertical-align: middle !important; }\n' +
+            '.inv-items table tbody td:last-child { text-align: right; font-weight: 600; border-right: 2px solid #000 !important; }\n' +
+            '.inv-items table tbody td:nth-child(2) { text-align: center; }\n' +
+            '.inv-items table tbody td:first-child { border-left: 2px solid #000 !important; }\n' +
+            '.inv-items table tbody tr:last-child td { border-bottom: 2px solid #000 !important; }\n' +
+            '.item-tax-badge { display: inline-block; font-size: 9px; background: #e8f5e9; color: #2e7d32; border: 1px solid #2e7d32; border-radius: 3px; padding: 1px 5px; margin-left: 5px; }\n' +
+            '.item-prod-service { display: inline-block; font-size: 9px; background: #e3f2fd; color: #1565c0; border: 1px solid #1565c0; border-radius: 3px; padding: 1px 5px; margin-left: 5px; }\n' +
+
+            /* ── Bloc totaux (aligné à droite) ── */
+            '.inv-totals { display: flex; justify-content: flex-end; margin-bottom: 16px; }\n' +
+            '.inv-totals table { border-collapse: collapse; min-width: 300px; max-width: 100%; }\n' +
+            '.inv-totals td { padding: 5px 10px; font-size: 12px; }\n' +
+            '.inv-totals .grand-total td { font-size: 14px; font-weight: 700; border-top: 2px solid #333; padding-top: 8px; }\n' +
+
+            /* ── Bloc "Total en lettre" (pleine largeur) ── */
+            '.inv-amount-spelled { border: 1px solid #333; border-radius: 4px; padding: 10px 14px; margin-bottom: 16px; background: #f5f5f5; font-size: 12px; line-height: 1.6; }\n' +
+
+            /* ── Rangée 5 : QR (gauche) | DGI (droite) ── */
+            '.inv-security-row { display: flex; gap: 16px; align-items: stretch; border-top: 2px solid #000; padding-top: 14px; margin-top: 4px; margin-bottom: 14px; }\n' +
+            '.inv-security-row .qr-block { flex: 0 0 180px; text-align: center; padding: 8px; border: 1px solid #ddd; border-radius: 6px; background: #fff; }\n' +
+            '.inv-security-row .qr-block .qrcode-container { display: inline-block; }\n' +
+            '.inv-security-row .qr-block .barcode { font-size: 13px; letter-spacing: 2px; font-weight: 700; margin-top: 8px; word-break: break-all; }\n' +
+            '.inv-security-row .qr-block .qr-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #888; margin-top: 6px; }\n' +
+            '.qrcode-container svg, .qrcode-container img { max-width: 140px; height: auto; display: block; margin: 0 auto; }\n' +
+            '.inv-security-row .dgi-block { flex: 1; padding: 10px 14px; border: 1px solid #4caf50; border-radius: 6px; background: #e8f5e9; font-size: 12px; color: #1b5e20; }\n' +
+            '.inv-security-row .dgi-block .dgi-title { font-weight: 700; color: #2e7d32; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }\n' +
+            '.inv-security-row .dgi-block table { border-collapse: collapse; width: 100%; }\n' +
+            '.inv-security-row .dgi-block td { padding: 2px 6px; font-size: 11px; color: #1b5e20; vertical-align: top; }\n' +
+
+            /* ── Commentaire DGI (pleine largeur) ── */
+            '.inv-comment { border: 1px dashed #999; border-radius: 4px; padding: 10px 14px; margin-bottom: 12px; background: #fffbe6; font-size: 11px; color: #333; }\n' +
+            '.inv-comment .inv-comment-title { font-weight: 700; text-decoration: underline; margin-bottom: 4px; color: #555; }\n' +
+
+            /* ── Pied de page (Powered by) ── */
+            '.inv-footer-note { text-align: center; font-size: 9px; color: #777; font-style: italic; margin-top: 10px; }\n' +
+            '</style></head><body>\n' +
+
+            '<div class="invoice-classic invoice-wrap">\n' +
+
+            /* RANGÉE 1 : BLOC MAGASIN + BLOC CLIENT */
+            '<div class="inv-top-row">\n' +
+            '  <div class="store-block">\n' +
+            '    <div class="store-name">' + storeName + '</div>\n' +
+            '    <div class="store-info">' + storeInfoHtml + '</div>\n' +
+            '  </div>\n' +
+            '  <div class="client-block">\n' +
+            '    <div class="invoice-type-big">' + (invoiceTypeLabel || 'Facture de Vente') + '</div>\n' +
+            '    <div class="invoice-num-line">N° Facture : ' + (invoiceNum || '') + '</div>\n' +
+            '    <div class="invoice-date-line">Date : ' + (invoiceDate || '') + '</div>\n' +
+            '    <h4>Informations Client & Vendeur</h4>\n' +
+            '    <table><tbody>' + clientRows + '</tbody></table>\n' +
+            '  </div>\n' +
+            '</div>\n' +
+
+            /* BLOC ARTICLES (pleine largeur) */
+            '<div class="inv-items">\n' + itemTableHtml + '\n</div>\n' +
+
+            /* BLOC TOTAUX (aligné à droite) */
+            '<div class="inv-totals">\n' + totTableHtml + '\n</div>\n' +
+
+            /* BLOC TOTAL EN LETTRE (pleine largeur) */
+            totalEnLettreHtml + '\n' +
+
+            /* RANGÉE 5 : QR (gauche) | DGI (droite) */
+            '<div class="inv-security-row">\n' +
+            '  <div class="qr-block">\n' +
+            '    ' + qrHtml + '\n' +
+            '    <div class="qr-label">Code QR</div>\n' +
+            (barcode ? '    <div class="barcode">' + barcode + '</div>\n' : '') +
+            '  </div>\n' +
+            '  <div class="dgi-block">\n' +
+            '    <div class="dgi-title">--- Éléments de sécurité de la facture normalisée ---</div>\n' +
+            '    <table>\n' +
+            (ren.codeDEFDGI ? '      <tr><td><strong>CODE DEF/DGI :</strong></td><td>' + ren.codeDEFDGI + '</td></tr>\n' : '') +
+            (ren.nim ? '      <tr><td><strong>DEF NID :</strong></td><td>' + ren.nim + '</td></tr>\n' : '') +
+            (ren.counters ? '      <tr><td><strong>DEF Compteurs :</strong></td><td>' + ren.counters + '</td></tr>\n' : '') +
+            (ren.dateTime ? '      <tr><td><strong>DEF Heure :</strong></td><td>' + ren.dateTime + '</td></tr>\n' : '') +
+            (ren.isf ? '      <tr><td><strong>ISF :</strong></td><td>' + ren.isf + '</td></tr>\n' : '') +
+            (!ren.codeDEF && !ren.nim && !ren.counters && !ren.date && !ren.isf ? '      <tr><td colspan="2">Aucune information DGI disponible.</td></tr>\n' : '') +
+            '    </table>\n' +
+            '  </div>\n' +
+            '</div>\n' +
+
+            /* COMMENTAIRE DGI (pleine largeur) */
+            (commentHtml ? (
+                '<div class="inv-comment">\n' +
+                '  <div class="inv-comment-title">Commentaire DGI</div>\n' +
+                '  ' + commentHtml + '\n' +
+                '</div>\n'
+            ) : '') +
+
+            /* PIED DE PAGE */
+            '<div class="inv-footer-note">--- Powered by Osat ---</div>\n' +
+
+            '</div>\n' +
+            '</body></html>';
+
+        return html;
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // buildPrintStyles – pour ticket 57mm / 80mm (utilisé dans l'iframe)
+    // ──────────────────────────────────────────────────────────────────────────
+    function buildPrintStyles(paperType) {
+        var pt = paperType || currentPaperType || '80mm';
+        var sizeRule = '';
+        var maxWidth = '76mm';
+        var bodyFont = "'Courier New', Courier, monospace";
+        var bodyFontSize = '14px';
+        var wrapperWidth = '80mm';
+
+        switch (pt) {
+            case '57mm': sizeRule = '57mm auto'; maxWidth = '53mm'; wrapperWidth = '57mm'; bodyFontSize = '11px'; break;
+            case '80mm': sizeRule = '80mm auto'; maxWidth = '76mm'; wrapperWidth = '80mm'; bodyFontSize = '14px'; break;
+            default: sizeRule = '80mm auto'; maxWidth = '76mm'; wrapperWidth = '80mm'; bodyFontSize = '14px';
+        }
+
+        return '\n<style>\n' +
+            '@page { margin: 5mm; size: ' + sizeRule + '; }\n' +
+            '* { box-sizing: border-box; margin: 0; padding: 0; }\n' +
+            'html, body { width: 100%; }\n' +
+            'body { font-family: ' + bodyFont + '; font-size: ' + bodyFontSize + '; line-height: 1.5; max-width: ' + maxWidth + '; margin: 0 auto; color: #000; background: #fff; }\n' +
+            '.receipt { width: 100%; }\n' +
+            '.receipt-header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 12px; margin-bottom: 12px; }\n' +
+            '.receipt-header .store-name { font-size: 20px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }\n' +
+            '.receipt-header .store-info { font-size: 13px; line-height: 1.6; color: #222; }\n' +
+            '.receipt-meta { display: flex; justify-content: space-between; font-size: 13px; font-weight: 600; padding: 8px 0; margin-bottom: 10px; border-bottom: 2px solid #000; }\n' +
+            '.receipt-items { margin-bottom: 10px; }\n' +
+            '.receipt-item { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 5px; font-size: 13px; gap: 3px; }\n' +
+            '.receipt-item .item-name { flex: 2; min-width: 0; white-space: normal; overflow-wrap: break-word; }\n' +
+            '.receipt-item .item-qty { flex: 1; text-align: center; white-space: nowrap; }\n' +
+            '.receipt-item .item-price { flex: 1; text-align: right; font-weight: 700; white-space: nowrap; }\n' +
+            '.receipt-table { width: 100%; border-collapse: collapse; }\n' +
+            '.receipt-table th { text-align: left; padding: 4px 0; border-bottom: 1px solid #000; font-size: 12px; }\n' +
+            '.receipt-table td { padding: 3px 0; font-size: 12px; vertical-align: top; }\n' +
+            '.receipt-table td:nth-child(2) { text-align: center; }\n' +
+            '.receipt-table td:last-child { text-align: right; font-weight: 600; }\n' +
+            '.item-tax-badge { display: inline-block; font-size: 9px; border: 1px solid #999; border-radius: 2px; padding: 0 3px; margin-left: 3px; }\n' +
+            '.receipt-totals { margin-bottom: 8px; }\n' +
+            '.receipt-total-row { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 5px; }\n' +
+            '.receipt-total-row.grand-total { font-size: 18px; font-weight: 700; border-top: 3px solid #000; border-bottom: 3px solid #000; padding: 8px 0; margin-top: 8px; }\n' +
+            'div[style*="e8f5e9"], div[style*="4caf50"] { border-radius: 4px; padding: 8px 10px !important; margin: 10px 0 !important; font-size: 13px !important; }\n' +
+            '.receipt-footer { text-align: center; margin-top: 12px; padding-top: 10px; border-top: 2px solid #000; font-size: 13px; }\n' +
+            '.vendeur-info { margin-bottom: 8px; }\n' +
+            '.qrcode-container { width: 100%; text-align: center; margin: 10px 0; overflow: visible; }\n' +
+            '.qrcode-container > div { display: inline-block; overflow: visible; }\n' +
+            '.qrcode-container svg, .qrcode-container img { display: block; margin: 0 auto; max-width: 250px; height: auto; overflow: visible; }\n' +
+            '.barcode { font-size: 18px; letter-spacing: 3px; font-weight: 700; margin: 8px 0; text-align: center; }\n' +
+            '.thank-you { font-style: italic; margin-top: 8px; font-size: 13px; }\n' +
+            '</style>\n';
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Override de window._printReceiptContent
+    // ──────────────────────────────────────────────────────────────────────────
+
+    window._printReceiptContent = function (content) {
+        loadPaperType(function (paperType) {
+            currentPaperType = paperType;
+            var oldFrame = document.getElementById('_print-frame');
+            if (oldFrame) oldFrame.remove();
+
+            var iframe = document.createElement('iframe');
+            iframe.id = '_print-frame';
+            iframe.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:210mm;height:1px;border:none;overflow:hidden;';
+            document.body.appendChild(iframe);
+
+            var fullHtml;
+
+            if (isLargeFormat(paperType)) {
+                // Transformer en facture classique
+                fullHtml = transformReceiptToInvoice(content, paperType);
+            } else {
+                // Format ticket (57mm / 80mm) – style habituel
+                var printStyles = buildPrintStyles(paperType);
+                fullHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8">' + printStyles + '</head><body>' + content + '</body></html>';
+            }
+
+            var doc = iframe.contentDocument || iframe.contentWindow.document;
+            doc.open();
+            doc.write(fullHtml);
+            doc.close();
+
+            iframe.onload = function () {
+                setTimeout(function () {
+                    try {
+                        var iDoc = iframe.contentDocument;
+                        if (iDoc && iDoc.querySelectorAll) {
+                            iDoc.querySelectorAll('.qrcode-container svg').forEach(function (svg) {
+                                var origW = parseInt(svg.getAttribute('width') || 250, 10);
+                                var origH = parseInt(svg.getAttribute('height') || 250, 10);
+                                if (!svg.getAttribute('viewBox')) {
+                                    svg.setAttribute('viewBox', '0 0 ' + origW + ' ' + origH);
+                                }
+                                var qrSize = isLargeFormat(paperType) ? '120' : '220';
+                                svg.setAttribute('width', qrSize);
+                                svg.setAttribute('height', qrSize);
+                                svg.style.width = qrSize + 'px';
+                                svg.style.height = qrSize + 'px';
+                                svg.style.display = 'block';
+                                svg.style.margin = '0 auto';
+                                svg.style.overflow = 'visible';
+                            });
+                        }
+                        if (iframe.contentWindow) {
+                            iframe.contentWindow.focus();
+                            iframe.contentWindow.print();
+                        }
+                    } catch (e) {
+                        console.error('Erreur impression iframe:', e);
+                    }
+                    setTimeout(function () { if (iframe.parentNode) iframe.remove(); }, 2000);
+                }, 400);
+            };
+        });
+    };
+
+    // Fonction utilitaire globale : récupérer le format actuel
+    window.getCurrentPaperType = function (cb) {
+        if (typeof cb === 'function') loadPaperType(cb);
+        return currentPaperType;
+    };
+
+    // Charger le format au démarrage (best-effort, non bloquant)
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function () { loadPaperType(); });
+    } else {
+        loadPaperType();
+    }
+})();
