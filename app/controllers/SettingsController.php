@@ -145,4 +145,48 @@ class SettingsController
         $theme = $this->settingsModel->get('theme') ?? 'blue';
         $this->json(['theme' => $theme]);
     }
+
+    // POST /api/settings/paper-type - Mettre à jour le format d'impression (Admin only)
+    // Formats acceptés : 80mm, 57mm, A4, A5, Letter, Legal
+    public function updatePaperType()
+    {
+        if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
+            $this->status(403)->json(['error' => 'Accès réservé aux administrateurs']);
+            return;
+        }
+
+        $allowed = ['80mm', '57mm', 'A4', 'A5', 'Letter', 'Legal'];
+
+        $input = $_SERVER['REQUEST_METHOD'] === 'POST'
+            ? ($_POST ?? json_decode(file_get_contents('php://input'), true))
+            : json_decode(file_get_contents('php://input'), true);
+
+        $paperType = $input['paper_type'] ?? $_POST['paper_type'] ?? null;
+
+        if ($paperType === null) {
+            $this->status(400)->json(['error' => 'Format de papier non fourni']);
+            return;
+        }
+
+        if (!in_array($paperType, $allowed, true)) {
+            $this->status(400)->json([
+                'error' => 'Format de papier invalide. Formats acceptés : ' . implode(', ', $allowed)
+            ]);
+            return;
+        }
+
+        try {
+            $this->settingsModel->set('paper_type', $paperType);
+            $this->json(['success' => true, 'message' => 'Format d\'impression mis à jour', 'paper_type' => $paperType]);
+        } catch (\Exception $e) {
+            $this->status(500)->json(['error' => 'Erreur: ' . $e->getMessage()]);
+        }
+    }
+
+    // GET /api/settings/paper-type - Récupérer le format d'impression actuel
+    public function getPaperType()
+    {
+        $paperType = $this->settingsModel->get('paper_type') ?? '80mm';
+        $this->json(['paper_type' => $paperType]);
+    }
 }
