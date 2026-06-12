@@ -59,7 +59,7 @@
                       <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
                       <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
                     </svg>
-                    ID Nat 
+                    ID Nat
                   </label>
                   <input type="text" id="store-ice" name="store_ice" value="" placeholder="Ex: 001234567890123" style="font-family: 'JetBrains Mono', monospace;" readonly>
                 </div>
@@ -93,6 +93,58 @@
             </div>
           </div>
 
+          <!-- Format d'impression (papier) -->
+          <div class="card" style="padding: 1.5rem;">
+            <div class="card-header" style="margin-bottom: 1.5rem; padding: 0;">
+              <h3>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 8px; vertical-align: middle;">
+                  <polyline points="6 9 6 2 18 2 18 9"></polyline>
+                  <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+                  <rect x="6" y="14" width="12" height="8"></rect>
+                </svg>
+                Format d'impression
+              </h3>
+              <p style="font-size: 0.85rem; color: var(--muted); margin-top: 0.25rem;">Choisissez le format de papier utilisé pour imprimer les tickets et factures</p>
+            </div>
+            <div class="settings-form-container" style="background: var(--background); border-radius: var(--radius); padding: 1.25rem;">
+              <div class="form-group">
+                <label>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                  </svg>
+                  Format du papier
+                </label>
+                <select id="paper-type" name="paper_type" style="width: 100%; padding: 0.625rem 0.75rem; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text); font-size: 0.95rem;">
+                  <optgroup label="Imprimantes POS (reçus thermiques)">
+                    <option value="80mm">80 mm (Ticket POS standard)</option>
+                    <option value="57mm">57 mm (Mini ticket POS)</option>
+                  </optgroup>
+                  <optgroup label="Formats papier standard">
+                    <option value="A4">A4 (210 × 297 mm)</option>
+                    <option value="A5">A5 (148 × 210 mm)</option>
+                    <option value="Letter">Letter (8.5 × 11 in)</option>
+                    <option value="Legal">Legal (8.5 × 14 in)</option>
+                  </optgroup>
+                </select>
+                <p style="font-size: 0.75rem; color: var(--muted); margin-top: 0.5rem;">
+                  Le format sera appliqué lors de l'impression des tickets et factures.
+                </p>
+              </div>
+              <div style="margin-top: 1rem; display: flex; gap: 0.5rem;">
+                <button type="button" id="btn-save-paper-type" class="btn btn-primary" style="display: inline-flex; align-items: center; gap: 6px;">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                    <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                    <polyline points="7 3 7 8 15 8"></polyline>
+                  </svg>
+                  Enregistrer
+                </button>
+                <span id="paper-type-status" style="font-size: 0.85rem; color: var(--muted); display: inline-flex; align-items: center;"></span>
+              </div>
+            </div>
+          </div>
+
           <!-- Abonnement -->
           <div class="card" style="padding: 1.5rem;">
             <div class="card-header" style="margin-bottom: 1.5rem; padding: 0;">
@@ -107,7 +159,7 @@
             <div class="settings-form-container" style="background: var(--background); border-radius: var(--radius); padding: 1.25rem; text-align: center;">
               <div style="background: linear-gradient(135deg, #e8f5e9 0%, #f1f8e9 100%); border: 1px solid #81c784; border-radius: 12px; padding: 16px; margin-bottom: 16px;">
                 <div style="font-size: 0.9rem; font-weight: 600; color: #2e7d32; margin-bottom: 12px;">
-                   Comment procéder au réabonnement ?
+                  Comment procéder au réabonnement ?
                 </div>
                 <div style="display: flex; flex-direction: column; gap: 8px; text-align: left;">
                   <div style="display: flex; align-items: center; gap: 10px; font-size: 0.85rem; color: #333;">
@@ -194,7 +246,7 @@
               <span class="theme-preview" style="background: #EAB308;"></span>
             </button>
             <button class="theme-btn" data-theme="midnight" onclick="applyTheme('midnight')" title="🌌 Midnight">
-              <span class="theme-preview" style="background: #032357",;"></span>
+              <span class="theme-preview" style="background: #032357" ,;"></span>
             </button>
             <button class="theme-btn" data-theme="ice" onclick="applyTheme('ice')" title="🧊 Ice">
               <span class="theme-preview" style="background: #7DD3FC;"></span>
@@ -221,33 +273,33 @@
           #page-settings .settings-grid {
             grid-template-columns: 1fr;
           }
-          
+
           #page-settings .card {
             padding: 1rem !important;
           }
-          
+
           #page-settings .settings-form-container {
             padding: 0.875rem !important;
           }
-          
+
           #page-settings .form-row {
             display: flex;
             flex-direction: column;
             gap: 0.75rem;
           }
-          
+
           #page-settings .form-row .form-group {
             width: 100%;
           }
-          
+
           #page-settings .form-group {
             margin-bottom: 0.875rem;
           }
-          
+
           #page-settings .form-group:last-child {
             margin-bottom: 0;
           }
-          
+
           /* Input fields fit inside the card like Nom du magasin */
           #page-settings .form-group input,
           #page-settings input[type="text"],
@@ -256,39 +308,39 @@
             box-sizing: border-box;
           }
         }
-        
+
         @media (max-width: 480px) {
           #page-settings .page-header {
             margin: 12px !important;
           }
-          
+
           #page-settings .page-header h2 {
             font-size: 1.25rem;
           }
-          
+
           #page-settings .card {
             padding: 0.75rem !important;
             margin-bottom: 1rem;
           }
-          
+
           #page-settings .settings-form-container {
             padding: 0.75rem !important;
           }
-          
+
           #page-settings .form-row {
             gap: 0.5rem;
           }
-          
+
           #page-settings .form-group {
             margin-bottom: 0.75rem;
           }
-          
+
           #page-settings input[type="text"],
           #page-settings input[type="number"] {
             font-size: 0.875rem;
             padding: 0.5rem 0.625rem;
           }
-          
+
           #page-settings label {
             font-size: 0.8rem;
           }
@@ -313,12 +365,71 @@
           }
         }
 
+        // Charger le format d'impression actuel
+        async function loadPaperType() {
+          try {
+            const res = await fetch(APP_URL + '/api/settings/paper-type');
+            const data = await res.json();
+            const sel = document.getElementById('paper-type');
+            if (sel && data.paper_type) {
+              sel.value = data.paper_type;
+            }
+          } catch (e) {
+            console.error('Erreur chargement paper_type:', e);
+          }
+        }
+
+        // Sauvegarder le format d'impression
+        async function savePaperType() {
+          const sel = document.getElementById('paper-type');
+          const status = document.getElementById('paper-type-status');
+          if (!sel) return;
+
+          const paperType = sel.value;
+          status.textContent = 'Enregistrement...';
+          status.style.color = 'var(--muted)';
+
+          try {
+            const res = await fetch(APP_URL + '/api/settings/paper-type', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                paper_type: paperType
+              })
+            });
+            const data = await res.json();
+            if (data.success) {
+              status.textContent = '✓ Enregistré';
+              status.style.color = '#16A34A';
+              setTimeout(() => {
+                status.textContent = '';
+              }, 2500);
+            } else {
+              status.textContent = '✗ ' + (data.error || 'Erreur');
+              status.style.color = '#DC2626';
+            }
+          } catch (e) {
+            console.error('Erreur sauvegarde paper_type:', e);
+            status.textContent = '✗ Erreur réseau';
+            status.style.color = '#DC2626';
+          }
+        }
+
+        // Init bouton
+        document.addEventListener('DOMContentLoaded', () => {
+          const btn = document.getElementById('btn-save-paper-type');
+          if (btn) btn.addEventListener('click', savePaperType);
+        });
+
         // Recharger l'abonnement - redirection vers Mobile Money
         function reloadSubscription() {
-            // Redirection vers la page de paiement Mobile Money
-            window.open('https://osat-energie.com/money.php', '_blank');
+          // Redirection vers la page de paiement Mobile Money
+          window.open('https://osat-energie.com/money.php', '_blank');
         }
 
         // Charger au démarrage
         loadSettings();
+        loadPaperType();
       </script>
