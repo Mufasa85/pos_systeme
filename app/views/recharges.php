@@ -142,7 +142,7 @@
 
         <!-- MODAL INVOICE INFO (Résumé facture avant validation) -->
         <div id="invoice-info-modal" class="modal">
-          <div class="modal-content" style="max-width: 500px; padding: 0;">
+          <div class="modal-content" style="max-width: 500px; padding: 0; overflow: auto;">
             <div class="modal-header">
               <h3>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 8px;">
