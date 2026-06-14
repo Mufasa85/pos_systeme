@@ -102,7 +102,7 @@
           <!-- Informations de base -->
           <div style="background: var(--background); border-radius: var(--radius); padding: 1rem; margin-bottom: 1rem;">
             <h4 style="font-size: 0.85rem; font-weight: 600; color: var(--muted); margin-bottom: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em;">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;">
+              <svg width="14" width="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;">
                 <circle cx="12" cy="12" r="10"></circle>
                 <line x1="12" y1="16" x2="12" y2="12"></line>
                 <line x1="12" y1="8" x2="12.01" y2="8"></line>
@@ -567,8 +567,12 @@
       </div>
     </div>
 
+    <!-- Modal : choix du format d'impression (57mm, 80mm, A4, A5, Letter, Legal) -->
+    <?php include __DIR__ . '/print-format-modal.php'; ?>
+
     <script src="./assets/js/app.js?v=1.0.998899999999999999999999"></script>
     <script src="./assets/js/recharges.js?v=1.0.6"></script>
+    <script src="./assets/js/paper-type.js?v=1.0.1"></script>
 
     </body>
 
