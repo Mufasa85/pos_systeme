@@ -45,7 +45,7 @@ function getExonerationLabel(code) {
 }
 
 // Taux de change USD (sera mis à jour depuis l'API)
-let USD_RATE = 2555; // Valeur par défaut
+let USD_RATE = 0; // Valeur par défaut
 let ren = {}
 
 // Charger le taux de change depuis l'API
@@ -1358,7 +1358,7 @@ const posCart = {
                 if (dgiResponse.data.counters) dgiInfoHtml += '<br> DEF Compteurs: ' + dgiResponse.data.counters;
                 if (dgiResponse.data.dateDGI) dgiInfoHtml += '<br> DEF Heure : ' + dgiResponse.data.dateDGI + '\n';
                 //if (dgiResponse.data.isf) dgiInfoHtml += '<br> ISF : ' + dgiResponse.data.isf;
-                else dgiInfoHtml += '<br> ISF : 0';
+                else dgiInfoHtml += '';
                 dgiInfoHtml += '</div>';
             }
             dgiInfoHtml += '</div>';
