@@ -4,6 +4,11 @@
  * dans la table `settings` (clé: paper_type).
  * Formats supportés : 80mm, 57mm, A4, A5, Letter, Legal
  * Pour A4/A5/Letter/Legal : mise en page facture classique (en-tête horizontal)
+ *
+ * Expose :
+ *   - window._printReceiptContent(content)              : utilise le format configuré
+ *   - window._printReceiptContentWithFormat(content, p) : imprime avec un format donné
+ *   - window.getCurrentPaperType(cb)                    : retourne le format actuel
  */
 (function () {
     'use strict';
@@ -103,10 +108,6 @@
     // TRANSFORMATION : reçu ticket ➜ facture classique (layout A4/A5)
     // ──────────────────────────────────────────────────────────────────────────
 
-    /**
-     * Convertit un nombre en toutes lettres (français) – utilisé pour le bloc
-     * "Arrêté la présente facture à la somme de ... francs congolais".
-     */
     function numberToFrenchWords(n) {
         n = Math.floor(Number(n) || 0);
         if (n === 0) return 'zéro';
@@ -145,9 +146,6 @@
         return out.join(' ').trim();
     }
 
-    /**
-     * Extrait le montant total TTC numérique depuis le HTML des totaux du reçu.
-     */
     function extractGrandTotalNumber(totalsEl) {
         if (!totalsEl) return 0;
         var rows = totalsEl.querySelectorAll('.receipt-total-row');
@@ -164,16 +162,7 @@
 
     /**
      * Transforme le HTML d'un .receipt (ticket vertical) en HTML d'une facture
-     * classique A4/A5 avec le layout :
-     *   1. [Bloc information super marché | Bloc informations clients/vendeur]
-     *   2. [Bloc informations articles                    (pleine largeur)]
-     *   3. [Bloc informations total         (aligné à droite)]
-     *   4. [Bloc total en lettre            (pleine largeur)]
-     *   5. [Code QR                          | Information DGI]
-     *   6. [Commentaire DGI                  (pleine largeur)]
-     * @param {string} receiptHtml  - innerHTML du contenu à imprimer
-     * @param {string} paperType    - 'A4', 'A5', 'Letter', 'Legal'
-     * @returns {string}            - nouveau HTML complet pour l'iframe
+     * classique A4/A5/Letter/Legal avec un layout horizontal.
      */
     function transformReceiptToInvoice(receiptHtml, paperType) {
         var tmp = document.createElement('div');
@@ -184,13 +173,37 @@
             return receiptHtml;
         }
 
-        // ── Données magasin ─────────────────────────────────────────────────
+        // Données magasin
         var storeNameEl = receipt.querySelector('.store-name');
         var storeName = storeNameEl ? storeNameEl.textContent.trim() : '';
         var storeInfoEl = receipt.querySelector('.store-info');
         var storeInfoHtml = storeInfoEl ? storeInfoEl.innerHTML : '';
+        var storeInfoProcessedHtml = storeInfoHtml;
+        if (storeInfoEl) {
+            var tmpStoreInfo = document.createElement('div');
+            tmpStoreInfo.innerHTML = storeInfoHtml;
+            var rows = tmpStoreInfo.querySelectorAll('div');
+            if (rows.length > 0) {
+                var processedRows = '';
+                rows.forEach(function (row) {
+                    var text = (row.textContent || '').trim();
+                    if (!text) return;
+                    var parts = text.split(/:\s*/);
+                    if (parts.length >= 2) {
+                        var label = parts.shift().trim();
+                        var value = parts.join(':').trim();
+                        processedRows += '<div class="store-info-row"><span class="store-info-label">' + label + '</span>' +
+                            '<span class="store-info-value">' + value + '</span></div>';
+                    } else {
+                        processedRows += '<div class="store-info-row store-info-single">' + text + '</div>';
+                    }
+                });
+                if (processedRows) {
+                    storeInfoProcessedHtml = processedRows;
+                }
+            }
+        }
 
-        // ── Section vendeur/client (div avec border-top dashed dans le header) ──
         var infoSectionEl = null;
         var headerEl = receipt.querySelector('.receipt-header');
         if (headerEl) {
@@ -206,8 +219,6 @@
         }
         var clientInfoHtml = infoSectionEl ? infoSectionEl.innerHTML : '';
 
-        // ── Numéro de facture ────────────────────────────────────────────────
-        // 1) Cherche un .barcode, 2) sinon un .thank-you avec "FACTURE n°"
         var barcodeEl = receipt.querySelector('.barcode');
         var barcode = barcodeEl ? barcodeEl.textContent.trim() : '';
         if (!barcode) {
@@ -219,19 +230,15 @@
             }
         }
         var invoiceNum = barcode;
-        var invoiceDate = ''; // sera rempli depuis le bloc DGI ou le footer
+        var invoiceDate = '';
 
-        // ── Items ────────────────────────────────────────────────────────────
         var itemsEl = receipt.querySelector('.receipt-items');
         var itemsHtml = itemsEl ? itemsEl.innerHTML : '';
 
-        // ── Totaux + extraction du commentaire et du grand total ────────────
         var totalsEl = receipt.querySelector('.receipt-totals');
         var totalsHtml = totalsEl ? totalsEl.innerHTML : '';
         var grandTotalNum = extractGrandTotalNumber(totalsEl);
 
-        // Bloc "Commentaire/Remarque" présent dans le totals : on l'extrait
-        // pour le déplacer en bas de la facture.
         var commentHtml = '';
         if (totalsEl) {
             var childs = totalsEl.children;
@@ -246,7 +253,6 @@
             }
         }
 
-        // ── Type de facture (receipt-meta) ───────────────────────────────────
         var metaEl = receipt.querySelector('.receipt-meta');
         var invoiceTypeLabel = '';
         if (metaEl) {
@@ -260,13 +266,10 @@
             }
         }
 
-        // ── Bloc DGI (fond vert e8f5e9 / 4caf50) ─────────────────────────────
         var dgiEl = null;
         var allDivs = receipt.querySelectorAll('div');
         for (var j = 0; j < allDivs.length; j++) {
             var d = allDivs[j];
-            // On lit la chaîne brute de l'attribut style car .style.background est
-            // parsé par le navigateur (rgb(...) au lieu du #e8f5e9 original).
             var rawStyle = d.getAttribute('style') || '';
             var cs = (typeof window !== 'undefined' && window.getComputedStyle) ? window.getComputedStyle(d) : null;
             var bg = rawStyle + ' | ' + (d.style.background || '') + ' | ' + (d.style.backgroundColor || '') +
@@ -279,7 +282,6 @@
         }
         var dgiHtml = dgiEl ? dgiEl.outerHTML : '';
 
-        // ── Parsing des champs DGI (CODE DEF/DGI, NID, Compteurs, Heure, ISF) ─
         var dgiFields = { codeDEF: '', nim: '', counters: '', date: '', isf: '' };
         if (dgiEl) {
             var dgiText = dgiEl.textContent || '';
@@ -296,13 +298,11 @@
             if (m) dgiFields.isf = m[1].trim();
         }
 
-        // Fallback ISF depuis le receipt-totals (le reçu confirmSale stocke ISF dans totals)
         if (!dgiFields.isf && totalsEl) {
             var isfInTotals = totalsEl.textContent.match(/ISF\s*[:\-]?\s*([^\n<]+?)(?=\s*(?:[A-Z][a-z]|$))/i);
             if (isfInTotals) dgiFields.isf = isfInTotals[1].trim();
         }
 
-        // Fallback date depuis le footer (le reçu confirmSale met "Date : xxx" dans le footer)
         if (!invoiceDate) invoiceDate = dgiFields.date;
         if (!invoiceDate) {
             var footerEl = receipt.querySelector('.receipt-footer');
@@ -312,18 +312,15 @@
             }
         }
 
-        // ── QR code container ───────────────────────────────────────────────
         var qrEl = receipt.querySelector('.qrcode-container');
         var qrHtml = qrEl ? qrEl.outerHTML : '';
 
-        // ── Paires client (key/value) ────────────────────────────────────────
         var clientRows = '';
         if (clientInfoHtml) {
             var tmpClient = document.createElement('div');
             tmpClient.innerHTML = clientInfoHtml;
             var pairs = tmpClient.querySelectorAll('div[style*="space-between"], div[style*="flex"]');
             if (pairs.length === 0) {
-                // Fallback : on prend tout le contenu
                 clientRows = '<tr><td colspan="2" style="font-size:11px;padding:3px 0;">' + clientInfoHtml + '</td></tr>';
             } else {
                 pairs.forEach(function (row) {
@@ -338,7 +335,6 @@
             }
         }
 
-        // ── Tableau des articles ────────────────────────────────────────────
         var itemTableHtml = '';
         var tmpItems = document.createElement('div');
         tmpItems.innerHTML = itemsHtml;
@@ -369,8 +365,8 @@
                 '</tr></thead><tbody>' + rows + '</tbody></table>';
         }
 
-        // ── Bloc totaux (aligné à droite, sans le commentaire déjà extrait) ─
         var totTableHtml = '';
+        var paymentRowsHtml = '';
         var tmpTotals = document.createElement('div');
         tmpTotals.innerHTML = totalsHtml;
         var totalRows = tmpTotals.querySelectorAll('.receipt-total-row');
@@ -379,23 +375,40 @@
             totalRows.forEach(function (row) {
                 var spans = row.querySelectorAll('span');
                 if (spans.length >= 2) {
+                    var label = (spans[0].textContent || '').trim();
+                    var normalized = label.toLowerCase();
+                    var isPaymentInfo = normalized.indexOf('taux du jour') !== -1 ||
+                        normalized.indexOf('equivalent en usd') !== -1 ||
+                        normalized.indexOf('paiment') !== -1 ||
+                        normalized.indexOf('paiement') !== -1 ||
+                        normalized.indexOf('qté') !== -1 ||
+                        normalized.indexOf('qte') !== -1;
+                    if (isPaymentInfo) {
+                        paymentRowsHtml += '<div class="inv-payment-row"><span>' + label + '</span>' +
+                            '<span>' + spans[1].textContent.trim() + '</span></div>';
+                        return;
+                    }
+
                     var isGrand = row.classList.contains('grand-total');
                     var style = isGrand
                         ? 'font-weight:700;font-size:14px;border-top:2px solid #333;'
                         : 'font-size:12px;';
                     tRows += '<tr style="' + style + '">' +
-                        '<td style="padding:5px 8px;text-align:right;color:#555;">' + spans[0].textContent.trim() + '</td>' +
+                        '<td style="padding:5px 8px;text-align:right;color:#555;">' + label + '</td>' +
                         '<td style="padding:5px 8px;text-align:right;font-weight:' + (isGrand ? '700' : '500') + ';">' + spans[1].textContent.trim() + '</td>' +
                         '</tr>';
                 }
             });
-            totTableHtml = '<table style="width:100%;border-collapse:collapse;margin-left:auto;max-width:300px;">' +
+            totTableHtml = '<table style="width:100%;border-collapse:collapse;min-width:300px;">' +
                 '<tbody>' + tRows + '</tbody></table>';
         } else {
             totTableHtml = totalsHtml;
         }
 
-        // ── Bloc "Total en lettre" ──────────────────────────────────────────
+        if (paymentRowsHtml) {
+            paymentRowsHtml = '<div class="inv-payment-info">' + paymentRowsHtml + '</div>';
+        }
+
         var totalEnLettre = numberToFrenchWords(grandTotalNum);
         var totalEnLettreHtml =
             '<div class="inv-amount-spelled">' +
@@ -405,58 +418,47 @@
             '  </strong> toutes taxes comprises.' +
             '</div>';
 
-        // ── Choisir la taille de page ────────────────────────────────────────
         var sizeMap = { A4: 'A4 portrait', A5: 'A5 portrait', Letter: 'Letter portrait', Legal: 'Legal portrait' };
         var sizeRule = sizeMap[paperType] || 'A4 portrait';
         var fontSize = (paperType === 'A5') ? '11px' : '12px';
 
-        // ── Assembler le HTML final ──────────────────────────────────────────
         var html = '<!DOCTYPE html><html><head><meta charset="UTF-8">' +
             '<style>\n' +
             '@page { margin: 12mm 15mm; size: ' + sizeRule + '; }\n' +
             '* { box-sizing: border-box; margin: 0; padding: 0; }\n' +
             'html, body { width: 100%; font-family: \'Helvetica Neue\', Arial, sans-serif; font-size: ' + fontSize + '; color: #000; background: #fff; line-height: 1.5; }\n' +
             '.invoice-wrap { width: 100%; max-width: 100%; }\n' +
-
-            /* ── Rangée 1 : infos magasin (gauche) | infos client/vendeur (droite) ── */
-            '.inv-top-row { display: flex; gap: 16px; border-bottom: 3px solid #000; padding-bottom: 14px; margin-bottom: 16px; align-items: stretch; }\n' +
-            '.inv-top-row .store-block { flex: 1; padding: 10px 14px; border: 1px solid #ddd; border-radius: 6px; background: #fff; }\n' +
-            '.inv-top-row .client-block { flex: 1; padding: 10px 14px; border: 1px solid #ddd; border-radius: 6px; background: #fafafa; }\n' +
+            '.inv-top-row { display: flex; justify-content: space-between; gap: 16px; border-bottom: 3px solid #000; padding-bottom: 14px; margin-bottom: 16px; align-items: stretch; }\n' +
+            '.inv-top-row .store-block, .inv-top-row .client-block { flex: 1 1 48%; padding: 10px 14px; border: 1px solid #ddd; border-radius: 6px; background: #fff; }\n' +
+            '.inv-top-row .client-block { background: #fafafa; }\n' +
             '.inv-top-row .store-block .store-name { font-size: 18px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: #111; margin-bottom: 6px; }\n' +
-            '.inv-top-row .store-block .store-info { font-size: 11px; color: #444; line-height: 1.6; }\n' +
+            '.inv-top-row .store-block .store-info { display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: #444; line-height: 1.6; }\n' +
+            '.inv-top-row .store-block .store-info > div { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }\n' +
             '.inv-top-row .client-block h4 { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #888; margin-bottom: 6px; }\n' +
             '.inv-top-row .client-block table { border-collapse: collapse; width: 100%; }\n' +
             '.inv-top-row .client-block td { vertical-align: top; }\n' +
             '.inv-top-row .client-block .invoice-type-big { font-size: 18px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: #111; margin-bottom: 4px; }\n' +
             '.inv-top-row .client-block .invoice-num-line { font-size: 12px; color: #333; margin-bottom: 2px; }\n' +
             '.inv-top-row .client-block .invoice-date-line { font-size: 11px; color: #666; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid #ddd; }\n' +
-
-            /* ── Bloc articles (pleine largeur) ── */
-            '.inv-items { margin-bottom: 16px; }\n' +
-            '.inv-items table { width: 100%; border-collapse: collapse; border: 2px solid #000 !important; }\n' +
-            '.inv-items table thead tr { background: #111; color: #fff; }\n' +
-            '.inv-items table thead th { padding: 8px 10px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; border: 1px solid #000 !important; border-bottom: 2px solid #000 !important; background: #111 !important; color: #fff !important; }\n' +
+            '.inv-items { margin-bottom: 18px; }\n' +
+            '.inv-items table { width: 100%; border-collapse: collapse; border: none; margin-bottom : 50px }\n' +
+            '.inv-items table thead tr { background: transparent; color: inherit; }\n' +
+            '.inv-items table thead th { padding: 8px 10px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700; border: none; background: transparent; color: #111; }\n' +
             '.inv-items table thead th:last-child { text-align: right; }\n' +
             '.inv-items table thead th:nth-child(2) { text-align: center; }\n' +
-            '.inv-items table tbody tr:nth-child(even) { background: #f5f5f5 !important; }\n' +
-            '.inv-items table tbody td { padding: 7px 10px; font-size: 12px; border: 1px solid #333 !important; border-bottom: 1px solid #ccc !important; vertical-align: middle !important; }\n' +
-            '.inv-items table tbody td:last-child { text-align: right; font-weight: 600; border-right: 2px solid #000 !important; }\n' +
+            '.inv-items table tbody td { padding: 7px 10px; font-size: 12px; border: none; vertical-align: middle !important; }\n' +
+            '.inv-items table tbody td:last-child { text-align: right; font-weight: 600; border: none; }\n' +
             '.inv-items table tbody td:nth-child(2) { text-align: center; }\n' +
-            '.inv-items table tbody td:first-child { border-left: 2px solid #000 !important; }\n' +
-            '.inv-items table tbody tr:last-child td { border-bottom: 2px solid #000 !important; }\n' +
             '.item-tax-badge { display: inline-block; font-size: 9px; background: #e8f5e9; color: #2e7d32; border: 1px solid #2e7d32; border-radius: 3px; padding: 1px 5px; margin-left: 5px; }\n' +
             '.item-prod-service { display: inline-block; font-size: 9px; background: #e3f2fd; color: #1565c0; border: 1px solid #1565c0; border-radius: 3px; padding: 1px 5px; margin-left: 5px; }\n' +
-
-            /* ── Bloc totaux (aligné à droite) ── */
-            '.inv-totals { display: flex; justify-content: flex-end; margin-bottom: 16px; }\n' +
-            '.inv-totals table { border-collapse: collapse; min-width: 300px; max-width: 100%; }\n' +
-            '.inv-totals td { padding: 5px 10px; font-size: 12px; }\n' +
-            '.inv-totals .grand-total td { font-size: 14px; font-weight: 700; border-top: 2px solid #333; padding-top: 8px; }\n' +
-
-            /* ── Bloc "Total en lettre" (pleine largeur) ── */
-            '.inv-amount-spelled { border: 1px solid #333; border-radius: 4px; padding: 10px 14px; margin-bottom: 16px; background: #f5f5f5; font-size: 12px; line-height: 1.6; }\n' +
-
-            /* ── Rangée 5 : QR (gauche) | DGI (droite) ── */
+            '.inv-totals { position: relative; display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; margin-top: -12px; margin-bottom: 16px; padding-top: 18px; }\n' +
+            '.inv-totals::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: #333; }\n' +
+            '.inv-totals .inv-payment-info { flex: 0 0 220px; display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px; background: #fafafa; }\n' +
+            '.inv-totals .inv-payment-row { display: flex; justify-content: space-between; gap: 8px; font-size: 11px; color: #444; }\n' +
+            '.inv-totals table { width: 100%; flex: 1; border-collapse: collapse; min-width: 300px; max-width: 100%; }\n' +
+            '.inv-totals td { padding: 5px 10px; font-size: 12px; white-space: nowrap; }\n' +
+            '.inv-totals .grand-total td { font-size: 14px; font-weight: 700; border-top: none; padding-top: 8px; }\n' +
+            '.inv-amount-spelled { border-radius: 4px; padding: 10px 14px; margin-bottom: 16px; background: #f5f5f5; font-size: 12px; line-height: 1.6; text-align : center}\n' +
             '.inv-security-row { display: flex; gap: 16px; align-items: stretch; border-top: 2px solid #000; padding-top: 14px; margin-top: 4px; margin-bottom: 14px; }\n' +
             '.inv-security-row .qr-block { flex: 0 0 180px; text-align: center; padding: 8px; border: 1px solid #ddd; border-radius: 6px; background: #fff; }\n' +
             '.inv-security-row .qr-block .qrcode-container { display: inline-block; }\n' +
@@ -467,22 +469,15 @@
             '.inv-security-row .dgi-block .dgi-title { font-weight: 700; color: #2e7d32; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }\n' +
             '.inv-security-row .dgi-block table { border-collapse: collapse; width: 100%; }\n' +
             '.inv-security-row .dgi-block td { padding: 2px 6px; font-size: 11px; color: #1b5e20; vertical-align: top; }\n' +
-
-            /* ── Commentaire DGI (pleine largeur) ── */
             '.inv-comment { border: 1px dashed #999; border-radius: 4px; padding: 10px 14px; margin-bottom: 12px; background: #fffbe6; font-size: 11px; color: #333; }\n' +
             '.inv-comment .inv-comment-title { font-weight: 700; text-decoration: underline; margin-bottom: 4px; color: #555; }\n' +
-
-            /* ── Pied de page (Powered by) ── */
             '.inv-footer-note { text-align: center; font-size: 9px; color: #777; font-style: italic; margin-top: 10px; }\n' +
             '</style></head><body>\n' +
-
             '<div class="invoice-classic invoice-wrap">\n' +
-
-            /* RANGÉE 1 : BLOC MAGASIN + BLOC CLIENT */
             '<div class="inv-top-row">\n' +
             '  <div class="store-block">\n' +
             '    <div class="store-name">' + storeName + '</div>\n' +
-            '    <div class="store-info">' + storeInfoHtml + '</div>\n' +
+            '    <div class="store-info">' + storeInfoProcessedHtml + '</div>\n' +
             '  </div>\n' +
             '  <div class="client-block">\n' +
             '    <div class="invoice-type-big">' + (invoiceTypeLabel || 'Facture de Vente') + '</div>\n' +
@@ -492,17 +487,9 @@
             '    <table><tbody>' + clientRows + '</tbody></table>\n' +
             '  </div>\n' +
             '</div>\n' +
-
-            /* BLOC ARTICLES (pleine largeur) */
             '<div class="inv-items">\n' + itemTableHtml + '\n</div>\n' +
-
-            /* BLOC TOTAUX (aligné à droite) */
-            '<div class="inv-totals">\n' + totTableHtml + '\n</div>\n' +
-
-            /* BLOC TOTAL EN LETTRE (pleine largeur) */
+            '<div class="inv-totals">\n' + paymentRowsHtml + totTableHtml + '\n</div>\n' +
             totalEnLettreHtml + '\n' +
-
-            /* RANGÉE 5 : QR (gauche) | DGI (droite) */
             '<div class="inv-security-row">\n' +
             '  <div class="qr-block">\n' +
             '    ' + qrHtml + '\n' +
@@ -512,27 +499,22 @@
             '  <div class="dgi-block">\n' +
             '    <div class="dgi-title">--- Éléments de sécurité de la facture normalisée ---</div>\n' +
             '    <table>\n' +
-            (ren.codeDEFDGI ? '      <tr><td><strong>CODE DEF/DGI :</strong></td><td>' + ren.codeDEFDGI + '</td></tr>\n' : '') +
-            (ren.nim ? '      <tr><td><strong>DEF NID :</strong></td><td>' + ren.nim + '</td></tr>\n' : '') +
-            (ren.counters ? '      <tr><td><strong>DEF Compteurs :</strong></td><td>' + ren.counters + '</td></tr>\n' : '') +
-            (ren.dateTime ? '      <tr><td><strong>DEF Heure :</strong></td><td>' + ren.dateTime + '</td></tr>\n' : '') +
-            (ren.isf ? '      <tr><td><strong>ISF :</strong></td><td>' + ren.isf + '</td></tr>\n' : '') +
-            (!ren.codeDEF && !ren.nim && !ren.counters && !ren.date && !ren.isf ? '      <tr><td colspan="2">Aucune information DGI disponible.</td></tr>\n' : '') +
+            (dgiFields.codeDEF ? '      <tr><td><strong>CODE DEF/DGI :</strong></td><td>' + dgiFields.codeDEF + '</td></tr>\n' : '') +
+            (dgiFields.nim ? '      <tr><td><strong>DEF NID :</strong></td><td>' + dgiFields.nim + '</td></tr>\n' : '') +
+            (dgiFields.counters ? '      <tr><td><strong>DEF Compteurs :</strong></td><td>' + dgiFields.counters + '</td></tr>\n' : '') +
+            (dgiFields.date ? '      <tr><td><strong>DEF Heure :</strong></td><td>' + dgiFields.date + '</td></tr>\n' : '') +
+            (dgiFields.isf ? '      <tr><td><strong>ISF :</strong></td><td>' + dgiFields.isf + '</td></tr>\n' : '') +
+            (!dgiFields.codeDEF && !dgiFields.nim && !dgiFields.counters && !dgiFields.date && !dgiFields.isf ? '      <tr><td colspan="2">Aucune information DGI disponible.</td></tr>\n' : '') +
             '    </table>\n' +
             '  </div>\n' +
             '</div>\n' +
-
-            /* COMMENTAIRE DGI (pleine largeur) */
             (commentHtml ? (
                 '<div class="inv-comment">\n' +
                 '  <div class="inv-comment-title">Commentaire DGI</div>\n' +
                 '  ' + commentHtml + '\n' +
                 '</div>\n'
             ) : '') +
-
-            /* PIED DE PAGE */
             '<div class="inv-footer-note">--- Powered by Osat ---</div>\n' +
-
             '</div>\n' +
             '</body></html>';
 
@@ -592,75 +574,98 @@
     }
 
     // ──────────────────────────────────────────────────────────────────────────
-    // Override de window._printReceiptContent
+    // Moteur d'impression (utilise un paperType spécifique)
+    // ──────────────────────────────────────────────────────────────────────────
+    function _runPrint(content, paperType) {
+        var oldFrame = document.getElementById('_print-frame');
+        if (oldFrame) oldFrame.remove();
+
+        var iframe = document.createElement('iframe');
+        iframe.id = '_print-frame';
+        iframe.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:210mm;height:1px;border:none;overflow:hidden;';
+        document.body.appendChild(iframe);
+
+        var fullHtml;
+        var useLarge = isLargeFormat(paperType);
+
+        if (useLarge) {
+            fullHtml = transformReceiptToInvoice(content, paperType);
+        } else {
+            var printStyles = buildPrintStyles(paperType);
+            fullHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8">' + printStyles + '</head><body>' + content + '</body></html>';
+        }
+
+        var doc = iframe.contentDocument || iframe.contentWindow.document;
+        doc.open();
+        doc.write(fullHtml);
+        doc.close();
+
+        iframe.onload = function () {
+            setTimeout(function () {
+                try {
+                    var iDoc = iframe.contentDocument;
+                    if (iDoc && iDoc.querySelectorAll) {
+                        iDoc.querySelectorAll('.qrcode-container svg').forEach(function (svg) {
+                            var origW = parseInt(svg.getAttribute('width') || 250, 10);
+                            var origH = parseInt(svg.getAttribute('height') || 250, 10);
+                            if (!svg.getAttribute('viewBox')) {
+                                svg.setAttribute('viewBox', '0 0 ' + origW + ' ' + origH);
+                            }
+                            var qrSize = useLarge ? '120' : '220';
+                            svg.setAttribute('width', qrSize);
+                            svg.setAttribute('height', qrSize);
+                            svg.style.width = qrSize + 'px';
+                            svg.style.height = qrSize + 'px';
+                            svg.style.display = 'block';
+                            svg.style.margin = '0 auto';
+                            svg.style.overflow = 'visible';
+                        });
+                    }
+                    if (iframe.contentWindow) {
+                        iframe.contentWindow.focus();
+                        iframe.contentWindow.print();
+                    }
+                } catch (e) {
+                    console.error('Erreur impression iframe:', e);
+                }
+                setTimeout(function () { if (iframe.parentNode) iframe.remove(); }, 2000);
+            }, 400);
+        };
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // API publique
     // ──────────────────────────────────────────────────────────────────────────
 
+    // Impression avec le format configuré (par défaut 80mm)
     window._printReceiptContent = function (content) {
         loadPaperType(function (paperType) {
             currentPaperType = paperType;
-            var oldFrame = document.getElementById('_print-frame');
-            if (oldFrame) oldFrame.remove();
-
-            var iframe = document.createElement('iframe');
-            iframe.id = '_print-frame';
-            iframe.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:210mm;height:1px;border:none;overflow:hidden;';
-            document.body.appendChild(iframe);
-
-            var fullHtml;
-
-            if (isLargeFormat(paperType)) {
-                // Transformer en facture classique
-                fullHtml = transformReceiptToInvoice(content, paperType);
-            } else {
-                // Format ticket (57mm / 80mm) – style habituel
-                var printStyles = buildPrintStyles(paperType);
-                fullHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8">' + printStyles + '</head><body>' + content + '</body></html>';
-            }
-
-            var doc = iframe.contentDocument || iframe.contentWindow.document;
-            doc.open();
-            doc.write(fullHtml);
-            doc.close();
-
-            iframe.onload = function () {
-                setTimeout(function () {
-                    try {
-                        var iDoc = iframe.contentDocument;
-                        if (iDoc && iDoc.querySelectorAll) {
-                            iDoc.querySelectorAll('.qrcode-container svg').forEach(function (svg) {
-                                var origW = parseInt(svg.getAttribute('width') || 250, 10);
-                                var origH = parseInt(svg.getAttribute('height') || 250, 10);
-                                if (!svg.getAttribute('viewBox')) {
-                                    svg.setAttribute('viewBox', '0 0 ' + origW + ' ' + origH);
-                                }
-                                var qrSize = isLargeFormat(paperType) ? '120' : '220';
-                                svg.setAttribute('width', qrSize);
-                                svg.setAttribute('height', qrSize);
-                                svg.style.width = qrSize + 'px';
-                                svg.style.height = qrSize + 'px';
-                                svg.style.display = 'block';
-                                svg.style.margin = '0 auto';
-                                svg.style.overflow = 'visible';
-                            });
-                        }
-                        if (iframe.contentWindow) {
-                            iframe.contentWindow.focus();
-                            iframe.contentWindow.print();
-                        }
-                    } catch (e) {
-                        console.error('Erreur impression iframe:', e);
-                    }
-                    setTimeout(function () { if (iframe.parentNode) iframe.remove(); }, 2000);
-                }, 400);
-            };
+            _runPrint(content, paperType);
         });
     };
 
-    // Fonction utilitaire globale : récupérer le format actuel
+    // Impression avec un format choisi à la volée (modal de sélection)
+    window._printReceiptContentWithFormat = function (content, paperType) {
+        var pt = paperType || currentPaperType || '80mm';
+        _runPrint(content, pt);
+    };
+
+    // Récupérer le format actuel
     window.getCurrentPaperType = function (cb) {
         if (typeof cb === 'function') loadPaperType(cb);
         return currentPaperType;
     };
+
+    // Liste des formats disponibles (utilisée par le modal de sélection)
+    window.PAPER_FORMATS = [
+        { key: '57mm', label: '57 mm', description: 'Ticket compact', icon: 'receipt' },
+        { key: '80mm', label: '80 mm', description: 'Ticket standard', icon: 'receipt' },
+        { key: 'A4', label: 'A4', description: 'Facture A4 (210×297 mm)', icon: 'description' },
+        { key: 'A5', label: 'A5', description: 'Facture A5 (148×210 mm)', icon: 'description' },
+        { key: 'Letter', label: 'Letter', description: 'Format US Letter', icon: 'description' },
+        { key: 'Legal', label: 'Legal', description: 'Format US Legal', icon: 'description' }
+    ];
 
     // Charger le format au démarrage (best-effort, non bloquant)
     if (document.readyState === 'loading') {
