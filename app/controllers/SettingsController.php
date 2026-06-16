@@ -40,9 +40,9 @@ class SettingsController
         }
 
         // Gestion des données POST ou JSON
-        $input = $_SERVER['REQUEST_METHOD'] === 'POST'
-            ? ($_POST ?? json_decode(file_get_contents('php://input'), true))
-            : json_decode(file_get_contents('php://input'), true);
+        $raw = file_get_contents('php://input');
+        $json = $raw !== '' ? json_decode($raw, true) : null;
+        $input = (!empty($_POST)) ? $_POST : (is_array($json) ? $json : []);
 
         if (empty($input)) {
             $this->status(400)->json(['error' => 'Aucune donnée fournie']);
@@ -157,11 +157,13 @@ class SettingsController
 
         $allowed = ['80mm', '57mm', 'A4', 'A5', 'Letter', 'Legal'];
 
-        $input = $_SERVER['REQUEST_METHOD'] === 'POST'
-            ? ($_POST ?? json_decode(file_get_contents('php://input'), true))
-            : json_decode(file_get_contents('php://input'), true);
+        // Supporte à la fois application/x-www-form-urlencoded ($_POST)
+        // et application/json (php://input)
+        $raw = file_get_contents('php://input');
+        $json = $raw !== '' ? json_decode($raw, true) : null;
+        $input = (!empty($_POST)) ? $_POST : (is_array($json) ? $json : []);
 
-        $paperType = $input['paper_type'] ?? $_POST['paper_type'] ?? null;
+        $paperType = $input['paper_type'] ?? null;
 
         if ($paperType === null) {
             $this->status(400)->json(['error' => 'Format de papier non fourni']);

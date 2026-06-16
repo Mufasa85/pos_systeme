@@ -2,7 +2,7 @@
 
 /**
  * Modal de sélection du format d'impression.
- * Affiché quand l'utilisateur clique sur "Imprimer" depuis le reçu.
+ * Affiché quand l'utilisateur clique sur "Imprimer" depuis un reçu.
  * Propose : 57 mm, 80 mm, A4, A5, Letter, Legal.
  *
  * Exposé via JS : window.openPrintFormatModal(content)
@@ -10,8 +10,12 @@
  *   - Au clic d'un format : appelle window._printReceiptContentWithFormat(content, format).
  *   - Au clic "Imprimer" : imprime avec le format actuellement sélectionné.
  *
- * Intercepte aussi le clic sur #print-receipt (en capture phase) pour ouvrir
- * directement le modal au lieu d'imprimer avec le format par défaut.
+ * Intercepte aussi le clic sur les boutons d'impression (en capture phase) pour
+ * ouvrir directement ce modal, au lieu de lancer l'impression avec le format par
+ * défaut. Les boutons supportés sont :
+ *   - #print-receipt      → /recharges, /caisse, modale de reçu standard
+ *   - #print-sale-btn     → /historique, modale de détail d'une vente
+ *   - [data-print-receipt] → n'importe quel autre bouton custom
  */
 ?>
 <style>
@@ -210,8 +214,9 @@
      * Gestion du modal de sélection du format d'impression.
      * Stocke temporairement le contenu à imprimer et le format sélectionné.
      *
-     * Intercepte aussi le clic sur #print-receipt (en capture phase) pour ouvrir
-     * directement ce modal, au lieu de lancer l'impression avec le format par défaut.
+     * Intercepte les clics sur tous les boutons d'impression de la page
+     * (en capture phase) pour ouvrir ce modal, au lieu de lancer
+     * l'impression avec le format par défaut.
      */
     (function() {
         'use strict';
@@ -228,6 +233,43 @@
             'Letter': '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="18" rx="1"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="13" y2="16"/></svg>',
             'Legal': '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="1"/><line x1="8" y1="7" x2="16" y2="7"/><line x1="8" y1="11" x2="16" y2="11"/><line x1="8" y1="15" x2="16" y2="15"/><line x1="8" y1="18" x2="13" y2="18"/></svg>'
         };
+
+        // Conteneurs de contenu candidats (par ordre de priorité)
+        const CONTENT_SELECTORS = [
+            '#receipt-content', // Modale de reçu (caisse, recharges)
+            '#sale-details-content', // Modale de détail d'une vente (historique)
+            '[data-receipt-content]', // Conteneur custom
+            '.receipt-content' // Classe générique
+        ];
+
+        // Trouve le contenu à imprimer : remonte au modale parent, puis
+        // cherche le premier conteneur connu.
+        function findPrintContent(button) {
+            // 1) Si un data attribute est présent sur le bouton, l'utiliser
+            if (button && button.dataset && button.dataset.printContentId) {
+                const el = document.getElementById(button.dataset.printContentId);
+                if (el && el.innerHTML.trim() !== '') return el.innerHTML;
+            }
+
+            // 2) Chercher dans le modale parent du bouton
+            if (button) {
+                const modal = button.closest('.modal');
+                if (modal) {
+                    for (const sel of CONTENT_SELECTORS) {
+                        const el = modal.querySelector(sel);
+                        if (el && el.innerHTML.trim() !== '') return el.innerHTML;
+                    }
+                }
+            }
+
+            // 3) Chercher globalement (fallback)
+            for (const sel of CONTENT_SELECTORS) {
+                const el = document.querySelector(sel);
+                if (el && el.innerHTML.trim() !== '') return el.innerHTML;
+            }
+
+            return '';
+        }
 
         // Construit la grille de choix à partir de window.PAPER_FORMATS
         function buildFormatGrid(selectedKey) {
@@ -326,38 +368,46 @@
         });
 
         // ====================================================================
-        // OVERRIDE du bouton #print-receipt : ouvre le modal de format
+        // OVERRIDE des boutons d'impression : ouvre le modal de format
         // au lieu de lancer l'impression immédiatement.
+        // Cibles supportées :
+        //   - #print-receipt
+        //   - #print-sale-btn
+        //   - [data-print-receipt]
         // ====================================================================
-        function attachPrintOverride() {
-            const printBtn = document.getElementById('print-receipt');
-            if (!printBtn) return;
-            if (printBtn.dataset.pfBound === '1') return;
-            printBtn.dataset.pfBound = '1';
+        const PRINT_BUTTON_SELECTOR = '#print-receipt, #print-sale-btn, [data-print-receipt]';
 
-            printBtn.addEventListener('click', function(e) {
-                // Si le modal de format est déjà ouvert, ne pas ré-ouvrir
-                const fmtModal = document.getElementById('print-format-modal');
-                if (fmtModal && fmtModal.classList.contains('active')) {
+        function attachPrintOverride() {
+            const buttons = document.querySelectorAll(PRINT_BUTTON_SELECTOR);
+            if (!buttons.length) return;
+
+            buttons.forEach(function(btn) {
+                if (btn.dataset.pfBound === '1') return;
+                btn.dataset.pfBound = '1';
+
+                btn.addEventListener('click', function(e) {
+                    // Si le modal de format est déjà ouvert, ne pas ré-ouvrir
+                    const fmtModal = document.getElementById('print-format-modal');
+                    if (fmtModal && fmtModal.classList.contains('active')) {
+                        e.preventDefault();
+                        e.stopImmediatePropagation();
+                        return;
+                    }
+
+                    // Toujours bloquer l'impression directe et ouvrir le modal
                     e.preventDefault();
                     e.stopImmediatePropagation();
-                    return;
-                }
 
-                // Toujours bloquer l'impression directe et ouvrir le modal
-                e.preventDefault();
-                e.stopImmediatePropagation();
+                    const content = findPrintContent(btn);
 
-                const contentEl = document.getElementById('receipt-content');
-                const content = contentEl ? contentEl.innerHTML : '';
+                    if (!content || content.trim() === '') {
+                        alert('Aucun contenu à imprimer.');
+                        return;
+                    }
 
-                if (!content || content.trim() === '') {
-                    alert('Aucun contenu à imprimer.');
-                    return;
-                }
-
-                window.openPrintFormatModal(content);
-            }, true); // capture phase pour passer avant les autres listeners
+                    window.openPrintFormatModal(content);
+                }, true); // capture phase pour passer avant les autres listeners
+            });
         }
 
         // Attacher dès que le DOM est prêt
@@ -367,10 +417,16 @@
             attachPrintOverride();
         }
 
-        // Réattacher si le bouton est réinjecté dynamiquement
+        // Réattacher si un bouton est réinjecté dynamiquement
         if (typeof MutationObserver !== 'undefined') {
             const observer = new MutationObserver(function() {
-                if (document.getElementById('print-receipt')) attachPrintOverride();
+                // Vérifier s'il y a de nouveaux boutons
+                const buttons = document.querySelectorAll(PRINT_BUTTON_SELECTOR);
+                let hasUnbound = false;
+                buttons.forEach(function(b) {
+                    if (b.dataset.pfBound !== '1') hasUnbound = true;
+                });
+                if (hasUnbound) attachPrintOverride();
             });
             if (document.body) {
                 observer.observe(document.body, {

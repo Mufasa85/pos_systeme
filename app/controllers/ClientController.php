@@ -128,6 +128,72 @@ class ClientController
     }
 
     /**
+     * Mettre à jour un client existant
+     * PUT /api/client/[i:id]  ou  POST /api/client/update/[i:id]
+     */
+    public function update($id = null)
+    {
+        header('Content-Type: application/json');
+
+        // AltoRouter passe les paramètres matchés sous forme de tableau
+        if (is_array($id)) {
+            $id = $id['id'] ?? null;
+        }
+        if ($id === null && isset($_GET['id'])) {
+            $id = $_GET['id'];
+        }
+        $id = (int)$id;
+
+        if (!$id) {
+            echo json_encode([
+                'success' => false,
+                'message' => 'ID client manquant'
+            ]);
+            return;
+        }
+
+        try {
+            // Supporte JSON (php://input) et form-urlencoded
+            $raw = file_get_contents('php://input');
+            $json = $raw !== '' ? json_decode($raw, true) : null;
+            $input = (!empty($_POST)) ? $_POST : (is_array($json) ? $json : []);
+
+            $nom = $input['nom'] ?? $input['nom_client'] ?? '';
+            $numero = $input['numero'] ?? '';
+            $typeClientId = $input['type_client_id'] ?? 1;
+            $nif = $input['nif'] ?? '';
+
+            if (empty($nom) || empty($numero)) {
+                echo json_encode([
+                    'success' => false,
+                    'message' => 'Le nom et le numéro sont requis'
+                ]);
+                return;
+            }
+
+            $this->clientModel->update($id, [
+                'nom_client' => $nom,
+                'numero' => $numero,
+                'type_client_id' => $typeClientId,
+                'nif' => $nif
+            ]);
+
+            $client = $this->clientModel->findById($id);
+
+            echo json_encode([
+                'success' => true,
+                'message' => 'Client modifié avec succès',
+                'client' => $client
+            ]);
+        } catch (\Exception $e) {
+            echo json_encode([
+                'success' => false,
+                'message' => 'Erreur: ' . $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
      * Récupérer tous les types de clients
      * GET /api/client/types
      */

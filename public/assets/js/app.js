@@ -201,29 +201,11 @@ const posCart = {
     taxRate: 16,
     currentSaleData: null,
     dgiResponse: null,
+    allProducts: [],
+    currentCategory: 'all',
 
     init() {
-        // Vérifier si un produit a été scanné et ajouté via l'URL
-        const urlParams = new URLSearchParams(window.location.search);
-        const addProductId = urlParams.get('add_product');
-
-        // Caisse - Select moderne pour catégories
         if ($('#category-filter')) {
-            this.loadProducts().then(() => {
-                // Ajouter le produit scanné au panier si présent
-                if (addProductId) {
-                    console.log('[CAISSE] Produit scanné détecté:', addProductId);
-                    this.addToCart(parseInt(addProductId));
-                    // Nettoyer l'URL sans recharger
-                    window.history.replaceState({}, document.title, window.location.pathname);
-                }
-            });
-
-            if ($('#product-search')) {
-                $('#product-search').addEventListener('input', (e) => this.filterProducts(e.target.value));
-            }
-
-            // Événement de changement pour le select de catégorie
             $('#category-filter').addEventListener('change', (e) => {
                 if ($('#product-search')) {
                     this.filterProducts($('#product-search').value, e.target.value);
@@ -232,25 +214,25 @@ const posCart = {
                 }
             });
 
-            // Recherche client par numero avec la touche Entrée
-            if ($('#client-number')) {
-                $('#client-number').addEventListener('keypress', (e) => {
-                    if (e.key === 'Enter') {
-                        e.preventDefault();
-                        searchClientByNumero();
-                    }
-                });
+            // Charger les produits quand on est sur la page caisse
+            if ($('#products-grid')) {
+                this.loadProducts();
             }
         }
 
-        // Produits page tabs
+        if ($('#client-number')) {
+            $('#client-number').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    searchClientByNumero();
+                }
+            });
+        }
+
         if ($('#products-table')) {
             initProductsTabs();
         }
     },
-
-    allProducts: [],
-    currentCategory: 'all',
 
     async loadProducts() {
         try {
@@ -1356,7 +1338,7 @@ const posCart = {
                 if (dgiResponse.data.codeDEFDGI) dgiInfoHtml += 'CODE DEF/DGI: ' + dgiResponse.data.codeDEFDGI;
                 if (dgiResponse.data.nim) dgiInfoHtml += '<br> DEF NID : ' + dgiResponse.data.nim;
                 if (dgiResponse.data.counters) dgiInfoHtml += '<br> DEF Compteurs: ' + dgiResponse.data.counters;
-                if (dgiResponse.data.dateDGI) dgiInfoHtml += '<br> DEF Heure : ' + dgiResponse.data.dateDGI + '\n';
+                if (dgiResponse.data.dateTime) dgiInfoHtml += '<br> DEF Heure : ' + dgiResponse.data.dateTime + '\n';
                 //if (dgiResponse.data.isf) dgiInfoHtml += '<br> ISF : ' + dgiResponse.data.isf;
                 else dgiInfoHtml += '';
                 dgiInfoHtml += '</div>';
@@ -2045,45 +2027,92 @@ async function viewSaleDetails(saleId) {
 
         document.getElementById('print-sale-btn').onclick = () => printSaleReceipt(saleId);
     } else {
-        // Normal receipt flow - PROFORMA
-        let itemsHtml = '';
-        data.details.forEach(item => {
-            const itemHT = parseFloat(item.prix) * parseFloat(item.quantite);
-            const taxRate = parseFloat(item.tax_rate || 0);
-            const itemTTC = itemHT;
-            const taxLabel = item.tax_etiquette || (taxRate > 0 ? 'TVA ' + taxRate + '%' : 'Exonere');
-            itemsHtml += '<div class="receipt-item"><span class="item-name">' + (item.produit_nom || 'Produit') + '<span class="item-tax-badge">' + taxLabel + '</span></span><span class="item-qty">x' + item.quantite + '</span><span class="item-price">' + itemTTC.toFixed(2) + '</span></div>';
-        });
-
-        let storeExtraInfo = '';
-        if (STORE_INFO.rccm) storeExtraInfo += '<div>RCCM: ' + STORE_INFO.rccm + '</div>';
-        if (STORE_INFO.isf) storeExtraInfo += '<div>Numero Agent: ' + STORE_INFO.isf + '</div>';
-
-        const vendeur = sale.nom_vendeur || 'N/A';
+        // Design unifié avec /caisse (même structure)
         const acheteurNom = sale.nom_client || '';
         const acheteurNumero = sale.client_numero || '';
         const acheteurType = sale.client_type_code || '';
         const acheteurNif = sale.client_nif || '';
+        const vendeur = sale.nom_vendeur || 'N/A';
+        const totalNumber = parseFloat(sale.total) || 0;
+        const tvaNumber = parseFloat(sale.tva || 0);
 
-        let infoSection = '<div style="border-top:1px dashed #ccc; margin-top:6px; padding-top:6px; text-align:left; font-size:15px; line-height:1.5;"><div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>Vendeur:</strong></span><span>' + vendeur + '</span></div>';
-        if (acheteurNom) infoSection += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>Client:</strong></span><span>' + acheteurNom + '</span></div>';
-        if (acheteurNumero) infoSection += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>Num:</strong></span><span>' + formatPhoneNumber(acheteurNumero) + '</span></div>';
-        if (acheteurType) infoSection += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>Type:</strong></span><span>' + getClientTypeLabel(acheteurType) + '</span></div>';
-        if (acheteurNif) infoSection += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>NIF:</strong></span><span>' + acheteurNif + '</span></div>';
-        if (STORE_INFO.isf) infoSection += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>ISF:</strong></span><span>' + STORE_INFO.isf + '</span></div>';
-        infoSection += '</div>';
+        // Items en tableau (comme /caisse)
+        let itemsHtml = '<table class="receipt-table"><thead><tr><th>Article</th><th>Qté</th><th>HT</th></tr></thead><tbody>';
+        data.details.forEach(item => {
+            const itemPrice = parseFloat(item.prix) || 0;
+            const itemQty = parseFloat(item.quantite) || 0;
+            const itemTotalHT = itemPrice * itemQty;
+            const taxRate = parseFloat(item.tax_rate || 0);
+            const taxLabel = item.tax_etiquette || (taxRate > 0 ? 'TVA ' + taxRate + '%' : 'Exonere');
+            const prodService = item.prod_service ? '<span class="item-prod-service">[' + item.prod_service + ']</span>' : '';
+            itemsHtml += '<tr><td><span class="item-name">' + (item.produit_nom || 'Produit') + '<span class="item-tax-badge">' + taxLabel + '</span>' + prodService + '</span></td><td class="item-qty">' + itemQty + '</td><td class="item-total">' + itemTotalHT.toFixed(2) + ' Fc</td></tr>';
+        });
+        itemsHtml += '</tbody></table>';
 
+        // Store extra info
+        let storeExtraInfo = '';
+        if (STORE_INFO.rccm) storeExtraInfo += '<div>RCCM: ' + STORE_INFO.rccm + '</div>';
+        if (STORE_INFO.isf) storeExtraInfo += '<div>Numero Impot: ' + STORE_INFO.isf + '</div>';
+
+        // Section vendeur/client (comme /caisse)
+        let infoSection = '<div style="border-top: 1px dashed #ccc; margin-top: 6px; padding-top: 6px; text-align: left; font-size: 15px; line-height: 1.5;">' +
+            '<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>VENDEUR:</strong></span><span>' + vendeur + '</span></div>' +
+            (acheteurNom ? '<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>CLIENT:</strong></span><span>' + acheteurNom + '</span></div>' : '') +
+            (acheteurNumero ? '<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>NUM:</strong></span><span>' + formatPhoneNumber(acheteurNumero) + '</span></div>' : '') +
+            (acheteurType ? '<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>TYPE:</strong></span><span>' + getClientTypeLabel(acheteurType) + '</span></div>' : '') +
+            (acheteurNif ? '<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>NIF:</strong></span><span>' + acheteurNif + '</span></div>' : '') +
+            '</div>';
+
+        // Paiement + ISF (comme /caisse)
+        const amountInWords = posCart.numberToFrenchWords ? posCart.numberToFrenchWords(totalNumber) : '';
+        const paymentInfoHtml =
+            '<div class="receipt-total-row" style="font-size: 11px; color: #555"><span>TAUX DU JOUR :</span><span>' + (typeof USD_RATE !== 'undefined' ? USD_RATE : '-') + ' Fc/USD</span></div>' +
+            '<div class="receipt-total-row" style="font-size: 11px; color: #555"><span>Equivalent en USD :</span><span>' + (USD_RATE ? (totalNumber / USD_RATE).toFixed(2) + ' $' : '-') + '</span></div>' +
+            '<div class="receipt-total-row" style="font-size: 11px; color: #555;"><span>Qté:</span><span>' + (data.details.reduce((s, i) => s + parseFloat(i.quantite || 0), 0)).toFixed(2) + '</span></div>' +
+            (amountInWords ? '<div style="text-align: center; font-size: 12px; color: #888; font-style: italic; margin-top: 2px;">Arrêté la présente facture à la somme de ' + amountInWords + ' congolais toutes taxes comprises</div>' : '') +
+            (STORE_INFO.isf ? '<div style="margin: 10px 0; font-size: 11px; color: #333; border: 1px dashed #ccc; padding: 8px; border-radius: 4px; text-align: center;">ISF : ' + STORE_INFO.isf + '</div>' : '');
+
+        // Bloc DGI
         let dgiInfoHtml = '';
         if (sale.counters) {
-            dgiInfoHtml = '<div style="background:#e8f5e9; border:1px solid #4caf50; border-radius:8px; padding:10px; margin:10px 0; text-align:center;"><div style="color:#2e7d32; font-weight:bold; font-size:11px;">--- Elements de securite ---</div><div style="font-size:12px; color:#555; margin-top:4px;">';
+            dgiInfoHtml = '<div style="background: #e8f5e9; border: 1px solid #4caf50; border-radius: 8px; padding: 10px; margin: 10px 0; text-align: center;"><div style="color: #2e7d32; font-weight: bold; font-size: 11px;">--- Éléments de sécurité de la facture normalisée ---</div><div style="font-size: 12px; color: #555; margin-top: 4px;">';
             if (sale.codeDEFDGI) dgiInfoHtml += 'CODE DEF/DGI: ' + sale.codeDEFDGI;
             if (sale.nim) dgiInfoHtml += '<br> DEF NID : ' + sale.nim;
             if (sale.counters) dgiInfoHtml += '<br> DEF Compteurs: ' + sale.counters;
             if (sale.dateDGI) dgiInfoHtml += '<br> DEF Heure : ' + sale.dateDGI;
-            dgiInfoHtml += '<br> ISF : ' + (STORE_INFO.isf || '0') + '</div></div>';
+            dgiInfoHtml += '</div></div>';
         }
 
-        document.getElementById('sale-details-content').innerHTML = '<div class="receipt"><div class="receipt-header"><div style="text-align:center; font-weight:800; font-size:24px; color:#000; margin-bottom:10px; border-bottom:2px solid #000; padding-bottom:5px;">PROFORMA</div><div class="store-name">' + STORE_INFO.name + '</div><div class="store-info"><div>' + STORE_INFO.address + '</div><div>Tel: ' + STORE_INFO.phone + '</div><div>ID Nat: ' + STORE_INFO.ice + '</div>' + storeExtraInfo + '</div>' + infoSection + '</div><div class="receipt-meta" style="justify-content: center; font-size: 14px; font-weight: 555;">' + getInvoiceTypeLabel(sale.type_facture) + '</div><div class="receipt-items">' + itemsHtml + '</div><div class="receipt-totals"><div class="receipt-total-row"><span>Sous-total HT:</span><span>' + parseFloat(sale.sous_total_ht).toFixed(2) + ' Fc</span></div><div class="receipt-total-row"><span>TVA:</span><span>' + parseFloat(sale.tva).toFixed(2) + ' Fc</span></div><div class="receipt-total-row grand-total"><span>TOTAL TTC:</span><span>' + parseFloat(sale.total).toFixed(2) + ' Fc</span></div><div style="margin:10px 0; font-size:11px; color:#333; border:1px dashed #ccc; padding:8px; border-radius:4px; text-align:left;"><div style="font-weight:bold; text-decoration:underline; margin-bottom:4px;">Commentaire/Remarque :</div><div>' + (sale.comment || 'Aucun commentaire') + '</div></div></div>' + dgiInfoHtml + '<div class="receipt-footer"><div id="history-qrcode-container" class="qrcode-container"></div><div class="barcode">' + sale.numero_facture + '</div><div class="thank-you">Merci de votre visite!</div><div style="margin-top:5px; font-size:9px; font-style:italic;">---Powered By Osat---</div></div></div>';
+        // Assemblage final - MÊME STRUCTURE que /caisse
+        document.getElementById('sale-details-content').innerHTML =
+            '<div class="receipt">' +
+            '<div class="receipt-header">' +
+            '<div class="store-name">' + STORE_INFO.name + '</div>' +
+            '<div class="store-info">' +
+            '<div><strong>Point de vente :</strong> ' + STORE_INFO.address + '</div>' +
+            '<div>Tel: ' + STORE_INFO.phone + '</div>' +
+            (STORE_INFO.email ? '<div>Email: ' + STORE_INFO.email + '</div>' : '') +
+            '<div>ID Nat: ' + STORE_INFO.ice + '</div>' +
+            storeExtraInfo +
+            '</div>' +
+            infoSection +
+            '</div>' +
+            '<div class="receipt-meta" style="justify-content: center; font-size: 14px; font-weight: 555;">' + getInvoiceTypeLabel(sale.type_facture) + '</div>' +
+            '<div class="receipt-items">' + itemsHtml + '</div>' +
+            '<div class="receipt-totals">' +
+            '<div class="receipt-total-row"><span>Total TVA:</span><span>' + tvaNumber.toFixed(2) + ' Fc</span></div>' +
+            '<div class="receipt-total-row grand-total"><span>TOTAL TTC:</span><span>' + totalNumber.toFixed(2) + ' Fc</span></div>' +
+            paymentInfoHtml +
+            '</div>' +
+            dgiInfoHtml +
+            '<div class="receipt-footer">' +
+            '<div id="history-qrcode-container" class="qrcode-container"></div>' +
+            '<div class="thank-you">FACTURE n°' + (sale.numero_facture || '') + '</div>' +
+            (sale.dateDGI ? '<div style="font-size: 10px; color: #666; margin-top: 4px;">Date : ' + sale.dateDGI + '</div>' : '') +
+            '<div class="thank-you">Merci de votre visite!</div>' +
+            '<div style="margin-top: 5px; font-size: 9px; font-style: italic;">---Powered By Osat---</div>' +
+            '</div>' +
+            '</div>';
 
         posCart.generateDGIQRCode(sale.qrCode || sale.numero_facture, 'history-qrcode-container');
         document.getElementById('print-sale-btn').onclick = () => printSaleReceipt(saleId);
@@ -3225,6 +3254,11 @@ async function searchClientFromModal() {
             document.getElementById('modal-client-name').value = data.client.nom_client || '';
             document.getElementById('modal-client-type').value = data.client.type_id || '';
             document.getElementById('modal-client-nif').value = data.client.nif || '';
+            // Mémoriser le client pour permettre l'édition ensuite
+            if (typeof posCart !== 'undefined' && posCart) {
+                posCart.currentClient = data.client;
+                posCart.clientNumber = data.client.numero;
+            }
             showModalClientMessage('Client trouvé: ' + data.client.nom_client, 'success');
         } else {
             showModalClientMessage('Client non trouvé. Créez-en un nouveau.', 'error');

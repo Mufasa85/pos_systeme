@@ -148,16 +148,28 @@
 
     function extractGrandTotalNumber(totalsEl) {
         if (!totalsEl) return 0;
-        var rows = totalsEl.querySelectorAll('.receipt-total-row');
-        for (var i = rows.length - 1; i >= 0; i--) {
-            var spans = rows[i].querySelectorAll('span');
+        // 1) Priorité à la ligne portant la classe .grand-total
+        var grandRow = totalsEl.querySelector('.receipt-total-row.grand-total');
+        if (grandRow) {
+            var spans = grandRow.querySelectorAll('span');
             if (spans.length >= 2) {
                 var raw = (spans[1].textContent || '').replace(/[^\d.,-]/g, '').replace(/\s/g, '').replace(',', '.');
                 var v = parseFloat(raw);
                 if (!isNaN(v)) return v;
             }
         }
-        return 0;
+        // 2) Sinon, parcourir toutes les lignes en gardant la plus grande valeur
+        var rows = totalsEl.querySelectorAll('.receipt-total-row');
+        var maxVal = 0;
+        for (var i = 0; i < rows.length; i++) {
+            var spans2 = rows[i].querySelectorAll('span');
+            if (spans2.length >= 2) {
+                var raw2 = (spans2[1].textContent || '').replace(/[^\d.,-]/g, '').replace(/\s/g, '').replace(',', '.');
+                var v2 = parseFloat(raw2);
+                if (!isNaN(v2) && v2 > maxVal) maxVal = v2;
+            }
+        }
+        return maxVal;
     }
 
     /**
@@ -192,8 +204,16 @@
                     if (parts.length >= 2) {
                         var label = parts.shift().trim();
                         var value = parts.join(':').trim();
-                        processedRows += '<div class="store-info-row"><span class="store-info-label">' + label + '</span>' +
-                            '<span class="store-info-value">' + value + '</span></div>';
+
+                        if (label.toLowerCase() === 'point de vente') {
+                            // Ligne "Point de vente" : toute la ligne en gras
+                            processedRows += '<div class="store-info-row store-info-row-bold"><span class="store-info-label">' + label + ' :</span>' +
+                                '<span class="store-info-value"><strong>' + value + '</strong></span></div>';
+                        } else {
+                            processedRows += '<div class="store-info-row"><span class="store-info-label">' + label + '</span>' +
+                                '<span class="store-info-value">' + value + '</span></div>';
+                        }
+
                     } else {
                         processedRows += '<div class="store-info-row store-info-single">' + text + '</div>';
                     }
@@ -303,13 +323,22 @@
             if (isfInTotals) dgiFields.isf = isfInTotals[1].trim();
         }
 
+        // 1) Depuis dgiFields.date (DEF Heure)
         if (!invoiceDate) invoiceDate = dgiFields.date;
+        // 2) Depuis le footer (Date : ...)
         if (!invoiceDate) {
             var footerEl = receipt.querySelector('.receipt-footer');
             if (footerEl) {
                 var dateText = footerEl.textContent.match(/Date\s*[:\-]?\s*([0-9\/\-\s:]+)/i);
                 if (dateText) invoiceDate = dateText[1].trim();
             }
+        }
+        // 3) Fallback : date/heure actuelle
+        if (!invoiceDate) {
+            var now = new Date();
+            var pad = function (n) { return (n < 10 ? '0' + n : '' + n); };
+            invoiceDate = pad(now.getDate()) + '/' + pad(now.getMonth() + 1) + '/' + now.getFullYear() +
+                ' ' + pad(now.getHours()) + ':' + pad(now.getMinutes()) + ':' + pad(now.getSeconds());
         }
 
         var qrEl = receipt.querySelector('.qrcode-container');
@@ -409,6 +438,7 @@
             paymentRowsHtml = '<div class="inv-payment-info">' + paymentRowsHtml + '</div>';
         }
 
+        // Utiliser la valeur extraite du reçu (fonctionne pour /caisse ET /historique)
         var totalEnLettre = numberToFrenchWords(grandTotalNum);
         var totalEnLettreHtml =
             '<div class="inv-amount-spelled">' +
@@ -434,6 +464,9 @@
             '.inv-top-row .store-block .store-name { font-size: 18px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: #111; margin-bottom: 6px; }\n' +
             '.inv-top-row .store-block .store-info { display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: #444; line-height: 1.6; }\n' +
             '.inv-top-row .store-block .store-info > div { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }\n' +
+            '.inv-top-row .store-block .store-info .store-info-row-bold { font-weight: 700; color: #111; }\n' +
+            '.inv-top-row .store-block .store-info .store-info-row-bold .store-info-label { font-weight: 700; }\n' +
+            '.inv-top-row .store-block .store-info .store-info-row-bold .store-info-value { font-weight: 700; }\n' +
             '.inv-top-row .client-block h4 { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #888; margin-bottom: 6px; }\n' +
             '.inv-top-row .client-block table { border-collapse: collapse; width: 100%; }\n' +
             '.inv-top-row .client-block td { vertical-align: top; }\n' +
@@ -502,8 +535,8 @@
             (dgiFields.codeDEF ? '      <tr><td><strong>CODE DEF/DGI :</strong></td><td>' + dgiFields.codeDEF + '</td></tr>\n' : '') +
             (dgiFields.nim ? '      <tr><td><strong>DEF NID :</strong></td><td>' + dgiFields.nim + '</td></tr>\n' : '') +
             (dgiFields.counters ? '      <tr><td><strong>DEF Compteurs :</strong></td><td>' + dgiFields.counters + '</td></tr>\n' : '') +
-            (dgiFields.date ? '      <tr><td><strong>DEF Heure :</strong></td><td>' + dgiFields.date + '</td></tr>\n' : '') +
-            (dgiFields.isf ? '      <tr><td><strong>ISF :</strong></td><td>' + dgiFields.isf + '</td></tr>\n' : '') +
+            (ren.dateTime ? '      <tr><td><strong>DEF Heure :</strong></td><td>' + ren.dateTime + '</td></tr>\n' : '') +
+
             (!dgiFields.codeDEF && !dgiFields.nim && !dgiFields.counters && !dgiFields.date && !dgiFields.isf ? '      <tr><td colspan="2">Aucune information DGI disponible.</td></tr>\n' : '') +
             '    </table>\n' +
             '  </div>\n' +

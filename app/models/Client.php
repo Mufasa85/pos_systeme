@@ -82,14 +82,15 @@ class Client
      */
     public function update($id, $data)
     {
-        $sql = "UPDATE {$this->table} 
-                SET nom_client = ?, numero = ?, type_client_id = ? 
+        $sql = "UPDATE {$this->table}
+                SET nom_client = ?, numero = ?, type_client_id = ?, nif = ?
                 WHERE id = ?";
 
-        return $this->db->query($sql, [
+        return $this->db->execute($sql, [
             $data['nom_client'],
             $data['numero'],
             $data['type_client_id'] ?? 1,
+            $data['nif'] ?? '',
             $id
         ]);
     }
@@ -100,7 +101,7 @@ class Client
     public function delete($id)
     {
         $sql = "DELETE FROM {$this->table} WHERE id = ?";
-        return $this->db->query($sql, [$id]);
+        return $this->db->execute($sql, [$id]);
     }
 
     /**
