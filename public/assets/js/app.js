@@ -618,6 +618,11 @@ const posCart = {
             const refFacture = document.getElementById('modal-invoice-num')?.value || '';
             const exoneration = document.getElementById('modal-exoneration')?.value || '';
 
+            // Logique de négation: si la facture N'est PAS FA ou EA, on envoie
+            // les quantités et le total en négatif à l'API DGI
+            const shouldNegate = invoiceType === 'FA' || invoiceType === 'EA';
+            const sign = shouldNegate ? -1 : 1;
+
             // Récupérer le type de paiement
             const paymentTypeSelect = document.getElementById('modal-payment-type') || document.getElementById('payment-type');
 
@@ -636,6 +641,8 @@ const posCart = {
             }
 
             // Construire le payload DGI
+            // Si la facture N'est PAS FA ou EA, les quantités et le total
+            // sont envoyés en négatif (multipliés par sign = -1)
             const dgiPayload = {
 
                 store_phone: STORE_INFO.phone,
@@ -647,9 +654,9 @@ const posCart = {
                 seller_name: sellerName,
                 seller_agent_code: (typeof CURRENT_USER !== 'undefined' && CURRENT_USER.agentCode) ? CURRENT_USER.agentCode : '',
                 store_name: STORE_INFO.name,
-                amount: this.currentTotals.total,
+                amount: this.currentTotals.total * sign,
                 client_number: clientNumero,
-                invoice_number: this.currentInvoiceNum,
+                invoice_number: /** this.currentInvoiceNum */ '2026/000302',
                 invoice_type: invoiceType,
                 invoice_ref: invoiceRef,
                 ref_facture: refFacture,
@@ -657,7 +664,7 @@ const posCart = {
                 payment_type: paymentType,
                 articles: this.items.map(item => ({
                     name: item.nom,
-                    quantity: item.quantite,
+                    quantity: item.quantite * sign,
                     price: item.prix,
                     tax_rate: item.tax_rate || 0,
                     tax_etiquette: item.tax_etiquette || '',
@@ -1013,19 +1020,27 @@ const posCart = {
 
         const invoiceNum = this.currentInvoiceNum || 'FAC-000001';
 
+        // Logique de négation visuelle: si la facture N'est PAS FA ou EA, on
+        // affiche les quantités et le total en négatif dans la preview
+        const previewTypeFacture = document.getElementById('invoice-type')?.value || 'FV';
+        const previewShouldNegate = previewTypeFacture === 'FA' || previewTypeFacture === 'EA';
+        const previewSign = previewShouldNegate ? -1 : 1;
+
         // Construire les items du reçu
         let itemsHtml = '<table class="receipt-table"><thead><tr><th>Article</th><th>Qté</th><th>HT</th></tr></thead><tbody>';
         for (let i = 0; i < this.items.length; i++) {
             const item = this.items[i];
             const itemPrice = parseFloat(item.prix) || 0;
-            const itemQty = parseFloat(item.quantite) || 0;
+            const itemQty = (parseFloat(item.quantite) || 0) * previewSign;
             const itemTotalHT = itemPrice * itemQty;
             const taxLabel = item.tax_etiquette || (item.tax_rate > 0 ? 'TVA ' + item.tax_rate + '%' : 'Exonere');
             const prodService = item.prod_service ? `<span class="item-prod-service">[${item.prod_service}]</span>` : '';
+            const isPoidsItem = (item.product_type === 'coupe' || item.product_type === 'poids');
+            const qtyDisplay = isPoidsItem ? itemQty.toFixed(2) : itemQty;
             itemsHtml += `
                 <tr>
                     <td><span class="item-name"> ${item.nom}<span class="item-tax-badge">${taxLabel}</span>${prodService}</span></td>
-                    <td class="item-qty">${itemQty}</td>                
+                    <td class="item-qty">${qtyDisplay}</td>
                     <td class="item-total">${itemTotalHT.toFixed(2)} Fc</td>
                 </tr>
             `;
@@ -1100,10 +1115,10 @@ const posCart = {
 
                     <div class="receipt-totals">
                         ${this.getTaxBreakdownHtml()}
-                        
+
                         <div class="receipt-total-row grand-total">
                             <span>TOTAL TTC:</span>
-                            <span>${this.currentTotals.total.toFixed(2)} Fc</span>
+                            <span>${(this.currentTotals.total * previewSign).toFixed(2)} Fc</span>
                         </div>
                         ${this.getPaymentInfoHtml()}
                     </div>
@@ -1287,16 +1302,24 @@ const posCart = {
             }
 
             // Etape 2: Sauvegarder la vente
+            // Si la facture N'est PAS FA ou EA, on envoie les quantités et
+            // les totaux en négatif au backend (cohérent avec la DGI)
+            const saveTypeFacture = document.getElementById('invoice-type')?.value || 'FV';
+            const saveShouldNegate = saveTypeFacture === 'FA' || saveTypeFacture === 'EA';
+            const saveSign = saveShouldNegate ? -1 : 1;
             const saleRes = await fetch(APP_URL + '/api/vente', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    articles: this.items,
+                    articles: this.items.map(item => ({
+                        ...item,
+                        quantite: item.quantite * saveSign
+                    })),
                     client_id: this.currentClient ? this.currentClient.id : null,
-                    sous_total_ht: this.currentTotals.sous_total_ht,
-                    tva: this.currentTotals.tva,
-                    total: this.currentTotals.total,
-                    type_facture: document.getElementById('invoice-type')?.value || 'FV',
+                    sous_total_ht: this.currentTotals.sous_total_ht * saveSign,
+                    tva: this.currentTotals.tva * saveSign,
+                    total: this.currentTotals.total * saveSign,
+                    type_facture: saveTypeFacture,
                     dgi_data: {
                         dateDGI: dgiResponse.data ? dgiResponse.data.dateDGI : null,
                         qrCode: dgiResponse.data ? dgiResponse.data.qrCode : '',
@@ -1387,12 +1410,18 @@ const posCart = {
                                ${agentCode ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>Numero Agent:</strong></span><span>${agentCode}</span></div>` : ''}
                             </div>`;
 
+            // Logique de négation visuelle: si la facture N'est PAS FA ou EA, on
+            // affiche les quantités et le total en négatif dans la facture finale
+            const ticketTypeFacture = document.getElementById('invoice-type')?.value || 'FV';
+            const ticketShouldNegate = ticketTypeFacture === 'FA' && ticketTypeFacture === 'EA';
+            const ticketSign = ticketShouldNegate ? -1 : 1;
+
             // Construire les items du reçu avec les taxes par produit
             let itemsHtml = '<table class="receipt-table"><thead><tr><th>Article</th><th>Qté</th><th>Total HT</th></tr></thead><tbody>';
             for (let i = 0; i < this.items.length; i++) {
                 const item = this.items[i];
                 const itemPrice = parseFloat(item.prix) || 0;
-                const itemQty = parseFloat(item.quantite) || 0;
+                const itemQty = (parseFloat(item.quantite) || 0) * ticketSign;
                 const itemTotalHT = itemPrice * itemQty;
                 const taxLabel = item.tax_etiquette || (item.tax_rate > 0 ? 'TVA ' + item.tax_rate + '%' : 'Exonere');
                 const prodService = item.prod_service ? `<span class="item-prod-service">[${item.prod_service}]</span>` : '';
@@ -1400,7 +1429,7 @@ const posCart = {
                 itemsHtml += `
                     <tr>
                         <td><span class="item-name">${item.nom}<span class="item-tax-badge">${taxLabel}</span>${prodService}</span></td>
-                        <td class="item-qty">${itemQty}</td>                       
+                        <td class="item-qty">${itemQty}</td>
                         <td class="item-total">${itemTotalHT.toFixed(2)} Fc</td>
                     </tr>
                 `;
@@ -1426,10 +1455,7 @@ const posCart = {
                     </div>
                     <div class="receipt-meta" style="justify-content: center; font-size: 14px; font-weight: 555; display: flex; flex-direction: column; text-align: center; gap: 4px;">
                         <div>${getInvoiceTypeLabel(saleData.type_facture || document.getElementById('invoice-type')?.value)}</div>
-                        ${dgiResponse.data?.refDocument ? `<div style="text-align: center; font-size: 11px; color: #888; font-style: italic;">${dgiResponse.data.actionFacture || ''}</div>` : ''}
                        
-                        ${dgiResponse.data?.refDocument ? `<div style="text-align: center; font-size: 11px; color: #888; font-style: italic;">${dgiResponse.data.refFacture || ''}</div>` : ''}
-                         ${dgiResponse.data?.refDocument ? `<div style="text-align: center; font-size: 11px; color: #888; font-style: italic;">${dgiResponse.data.refDocument}</div>` : ''}
                     </div>
                     
                    
@@ -1445,7 +1471,7 @@ const posCart = {
                         </div>
                         <div class="receipt-total-row grand-total">
                             <span>TOTAL TTC:</span>
-                            <span>${this.currentTotals.total.toFixed(2)} Fc</span>
+                            <span>${(this.currentTotals.total * ticketSign).toFixed(2)} Fc</span>
                         </div>
                         ${this.getPaymentInfoHtml()}
                          <div style="margin: 10px 0; font-size: 11px; color: #333; border: 1px dashed #ccc; padding: 8px; border-radius: 4px; text-align: center;">

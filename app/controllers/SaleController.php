@@ -31,6 +31,13 @@ class SaleController extends Controller
         // Pour les recharges, on n'a pas besoin de client dans la table clients
         $clientId = $data['client_id'] ?? null;
 
+        // Logique de négation (cohérent avec le frontend):
+        // Si la facture N'est PAS FA ou EA, les quantités et les totaux
+        // sont négatifs. Le SQL `stock - :quantite` ajoutera au stock
+        // quand :quantite est négatif (ce qui correspond aux avoirs/annulations).
+        $typeFacture = $data['type_facture'] ?? 'FV';
+        $shouldNegate = $typeFacture !== 'FA' && $typeFacture !== 'EA';
+
         try {
             $db = \App\Core\Database::getInstance()->getConnection();
             $db->beginTransaction();
@@ -63,31 +70,43 @@ class SaleController extends Controller
             if (!$isRecharge) {
                 foreach ($data['articles'] as $item) {
                     $produitId = $item['produit_id'] ?? 0;
+                    $quantite = $item['quantite'] ?? 0;
 
-                    // Vérifier le stock pour les vraies ventes
-                    $product = $productModel->findById($produitId);
-                    if (!$product || $product['stock'] < $item['quantite']) {
-                        $db->rollBack();
-                        $this->status(400)->json([
-                            'error' => 'Stock insuffisant pour le produit: ' . ($product['nom'] ?? $item['produit_id'])
-                        ]);
-                        return;
+                    // Vérifier le stock uniquement pour les ventes positives
+                    // (pour les avoirs/annulations avec quantité négative, on ne vérifie pas)
+                    if ($quantite > 0) {
+                        $product = $productModel->findById($produitId);
+                        if (!$product || $product['stock'] < $quantite) {
+                            $db->rollBack();
+                            $this->status(400)->json([
+                                'error' => 'Stock insuffisant pour le produit: ' . ($product['nom'] ?? $item['produit_id'])
+                            ]);
+                            return;
+                        }
                     }
-                    // Mettre à jour le stock (décrémenter)
-                    $productModel->updateStock($produitId, $item['quantite']);
 
-                    // Créer le détail
+                    // Mettre à jour le stock: si quantite est positif on décrémente,
+                    // si négatif on incrémente (retour/annulation)
+                    $productModel->updateStock($produitId, $quantite);
+
+                    // Créer le détail avec la quantité (négative ou positive selon le type)
                     $detailModel->create([
                         'vente_id'   => $saleId,
                         'produit_id' => $produitId,
-                        'quantite'   => $item['quantite'],
+                        'quantite'   => $quantite,
                         'prix'       => $item['prix']
                     ]);
                 }
             }
 
             $db->commit();
-            $this->json(['success' => true, 'numero_facture' => $invoiceNum, 'vente_id' => $saleId]);
+            $this->json([
+                'success' => true,
+                'numero_facture' => $invoiceNum,
+                'vente_id' => $saleId,
+                'type_facture' => $typeFacture,
+                'should_negate' => $shouldNegate
+            ]);
         } catch (\Exception $e) {
             $db->rollBack();
             $this->status(500)->json(['error' => 'Erreur lors de la vente: ' . $e->getMessage()]);

@@ -334,21 +334,27 @@ class BillPayment {
             const service = this.currentProvider === 1 ? 'ELECTRICITE' : 'EAU';
             const total = this.selectedMonths.reduce((acc, m) => acc + m.montant, 0);
 
+            // Logique de négation: si la facture N'est PAS FA ou EA, on envoie
+            // les quantités et le total en négatif à la DGI et au backend
+            const rechargeTypeFacture = document.getElementById('invoice-type')?.value || 'FV';
+            const rechargeShouldNegate = rechargeTypeFacture !== 'FA' && rechargeTypeFacture !== 'EA';
+            const rechargeSign = rechargeShouldNegate ? -1 : 1;
+
             // Étape 2: Sauvegarder dans la table ventes (comme pour les ventes normales)
             const ventePayload = {
                 articles: this.selectedMonths.map(m => ({
                     produit_id: 0,
                     nom: `${this.moisNoms[m.mois]} ${m.annee} (${service})`,
                     prix: m.montant,
-                    quantite: 1,
+                    quantite: 1 * rechargeSign,
                     tax_rate: 0,
                     tax_etiquette: 'B'
                 })),
                 client_id: null,
-                sous_total_ht: total,
+                sous_total_ht: total * rechargeSign,
                 tva: 0,
-                total: total,
-                type_facture: document.getElementById('invoice-type')?.value || 'FV',
+                total: total * rechargeSign,
+                type_facture: rechargeTypeFacture,
                 providerService: service,
                 dgi_data: {
                     dateDGI: dgiResponse.data?.dateDGI || null,
@@ -446,9 +452,14 @@ class BillPayment {
             const invoiceRef = document.getElementById('invoice-ref')?.value || '';
 
             // Construire les articles (mois sélectionnés) pour la DGI
+            // Si la facture N'est PAS FA ou EA, on envoie les quantités et
+            // le total en négatif à l'API DGI
+            const dgiShouldNegate = invoiceType === 'FA' || invoiceType === 'EA';
+            const dgiSign = dgiShouldNegate ? -1 : 1;
+
             const articles = this.selectedMonths.map((month, idx) => ({
                 name: `${this.moisNoms[month.mois]} ${month.annee} (${service})`,
-                quantity: 1,
+                quantity: 1 * dgiSign,
                 year: month.annee,
                 month: month.mois,
                 price: month.montant,
@@ -490,7 +501,7 @@ class BillPayment {
                 seller_name: sellerName,
                 seller_agent_code: (typeof CURRENT_USER !== 'undefined' && CURRENT_USER.agentCode) ? CURRENT_USER.agentCode : '',
                 store_name: STORE_INFO.name,
-                amount: total,
+                amount: total * dgiSign,
                 client_number: clientTel,
 
                 client_commune: clientCommune,
@@ -839,6 +850,11 @@ class BillPayment {
         const clientNif = document.getElementById('modal-client-nif')?.value || '';
         const invoiceType = document.getElementById('invoice-type')?.value || 'FV';
 
+        // Logique de négation visuelle: si la facture N'est PAS FA ou EA, on
+        // affiche les quantités et le total en négatif dans la preview
+        const rechargePreviewShouldNegate = invoiceType === 'FA' || invoiceType === 'EA';
+        const rechargePreviewSign = rechargePreviewShouldNegate ? -1 : 1;
+
         // Masquer les 4 derniers chiffres du numéro client
         const maskClientNumero = (num) => {
             if (!num || num.length < 6) return num || '';
@@ -873,8 +889,8 @@ class BillPayment {
             itemsHtml += `
                 <tr>
                     <td><span class="item-name">${monthName} ${month.annee}<span class="item-tax-badge">B</span>[SER]</span></td>
-                    <td class="item-qty">1</td>
-                    <td class="item-total">${this.formatMoney(month.montant)} Fc</td>
+                    <td class="item-qty">${1 * rechargePreviewSign}</td>
+                    <td class="item-total">${this.formatMoney(month.montant * rechargePreviewSign)} Fc</td>
                 </tr>
             `;
         });
@@ -892,7 +908,7 @@ class BillPayment {
                            ${clientNif ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>NIF:</strong></span><span>${clientNif}</span></div>` : ''}
                            ${clientNumero ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>N° COMPTEUR:</strong></span><span>${clientNumero}</span></div>` : ''}
                            <div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>SERVICE:</strong></span><span>${service}</span></div>
-                          
+
                           </div>`;
 
         $('#preview-content').innerHTML = `
@@ -902,7 +918,7 @@ class BillPayment {
                     <div class="store-info">
                         <div><strong>Point de vente :</strong> ${STORE_INFO.address}</div>
                         <div>Tel: ${STORE_INFO.phone}</div>
-                          
+
                         <div>ID Nat: ${STORE_INFO.ice}</div>
                         ${storeExtraInfo}
                     </div>
@@ -918,7 +934,7 @@ class BillPayment {
                     ${this.getTaxBreakdownHtml()}
                     <div class="receipt-total-row grand-total">
                         <span>TOTAL TTC:</span>
-                        <span>${this.formatMoney(total)} Fc</span>
+                        <span>${this.formatMoney(total * rechargePreviewSign)} Fc</span>
                     </div>
                     ${this.getPaymentInfoHtml()}
                 </div>
@@ -1009,6 +1025,11 @@ class BillPayment {
         const invoiceNum = this.currentInvoiceNum;
         const invoiceType = document.getElementById('invoice-type')?.value || 'FV';
 
+        // Logique de négation visuelle: si la facture N'est PAS FA ou EA, on
+        // affiche les quantités et le total en négatif dans la facture finale
+        const ticketShouldNegate = invoiceType === 'FA' || invoiceType === 'EA';
+        const ticketSign = ticketShouldNegate ? -1 : 1;
+
         // Construire items avec tableau (style caisse)
         let itemsHtml = '<table class="receipt-table"><thead><tr><th>Article</th><th>Qté</th><th>HT</th></tr></thead><tbody>';
         this.selectedMonths.forEach(month => {
@@ -1016,8 +1037,8 @@ class BillPayment {
             itemsHtml += `
                 <tr>
                     <td><span class="item-name">${monthName} ${month.annee}<span class="item-tax-badge">B</span>[SER]</span></td>
-                    <td class="item-qty">1</td>
-                    <td class="item-total">${this.formatMoney(month.montant)} Fc</td>
+                    <td class="item-qty">${1 * ticketSign}</td>
+                    <td class="item-total">${this.formatMoney(month.montant * ticketSign)} Fc</td>
                 </tr>
             `;
         });
@@ -1113,7 +1134,7 @@ class BillPayment {
                     ${this.getTaxBreakdownHtml(dgiResponse)}
                     <div class="receipt-total-row grand-total">
                         <span>TOTAL TTC:</span>
-                        <span>${this.formatMoney(total)} Fc</span>
+                        <span>${this.formatMoney(total * ticketSign)} Fc</span>
                     </div>
                     ${this.getPaymentInfoHtml()}
                     <div style="margin: 10px 0; font-size: 11px; color: #333; border: 1px dashed #ccc; padding: 8px; border-radius: 4px; text-align: center;">
