@@ -1221,6 +1221,12 @@ class BillPayment {
         // Recharges are exonerated - show EXONERE ET HORS CHAMP
         let html = '';
 
+        // Logique de négation visuelle pour le détail des taxes
+        // (cohérent avec le reste du fichier : signe = -1 quand le type EST FA ou EA)
+        const rechargeTaxTypeFacture = document.getElementById('invoice-type')?.value || 'FV';
+        const rechargeTaxShouldNegate = rechargeTaxTypeFacture === 'FA' || rechargeTaxTypeFacture === 'EA';
+        const rechargeTaxSign = rechargeTaxShouldNegate ? -1 : 1;
+
         // Try to parse ht_tva_group from DGI response
         let haData = {};
         let vaData = {};
@@ -1261,15 +1267,16 @@ class BillPayment {
         ];
 
         TAX_CATEGORIES.forEach(cat => {
-            const ht = parseFloat(haData[cat.key]) || 0;
-            const va = parseFloat(vaData['va' + cat.key.slice(-1)]) || 0;
+            // Appliquer le signe de négation (sign = -1 quand le type EST FA ou EA)
+            const ht = (parseFloat(haData[cat.key]) || 0);
+            const va = (parseFloat(vaData['va' + cat.key.slice(-1)]) || 0);
 
-            if (ht > 0 || va > 0) {
+            if (Math.abs(ht) > 0 || Math.abs(va) > 0) {
                 html += `<div class="receipt-total-row" style="font-size: 11px; padding-left: 10px;">
                     <span>HT[${cat.label}] ${cat.description} ${cat.tax} % :</span>
                     <span>${ht.toFixed(2)} Fc</span>
                 </div>`;
-                if (va > 0) {
+                if (Math.abs(va) > 0) {
                     html += `<div class="receipt-total-row" style="font-size: 11px; padding-left: 10px; color: #666;">
                         <span>TVA[${cat.label}] ${cat.description} ${cat.tax} % :</span>
                         <span>${va.toFixed(2)} Fc</span>
@@ -1281,8 +1288,8 @@ class BillPayment {
         // Only show exonerated items when tax_etiquette is "A" (haa)
         if (dgiResponse) {
             const exoneratedItems = this.months.filter(item => item.tax_etiquette === 'A' || item.tax_etiquette === 'haa');
-            const exoneratedTotal = exoneratedItems.reduce((sum, item) => sum + (item.prix * item.quantite), 0);
-            if (exoneratedItems.length > 0 && exoneratedTotal > 0) {
+            const exoneratedTotal = exoneratedItems.reduce((sum, item) => sum + (item.prix * item.quantite), 0) * rechargeTaxSign;
+            if (exoneratedItems.length > 0 && Math.abs(exoneratedTotal) > 0) {
                 html += `<div class="receipt-total-row" style="font-size: 11px; padding-left: 5px; color: #888;">
                     <span>EXONERE ET HORS CHAMP:</span>
                     <span>${exoneratedTotal.toFixed(2)} Fc</span>

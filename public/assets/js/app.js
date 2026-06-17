@@ -654,9 +654,9 @@ const posCart = {
                 seller_name: sellerName,
                 seller_agent_code: (typeof CURRENT_USER !== 'undefined' && CURRENT_USER.agentCode) ? CURRENT_USER.agentCode : '',
                 store_name: STORE_INFO.name,
-                amount: this.currentTotals.total * sign,
+                amount: this.currentTotals.total,
                 client_number: clientNumero,
-                invoice_number: /** this.currentInvoiceNum */ '2026/000302',
+                invoice_number: this.currentInvoiceNum,
                 invoice_type: invoiceType,
                 invoice_ref: invoiceRef,
                 ref_facture: refFacture,
@@ -664,7 +664,7 @@ const posCart = {
                 payment_type: paymentType,
                 articles: this.items.map(item => ({
                     name: item.nom,
-                    quantity: item.quantite * sign,
+                    quantity: item.quantite,
                     price: item.prix,
                     tax_rate: item.tax_rate || 0,
                     tax_etiquette: item.tax_etiquette || '',
@@ -795,11 +795,16 @@ const posCart = {
 
     // Convert number to French words (for currency) - handles up to billions
     numberToFrenchWords(num) {
+        let sign = 1
         const units = ['', 'un', 'deux', 'trois', 'quatre', 'cinq', 'six', 'sept', 'huit', 'neuf', 'dix',
             'onze', 'douze', 'treize', 'quatorze', 'quinze', 'seize', 'dix-sept', 'dix-huit', 'dix-neuf'];
         const tens = ['', '', 'vingt', 'trente', 'quarante', 'cinquante', 'soixante', 'soixante', 'quatre-vingt', 'quatre-vingt-dix'];
 
         if (num === 0) return 'zéro';
+        if (num < 0) {
+            sign = -1
+            num = num * sign
+        }
 
         const intPart = Math.floor(num);
         const decPart = Math.round((num - intPart) * 100);
@@ -874,6 +879,12 @@ const posCart = {
     getTaxBreakdownHtml(dgiResponse) {
         let html = '';
 
+        // Logique de négation visuelle pour le détail des taxes
+        // (cohérent avec le reste du fichier : signe = -1 quand le type EST FA ou EA)
+        const taxBreakdownTypeFacture = document.getElementById('invoice-type')?.value || 'FV';
+        const taxBreakdownShouldNegate = taxBreakdownTypeFacture === 'FA' || taxBreakdownTypeFacture === 'EA';
+        const taxBreakdownSign = taxBreakdownShouldNegate ? -1 : 1;
+
         // Try to parse ht_tva_group from DGI response
         let haData = {};
         let vaData = {};
@@ -914,15 +925,16 @@ const posCart = {
         ];
 
         TAX_CATEGORIES.forEach(cat => {
-            const ht = parseFloat(haData[cat.key]) || 0;
-            const va = parseFloat(vaData['va' + cat.key.slice(-1)]) || 0;
+            // Appliquer le signe de négation (sign = -1 quand le type EST FA ou EA)
+            const ht = (parseFloat(haData[cat.key]) || 0);
+            const va = (parseFloat(vaData['va' + cat.key.slice(-1)]) || 0);
 
-            if (ht > 0 || va > 0) {
+            if (Math.abs(ht) > 0 || Math.abs(va) > 0) {
                 html += `<div class="receipt-total-row" style="font-size: 11px; padding-left: 10px;">
                     <span>HT[${cat.label}] ${cat.description} ${cat.tax} % :</span>
                     <span>${ht.toFixed(2)} Fc</span>
                 </div>`;
-                if (va > 0) {
+                if (Math.abs(va) > 0) {
                     html += `<div class="receipt-total-row" style="font-size: 11px; padding-left: 10px; color: #666;">
                         <span>TVA[${cat.label}] ${cat.description} ${cat.tax} % :</span>
                         <span>${va.toFixed(2)} Fc</span>
@@ -934,8 +946,8 @@ const posCart = {
         // Only show exonerated items when tax_etiquette is "A" (haa)
         if (dgiResponse) {
             const exoneratedItems = this.items.filter(item => item.tax_etiquette === 'A' || item.tax_etiquette === 'haa');
-            const exoneratedTotal = exoneratedItems.reduce((sum, item) => sum + (item.prix * item.quantite), 0);
-            if (exoneratedItems.length > 0 && exoneratedTotal > 0) {
+            const exoneratedTotal = exoneratedItems.reduce((sum, item) => sum + (item.prix * item.quantite), 0) * taxBreakdownSign;
+            if (exoneratedItems.length > 0 && Math.abs(exoneratedTotal) > 0) {
                 html += `<div class="receipt-total-row" style="font-size: 11px; padding-left: 5px; color: #888;">
                     <span>EXONERE ET HORS CHAMP:</span>
                     <span>${exoneratedTotal.toFixed(2)} Fc</span>
@@ -948,11 +960,14 @@ const posCart = {
 
     // Generate payment info HTML for receipts (called after TOTAL TTC)
     getPaymentInfoHtml() {
+        const invoiceType = document.getElementById('invoice-type')?.value || 'FV';
+        const shouldNegate = invoiceType === 'FA' || invoiceType === 'EA';
+        const sign = shouldNegate ? -1 : 1;
         const totalQty = this.items.reduce((sum, item) => sum + item.quantite, 0);
         const paymentTypeSelect = document.getElementById('modal-payment-type') || document.getElementById('payment-type');
         const paymentType = paymentTypeSelect?.value || 'cash';
         const paymentLabel = paymentType === 'cash' ? 'Espèces' : paymentType === 'card' ? 'Carte' : paymentType === 'transfer' ? 'Virement' : paymentType;
-        const amountInWords = this.numberToFrenchWords(this.currentTotals.total);
+        const amountInWords = this.numberToFrenchWords(this.currentTotals.total * sign);
 
         return `
 
@@ -962,7 +977,7 @@ const posCart = {
             </div>
             <div class="receipt-total-row" style="font-size: 11px; color: #555">
                 <span>Equivalent en USD :</span>   
-                <span> ${(this.currentTotals.total / USD_RATE).toFixed(2)}$ </span>
+                <span> ${(this.currentTotals.total / USD_RATE).toFixed(2) * sign}$ </span>
             </div>
             <div class="receipt-total-row" style="font-size: 11px; color: #555;">
                 <span>Paiment : </span>
@@ -970,7 +985,7 @@ const posCart = {
             </div>
             <div class="receipt-total-row" style="font-size: 11px; color: #555;">
                 <span>Qté:</span>
-                <span>${totalQty % 1 === 0 ? totalQty : totalQty.toFixed(2)}</span>
+                <span>${totalQty % 1 === 0 ? totalQty * sign : totalQty.toFixed(2) * sign}</span>
             </div>
             
             <div style="text-align: center; font-size: 12px; color: #888; font-style: italic; margin-top: 2px;">
@@ -1413,8 +1428,12 @@ const posCart = {
             // Logique de négation visuelle: si la facture N'est PAS FA ou EA, on
             // affiche les quantités et le total en négatif dans la facture finale
             const ticketTypeFacture = document.getElementById('invoice-type')?.value || 'FV';
-            const ticketShouldNegate = ticketTypeFacture === 'FA' && ticketTypeFacture === 'EA';
+            console.log(ticketTypeFacture)
+            const ticketShouldNegate = ticketTypeFacture === 'FA' || ticketTypeFacture === 'EA';
             const ticketSign = ticketShouldNegate ? -1 : 1;
+
+            console.log(ticketSign)
+
 
             // Construire les items du reçu avec les taxes par produit
             let itemsHtml = '<table class="receipt-table"><thead><tr><th>Article</th><th>Qté</th><th>Total HT</th></tr></thead><tbody>';
@@ -1423,6 +1442,8 @@ const posCart = {
                 const itemPrice = parseFloat(item.prix) || 0;
                 const itemQty = (parseFloat(item.quantite) || 0) * ticketSign;
                 const itemTotalHT = itemPrice * itemQty;
+
+                console.log(" item Qty : " + itemQty + " - " + itemTotalHT)
                 const taxLabel = item.tax_etiquette || (item.tax_rate > 0 ? 'TVA ' + item.tax_rate + '%' : 'Exonere');
                 const prodService = item.prod_service ? `<span class="item-prod-service">[${item.prod_service}]</span>` : '';
 
@@ -1455,6 +1476,10 @@ const posCart = {
                     </div>
                     <div class="receipt-meta" style="justify-content: center; font-size: 14px; font-weight: 555; display: flex; flex-direction: column; text-align: center; gap: 4px;">
                         <div>${getInvoiceTypeLabel(saleData.type_facture || document.getElementById('invoice-type')?.value)}</div>
+                        ${dgiResponse.data?.refDocument ? `<div style="text-align: center; font-size: 11px; color: #888; font-style: italic;">${dgiResponse.data.actionFacture || ''}</div>` : ''}
+                       
+                        ${dgiResponse.data?.refDocument ? `<div style="text-align: center; font-size: 11px; color: #888; font-style: italic;">${dgiResponse.data.refFacture || ''}</div>` : ''}
+                         ${/*dgiResponse.data?.refDocument ? `<div style="text-align: center; font-size: 11px; color: #888; font-style: italic;">${dgiResponse.data.refDocument}</div>` : '' */ ''}
                        
                     </div>
                     
@@ -1471,7 +1496,7 @@ const posCart = {
                         </div>
                         <div class="receipt-total-row grand-total">
                             <span>TOTAL TTC:</span>
-                            <span>${(this.currentTotals.total * ticketSign).toFixed(2)} Fc</span>
+                            <span>${(dgiResponse.data.total).toFixed(2)} Fc</span>
                         </div>
                         ${this.getPaymentInfoHtml()}
                          <div style="margin: 10px 0; font-size: 11px; color: #333; border: 1px dashed #ccc; padding: 8px; border-radius: 4px; text-align: center;">

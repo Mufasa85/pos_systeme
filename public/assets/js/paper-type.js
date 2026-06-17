@@ -109,8 +109,13 @@
     // ──────────────────────────────────────────────────────────────────────────
 
     function numberToFrenchWords(n) {
+        let sign = 1
         n = Math.floor(Number(n) || 0);
         if (n === 0) return 'zéro';
+        if (n < 0) {
+            sign = -1
+            n = -1 * n
+        }
         var units = ['', 'un', 'deux', 'trois', 'quatre', 'cinq', 'six', 'sept', 'huit', 'neuf'];
         var teens = ['dix', 'onze', 'douze', 'treize', 'quatorze', 'quinze', 'seize', 'dix-sept', 'dix-huit', 'dix-neuf'];
         var tens = ['', 'dix', 'vingt', 'trente', 'quarante', 'cinquante', 'soixante', 'soixante', 'quatre-vingt', 'quatre-vingt'];
@@ -275,15 +280,32 @@
 
         var metaEl = receipt.querySelector('.receipt-meta');
         var invoiceTypeLabel = '';
+        var metaComment = '';
+        var metaReference = '';
         if (metaEl) {
-            var metaSpans = metaEl.querySelectorAll('span');
-            if (metaSpans.length >= 2) {
-                invoiceTypeLabel = metaSpans[1].textContent.trim() || metaSpans[0].textContent.trim();
-            } else if (metaSpans.length === 1) {
-                invoiceTypeLabel = metaSpans[0].textContent.trim();
-            } else {
-                invoiceTypeLabel = metaEl.textContent.trim();
+            // Le bloc .receipt-meta contient jusqu'à 3 <div> enfants :
+            //   1er : type de facture (en-tête)
+            //   2eme : commentaire sur la facture
+            //   3eme : référence de la facture
+            var metaDivs = [];
+            for (var mi = 0; mi < metaEl.children.length; mi++) {
+                if (metaEl.children[mi] && metaEl.children[mi].tagName === 'DIV') {
+                    metaDivs.push(metaEl.children[mi]);
+                }
             }
+            if (metaDivs.length >= 1) invoiceTypeLabel = metaDivs[0].textContent.trim();
+            if (metaDivs.length >= 2) metaComment = metaDivs[1].textContent.trim();
+            if (metaDivs.length >= 3) metaReference = metaDivs[2].textContent.trim();
+
+            // Fallback : si pas de <div> directes, tenter les <span>
+            if (!invoiceTypeLabel) {
+                var metaSpans = metaEl.querySelectorAll('span');
+                if (metaSpans.length >= 1) invoiceTypeLabel = metaSpans[0].textContent.trim();
+                if (metaSpans.length >= 2) metaComment = metaSpans[1].textContent.trim();
+                if (metaSpans.length >= 3) metaReference = metaSpans[2].textContent.trim();
+            }
+
+            if (!invoiceTypeLabel) invoiceTypeLabel = metaEl.textContent.trim();
         }
 
         var dgiEl = null;
@@ -472,7 +494,11 @@
             '.inv-top-row .client-block td { vertical-align: top; }\n' +
             '.inv-top-row .client-block .invoice-type-big { font-size: 18px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: #111; margin-bottom: 4px; }\n' +
             '.inv-top-row .client-block .invoice-num-line { font-size: 12px; color: #333; margin-bottom: 2px; }\n' +
-            '.inv-top-row .client-block .invoice-date-line { font-size: 11px; color: #666; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid #ddd; }\n' +
+            '.inv-top-row .client-block .invoice-date-line { font-size: 11px; color: #666; margin-bottom: 6px; padding-bottom: 6px; border-bottom: 1px solid #ddd; }\n' +
+            '.inv-top-row .client-block .invoice-meta-line { font-size: 11px; color: #333; margin-bottom: 3px; line-height: 1.5; }\n' +
+            '.inv-top-row .client-block .invoice-meta-line .meta-label { color: #666; font-weight: 600; margin-right: 4px; }\n' +
+            '.inv-top-row .client-block .invoice-meta-comment { background: #fffbe6; border-left: 3px solid #f0ad4e; padding: 5px 8px; border-radius: 3px; font-size: 11px; color: #333; margin-bottom: 4px; }\n' +
+            '.inv-top-row .client-block .invoice-meta-reference { background: #eef6fb; border-left: 3px solid #5bc0de; padding: 5px 8px; border-radius: 3px; font-size: 11px; color: #333; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid #ddd; }\n' +
             '.inv-items { margin-bottom: 18px; }\n' +
             '.inv-items table { width: 100%; border-collapse: collapse; border: none; margin-bottom : 50px }\n' +
             '.inv-items table thead tr { background: transparent; color: inherit; }\n' +
@@ -516,6 +542,8 @@
             '    <div class="invoice-type-big">' + (invoiceTypeLabel || 'Facture de Vente') + '</div>\n' +
             '    <div class="invoice-num-line">N° Facture : ' + (invoiceNum || '') + '</div>\n' +
             '    <div class="invoice-date-line">Date : ' + (invoiceDate || '') + '</div>\n' +
+            (metaComment ? '    <div class="invoice-meta-comment"><span class="meta-label">Commentaire :</span> ' + metaComment + '</div>\n' : '') +
+            (metaReference ? '    <div class="invoice-meta-reference"><span class="meta-label">Référence :</span> ' + metaReference + '</div>\n' : '') +
             '    <h4>Informations Client & Vendeur</h4>\n' +
             '    <table><tbody>' + clientRows + '</tbody></table>\n' +
             '  </div>\n' +
