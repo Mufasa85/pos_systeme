@@ -9,6 +9,7 @@ use App\Controllers\UserController;
 use App\Controllers\SettingsController;
 use App\Controllers\ClientController;
 use App\Core\Router;
+use App\Models\Settings;
 
 Router::get("/api/produits", [ProductController::class, 'index']);
 Router::get("/api/produit", [ProductController::class, 'find']);
@@ -166,6 +167,17 @@ Router::post("/api/dgi", function () {
         return;
     }
 
+    $settings = new Settings();
+    $token = trim((string)$settings->get('token'));
+
+    if ($token === '') {
+        http_response_code(500);
+        echo json_encode(['success' => false, 'message' => 'Token DGI non configuré dans settings avec la clé token']);
+        return;
+    }
+
+    $input['token'] = $token;
+
     // Forward vers le serveur DGI
     $dgiUrl = 'https://osat-energie.com/dgi/';
     $postData = json_encode($input);
@@ -238,8 +250,17 @@ $serviceBillHandler = function () {
         return;
     }
 
+    $settings = new Settings();
+    $token = trim((string)$settings->get('token'));
+
+    if ($token === '') {
+        http_response_code(500);
+        echo json_encode(['success' => false, 'message' => 'Token DGI non configuré dans settings avec la clé token']);
+        return;
+    }
+
     // Appel API DGI - GET avec query string
-    $osatUrl = 'https://osat-energie.com/dgi/facture/?store_isf=' . urlencode($store_isf) . '&invoice_number=' . urlencode($invoice_number);
+    $osatUrl = 'https://osat-energie.com/dgi/facture/?store_isf=' . urlencode($store_isf) . '&invoice_number=' . urlencode($invoice_number) . '&token=' . urlencode($token ?? '');
 
     $ch = curl_init($osatUrl);
     curl_setopt($ch, CURLOPT_HTTPGET, true);
