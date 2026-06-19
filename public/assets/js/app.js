@@ -1922,137 +1922,247 @@ function deleteCategory(id) {
 }
 
 
-// ==================== SERVICE BILL FETCHER ====================
+// ==================== SERVICE BILL FETCHER (DGI - facture enregistrée) ====================
 // Service Bill API proxy URL (évite CORS)
+// GET https://osat-energie.com/dgi/facture/?store_isf=...&invoice_number=...
 const SERVICE_BILL_API_URL = APP_URL + '/api/service-bill';
 
-async function fetchServiceBillData(nfacture, client_isf) {
+async function fetchServiceBillData(invoice_number, store_isf) {
     try {
-        const resp = await fetch(SERVICE_BILL_API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                nfacture: nfacture,
-                client_isf: client_isf
-            })
+        const url = SERVICE_BILL_API_URL
+            + '?store_isf=' + encodeURIComponent(store_isf || '')
+            + '&invoice_number=' + encodeURIComponent(invoice_number || '');
+        const resp = await fetch(url, {
+            method: 'GET',
+            headers: { 'Accept': 'application/json' }
         });
         if (resp.ok) {
             const data = await resp.json();
             return data.success ? data : null;
         }
+        console.warn('Service bill API non-OK:', resp.status);
     } catch (e) {
         console.warn('Service bill API error:', e);
     }
     return null;
 }
 
-function renderServiceBillContent(data, sale) {
-    let info = data.data;
+// Catégories de taxes (DGI) pour le détail HT/TVA
+const PROFORMA_TAX_CATEGORIES = [
+    { key: 'haa', label: 'A', tax: 0, description: 'EXONERE ET HORS CHAMP' },
+    { key: 'hab', label: 'B', tax: 16, description: 'Taxable' },
+    { key: 'hac', label: 'C', tax: 5, description: 'Taxable' },
+    { key: 'had', label: 'D', tax: 0, description: 'Régimes dérogatoires TVA' },
+    { key: 'hae', label: 'E', tax: 0, description: 'Exportation et opération assimilée' },
+    { key: 'haf', label: 'F', tax: 16, description: 'TVA marché public à financement ext.' },
+    { key: 'hag', label: 'G', tax: 5, description: 'TVA marché public à financement ext.' },
+    { key: 'hah', label: 'H', tax: 0, description: 'Consignation/déconsignation emballage' },
+    { key: 'hai', label: 'I', tax: 0, description: 'Garantie et caution' },
+    { key: 'haj', label: 'J', tax: 0, description: 'Débours' },
+    { key: 'hak', label: 'K', tax: 0, description: 'Opérations par les non-assujettis' },
+    { key: 'hal', label: 'L', tax: 0, description: 'Prélèvements sur les ventes' },
+    { key: 'ham', label: 'M', tax: 0, description: 'Ventes réglementées TVA spécifique' },
+    { key: 'han', label: 'N', tax: 0, description: 'TVA spécifique' },
+    { key: 'hao', label: 'O', tax: 1, description: 'Taxable' },
+    { key: 'hap', label: 'P', tax: 1, description: 'TVA marché public à financement ext.' }
+];
 
-    info = info.data
+function parseHtTva(htTvaRaw) {
+    // Le champ ht_tva est une chaîne JSON imbriquée:
+    // { success, message, data: { ha: {hab, hac, ...}, va: {vab, vac, ...} } }
+    let haData = {};
+    let vaData = {};
+    try {
+        if (!htTvaRaw) return { ha: {}, va: {} };
+        const parsed = typeof htTvaRaw === 'string' ? JSON.parse(htTvaRaw) : htTvaRaw;
+        if (parsed && parsed.data) {
+            haData = parsed.data.ha || {};
+            vaData = parsed.data.va || {};
+        }
+    } catch (e) {
+        console.warn('parseHtTva error:', e);
+    }
+    return { ha: haData, va: vaData };
+}
+
+function buildProformaTaxBreakdownHtml(htTvaRaw) {
+    const { ha, va } = parseHtTva(htTvaRaw);
+    let html = '';
+    PROFORMA_TAX_CATEGORIES.forEach(cat => {
+        const ht = parseFloat(ha[cat.key]) || 0;
+        const vaKey = 'va' + cat.key.slice(-1); // haa -> vaa, hab -> vab
+        const vat = parseFloat(va[vaKey]) || 0;
+        if (Math.abs(ht) > 0 || Math.abs(vat) > 0) {
+            html += '<div class="receipt-total-row" style="font-size:11px; padding-left:10px;">'
+                + '<span>HT[' + cat.label + '] ' + cat.description + ' ' + cat.tax + '% :</span>'
+                + '<span>' + ht.toFixed(2) + ' Fc</span>'
+                + '</div>';
+            if (Math.abs(vat) > 0) {
+                html += '<div class="receipt-total-row" style="font-size:11px; padding-left:10px; color:#666;">'
+                    + '<span>TVA[' + cat.label + '] ' + cat.description + ' ' + cat.tax + '% :</span>'
+                    + '<span>' + vat.toFixed(2) + ' Fc</span>'
+                    + '</div>';
+            }
+        }
+    });
+    return html;
+}
+
+function renderServiceBillContent(data, sale) {
+    // data = { success, data: { id, store_phone, ..., ht_tva: "{...}", ... } }
+    // (la nouvelle API renvoie directement la facture dans data)
+    let info = data && data.data ? data.data : data;
+
+    // Si l'API a renvoyé un wrapper supplémentaire { data: {...} }, on l'aplatit
+    if (info && info.data && info.data.invoice_number) {
+        info = info.data;
+    }
 
     // Parser les articles si c'est une chaîne JSON
     let articlesList = [];
     if (info.articles) {
         if (typeof info.articles === 'string') {
             try { articlesList = JSON.parse(info.articles); } catch (e) { console.warn('Articles parse error:', e); }
-        } else {
+        } else if (Array.isArray(info.articles)) {
             articlesList = info.articles;
         }
     }
 
+    // Numéro de facture (fallback sur la vente locale)
+    const invoiceNumber = info.invoice_number || (sale && sale.numero_facture) || '';
+
+    // ============= Construction du HTML =============
     let html = '<div class="receipt">';
 
-    // Header avec PROFORMA
+    // ----- Header -----
     html += '<div class="receipt-header">';
+    // Bandeau PROFORMA
     html += '<div style="text-align:center; font-weight:800; font-size:24px; color:#000; margin-bottom:10px; border-bottom:2px solid #000; padding-bottom:5px;">PROFORMA</div>';
     html += '<div class="store-name">' + (info.store_name || STORE_INFO.name) + '</div>';
     html += '<div class="store-info">';
-    html += '<div>' + (info.store_address || STORE_INFO.address) + '</div>';
-    html += '<div>TEl: ' + (info.store_phone || STORE_INFO.phone) + '</div>';
-    html += '<div>ID Nat: ' + (info.store_ice || STORE_INFO.ice) + '</div>';
+    html += '<div><strong>Point de vente :</strong> ' + (info.store_address || STORE_INFO.address) + '</div>';
+    html += '<div>Tel: ' + (info.store_phone || STORE_INFO.phone) + '</div>';
+    if (info.store_ice) html += '<div>ID Nat: ' + info.store_ice + '</div>';
     if (info.store_rccm) html += '<div>RCCM: ' + info.store_rccm + '</div>';
-    html += '<div>Numero Agent: ' + (info.store_isf || STORE_INFO.isf) + '</div>';
+    if (info.store_isf) html += '<div>Numero Agent: ' + info.store_isf + '</div>';
     html += '</div>';
 
-    // Section Vendeur/Client
-    const vendeur = info.sellerName || 'N/A';
+    // Section Vendeur / Client
+    const vendeur = info.sellerName || (sale && sale.nom_vendeur) || 'N/A';
     const clientNom = info.client_name || '';
     const clientNumero = info.client_number || '';
     const clientType = info.client_type || '';
     const clientNif = info.client_nif || '';
 
     html += '<div style="border-top:1px dashed #ccc; margin-top:6px; padding-top:6px; text-align:left; font-size:15px; line-height:1.5;">';
-    html += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>Vendeur:</strong></span><span>' + vendeur + '</span></div>';
-    if (clientNom) html += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>Client:</strong></span><span>' + clientNom + '</span></div>';
-    if (clientNumero) html += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>Num:</strong></span><span>' + formatPhoneNumber(clientNumero) + '</span></div>';
-    if (clientType) html += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>Type:</strong></span><span>' + clientType + '</span></div>';
+    html += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>VENDEUR:</strong></span><span>' + vendeur + '</span></div>';
+    if (clientNom) html += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>CLIENT:</strong></span><span>' + clientNom + '</span></div>';
+    if (clientNumero) html += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>NUM:</strong></span><span>' + formatPhoneNumber(clientNumero) + '</span></div>';
+    if (clientType) html += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>TYPE:</strong></span><span>' + getClientTypeLabel(clientType) + '</span></div>';
     if (clientNif) html += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>NIF:</strong></span><span>' + clientNif + '</span></div>';
     html += '</div>';
     html += '</div>'; // fin receipt-header
 
-    // Meta (numéro facture et type)
-    html += '<div class="receipt-meta">';
-    html += '<span>' + (info.invoice_number || sale.numero_facture) + '</span>';
-    html += '<span>' + getInvoiceTypeLabel(info.invoice_type) + '</span>';
+    // ----- Meta (type + référence) -----
+    html += '<div class="receipt-meta" style="justify-content:center; font-size:14px; font-weight:555; display:flex; flex-direction:column; text-align:center; gap:4px;">';
+    html += '<div>' + getInvoiceTypeLabel(info.invoice_type) + '</div>';
+    if (info.invoice_ref) html += '<div style="font-size:11px; color:#888; font-style:italic;">Réf: ' + info.invoice_ref + '</div>';
+    if (info.ref_facture) html += '<div style="font-size:11px; color:#888; font-style:italic;">' + info.ref_facture + '</div>';
+    if (info.exoneration) html += '<div style="font-size:11px; color:#888; font-style:italic;">' + getExonerationLabel(info.exoneration).toUpperCase() + '</div>';
+    //if (info.payment_type) html += '<div style="font-size:11px; color:#666;">Paiement: ' + info.payment_type + '</div>';
     html += '</div>';
 
-    // Items des articles
-    html += '<div class="receipt-items"><table class="receipt-table"><thead><tr><th>Article</th><th>Qté</th><th>Prix HT</th><th>Total HT</th></tr></thead><tbody>';
+    // ----- Articles -----
+    html += '<div class="receipt-items"><table class="receipt-table"><thead><tr><th>Article</th><th>Qté</th><th>Total HT</th></tr></thead><tbody>';
+    let totalQty = 0;
     if (articlesList.length > 0) {
         articlesList.forEach(article => {
             const articleHT = parseFloat(article.price) || 0;
             const quantity = parseFloat(article.quantity) || 1;
             const articleTotal = articleHT * quantity;
-            const taxLabel = article.taxSpecificValue || 'Exonere';
+            totalQty += quantity;
+            const taxLabel = article.taxGroup || 'null';
+            const prodService = article.type ? '<span class="item-prod-service">[' + article.type + ']</span>' : '';
             html += '<tr>';
-            html += '<td><span class="item-name">' + article.name + '<span class="item-tax-badge">' + taxLabel + '</span></span></td>';
+            html += '<td><span class="item-name">' + (article.name || 'Article') + '<span class="item-tax-badge">' + taxLabel + '</span>' + prodService + '</span></td>';
             html += '<td class="item-qty">' + quantity + '</td>';
             html += '<td class="item-total">' + articleTotal.toFixed(2) + ' Fc</td>';
             html += '</tr>';
         });
+        console.log(articlesList)
+    } else {
+        html += '<tr><td colspan="3" style="text-align:center; color:#888; padding:8px;">Aucun article</td></tr>';
     }
     html += '</tbody></table></div>';
 
-    // Totaux
+    // ----- Totaux -----
     const total = parseFloat(info.total || 0);
-    const sousTotalHT = total - parseFloat(info.vtotal || 0);
     const tva = parseFloat(info.vtotal || 0);
+    const sousTotalHT = total - tva;
 
     html += '<div class="receipt-totals">';
 
-    html += '<div class="receipt-total-row"><span>TVA:</span><span>' + tva.toFixed(2) + ' Fc</span></div>';
+    // Détail HT/TVA par catégorie (depuis ht_tva)
+    html += buildProformaTaxBreakdownHtml(info.ht_tva);
+
+    // Total TVA + TOTAL TTC
+    html += '<div class="receipt-total-row"><span>Total TVA:</span><span>' + tva.toFixed(2) + ' Fc</span></div>';
     html += '<div class="receipt-total-row grand-total"><span>TOTAL TTC:</span><span>' + total.toFixed(2) + ' Fc</span></div>';
 
-    // Commentaire
-    if (info.comment || info.providerService) {
-        html += '<div style="margin:10px 0; font-size:11px; color:#333; border:1px dashed #ccc; padding:8px; border-radius:4px; text-align:left;">';
-        html += '<div style="font-weight:bold; text-decoration:underline; margin-bottom:4px;">Commentaire/Remarque :</div>';
-        html += '<div>' + (info.comment ? info.comment : "Aucun commentaire") + '</div>';
-        html += '</div>';
-    }
-    html += '</div>';
+    // Bloc paiement (taux + USD + nb articles + montant en lettres)
+    const amountInWords = posCart && posCart.numberToFrenchWords ? posCart.numberToFrenchWords(total) : '';
+    const usdRate = (typeof USD_RATE !== 'undefined' && USD_RATE > 0) ? USD_RATE : 0;
+    html += '<div class="receipt-total-row" style="font-size:11px; color:#555;">'
+        + '<span>TAUX DU JOUR :</span><span>' + (usdRate || '-') + ' Fc/USD</span>'
+        + '</div>';
+    html += '<div class="receipt-total-row" style="font-size:11px; color:#555;">'
+        + '<span>Equivalent en USD :</span><span>' + (usdRate ? (total < 0 ? -total / usdRate : total / usdRate).toFixed(2) + ' $' : '-') + '</span>'
+        + '</div>';
+    html += '<div class="receipt-total-row" style="font-size:11px; color:#555;">'
+        + '<span>Paiement:</span><span>' + info.payment_type + '</span>'
+        + '</div>';
+    html += '<div class="receipt-total-row" style="font-size:11px; color:#555;">'
+        + '<span>Nombre d\'article(s):</span><span>' + totalQty.toFixed(2) + '</span>'
+        + '</div>';
 
-    // Éléments de sécurité DGI
+    if (amountInWords) {
+        html += '<div style="text-align:center; font-size:12px; color:#888; font-style:italic; margin-top:2px;">Arrêté la présente proforma à la somme de ' + amountInWords + ' congolais toutes taxes comprises</div>';
+    }
+    if (info.isf || info.store_isf) {
+        html += '<div style="margin:10px 0; font-size:11px; color:#333; border:1px dashed #ccc; padding:8px; border-radius:4px; text-align:center;">ISF : ' + (info.isf || info.store_isf) + '</div>';
+    }
+
+    // Commentaire
+    // if (info.comment || info.providerService) {
+    //     html += '<div style="margin:10px 0; font-size:11px; color:#333; border:1px dashed #ccc; padding:8px; border-radius:4px; text-align:left;">';
+    //     html += '<div style="font-weight:bold; text-decoration:underline; margin-bottom:4px;">Commentaire/Remarque :</div>';
+    //     html += '<div>' + (info.comment || info.providerService || 'Aucun commentaire') + '</div>';
+    //     html += '</div>';
+    // }
+    html += '</div>'; // fin receipt-totals
+
+    // ----- Bloc sécurité DGI -----
     if (info.codeDEFDGI || info.counters || info.nim) {
         html += '<div style="background:#e8f5e9; border:1px solid #4caf50; border-radius:8px; padding:10px; margin:10px 0; text-align:center;">';
-        html += '<div style="color:#2e7d32; font-weight:bold; font-size:11px;">--- Elements de securite ---</div>';
+        html += '<div style="color:#2e7d32; font-weight:bold; font-size:11px;">--- Elements de securite de la facture normalisee ---</div>';
         html += '<div style="font-size:12px; color:#555; margin-top:4px;">';
-        if (info.codeDEFDGI) html += 'CODE DEF/DGI: ' + info.codeDEFDGI + '<br>';
-        if (info.nim) html += ' DEF NID : ' + info.nim + '<br>';
-        if (info.counters) html += ' DEF Compteurs: ' + info.counters + '<br>';
-        html += ' ISF : ' + (info.isf || info.store_isf || '0');
+        if (info.codeDEFDGI) html += 'CODE DEF/DGI: ' + info.codeDEFDGI;
+        if (info.nim) html += '<br> DEF NID : ' + info.nim;
+        if (info.counters) html += '<br> DEF Compteurs: ' + info.counters;
+        if (info.dateDGI) html += '<br> DEF Heure : ' + info.dateDGI;
         html += '</div></div>';
     }
 
-    // Footer avec QR
+    // ----- Footer (QR + barcode + facture n°) -----
     html += '<div class="receipt-footer">';
     if (info.qrCode) html += '<div id="service-bill-qrcode" class="qrcode-container"></div>';
-    html += '<div class="barcode">' + (info.invoice_number || sale.numero_facture) + '</div>';
+    html += '<div class="barcode">FACTURE n°' + invoiceNumber + '</div>';
+    if (info.dateDGI) html += '<div style="font-size:10px; color:#666; margin-top:4px;">Date : ' + info.dateDGI + '</div>';
     html += '<div class="thank-you">Merci de votre visite!</div>';
     html += '<div style="margin-top:5px; font-size:9px; font-style:italic;">---Powered By Osat---</div>';
     html += '</div></div>';
 
+    // Génération du QR code DGI
     if (info.qrCode) {
         setTimeout(() => posCart.generateDGIQRCode(info.qrCode, 'service-bill-qrcode'), 100);
     }
@@ -2062,6 +2172,72 @@ function renderServiceBillContent(data, sale) {
 
 // ==================== SALE DETAILS ====================
 
+// Fallback: rend une proforma depuis les données locales si l'API DGI est KO
+function renderLocalSaleDetails(sale, details) {
+    let html = '<div class="receipt">';
+    html += '<div class="receipt-header">';
+    html += '<div style="text-align:center; font-weight:800; font-size:24px; color:#000; margin-bottom:10px; border-bottom:2px solid #000; padding-bottom:5px;">PROFORMA</div>';
+    html += '<div class="store-name">' + STORE_INFO.name + '</div>';
+    html += '<div class="store-info">';
+    html += '<div><strong>Point de vente :</strong> ' + STORE_INFO.address + '</div>';
+    html += '<div>Tel: ' + STORE_INFO.phone + '</div>';
+    if (STORE_INFO.ice) html += '<div>ID Nat: ' + STORE_INFO.ice + '</div>';
+    if (STORE_INFO.rccm) html += '<div>RCCM: ' + STORE_INFO.rccm + '</div>';
+    if (STORE_INFO.isf) html += '<div>Numero Agent: ' + STORE_INFO.isf + '</div>';
+    html += '</div>';
+    html += '<div style="border-top:1px dashed #ccc; margin-top:6px; padding-top:6px; text-align:left; font-size:15px; line-height:1.5;">';
+    html += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>VENDEUR:</strong></span><span>' + (sale.nom_vendeur || 'N/A') + '</span></div>';
+    if (sale.nom_client) html += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>CLIENT:</strong></span><span>' + sale.nom_client + '</span></div>';
+    if (sale.client_numero) html += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>NUM:</strong></span><span>' + formatPhoneNumber(sale.client_numero) + '</span></div>';
+    if (sale.client_type_code) html += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>TYPE:</strong></span><span>' + getClientTypeLabel(sale.client_type_code) + '</span></div>';
+    if (sale.client_nif) html += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>NIF:</strong></span><span>' + sale.client_nif + '</span></div>';
+    html += '</div></div>';
+
+    html += '<div class="receipt-meta" style="justify-content:center; font-size:14px; font-weight:555;">' + getInvoiceTypeLabel(sale.type_facture) + '</div>';
+
+    html += '<div class="receipt-items"><table class="receipt-table"><thead><tr><th>Article</th><th>Qté</th><th>Total HT</th></tr></thead><tbody>';
+    (details || []).forEach(item => {
+        const itemPrice = parseFloat(item.prix) || 0;
+        const itemQty = parseFloat(item.quantite) || 0;
+        const itemTotalHT = itemPrice * itemQty;
+        const taxRate = parseFloat(item.tax_rate || 0);
+        const taxLabel = item.tax_etiquette || (taxRate > 0 ? 'TVA ' + taxRate + '%' : 'Exonere');
+        html += '<tr>';
+        html += '<td><span class="item-name">' + (item.produit_nom || 'Produit') + '<span class="item-tax-badge">' + taxLabel + '</span></span></td>';
+        html += '<td class="item-qty">' + itemQty + '</td>';
+        html += '<td class="item-total">' + itemTotalHT.toFixed(2) + ' Fc</td>';
+        html += '</tr>';
+    });
+    html += '</tbody></table></div>';
+
+    const totalNumber = parseFloat(sale.total) || 0;
+    const tvaNumber = parseFloat(sale.tva || 0);
+    html += '<div class="receipt-totals">';
+    html += '<div class="receipt-total-row"><span>Total TVA:</span><span>' + tvaNumber.toFixed(2) + ' Fc</span></div>';
+    html += '<div class="receipt-total-row grand-total"><span>TOTAL TTC:</span><span>' + totalNumber.toFixed(2) + ' Fc</span></div>';
+    html += '</div>';
+
+    if (sale.counters || sale.codeDEFDGI) {
+        html += '<div style="background:#e8f5e9; border:1px solid #4caf50; border-radius:8px; padding:10px; margin:10px 0; text-align:center;">';
+        html += '<div style="color:#2e7d32; font-weight:bold; font-size:11px;">--- Elements de securite ---</div>';
+        html += '<div style="font-size:12px; color:#555; margin-top:4px;">';
+        if (sale.codeDEFDGI) html += 'CODE DEF/DGI: ' + sale.codeDEFDGI;
+        if (sale.nim) html += '<br> DEF NID : ' + sale.nim;
+        if (sale.counters) html += '<br> DEF Compteurs: ' + sale.counters;
+        if (sale.dateDGI) html += '<br> DEF Heure : ' + sale.dateDGI;
+        html += '</div></div>';
+    }
+
+    html += '<div class="receipt-footer">';
+    html += '<div class="thank-you">FACTURE n°' + (sale.numero_facture || '') + '</div>';
+    html += '<div class="thank-you">Merci de votre visite!</div>';
+    html += '<div style="margin-top:5px; font-size:9px; font-style:italic;">---Powered By Osat---</div>';
+    html += '</div></div>';
+
+    return html;
+}
+
+// Affiche le contenu d'un détail de vente (PROFORMA via DGI ou fallback local)
 async function viewSaleDetails(saleId) {
     const response = await fetch(APP_URL + '/api/vente/' + saleId + '/details');
     const data = await response.json();
@@ -2073,16 +2249,25 @@ async function viewSaleDetails(saleId) {
 
     const sale = data.sale;
 
-    if (sale.service) {
-        document.getElementById('sale-details-content').innerHTML = '<div style="text-align:center; padding:40px;"><div class="spinner"></div><p style="margin-top:1rem;">Chargement des donnees...</p></div>';
+    // Si la vente est marquée "service" OU si elle a un compteur DGI
+    // (donc enregistrée), on tente de récupérer la version enrichie via
+    // l'API DGI et on construit la PROFORMA comme la facture finale.
+    const isDgiRegistered = !!(sale && (sale.counters || sale.codeDEFDGI || sale.nim));
+    if (sale.service || isDgiRegistered) {
+        document.getElementById('sale-details-content').innerHTML = '<div style="text-align:center; padding:40px;"><div class="spinner"></div><p style="margin-top:1rem;">Chargement des donnees DGI...</p></div>';
         document.getElementById('sale-details-modal').classList.add('active');
 
         const serviceData = await fetchServiceBillData(sale.numero_facture, STORE_INFO.isf);
 
-        console.log(serviceData)
+        console.log('[HISTORIQUE] Donnees DGI recues:', serviceData);
 
-        if (serviceData) {
+        if (serviceData && serviceData.data) {
             document.getElementById('sale-details-content').innerHTML = renderServiceBillContent(serviceData, sale);
+        } else if (isDgiRegistered && !sale.service) {
+            // Fallback: si la facture est enregistrée mais que l'API DGI n'a pas répondu,
+            // on bascule sur l'affichage local (ancienne version)
+            console.warn('[HISTORIQUE] API DGI indisponible, fallback sur les donnees locales');
+            document.getElementById('sale-details-content').innerHTML = '<div style="background:#fff3e0; padding:12px; border-radius:8px; margin:10px 0; font-size:12px;">⚠️ API DGI indisponible. Affichage des donnees locales (proforma deconnectee).</div>' + renderLocalSaleDetails(sale, data.details);
         } else {
             document.getElementById('sale-details-content').innerHTML = '<div style="background:#ffebee; padding:15px; border-radius:8px; margin:10px 0;"><strong>Erreur:</strong> Impossible de charger les details.</div><button class="btn btn-secondary" onclick="document.getElementById(\'sale-details-modal\').classList.remove(\'active\')">Fermer</button>';
         }
