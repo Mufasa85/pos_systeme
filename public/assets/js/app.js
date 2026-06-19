@@ -100,6 +100,16 @@ const formatPhoneNumber = (phone) => {
     return visible + '****';
 };
 
+// Tronque un nombre à N décimales sans arrondir (gère les erreurs de précision flottante)
+const truncateDecimals = (n, decimals = 2) => {
+    const sign = n < 0 ? -1 : 1;
+    const factor = Math.pow(10, decimals);
+    return sign * Math.floor((Math.abs(n) + 1e-9) * factor) / factor;
+};
+
+// Formate une quantité pour affichage: 2 décimales si produit au poids, entier sinon
+const formatQty = (q, isPoids) => isPoids ? truncateDecimals(q).toFixed(2) : q;
+
 // DGI API Configuration - utilise le proxy local pour eviter CORS
 const DGI_API_URL = APP_URL + '/api/dgi';
 
@@ -552,7 +562,7 @@ const posCart = {
                 </div>
                 <div class="quantity-controls">
                   <button onclick="posCart.updateQty(${item.produit_id}, -${step})">-</button>
-                  <span>${isPoids ? item.quantite.toFixed(2) : item.quantite}</span>
+                <span>${formatQty(item.quantite, isPoids)}</span>
                   <button onclick="posCart.updateQty(${item.produit_id}, ${step})">+</button>
                 </div>
                 <div class="item-total">${formatCurrency(item.prix * item.quantite)}</div>
@@ -977,15 +987,15 @@ const posCart = {
             </div>
             <div class="receipt-total-row" style="font-size: 11px; color: #555">
                 <span>Equivalent en USD :</span>   
-                <span> ${(this.currentTotals.total / USD_RATE).toFixed(2) * sign}$ </span>
+                <span> ${(this.currentTotals.total / USD_RATE).toFixed(2)}$ </span>
             </div>
             <div class="receipt-total-row" style="font-size: 11px; color: #555;">
                 <span>Paiment : </span>
                 <span>${paymentLabel}</span>
             </div>
             <div class="receipt-total-row" style="font-size: 11px; color: #555;">
-                <span>Qté:</span>
-                <span>${totalQty % 1 === 0 ? totalQty * sign : totalQty.toFixed(2) * sign}</span>
+                <span>Nombre d'article(s):</span>
+                <span>${truncateDecimals(totalQty).toFixed(2)}</span>
             </div>
             
             <div style="text-align: center; font-size: 12px; color: #888; font-style: italic; margin-top: 2px;">
@@ -1051,7 +1061,7 @@ const posCart = {
             const taxLabel = item.tax_etiquette || (item.tax_rate > 0 ? 'TVA ' + item.tax_rate + '%' : 'Exonere');
             const prodService = item.prod_service ? `<span class="item-prod-service">[${item.prod_service}]</span>` : '';
             const isPoidsItem = (item.product_type === 'coupe' || item.product_type === 'poids');
-            const qtyDisplay = isPoidsItem ? itemQty.toFixed(2) : itemQty;
+            const qtyDisplay = formatQty(itemQty, isPoidsItem);
             itemsHtml += `
                 <tr>
                     <td><span class="item-name"> ${item.nom}<span class="item-tax-badge">${taxLabel}</span>${prodService}</span></td>
@@ -1446,11 +1456,12 @@ const posCart = {
                 console.log(" item Qty : " + itemQty + " - " + itemTotalHT)
                 const taxLabel = item.tax_etiquette || (item.tax_rate > 0 ? 'TVA ' + item.tax_rate + '%' : 'Exonere');
                 const prodService = item.prod_service ? `<span class="item-prod-service">[${item.prod_service}]</span>` : '';
+                const isPoidsItem = (item.product_type === 'coupe' || item.product_type === 'poids');
 
                 itemsHtml += `
                     <tr>
                         <td><span class="item-name">${item.nom}<span class="item-tax-badge">${taxLabel}</span>${prodService}</span></td>
-                        <td class="item-qty">${itemQty}</td>
+                        <td class="item-qty">${formatQty(itemQty, isPoidsItem)}</td>
                         <td class="item-total">${itemTotalHT.toFixed(2)} Fc</td>
                     </tr>
                 `;
@@ -2119,7 +2130,7 @@ async function viewSaleDetails(saleId) {
         const paymentInfoHtml =
             '<div class="receipt-total-row" style="font-size: 11px; color: #555"><span>TAUX DU JOUR :</span><span>' + (typeof USD_RATE !== 'undefined' ? USD_RATE : '-') + ' Fc/USD</span></div>' +
             '<div class="receipt-total-row" style="font-size: 11px; color: #555"><span>Equivalent en USD :</span><span>' + (USD_RATE ? (totalNumber / USD_RATE).toFixed(2) + ' $' : '-') + '</span></div>' +
-            '<div class="receipt-total-row" style="font-size: 11px; color: #555;"><span>Qté:</span><span>' + (data.details.reduce((s, i) => s + parseFloat(i.quantite || 0), 0)).toFixed(2) + '</span></div>' +
+            '<div class="receipt-total-row" style="font-size: 11px; color: #555;"><span>Nombre d\'article(s):</span><span>' + (data.details.reduce((s, i) => s + parseFloat(i.quantite || 0), 0)).toFixed(2) + '</span></div>' +
             (amountInWords ? '<div style="text-align: center; font-size: 12px; color: #888; font-style: italic; margin-top: 2px;">Arrêté la présente facture à la somme de ' + amountInWords + ' congolais toutes taxes comprises</div>' : '') +
             (STORE_INFO.isf ? '<div style="margin: 10px 0; font-size: 11px; color: #333; border: 1px dashed #ccc; padding: 8px; border-radius: 4px; text-align: center;">ISF : ' + STORE_INFO.isf + '</div>' : '');
 
