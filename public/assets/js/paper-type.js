@@ -428,14 +428,15 @@
                 if (spans.length >= 2) {
                     var label = (spans[0].textContent || '').trim();
                     var normalized = label.toLowerCase();
+                    var isQtyLine = normalized.indexOf('qté') !== -1 || normalized.indexOf('qte') !== -1;
                     var isPaymentInfo = normalized.indexOf('taux du jour') !== -1 ||
                         normalized.indexOf('equivalent en usd') !== -1 ||
                         normalized.indexOf('paiment') !== -1 ||
                         normalized.indexOf('paiement') !== -1 ||
-                        normalized.indexOf('qté') !== -1 ||
-                        normalized.indexOf('qte') !== -1;
+                        isQtyLine;
                     if (isPaymentInfo) {
-                        paymentRowsHtml += '<div class="inv-payment-row"><span>' + label + '</span>' +
+                        var displayLabel = isQtyLine ? "Nombre d'articles" : label;
+                        paymentRowsHtml += '<div class="inv-payment-row"><span>' + displayLabel + '</span>' +
                             '<span>' + spans[1].textContent.trim() + '</span></div>';
                         return;
                     }
@@ -448,7 +449,10 @@
                         '<td style="padding:5px 8px;text-align:right;color:#555;">' + label + '</td>' +
                         '<td style="padding:5px 8px;text-align:right;font-weight:' + (isGrand ? '700' : '500') + ';">' + spans[1].textContent.trim() + '</td>' +
                         '</tr>';
+
                 }
+
+
             });
             totTableHtml = '<table style="width:100%;border-collapse:collapse;min-width:300px;">' +
                 '<tbody>' + tRows + '</tbody></table>';
@@ -542,7 +546,7 @@
             '    <div class="invoice-type-big">' + (invoiceTypeLabel || 'Facture de Vente') + '</div>\n' +
             '    <div class="invoice-num-line">N° Facture : ' + (invoiceNum || '') + '</div>\n' +
             '    <div class="invoice-date-line">Date : ' + (invoiceDate || '') + '</div>\n' +
-            (metaComment ? '    <div class="invoice-meta-comment"><span class="meta-label">Commentaire :</span> ' + metaComment + '</div>\n' : '') +
+            (metaComment ? '    <div class="invoice-meta-comment"><span class="meta-label"> ' + invoiceTypeLabel + ' :</span> ' + metaComment + '</div>\n' : '') +
             (metaReference ? '    <div class="invoice-meta-reference"><span class="meta-label">Référence :</span> ' + metaReference + '</div>\n' : '') +
             '    <h4>Informations Client & Vendeur</h4>\n' +
             '    <table><tbody>' + clientRows + '</tbody></table>\n' +
