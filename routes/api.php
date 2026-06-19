@@ -200,10 +200,11 @@ Router::post("/api/dgi", function () {
     echo $response;
 });
 
-// Proxy Service Bill API - POST (pour éviter CORS)
-Router::post("/api/service-bill", function () {
+// Proxy DGI Facture (enregistrée) - GET/POST (pour éviter CORS)
+// URL distante: https://osat-energie.com/dgi/facture/?store_isf=...&invoice_number=...
+$serviceBillHandler = function () {
     header('Access-Control-Allow-Origin: *');
-    header('Access-Control-Allow-Methods: POST, OPTIONS');
+    header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
     header('Access-Control-Allow-Headers: Content-Type');
     header('Content-Type: application/json');
 
@@ -212,26 +213,37 @@ Router::post("/api/service-bill", function () {
         exit;
     }
 
-    $input = json_decode(file_get_contents('php://input'), true);
+    $method = $_SERVER['REQUEST_METHOD'];
 
-    $nfacture = trim($input['nfacture'] ?? '');
-    $client_isf = trim($input['client_isf'] ?? '');
+    // Accepte GET (query string) ou POST (JSON body)
+    $store_isf = '';
+    $invoice_number = '';
 
-    if (empty($nfacture)) {
-        echo json_encode(['success' => false, 'message' => 'Paramètre nfacture requis']);
+    if ($method === 'GET') {
+        $store_isf = trim($_GET['store_isf'] ?? '');
+        $invoice_number = trim($_GET['invoice_number'] ?? '');
+    } else {
+        $input = json_decode(file_get_contents('php://input'), true);
+        $store_isf = trim($input['store_isf'] ?? ($input['client_isf'] ?? ''));
+        $invoice_number = trim($input['invoice_number'] ?? ($input['nfacture'] ?? ''));
+    }
+
+    if (empty($invoice_number)) {
+        echo json_encode(['success' => false, 'message' => 'Paramètre invoice_number requis']);
         return;
     }
 
-    // Appel API OSAT-Energie Service Bill via POST
-    $osatUrl = 'https://osat-energie.com/dgi/facture.php';
+    if (empty($store_isf)) {
+        echo json_encode(['success' => false, 'message' => 'Paramètre store_isf requis']);
+        return;
+    }
 
-    $postData = 'nfacture=' . urlencode($nfacture) . '&client_isf=' . urlencode($client_isf);
+    // Appel API DGI - GET avec query string
+    $osatUrl = 'https://osat-energie.com/dgi/facture/?store_isf=' . urlencode($store_isf) . '&invoice_number=' . urlencode($invoice_number);
 
     $ch = curl_init($osatUrl);
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, $postData);
+    curl_setopt($ch, CURLOPT_HTTPGET, true);
     curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        'Content-Type: application/x-www-form-urlencoded',
         'Accept: application/json'
     ]);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -245,18 +257,28 @@ Router::post("/api/service-bill", function () {
     curl_close($ch);
 
     if ($response === false || empty($response)) {
-        echo json_encode(['success' => false, 'message' => 'Erreur connexion API Service Bill: ' . $curlError]);
+        echo json_encode(['success' => false, 'message' => 'Erreur connexion API DGI: ' . $curlError, 'http_code' => $httpCode]);
         return;
     }
 
     // Parser la réponse JSON si possible
     $data = json_decode($response, true);
     if (json_last_error() === JSON_ERROR_NONE) {
-        echo json_encode(['success' => true, 'data' => $data]);
+        // La réponse est déjà au format { success, data: {...} } — on la renvoie telle quelle
+        // mais on s'assure que success est vrai si la donnée existe
+        if (isset($data['success']) && $data['success'] === true) {
+            echo json_encode($data);
+        } elseif (isset($data['data'])) {
+            echo json_encode(['success' => true, 'data' => $data['data']]);
+        } else {
+            echo json_encode(['success' => true, 'data' => $data]);
+        }
     } else {
         echo json_encode(['success' => true, 'data' => $response]);
     }
-});
+};
+Router::get("/api/service-bill", $serviceBillHandler);
+Router::post("/api/service-bill", $serviceBillHandler);
 
 // Proxy Currency API - GET (taux de change)
 Router::get("/api/currency", function () {
