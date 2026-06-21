@@ -570,9 +570,9 @@
     <!-- Modal : choix du format d'impression (57mm, 80mm, A4, A5, Letter, Legal) -->
     <?php include __DIR__ . '/print-format-modal.php'; ?>
 
-    <script src="./assets/js/app.js?v=1.0.9988999999999999999999999999999999999"></script>
-    <script src="./assets/js/recharges.js?v=1.0.7"></script>
-    <script src="./assets/js/paper-type.js?v=1.0.2"></script>
+    <script src="./assets/js/app.js?v=1.0.9988999999999999999999999999999999999999999"></script>
+    <script src="./assets/js/recharges.js?v=1.0.9"></script>
+    <script src="./assets/js/paper-type.js?v=1.0.3"></script>
 
     </body>
 
