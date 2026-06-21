@@ -973,7 +973,7 @@ const posCart = {
         const invoiceType = document.getElementById('invoice-type')?.value || 'FV';
         const shouldNegate = invoiceType === 'FA' || invoiceType === 'EA';
         const sign = shouldNegate ? -1 : 1;
-        const totalQty = this.items.reduce((sum, item) => sum + item.quantite, 0);
+        const totalItems = this.items.length;
         const paymentTypeSelect = document.getElementById('modal-payment-type') || document.getElementById('payment-type');
         const paymentType = paymentTypeSelect?.value || 'cash';
         const paymentLabel = paymentType === 'cash' ? 'Espèces' : paymentType === 'card' ? 'Carte' : paymentType === 'transfer' ? 'Virement' : paymentType;
@@ -995,7 +995,7 @@ const posCart = {
             </div>
             <div class="receipt-total-row" style="font-size: 11px; color: #555;">
                 <span>Nombre d'article(s):</span>
-                <span>${truncateDecimals(totalQty).toFixed(2)}</span>
+                <span>${totalItems}</span>
             </div>
             
             <div style="text-align: center; font-size: 12px; color: #888; font-style: italic; margin-top: 2px;">
@@ -1066,7 +1066,7 @@ const posCart = {
                 <tr>
                     <td><span class="item-name"> ${item.nom}<span class="item-tax-badge">${taxLabel}</span>${prodService}</span></td>
                     <td class="item-qty">${qtyDisplay}</td>
-                    <td class="item-total">${itemTotalHT.toFixed(2)} Fc</td>
+                    <td class="item-total">${truncateDecimals(itemTotalHT).toFixed(2)} Fc</td>
                 </tr>
             `;
         }
@@ -1143,7 +1143,7 @@ const posCart = {
 
                         <div class="receipt-total-row grand-total">
                             <span>TOTAL TTC:</span>
-                            <span>${(this.currentTotals.total * previewSign).toFixed(2)} Fc</span>
+                            <span>${truncateDecimals(this.currentTotals.total * previewSign).toFixed(2)} Fc</span>
                         </div>
                         ${this.getPaymentInfoHtml()}
                     </div>
