@@ -337,7 +337,7 @@ class BillPayment {
             // Logique de négation: si la facture N'est PAS FA ou EA, on envoie
             // les quantités et le total en négatif à la DGI et au backend
             const rechargeTypeFacture = document.getElementById('invoice-type')?.value || 'FV';
-            const rechargeShouldNegate = rechargeTypeFacture !== 'FA' && rechargeTypeFacture !== 'EA';
+            const rechargeShouldNegate = rechargeTypeFacture === 'FA' || rechargeTypeFacture === 'EA';
             const rechargeSign = rechargeShouldNegate ? -1 : 1;
 
             // Étape 2: Sauvegarder dans la table ventes (comme pour les ventes normales)
@@ -454,7 +454,7 @@ class BillPayment {
             // Construire les articles (mois sélectionnés) pour la DGI
             // Si la facture N'est PAS FA ou EA, on envoie les quantités et
             // le total en négatif à l'API DGI
-            const dgiShouldNegate = invoiceType === 'FA' || invoiceType === 'EA';
+            const dgiShouldNegate = false;
             const dgiSign = dgiShouldNegate ? -1 : 1;
 
             const articles = this.selectedMonths.map((month, idx) => ({
