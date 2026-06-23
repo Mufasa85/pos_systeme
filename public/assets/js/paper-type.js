@@ -428,7 +428,7 @@
                 if (spans.length >= 2) {
                     var label = (spans[0].textContent || '').trim();
                     var normalized = label.toLowerCase();
-                    var isQtyLine = normalized.indexOf('qté') !== -1 || normalized.indexOf('qte') !== -1;
+                    var isQtyLine = normalized.indexOf('qté') !== -1 || normalized.indexOf('qte') !== -1 || normalized.indexOf("nombre d'article") !== -1;
                     var isPaymentInfo = normalized.indexOf('taux du jour') !== -1 ||
                         normalized.indexOf('equivalent en usd') !== -1 ||
                         normalized.indexOf('paiment') !== -1 ||
@@ -441,6 +441,7 @@
                         return;
                     }
 
+                    
                     var isGrand = row.classList.contains('grand-total');
                     var style = isGrand
                         ? 'font-weight:700;font-size:14px;border-top:2px solid #333;'
@@ -459,6 +460,8 @@
         } else {
             totTableHtml = totalsHtml;
         }
+
+        console.log(totTableHtml)
 
         if (paymentRowsHtml) {
             paymentRowsHtml = '<div class="inv-payment-info">' + paymentRowsHtml + '</div>';
