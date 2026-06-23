@@ -101,14 +101,14 @@ const formatPhoneNumber = (phone) => {
 };
 
 // Tronque un nombre à N décimales sans arrondir (gère les erreurs de précision flottante)
-const truncateDecimals = (n, decimals = 2) => {
+const truncateDecimals = (n, decimals = 3) => {
     const sign = n < 0 ? -1 : 1;
     const factor = Math.pow(10, decimals);
     return sign * Math.floor((Math.abs(n) + 1e-9) * factor) / factor;
 };
 
 // Formate une quantité pour affichage: 2 décimales si produit au poids, entier sinon
-const formatQty = (q, isPoids) => isPoids ? truncateDecimals(q).toFixed(2) : q;
+const formatQty = (q, isPoids) => isPoids ? truncateDecimals(q).toFixed(3) : q;
 
 // DGI API Configuration - utilise le proxy local pour eviter CORS
 const DGI_API_URL = APP_URL + '/api/dgi';
@@ -1066,7 +1066,7 @@ const posCart = {
                 <tr>
                     <td><span class="item-name"> ${item.nom}<span class="item-tax-badge">${taxLabel}</span>${prodService}</span></td>
                     <td class="item-qty">${qtyDisplay}</td>
-                    <td class="item-total">${truncateDecimals(itemTotalHT).toFixed(2)} Fc</td>
+                    <td class="item-total">${truncateDecimals(itemTotalHT).toFixed(3)} Fc</td>
                 </tr>
             `;
         }
@@ -2042,6 +2042,7 @@ function renderServiceBillContent(data, sale) {
     html += '<div class="store-info">';
     html += '<div><strong>Point de vente :</strong> ' + (info.store_address || STORE_INFO.address) + '</div>';
     html += '<div>Tel: ' + (info.store_phone || STORE_INFO.phone) + '</div>';
+    if (info.store_email || STORE_INFO.email) html += '<div>Email: ' + (info.store_email || STORE_INFO.email) + '</div>';
     if (info.store_ice) html += '<div>ID Nat: ' + info.store_ice + '</div>';
     if (info.store_rccm) html += '<div>RCCM: ' + info.store_rccm + '</div>';
     if (info.store_isf) html += '<div>Numero Agent: ' + info.store_isf + '</div>';
@@ -2066,9 +2067,9 @@ function renderServiceBillContent(data, sale) {
     // ----- Meta (type + référence) -----
     html += '<div class="receipt-meta" style="justify-content:center; font-size:14px; font-weight:555; display:flex; flex-direction:column; text-align:center; gap:4px;">';
     html += '<div>' + getInvoiceTypeLabel(info.invoice_type) + '</div>';
-    if (info.invoice_ref) html += '<div style="font-size:11px; color:#888; font-style:italic;">Réf: ' + info.invoice_ref + '</div>';
+   // if (info.invoice_ref) html += '<div style="font-size:11px; color:#888; font-style:italic;">Réf: ' + info.invoice_ref + '</div>';
     if (info.ref_facture) html += '<div style="font-size:11px; color:#888; font-style:italic;">' + info.ref_facture + '</div>';
-    if (info.exoneration) html += '<div style="font-size:11px; color:#888; font-style:italic;">' + getExonerationLabel(info.exoneration).toUpperCase() + '</div>';
+    if (info.ref_facture) html += '<div style="font-size:11px; color:#888; font-style:italic;">' + getExonerationLabel(info.exoneration).toUpperCase() + '</div>';
     //if (info.payment_type) html += '<div style="font-size:11px; color:#666;">Paiement: ' + info.payment_type + '</div>';
     html += '</div>';
 
@@ -2181,6 +2182,7 @@ function renderLocalSaleDetails(sale, details) {
     html += '<div class="store-info">';
     html += '<div><strong>Point de vente :</strong> ' + STORE_INFO.address + '</div>';
     html += '<div>Tel: ' + STORE_INFO.phone + '</div>';
+    if (STORE_INFO.email) html += '<div>Email: ' + STORE_INFO.email + '</div>';
     if (STORE_INFO.ice) html += '<div>ID Nat: ' + STORE_INFO.ice + '</div>';
     if (STORE_INFO.rccm) html += '<div>RCCM: ' + STORE_INFO.rccm + '</div>';
     if (STORE_INFO.isf) html += '<div>Numero Agent: ' + STORE_INFO.isf + '</div>';
