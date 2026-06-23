@@ -462,6 +462,7 @@ $localQrData  = $sale['qrCode'] ?? '';
             html += '<div class="store-info">';
             html += '<div><strong>Point de vente :</strong> ' + esc(info.store_address || '') + '</div>';
             html += '<div>Tel: ' + esc(info.store_phone || '') + '</div>';
+            if (info.store_email || (window.STORE_INFO && window.STORE_INFO.email)) html += '<div>Email: ' + esc(info.store_email || window.STORE_INFO.email) + '</div>';
             if (info.store_ice) html += '<div>ID Nat: ' + esc(info.store_ice) + '</div>';
             if (info.store_rccm) html += '<div>RCCM: ' + esc(info.store_rccm) + '</div>';
             if (info.store_isf) html += '<div>Numero Agent: ' + esc(info.store_isf) + '</div>';
@@ -480,9 +481,9 @@ $localQrData  = $sale['qrCode'] ?? '';
             // Meta
             html += '<div class="receipt-meta" style="justify-content:center; font-size:14px; font-weight:555; display:flex; flex-direction:column; text-align:center; gap:4px;">';
             html += '<div>' + esc(invoiceLabel(info.invoice_type)) + '</div>';
-            if (info.invoice_ref) html += '<div style="font-size:11px; color:#888; font-style:italic;">Réf: ' + esc(info.invoice_ref) + '</div>';
+           // if (info.invoice_ref) html += '<div style="font-size:11px; color:#888; font-style:italic;">Réf: ' + esc(info.invoice_ref) + '</div>';
             if (info.ref_facture) html += '<div style="font-size:11px; color:#888; font-style:italic;">' + esc(info.ref_facture) + '</div>';
-            if (info.exoneration) html += '<div style="font-size:11px; color:#888; font-style:italic;">' + esc(exonerationLabel(info.exoneration).toUpperCase()) + '</div>';
+            if (info.ref_facture) html += '<div style="font-size:11px; color:#888; font-style:italic;">' + esc(exonerationLabel(info.exoneration).toUpperCase()) + '</div>';
             //if (info.payment_type) html += '<div style="font-size:11px; color:#666;">Paiement: ' + esc(info.payment_type) + '</div>';
             html += '</div>';
 
@@ -522,11 +523,11 @@ $localQrData  = $sale['qrCode'] ?? '';
             if (info.isf || info.store_isf) {
                 html += '<div style="margin:10px 0; font-size:11px; color:#333; border:1px dashed #ccc; padding:8px; border-radius:4px; text-align:center;">ISF : ' + esc(info.isf || info.store_isf) + '</div>';
             }
-            if (info.comment || info.providerService) {
-                html += '<div style="margin:10px 0; font-size:11px; color:#333; border:1px dashed #ccc; padding:8px; border-radius:4px; text-align:left;">';
-                html += '<div style="font-weight:bold; text-decoration:underline; margin-bottom:4px;">Commentaire/Remarque :</div>';
-                html += '<div>' + esc(info.comment || info.providerService || 'Aucun commentaire') + '</div></div>';
-            }
+            // if (info.comment || info.providerService) {
+            //     html += '<div style="margin:10px 0; font-size:11px; color:#333; border:1px dashed #ccc; padding:8px; border-radius:4px; text-align:left;">';
+            //     html += '<div style="font-weight:bold; text-decoration:underline; margin-bottom:4px;">Commentaire/Remarque :</div>';
+            //     html += '<div>' + esc(info.comment || info.providerService || 'Aucun commentaire') + '</div></div>';
+            // }
             html += '</div>';
 
             // Bloc sécurité DGI
