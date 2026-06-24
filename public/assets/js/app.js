@@ -2462,6 +2462,21 @@ let scannerHtml5QrCode = null;
 let isScannerActive = false;
 let scannerLastCode = null;
 let scannerProcessing = false;
+let scannerRearmTimer = null;
+
+// Cooldown (ms) entre deux scans : assez court pour un scan en continu type supermarché,
+// assez long pour ne pas compter plusieurs fois la même image de la caméra.
+const SCANNER_COOLDOWN_MS = 900;
+
+// Réarme TOUJOURS le scanner pour permettre un scan/ajout à l'infini,
+// même si une erreur survient pendant le traitement d'un code.
+function rearmScanner() {
+    clearTimeout(scannerRearmTimer);
+    scannerRearmTimer = setTimeout(() => {
+        scannerProcessing = false;
+        scannerLastCode = null;
+    }, SCANNER_COOLDOWN_MS);
+}
 
 function openScannerModal() {
     const modal = document.getElementById('scanner-modal');
@@ -2545,15 +2560,25 @@ function onInlineScanSuccess(code) {
 
     // Afficher le chargement
     const loadingEl = document.getElementById('scanner-loading');
-    loadingEl.style.display = 'flex';
-    loadingEl.classList.add('loading');
+    if (loadingEl) {
+        loadingEl.style.display = 'flex';
+        loadingEl.classList.add('loading');
+    }
 
     const resultEl = document.getElementById('scanner-result');
-    resultEl.style.display = 'none';
-    document.getElementById('scanner-product').classList.remove('show');
+    if (resultEl) resultEl.style.display = 'none';
+    const productEl = document.getElementById('scanner-product');
+    if (productEl) productEl.classList.remove('show');
 
-    // Rechercher le produit
-    searchProductForCart(code);
+    // Rechercher le produit. On réarme TOUJOURS le scanner ensuite (finally),
+    // pour que le scan/ajout reste possible à l'infini même en cas d'erreur.
+    try {
+        searchProductForCart(code);
+    } catch (err) {
+        console.error('[SCANNER MODAL] Erreur traitement code:', err);
+    } finally {
+        rearmScanner();
+    }
 }
 
 function onInlineScanFailure(error) {
@@ -2562,7 +2587,8 @@ function onInlineScanFailure(error) {
 
 function searchProductForCart(barcode) {
     // Rechercher dans les produits déjà chargés
-    document.getElementById('scanner-loading').style.display = 'none';
+    const loadingEl = document.getElementById('scanner-loading');
+    if (loadingEl) loadingEl.style.display = 'none';
 
     const product = posCart.allProducts.find(p => p.code_barres === barcode);
 
@@ -2575,27 +2601,30 @@ function searchProductForCart(barcode) {
 }
 
 function onInlineProductFound(product, barcode) {
-    // Ajouter au panier
+    // Ajouter au panier (le réarmement du scanner est géré par rearmScanner via finally)
     posCart.addToCart(product.id);
 
     const resultEl = document.getElementById('scanner-result');
-    resultEl.className = 'scanner-status success';
-    resultEl.textContent = '✓ ' + product.nom + ' ajouté !';
-    resultEl.style.display = 'block';
+    if (resultEl) {
+        resultEl.className = 'scanner-status success';
+        resultEl.textContent = '✓ ' + product.nom + ' ajouté !';
+        resultEl.style.display = 'block';
+    }
 
     // Afficher les infos
-    document.getElementById('scanner-product').classList.add('show');
-    document.getElementById('scanned-name').textContent = product.nom;
-    document.getElementById('scanned-price').textContent = formatCurrency(product.prix);
+    const productEl = document.getElementById('scanner-product');
+    if (productEl) productEl.classList.add('show');
+    const nameEl = document.getElementById('scanned-name');
+    if (nameEl) nameEl.textContent = product.nom;
+    const priceEl = document.getElementById('scanned-price');
+    if (priceEl) priceEl.textContent = formatCurrency(product.prix);
 
-    // NE PAS fermer le modal, NE PAS arrêter le scanner
-    // Réinitialiser pour le prochain scan après un court délai (cooldown)
+    // NE PAS fermer le modal, NE PAS arrêter le scanner : scan en continu.
+    // On masque seulement le message de confirmation après un court instant.
     setTimeout(() => {
-        scannerProcessing = false;
-        scannerLastCode = null; // Permet de rescanner le même produit
-        resultEl.style.display = 'none';
-        document.getElementById('scanner-product').classList.remove('show');
-    }, 1500); // 1.5 seconde de délai entre deux scans
+        if (resultEl) resultEl.style.display = 'none';
+        if (productEl) productEl.classList.remove('show');
+    }, SCANNER_COOLDOWN_MS);
 }
 
 function onInlineProductNotFound(barcode) {
@@ -2605,9 +2634,7 @@ function onInlineProductNotFound(barcode) {
     resultEl.style.display = 'block';
 
     setTimeout(() => {
-        scannerProcessing = false;
-        scannerLastCode = null;
-        resultEl.style.display = 'none';
+        if (resultEl) resultEl.style.display = 'none';
     }, 3000);
 }
 
@@ -3380,9 +3407,11 @@ function openInvoiceInfoModal() {
     const clientTypeId = document.getElementById('client-type')?.value || (posCart.currentClient?.type_id || '');
     const clientNif = document.getElementById('client-nif')?.value || (posCart.currentClient?.nif || '');
 
-    // Remplir les champs du modal (TOUT est éditable)
-    document.getElementById('modal-invoice-type').value = invoiceType;
-    document.getElementById('modal-invoice-ref').value = invoiceRef;
+    const isAdmin = typeof CURRENT_USER !== 'undefined' && CURRENT_USER.role === 'admin';
+    if (isAdmin) {
+        document.getElementById('modal-invoice-type').value = invoiceType;
+        document.getElementById('modal-invoice-ref').value = invoiceRef;
+    }
     document.getElementById('modal-client-name').value = clientNom;
     document.getElementById('modal-client-number').value = clientNumero;
     document.getElementById('modal-client-type').value = clientTypeId;
@@ -3427,9 +3456,9 @@ function closeInvoiceInfoModal() {
 
 // Confirmer les informations facture et passer au preview
 function confirmInvoiceInfo() {
-    // Synchroniser TOUTES les valeurs modifiées dans le modal vers les champs du panier
-    const invoiceType = document.getElementById('modal-invoice-type').value;
-    const invoiceRef = document.getElementById('modal-invoice-ref').value;
+    const isAdmin = typeof CURRENT_USER !== 'undefined' && CURRENT_USER.role === 'admin';
+    const invoiceType = isAdmin ? document.getElementById('modal-invoice-type').value : 'FV';
+    const invoiceRef = isAdmin ? document.getElementById('modal-invoice-ref').value : '';
     const clientName = document.getElementById('modal-client-name').value;
     const clientNumber = document.getElementById('modal-client-number').value;
     const clientType = document.getElementById('modal-client-type').value;
