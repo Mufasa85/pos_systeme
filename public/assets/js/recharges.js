@@ -5,6 +5,8 @@
  * Structure API: results[annee][mois] = [{ MONTANT, NUMERO_FACTURE, ... }]
  */
 
+const RECHARGE_PHONE_NUMBER_REGEX = /^0[89]\d{8}$/;
+
 class BillPayment {
     constructor() {
         this.sessionId = this.generateSessionId();
@@ -806,9 +808,15 @@ class BillPayment {
         const modalInvoiceType = isAdmin ? document.getElementById('modal-invoice-type')?.value || 'FV' : 'FV';
         const modalInvoiceRef = isAdmin ? document.getElementById('modal-invoice-ref')?.value || '' : '';
         const modalClientName = document.getElementById('modal-client-name')?.value || '';
+        const modalClientNumber = document.getElementById('modal-client-tel1')?.value?.trim() || '';
         const modalClientType = document.getElementById('modal-client-type')?.value || '';
         const modalClientNif = document.getElementById('modal-client-nif')?.value || '';
         const modalPaymentType = document.getElementById('modal-payment-type')?.value || 'cash';
+
+        if (modalClientNumber && !RECHARGE_PHONE_NUMBER_REGEX.test(modalClientNumber)) {
+            alert('Le numéro de téléphone doit respecter le format 08xxxxxxxx ou 09xxxxxxxx.');
+            return;
+        }
 
         // Mettre à jour les champs cachés du panier
         document.getElementById('invoice-type').value = modalInvoiceType;
@@ -832,6 +840,11 @@ class BillPayment {
 
         if (!nom || !numero) {
             this.showError('Veuillez remplir le nom et le numéro');
+            return;
+        }
+
+        if (!RECHARGE_PHONE_NUMBER_REGEX.test(numero)) {
+            alert('Le numéro de téléphone doit respecter le format 08xxxxxxxx ou 09xxxxxxxx.');
             return;
         }
 

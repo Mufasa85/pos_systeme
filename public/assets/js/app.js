@@ -2,6 +2,7 @@ const $ = (s) => document.querySelector(s);
 const $$ = (s) => document.querySelectorAll(s);
 
 const formatCurrency = (amount) => amount.toFixed(2) + ' Fc';
+const PHONE_NUMBER_REGEX = /^0[89]\d{8}$/;
 
 // Types de factures et leurs significations
 const INVOICE_TYPES = {
@@ -3460,9 +3461,14 @@ function confirmInvoiceInfo() {
     const invoiceType = isAdmin ? document.getElementById('modal-invoice-type').value : 'FV';
     const invoiceRef = isAdmin ? document.getElementById('modal-invoice-ref').value : '';
     const clientName = document.getElementById('modal-client-name').value;
-    const clientNumber = document.getElementById('modal-client-number').value;
+    const clientNumber = document.getElementById('modal-client-number').value.trim();
     const clientType = document.getElementById('modal-client-type').value;
     const clientNif = document.getElementById('modal-client-nif').value;
+
+    if (clientNumber && !PHONE_NUMBER_REGEX.test(clientNumber)) {
+        alert('Le numéro de téléphone doit respecter le format 08xxxxxxxx ou 09xxxxxxxx.');
+        return;
+    }
 
     // Mettre à jour les champs originaux
     document.getElementById('invoice-type').value = invoiceType;
@@ -3557,6 +3563,11 @@ async function saveClientFromModal() {
         return;
     }
 
+    if (!PHONE_NUMBER_REGEX.test(numero)) {
+        alert('Le numéro de téléphone doit respecter le format 08xxxxxxxx ou 09xxxxxxxx.');
+        return;
+    }
+
     try {
         const res = await fetch(APP_URL + '/api/client', {
             method: 'POST',
@@ -3596,6 +3607,11 @@ async function editClientFromModal() {
 
     if (!nom || !numero) {
         showModalClientMessage('Veuillez remplir le nom et le numéro', 'error');
+        return;
+    }
+
+    if (!PHONE_NUMBER_REGEX.test(numero)) {
+        alert('Le numéro de téléphone doit respecter le format 08xxxxxxxx ou 09xxxxxxxx.');
         return;
     }
 
