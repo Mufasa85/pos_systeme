@@ -301,40 +301,42 @@
         <button class="close-modal" onclick="closeInvoiceInfoModal()">&times;</button>
       </div>
       <div style="padding: 1.5rem;">
-        <!-- Type et Référence Document -->
-        <div style="display: grid; grid-template-columns: 80px 1fr; gap: 12px; margin-bottom: 0.75rem; align-items: flex-end;">
-          <div>
-            <label for="modal-invoice-type" style="font-size: 0.7rem; font-weight: 600; color: #64748b; display: block; margin-bottom: 4px;">TYPE</label>
-            <select id="modal-invoice-type" class="client-number-input" style="width: 100%; padding: 6px 8px; font-size: 0.8rem;">
-              <option value="FV">FV</option>
-              <option value="EV">EV</option>
-              <option value="FT">FT</option>
-              <option value="FA">FA</option>
-              <option value="EA">EA</option>
-              <option value="ET">ET</option>
-            </select>
+        <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin'): ?>
+          <!-- Type et Référence Document -->
+          <div style="display: grid; grid-template-columns: 80px 1fr; gap: 12px; margin-bottom: 0.75rem; align-items: flex-end;">
+            <div>
+              <label for="modal-invoice-type" style="font-size: 0.7rem; font-weight: 600; color: #64748b; display: block; margin-bottom: 4px;">TYPE</label>
+              <select id="modal-invoice-type" class="client-number-input" style="width: 100%; padding: 6px 8px; font-size: 0.8rem;">
+                <option value="FV">FV</option>
+                <option value="EV">EV</option>
+                <option value="FT">FT</option>
+                <option value="FA">FA</option>
+                <option value="EA">EA</option>
+                <option value="ET">ET</option>
+              </select>
+            </div>
+            <div>
+              <label for="modal-invoice-ref" style="font-size: 0.7rem; font-weight: 600; color: #64748b; display: block; margin-bottom: 4px;">RÉF DOCUMENT</label>
+              <input type="text" id="modal-invoice-ref" class="client-number-input" placeholder="Réf..." style="width: 100%;">
+            </div>
           </div>
-          <div>
-            <label for="modal-invoice-ref" style="font-size: 0.7rem; font-weight: 600; color: #64748b; display: block; margin-bottom: 4px;">RÉF DOCUMENT</label>
-            <input type="text" id="modal-invoice-ref" class="client-number-input" placeholder="Réf..." style="width: 100%;">
+          <!-- Ref Facture et Exonération -->
+          <div style="display: grid; grid-template-columns: 1fr 80px; gap: 12px; margin-bottom: 1rem; align-items: flex-end;">
+            <div>
+              <label for="modal-invoice-num" style="font-size: 0.7rem; font-weight: 600; color: #64748b; display: block; margin-bottom: 4px;">REF FACTURE</label>
+              <input type="text" id="modal-invoice-num" class="client-number-input" placeholder="N° facture..." style="width: 100%;">
+            </div>
+            <div>
+              <label for="modal-exoneration" style="font-size: 0.7rem; font-weight: 600; color: #64748b; display: block; margin-bottom: 4px;"></label>
+              <select id="modal-exoneration" class="client-number-input" style="width: 100%; padding: 6px 4px; font-size: 0.75rem;">
+                <option value="RAM">RAM</option>
+                <option value="RRR">RRR</option>
+                <option value="RAN">RAN</option>
+                <option value="COR">COR</option>
+              </select>
+            </div>
           </div>
-        </div>
-        <!-- Ref Facture et Exonération -->
-        <div style="display: grid; grid-template-columns: 1fr 80px; gap: 12px; margin-bottom: 1rem; align-items: flex-end;">
-          <div>
-            <label for="modal-invoice-num" style="font-size: 0.7rem; font-weight: 600; color: #64748b; display: block; margin-bottom: 4px;">REF FACTURE</label>
-            <input type="text" id="modal-invoice-num" class="client-number-input" placeholder="N° facture..." style="width: 100%;">
-          </div>
-          <div>
-            <label for="modal-exoneration" style="font-size: 0.7rem; font-weight: 600; color: #64748b; display: block; margin-bottom: 4px;"></label>
-            <select id="modal-exoneration" class="client-number-input" style="width: 100%; padding: 6px 4px; font-size: 0.75rem;">
-              <option value="RAM">RAM</option>
-              <option value="RRR">RRR</option>
-              <option value="RAN">RAN</option>
-              <option value="COR">COR</option>
-            </select>
-          </div>
-        </div>
+        <?php endif; ?>
 
         <!-- Mode de Paiement -->
         <div style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border: 1px solid #86efac; border-radius: 12px; padding: 1rem; margin-bottom: 1rem;">
@@ -377,15 +379,13 @@
                 </svg>
                 Modifier
               </button>
-              <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin'): ?>
-                <button type="button" class="btn btn-success btn-tiny" onclick="saveClientFromModal()" style="padding: 4px 8px; font-size: 0.65rem;">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <line x1="12" y1="5" x2="12" y2="19"></line>
-                    <line x1="5" y1="12" x2="19" y2="12"></line>
-                  </svg>
-                  Nouveau
-                </button>
-              <?php endif; ?>
+              <button type="button" class="btn btn-success btn-tiny" onclick="saveClientFromModal()" style="padding: 4px 8px; font-size: 0.65rem;">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="12" y1="5" x2="12" y2="19"></line>
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                Nouveau
+              </button>
             </div>
           </div>
           <!-- Recherche client -->
