@@ -771,8 +771,11 @@ class BillPayment {
         const clientType = document.getElementById('client-type')?.value || '';
 
         // Remplir le modal
-        document.getElementById('modal-invoice-type').value = invoiceType;
-        document.getElementById('modal-invoice-ref').value = invoiceRef;
+        const isAdmin = typeof CURRENT_USER !== 'undefined' && CURRENT_USER.role === 'admin';
+        if (isAdmin) {
+            document.getElementById('modal-invoice-type').value = invoiceType;
+            document.getElementById('modal-invoice-ref').value = invoiceRef;
+        }
         document.getElementById('modal-client-name').value = clientNom;
         document.getElementById('modal-client-tel').value = clientNumero;
         document.getElementById('modal-client-nif').value = clientNif;
@@ -799,8 +802,9 @@ class BillPayment {
     // Confirmer les infos client et ouvrir le preview
     async confirmInvoiceInfoRecharge() {
         // Sauvegarder les valeurs du modal vers les champs du panier
-        const modalInvoiceType = document.getElementById('modal-invoice-type')?.value || 'FV';
-        const modalInvoiceRef = document.getElementById('modal-invoice-ref')?.value || '';
+        const isAdmin = typeof CURRENT_USER !== 'undefined' && CURRENT_USER.role === 'admin';
+        const modalInvoiceType = isAdmin ? document.getElementById('modal-invoice-type')?.value || 'FV' : 'FV';
+        const modalInvoiceRef = isAdmin ? document.getElementById('modal-invoice-ref')?.value || '' : '';
         const modalClientName = document.getElementById('modal-client-name')?.value || '';
         const modalClientType = document.getElementById('modal-client-type')?.value || '';
         const modalClientNif = document.getElementById('modal-client-nif')?.value || '';
@@ -818,6 +822,50 @@ class BillPayment {
 
         // Ouvrir le preview
         await this.showPreviewFinal();
+    }
+
+    async saveClientFromModalRecharge() {
+        const nom = document.getElementById('modal-client-name')?.value?.trim();
+        const numero = document.getElementById('modal-client-tel1')?.value?.trim() || document.getElementById('invoice-number')?.value?.trim();
+        const typeId = document.getElementById('modal-client-type')?.value;
+        const nif = document.getElementById('modal-client-nif')?.value?.trim();
+
+        if (!nom || !numero) {
+            this.showError('Veuillez remplir le nom et le numéro');
+            return;
+        }
+
+        try {
+            const res = await fetch(APP_URL + '/api/client', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ nom, numero, type_client_id: typeId, nif })
+            });
+            const data = await res.json();
+
+            if (data.success && data.client) {
+                this.clientInfo = {
+                    ...this.clientInfo,
+                    id: data.client.id,
+                    nom: data.client.nom_client || nom,
+                    numero: data.client.numero || numero,
+                    nif: data.client.nif || nif
+                };
+                const nomField = document.getElementById('client-nom');
+                const numeroField = document.getElementById('client-numero');
+                const typeField = document.getElementById('client-type');
+                const nifField = document.getElementById('client-nif');
+                if (nomField) nomField.value = data.client.nom_client || nom;
+                if (numeroField) numeroField.value = data.client.numero || numero;
+                if (typeField) typeField.value = data.client.type_id || typeId || '';
+                if (nifField) nifField.value = data.client.nif || nif || '';
+                this.showToast('Client enregistré: ' + (data.client.nom_client || nom), 'success');
+            } else {
+                this.showError(data.message || 'Erreur lors de l\'enregistrement');
+            }
+        } catch (e) {
+            this.showError('Erreur de connexion');
+        }
     }
 
     // Générer et afficher le preview (après confirmation client)
@@ -1124,8 +1172,12 @@ class BillPayment {
                     </div>
                     ${infoSection}
                 </div>
-                <div class="receipt-meta" style="justify-content: center; font-size: 14px; font-weight: 555;">
+                <div class="receipt-meta" style="justify-content: center; font-size: 14px; font-weight: 555; display: flex; flex-direction: column; text-align: center; gap: 4px;">
                     ${this.getInvoiceTypeLabel(invoiceType)}
+                     ${dgiResponse.data?.refDocument ? `<div style="text-align: center; font-size: 11px; color: #888; font-style: italic;">${dgiResponse.data.actionFacture || ''}</div>` : ''}
+                       
+                        ${dgiResponse.data?.refDocument ? `<div style="text-align: center; font-size: 11px; color: #888; font-style: italic;">${dgiResponse.data.refFacture || ''}</div>` : ''}
+
                 </div>
                 <div class="receipt-items">
                     ${itemsHtml}
