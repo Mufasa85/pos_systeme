@@ -730,9 +730,9 @@
         { key: '57mm', label: '57 mm', description: 'Ticket compact', icon: 'receipt' },
         { key: '80mm', label: '80 mm', description: 'Ticket standard', icon: 'receipt' },
         { key: 'A4', label: 'A4', description: 'Facture A4 (210×297 mm)', icon: 'description' },
-        { key: 'A5', label: 'A5', description: 'Facture A5 (148×210 mm)', icon: 'description' },
-        { key: 'Letter', label: 'Letter', description: 'Format US Letter', icon: 'description' },
-        { key: 'Legal', label: 'Legal', description: 'Format US Legal', icon: 'description' }
+        //{ key: 'A5', label: 'A5', description: 'Facture A5 (148×210 mm)', icon: 'description' },
+        //{ key: 'Letter', label: 'Letter', description: 'Format US Letter', icon: 'description' },
+        //{ key: 'Legal', label: 'Legal', description: 'Format US Legal', icon: 'description' }
     ];
 
     // Charger le format au démarrage (best-effort, non bloquant)
