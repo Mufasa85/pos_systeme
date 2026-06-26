@@ -977,7 +977,8 @@ class BillPayment {
                 <div class="receipt-header">
                     <div class="store-name">${STORE_INFO.name}</div>
                     <div class="store-info">
-                        <div><strong>Point de vente :</strong> ${STORE_INFO.address}</div>
+                        <div><strong>Point de vente :</strong> ${STORE_INFO.pdv}</div>
+                        <div>Adresse : ${STORE_INFO.address}</div>
                         <div>Tel: ${STORE_INFO.phone}</div>
 
                         <div>ID Nat: ${STORE_INFO.ice}</div>
@@ -1113,6 +1114,13 @@ class BillPayment {
         const clientNif = document.getElementById('client-nif')?.value || '';
         const vendeur = (typeof CURRENT_USER !== 'undefined' && CURRENT_USER.fullName) ? CURRENT_USER.fullName : STORE_INFO.name;
         const agentNumero = (typeof CURRENT_USER !== 'undefined' && CURRENT_USER.agentCode) ? CURRENT_USER.agentCode : '';
+        const ticketDateTime = new Date().toLocaleString('fr-FR', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
 
         // Masquer les 4 derniers chiffres du numéro client
         const maskClientNumero = (num) => {
@@ -1177,7 +1185,8 @@ class BillPayment {
                 <div class="receipt-header">
                     <div class="store-name">${STORE_INFO.name}</div>
                     <div class="store-info">
-                        <div><strong>Point de vente :</strong> ${STORE_INFO.address}</div>
+                        <div><strong>Point De vente :</strong> ${STORE_INFO.pdv}</div>
+                        <div>Adresse ${STORE_INFO.address}/div>
                         <div>Tel: ${STORE_INFO.phone}</div>
                         ${STORE_INFO.email ? `<div>Email: ${STORE_INFO.email}</div>` : ''}
                         <div>ID Nat: ${STORE_INFO.ice}</div>
@@ -1210,6 +1219,7 @@ class BillPayment {
                 <div class="receipt-footer">
                     <div id="${qrContainerId}" class="qrcode-container"></div>
                     <div class="thank-you">FACTURE n°${invoiceNum}</div>
+                    <div class="thank-you" style="font-size: 10px;">Date: ${ticketDateTime}</div>
                     <div class="thank-you">Paiement ${service}</div>
                     <div style="margin-top: 5px; font-size: 9px; font-style: italic;">---Powered By Osat---</div>
                 </div>
