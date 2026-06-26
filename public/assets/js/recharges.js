@@ -1093,14 +1093,14 @@ class BillPayment {
         const ticketSign = ticketShouldNegate ? -1 : 1;
 
         // Construire items avec tableau (style caisse)
-        let itemsHtml = '<table class="receipt-table"><thead><tr><th>Article</th><th>Qté</th><th>HT</th></tr></thead><tbody>';
+        let itemsHtml = '<table class="receipt-table"><thead><tr><th>Article</th><th>Qté x Prix unitaire</th><th>Total HT</th></tr></thead><tbody>';
         this.selectedMonths.forEach(month => {
             const monthName = this.moisNoms[month.mois];
             itemsHtml += `
                 <tr>
                     <td><span class="item-name">${monthName} ${month.annee}<span class="item-tax-badge">B</span>[SER]</span></td>
-                    <td class="item-qty">${1 * ticketSign}</td>
-                    <td class="item-total">${this.formatMoney(month.montant * ticketSign)} Fc</td>
+                    <td class="item-qty" style="text-align:left; white-space:nowrap;">${1 * ticketSign} x ${this.formatMoney(month.montant * ticketSign)}</td>
+                    <td class="item-total" style="text-align:right;">${this.formatMoney(month.montant * ticketSign)} Fc</td>
                 </tr>
             `;
         });

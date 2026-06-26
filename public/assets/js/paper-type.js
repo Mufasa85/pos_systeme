@@ -400,19 +400,19 @@
                 var qtyEl = el.querySelector('.item-qty');
                 var priceEl = el.querySelector('.item-price, .item-total');
                 var name = nameEl2 ? nameEl2.textContent.trim() : el.textContent.trim();
-                var qty = qtyEl ? qtyEl.textContent.trim() : '';
-                var price = priceEl ? priceEl.textContent.trim() : '';
+                var qtyPrice = qtyEl ? qtyEl.textContent.trim() : '';
+                var totalPrice = priceEl ? priceEl.textContent.trim() : '';
                 rows += '<tr>' +
                     '<td style="padding:6px 8px;border-bottom:1px solid #eee;">' + name + '</td>' +
-                    '<td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:center;">' + qty + '</td>' +
-                    '<td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;font-weight:600;">' + price + '</td>' +
+                    '<td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:left;white-space:nowrap;">' + qtyPrice + '</td>' +
+                    '<td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;font-weight:600;">' + totalPrice + '</td>' +
                     '</tr>';
             });
             itemTableHtml = '<table style="width:100%;border-collapse:collapse;">' +
                 '<thead><tr style="background:#f5f5f5;">' +
                 '<th style="padding:8px;text-align:left;border-bottom:2px solid #333;">Article</th>' +
-                '<th style="padding:8px;text-align:center;border-bottom:2px solid #333;">Qté</th>' +
-                '<th style="padding:8px;text-align:right;border-bottom:2px solid #333;">Montant</th>' +
+                '<th style="padding:8px;text-align:left;border-bottom:2px solid #333;">Qté x Prix unitaire</th>' +
+                '<th style="padding:8px;text-align:right;border-bottom:2px solid #333;">Total HT</th>' +
                 '</tr></thead><tbody>' + rows + '</tbody></table>';
         }
 
@@ -624,7 +624,7 @@
             '.receipt-table { width: 100%; border-collapse: collapse; }\n' +
             '.receipt-table th { text-align: left; padding: 4px 0; border-bottom: 1px solid #000; font-size: 12px; }\n' +
             '.receipt-table td { padding: 3px 0; font-size: 12px; vertical-align: top; }\n' +
-            '.receipt-table td:nth-child(2) { text-align: center; }\n' +
+            '.receipt-table td:nth-child(2) { text-align: left; white-space: nowrap; }\n' +
             '.receipt-table td:last-child { text-align: right; font-weight: 600; }\n' +
             '.item-tax-badge { display: inline-block; font-size: 9px; border: 1px solid #999; border-radius: 2px; padding: 0 3px; margin-left: 3px; }\n' +
             '.receipt-totals { margin-bottom: 8px; }\n' +
