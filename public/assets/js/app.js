@@ -152,6 +152,7 @@ async function loadStoreInfo() {
         const res = await fetch(APP_URL + '/api/settings');
         const data = await res.json();
         STORE_INFO = {
+            pdv : data.pdv || STORE_INFO.pdv,
             name: data.store_name || STORE_INFO.name,
             address: data.store_address || STORE_INFO.address,
             phone: data.store_phone || STORE_INFO.phone,
@@ -658,6 +659,7 @@ const posCart = {
 
                 store_phone: STORE_INFO.phone,
                 store_address: STORE_INFO.address,
+                store_pdv : STORE_INFO.pdv,
                 store_email: STORE_INFO.email || '',
                 store_ice: STORE_INFO.ice,
                 store_isf: STORE_INFO.isf,
@@ -1116,7 +1118,8 @@ const posCart = {
                 <div class="receipt-header">
                     <div class="store-name">${STORE_INFO.name}</div>
                     <div class="store-info">
-<div><strong>Point de vente :</strong> ${STORE_INFO.address}</div>
+                        <div><strong>Point de vente :</strong> ${STORE_INFO.pdv}</div>
+                        <div>Adresse : ${STORE_INFO.address}</div>
                         <div>Tel: ${STORE_INFO.phone}</div>
                         ${STORE_INFO.email ? `<div>Email: ${STORE_INFO.email}</div>` : ''}
                         <div>ID Nat: ${STORE_INFO.ice}</div>
@@ -1410,6 +1413,13 @@ const posCart = {
             const acheteurNif = $('#client-nif')?.value || (this.currentClient?.nif || '');
             const acheteurNumero = $('#client-number')?.value || (this.clientNumber || '');
             const vendeur = (typeof CURRENT_USER !== 'undefined' && CURRENT_USER.fullName) ? CURRENT_USER.fullName : STORE_INFO.name;
+            const ticketDateTime = new Date().toLocaleString('fr-FR', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
 
             // Récupérer le code agent de l'utilisateur connecté
             const agentCode = (typeof CURRENT_USER !== 'undefined' && CURRENT_USER.agentCode) ? CURRENT_USER.agentCode : '';
@@ -1475,7 +1485,8 @@ const posCart = {
                     <div class="receipt-header">
                         <div class="store-name">${STORE_INFO.name}</div>
                         <div class="store-info">
-                           <div><strong>Point de vente :</strong> ${STORE_INFO.address}</div>
+                            <div><strong>Point de vente :</strong> ${STORE_INFO.pdv }</div>
+                            <div>Adresse : ${STORE_INFO.address}</div>
                             <div>Tel: ${STORE_INFO.phone}</div>
                             ${STORE_INFO.email ? `<div>Email: ${STORE_INFO.email}</div>` : ''}
                             <div>ID Nat: ${STORE_INFO.ice}</div>
@@ -1522,7 +1533,8 @@ const posCart = {
                     
                         <div id="${qrContainerId}" class="qrcode-container"></div>
                         <div class="thank-you">FACTURE n°${saleData.numero_facture}</div>
-                        ${dgiResponse.data?.dateDGI ? '<div style="font-size: 10px; color: #666; margin-top: 4px;">Date : ' + dgiResponse.data.dateDGI + '</div>' : ''}
+                        <div class="thank-you" style="font-size: 10px;">Date: ${ticketDateTime}</div>
+                        ${dgiResponse.data?.dateDGI ? '<div style="font-size: 10px; color: #666; margin-top: 4px;">DEF Heure : ' + dgiResponse.data.dateDGI + '</div>' : ''}
                        
                         <div class="thank-you">Merci de votre visite!</div>
                         <div style="margin-top: 5px; font-size: 9px; font-style: italic;">---Powered By Osat---</div>
@@ -2038,10 +2050,12 @@ function renderServiceBillContent(data, sale) {
     // ----- Header -----
     html += '<div class="receipt-header">';
     // Bandeau PROFORMA
-    html += '<div style="text-align:center; font-weight:800; font-size:24px; color:#000; margin-bottom:10px; border-bottom:2px solid #000; padding-bottom:5px;">PROFORMA</div>';
+    html += '<div style="text-align:center; font-weight:800; font-size:24px; color:#000; margin-bottom:10px; border-bottom:2px solid #000; padding-bottom:5px;">DUPLICATA</div>';
     html += '<div class="store-name">' + (info.store_name || STORE_INFO.name) + '</div>';
     html += '<div class="store-info">';
-    html += '<div><strong>Point de vente :</strong> ' + (info.store_address || STORE_INFO.address) + '</div>';
+    
+    html += '<div><strong>Point de vente :</strong> ' + (info.pdv || STORE_INFO.pdv) + '</div>';
+    html += '<div>Addresse : ' + (info.store_address || STORE_INFO.address) + '</div>';
     html += '<div>Tel: ' + (info.store_phone || STORE_INFO.phone) + '</div>';
     if (info.store_email || STORE_INFO.email) html += '<div>Email: ' + (info.store_email || STORE_INFO.email) + '</div>';
     if (info.store_ice) html += '<div>ID Nat: ' + info.store_ice + '</div>';
@@ -2068,7 +2082,7 @@ function renderServiceBillContent(data, sale) {
     // ----- Meta (type + référence) -----
     html += '<div class="receipt-meta" style="justify-content:center; font-size:14px; font-weight:555; display:flex; flex-direction:column; text-align:center; gap:4px;">';
     html += '<div>' + getInvoiceTypeLabel(info.invoice_type) + '</div>';
-   // if (info.invoice_ref) html += '<div style="font-size:11px; color:#888; font-style:italic;">Réf: ' + info.invoice_ref + '</div>';
+    // if (info.invoice_ref) html += '<div style="font-size:11px; color:#888; font-style:italic;">Réf: ' + info.invoice_ref + '</div>';
     if (info.ref_facture) html += '<div style="font-size:11px; color:#888; font-style:italic;">' + info.ref_facture + '</div>';
     if (info.ref_facture) html += '<div style="font-size:11px; color:#888; font-style:italic;">' + getExonerationLabel(info.exoneration).toUpperCase() + '</div>';
     //if (info.payment_type) html += '<div style="font-size:11px; color:#666;">Paiement: ' + info.payment_type + '</div>';
@@ -2128,7 +2142,7 @@ function renderServiceBillContent(data, sale) {
         + '</div>';
 
     if (amountInWords) {
-        html += '<div style="text-align:center; font-size:12px; color:#888; font-style:italic; margin-top:2px;">Arrêté la présente proforma à la somme de ' + amountInWords + ' congolais toutes taxes comprises</div>';
+        html += '<div style="text-align:center; font-size:12px; color:#888; font-style:italic; margin-top:2px;">Arrêté le présent duplicata à la somme de ' + amountInWords + ' congolais toutes taxes comprises</div>';
     }
     if (info.isf || info.store_isf) {
         html += '<div style="margin:10px 0; font-size:11px; color:#333; border:1px dashed #ccc; padding:8px; border-radius:4px; text-align:center;">ISF : ' + (info.isf || info.store_isf) + '</div>';
@@ -2178,10 +2192,13 @@ function renderServiceBillContent(data, sale) {
 function renderLocalSaleDetails(sale, details) {
     let html = '<div class="receipt">';
     html += '<div class="receipt-header">';
-    html += '<div style="text-align:center; font-weight:800; font-size:24px; color:#000; margin-bottom:10px; border-bottom:2px solid #000; padding-bottom:5px;">PROFORMA</div>';
+    html += '<div style="text-align:center; font-weight:800; font-size:24px; color:#000; margin-bottom:10px; border-bottom:2px solid #000; padding-bottom:5px;">DUPLICATA</div>';
     html += '<div class="store-name">' + STORE_INFO.name + '</div>';
     html += '<div class="store-info">';
-    html += '<div><strong>Point de vente :</strong> ' + STORE_INFO.address + '</div>';
+    html += '<div><strong>Point de vente :</strong> ' + STORE_INFO.pdv + '</div>';
+    
+    html += '<div>Addresse : ' + STORE_INFO.address + '</div>';
+   
     html += '<div>Tel: ' + STORE_INFO.phone + '</div>';
     if (STORE_INFO.email) html += '<div>Email: ' + STORE_INFO.email + '</div>';
     if (STORE_INFO.ice) html += '<div>ID Nat: ' + STORE_INFO.ice + '</div>';
@@ -2339,7 +2356,8 @@ async function viewSaleDetails(saleId) {
             '<div class="receipt-header">' +
             '<div class="store-name">' + STORE_INFO.name + '</div>' +
             '<div class="store-info">' +
-            '<div><strong>Point de vente :</strong> ' + STORE_INFO.address + '</div>' +
+            '<div><strong>Point de vente :</strong> ' + STORE_INFO.pdv + '</div>' +
+            '<div>Adresse : ' + STORE_INFO.address + '</div>' +
             '<div>Tel: ' + STORE_INFO.phone + '</div>' +
             (STORE_INFO.email ? '<div>Email: ' + STORE_INFO.email + '</div>' : '') +
             '<div>ID Nat: ' + STORE_INFO.ice + '</div>' +
