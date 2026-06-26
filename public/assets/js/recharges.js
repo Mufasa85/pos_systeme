@@ -352,7 +352,7 @@ class BillPayment {
                     tax_rate: 0,
                     tax_etiquette: 'B'
                 })),
-                client_id: null,
+                client_id: this.clientInfo?.id || null,
                 sous_total_ht: total * rechargeSign,
                 tva: 0,
                 total: total * rechargeSign,
@@ -491,6 +491,7 @@ class BillPayment {
 
             const clientTel = (modalClientTel && modalClientTel !== '0000') ? modalClientTel : (this.clientInfo?.numero || this.apiResponse?.client_numero || '');
             const clientCommune = this.clientInfo?.commune || this.apiResponse?.client_commune || '';
+            const clientAddress = document.getElementById('client-address')?.value || this.clientInfo?.adresse || this.apiResponse?.client_adresse || '';
 
             const payload = {
 
@@ -522,6 +523,7 @@ class BillPayment {
                 client_name: clientNom,
                 client_type: clientType,
                 client_nif: clientNif,
+                client_address: clientAddress,
                 //client_document: clientNumeroDoc,
             };
 
@@ -766,6 +768,7 @@ class BillPayment {
         const clientNif = this.apiResponse?.client_nif || '';
         const clientNumero = this.clientInfo?.numero || this.apiResponse?.client_numero || '';
         const clientCommune = this.clientInfo?.commune || this.apiResponse?.client_commune || '';
+        const clientAddress = this.clientInfo?.adresse || this.apiResponse?.client_adresse || document.getElementById('client-address')?.value || '';
 
         // Récupérer les valeurs existantes du panier
         const invoiceType = document.getElementById('invoice-type')?.value || 'FV';
@@ -781,6 +784,7 @@ class BillPayment {
         document.getElementById('modal-client-name').value = clientNom;
         document.getElementById('modal-client-tel').value = clientNumero;
         document.getElementById('modal-client-nif').value = clientNif;
+        document.getElementById('modal-client-address').value = clientAddress;
 
         // Sélectionner le type de client si disponible
         if (clientType) {
@@ -811,6 +815,7 @@ class BillPayment {
         const modalClientNumber = document.getElementById('modal-client-tel1')?.value?.trim() || '';
         const modalClientType = document.getElementById('modal-client-type')?.value || '';
         const modalClientNif = document.getElementById('modal-client-nif')?.value || '';
+        const modalClientAddress = document.getElementById('modal-client-address')?.value || '';
         const modalPaymentType = document.getElementById('modal-payment-type')?.value || 'cash';
 
         if (modalClientNumber && !RECHARGE_PHONE_NUMBER_REGEX.test(modalClientNumber)) {
@@ -824,6 +829,13 @@ class BillPayment {
         document.getElementById('client-nom').value = modalClientName;
         document.getElementById('client-type').value = modalClientType;
         document.getElementById('client-nif').value = modalClientNif;
+        document.getElementById('client-address').value = modalClientAddress;
+        document.getElementById('client-numero').value = modalClientNumber;
+
+        // Mémoriser l'adresse sur le client courant
+        if (this.clientInfo) {
+            this.clientInfo.adresse = modalClientAddress;
+        }
 
         // Fermer le modal client
         this.closeInvoiceInfoModalRecharge();
@@ -837,6 +849,7 @@ class BillPayment {
         const numero = document.getElementById('modal-client-tel1')?.value?.trim() || document.getElementById('invoice-number')?.value?.trim();
         const typeId = document.getElementById('modal-client-type')?.value;
         const nif = document.getElementById('modal-client-nif')?.value?.trim();
+        const adresse = document.getElementById('modal-client-address')?.value?.trim();
 
         if (!nom || !numero) {
             this.showError('Veuillez remplir le nom et le numéro');
@@ -852,7 +865,7 @@ class BillPayment {
             const res = await fetch(APP_URL + '/api/client', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ nom, numero, type_client_id: typeId, nif })
+                body: JSON.stringify({ nom, numero, type_client_id: typeId, nif, adresse })
             });
             const data = await res.json();
 
@@ -862,16 +875,19 @@ class BillPayment {
                     id: data.client.id,
                     nom: data.client.nom_client || nom,
                     numero: data.client.numero || numero,
-                    nif: data.client.nif || nif
+                    nif: data.client.nif || nif,
+                    adresse: data.client.adresse || adresse
                 };
                 const nomField = document.getElementById('client-nom');
                 const numeroField = document.getElementById('client-numero');
                 const typeField = document.getElementById('client-type');
                 const nifField = document.getElementById('client-nif');
+                const adresseField = document.getElementById('client-address');
                 if (nomField) nomField.value = data.client.nom_client || nom;
                 if (numeroField) numeroField.value = data.client.numero || numero;
                 if (typeField) typeField.value = data.client.type_id || typeId || '';
                 if (nifField) nifField.value = data.client.nif || nif || '';
+                if (adresseField) adresseField.value = data.client.adresse || adresse || '';
                 this.showToast('Client enregistré: ' + (data.client.nom_client || nom), 'success');
             } else {
                 this.showError(data.message || 'Erreur lors de l\'enregistrement');
@@ -909,6 +925,7 @@ class BillPayment {
         const clientType = document.getElementById('client-type')?.value || '';
 
         const clientNif = document.getElementById('modal-client-nif')?.value || '';
+        const clientAddress = document.getElementById('client-address')?.value || this.clientInfo?.adresse || '';
         const invoiceType = document.getElementById('invoice-type')?.value || 'FV';
 
         // Logique de négation visuelle: si la facture N'est PAS FA ou EA, on
@@ -965,6 +982,7 @@ class BillPayment {
                            ${agentNumero ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>CODE AGENT:</strong></span><span>${agentNumero}</span></div>` : ''}
                            ${clientNom ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>CLIENT:</strong></span><span>${clientNom}</span></div>` : ''}
                            ${clientTelNum ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>N° CLIENT:</strong></span><span>${maskClientNumero(clientTelNum)}</span></div>` : ''}
+                           ${clientAddress ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>ADRESSE:</strong></span><span>${clientAddress}</span></div>` : ''}
                            ${clientType ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>TYPE CLIENT:</strong></span><span>${getClientTypeLabel(clientType)}</span></div>` : ''}
                            ${clientNif ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>NIF:</strong></span><span>${clientNif}</span></div>` : ''}
                            ${clientNumero ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>N° COMPTEUR:</strong></span><span>${clientNumero}</span></div>` : ''}
@@ -1112,6 +1130,7 @@ class BillPayment {
         const clientTelNum = document.getElementById('modal-client-tel1')?.value || this.apiResponse.client_numero;
         const clientType = document.getElementById('client-type')?.value || '';
         const clientNif = document.getElementById('client-nif')?.value || '';
+        const clientAddress = document.getElementById('client-address')?.value || this.clientInfo?.adresse || '';
         const vendeur = (typeof CURRENT_USER !== 'undefined' && CURRENT_USER.fullName) ? CURRENT_USER.fullName : STORE_INFO.name;
         const agentNumero = (typeof CURRENT_USER !== 'undefined' && CURRENT_USER.agentCode) ? CURRENT_USER.agentCode : '';
         const ticketDateTime = new Date().toLocaleString('fr-FR', {
@@ -1155,6 +1174,7 @@ class BillPayment {
                            ${agentNumero ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>N° AGENT:</strong></span><span>${agentNumero}</span></div>` : ''}
                            ${clientNom ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>CLIENT:</strong></span><span>${clientNom}</span></div>` : ''}
                            ${clientTelNum ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>N° CLIENT:</strong></span><span>${maskClientNumero(clientTelNum)}</span></div>` : ''}
+                           ${clientAddress ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>ADRESSE:</strong></span><span>${clientAddress}</span></div>` : ''}
                            ${clientType ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>TYPE CLIENT:</strong></span><span>${getClientTypeLabel(clientType)}</span></div>` : ''}
                            ${clientNif ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>NIF:</strong></span><span>${clientNif}</span></div>` : ''}
                            ${clientNumero ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>N° COMPTEUR:</strong></span><span>${clientNumero}</span></div>` : ''}
