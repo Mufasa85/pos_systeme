@@ -623,6 +623,7 @@ const posCart = {
 
             const clientNif = $('#client-nif')?.value || (this.currentClient?.nif || '');
             const clientNumero = $('#client-number')?.value || (this.clientNumber || '');
+            const clientAddress = $('#client-address')?.value || (this.currentClient?.adresse || '');
 
             // Récupérer le type de facture et la référence document
             const invoiceType = document.getElementById('invoice-type')?.value || 'FV';
@@ -689,7 +690,8 @@ const posCart = {
                 client_name: clientNom,
                 client_type: acheteurTypeInitiales,
                 client_type_val: getClientTypeLabel(acheteurTypeInitiales),
-                client_nif: clientNif
+                client_nif: clientNif,
+                client_address: clientAddress
             };
 
             // Log du payload DGI (CAISSE)
@@ -1099,6 +1101,7 @@ const posCart = {
         const acheteurTypeInitiales = acheteurTypeText.split(' - ')[0].trim() || '';
         const acheteurNif = $('#client-nif')?.value || (this.currentClient?.nif || '');
         const acheteurNumero = $('#client-number')?.value || (this.clientNumber || '');
+        const acheteurAddress = $('#client-address')?.value || (this.currentClient?.adresse || '');
         const vendeur = (typeof CURRENT_USER !== 'undefined' && CURRENT_USER.fullName) ? CURRENT_USER.fullName : STORE_INFO.name;
 
         console.log(acheteurTypeText, " un ", acheteurTypeInitiales, " deux ", acheteurNif)
@@ -1108,6 +1111,7 @@ const posCart = {
                            <div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>VENDEUR:</strong></span><span>${vendeur}</span></div>
                            ${acheteurNom ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>CLIENT:</strong></span><span>${acheteurNom}</span></div>` : ''}
                            ${acheteurNumero ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>NUM:</strong></span><span>${acheteurNumero}</span></div>` : ''}
+                           ${acheteurAddress ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>ADRESSE:</strong></span><span>${acheteurAddress}</span></div>` : ''}
                            ${acheteurTypeInitiales ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>TYPE:</strong></span><span>${getClientTypeLabel(acheteurTypeInitiales)}</span></div>` : ''}
                            ${acheteurNif ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>NIF:</strong></span><span>${acheteurNif}</span></div>` : ''}
                            ${agentCode ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>Numero Agent:</strong></span><span>${agentCode}</span></div>` : ''}
@@ -1421,6 +1425,7 @@ const posCart = {
             const acheteurTypeInitiales = acheteurTypeText.split(' - ')[0].trim() || '';
             const acheteurNif = $('#client-nif')?.value || (this.currentClient?.nif || '');
             const acheteurNumero = $('#client-number')?.value || (this.clientNumber || '');
+            const acheteurAddress = $('#client-address')?.value || (this.currentClient?.adresse || '');
             const vendeur = (typeof CURRENT_USER !== 'undefined' && CURRENT_USER.fullName) ? CURRENT_USER.fullName : STORE_INFO.name;
             const ticketDateTime = new Date().toLocaleString('fr-FR', {
                 day: '2-digit',
@@ -1450,6 +1455,7 @@ const posCart = {
                                <div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>VENDEUR:</strong></span><span>${vendeur}</span></div>
                                ${acheteurNom ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>CLIENT:</strong></span><span>${acheteurNom}</span></div>` : ''}
                                ${acheteurNumero ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>NUM:</strong></span><span>${formatPhoneNumber(acheteurNumero)}</span></div>` : ''}
+                               ${acheteurAddress ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>ADRESSE:</strong></span><span>${acheteurAddress}</span></div>` : ''}
                                ${acheteurTypeInitiales ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>TYPE:</strong></span><span>${getClientTypeLabel(acheteurTypeInitiales)}</span></div>` : ''}
                                ${acheteurNif ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>NIF:</strong></span><span>${acheteurNif}</span></div>` : ''}
                                ${agentCode ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>Numero Agent:</strong></span><span>${agentCode}</span></div>` : ''}
@@ -2083,6 +2089,7 @@ function renderServiceBillContent(data, sale) {
     const agentNumber = (sale && sale.agent_code) || (typeof CURRENT_USER !== 'undefined' && CURRENT_USER.agentCode) || '';
     const clientNom = info.client_name || '';
     const clientNumero = info.client_number || '';
+    const clientAddress = info.client_address || (sale && sale.client_adresse) || '';
     const clientType = info.client_type || '';
     const clientNif = info.client_nif || '';
 
@@ -2091,6 +2098,7 @@ function renderServiceBillContent(data, sale) {
     if (agentNumber) html += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>Numero Agent:</strong></span><span>' + agentNumber + '</span></div>';
     if (clientNom) html += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>CLIENT:</strong></span><span>' + clientNom + '</span></div>';
     if (clientNumero) html += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>NUM:</strong></span><span>' + formatPhoneNumber(clientNumero) + '</span></div>';
+    if (clientAddress) html += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>ADRESSE:</strong></span><span>' + clientAddress + '</span></div>';
     if (clientType) html += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>TYPE:</strong></span><span>' + getClientTypeLabel(clientType) + '</span></div>';
     if (clientNif) html += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>NIF:</strong></span><span>' + clientNif + '</span></div>';
     html += '</div>';
@@ -2228,6 +2236,7 @@ function renderLocalSaleDetails(sale, details) {
     if (localAgentNumber) html += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>Numero Agent:</strong></span><span>' + localAgentNumber + '</span></div>';
     if (sale.nom_client) html += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>CLIENT:</strong></span><span>' + sale.nom_client + '</span></div>';
     if (sale.client_numero) html += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>NUM:</strong></span><span>' + formatPhoneNumber(sale.client_numero) + '</span></div>';
+    if (sale.client_adresse) html += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>ADRESSE:</strong></span><span>' + sale.client_adresse + '</span></div>';
     if (sale.client_type_code) html += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>TYPE:</strong></span><span>' + getClientTypeLabel(sale.client_type_code) + '</span></div>';
     if (sale.client_nif) html += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>NIF:</strong></span><span>' + sale.client_nif + '</span></div>';
     html += '</div></div>';
@@ -2316,6 +2325,7 @@ async function viewSaleDetails(saleId) {
         // Design unifié avec /caisse (même structure)
         const acheteurNom = sale.nom_client || '';
         const acheteurNumero = sale.client_numero || '';
+        const acheteurAddress = sale.client_adresse || '';
         const acheteurType = sale.client_type_code || '';
         const acheteurNif = sale.client_nif || '';
         const vendeur = sale.nom_vendeur || 'N/A';
@@ -2345,6 +2355,7 @@ async function viewSaleDetails(saleId) {
             '<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>VENDEUR:</strong></span><span>' + vendeur + '</span></div>' +
             (acheteurNom ? '<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>CLIENT:</strong></span><span>' + acheteurNom + '</span></div>' : '') +
             (acheteurNumero ? '<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>NUM:</strong></span><span>' + formatPhoneNumber(acheteurNumero) + '</span></div>' : '') +
+            (acheteurAddress ? '<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>ADRESSE:</strong></span><span>' + acheteurAddress + '</span></div>' : '') +
             (acheteurType ? '<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>TYPE:</strong></span><span>' + getClientTypeLabel(acheteurType) + '</span></div>' : '') +
             (acheteurNif ? '<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>NIF:</strong></span><span>' + acheteurNif + '</span></div>' : '') +
             '</div>';
@@ -3444,6 +3455,7 @@ function openInvoiceInfoModal() {
     const clientNumero = document.getElementById('client-number')?.value || (posCart.clientNumber || '');
     const clientTypeId = document.getElementById('client-type')?.value || (posCart.currentClient?.type_id || '');
     const clientNif = document.getElementById('client-nif')?.value || (posCart.currentClient?.nif || '');
+    const clientAddress = document.getElementById('client-address')?.value || (posCart.currentClient?.adresse || '');
 
     const isAdmin = typeof CURRENT_USER !== 'undefined' && CURRENT_USER.role === 'admin';
     if (isAdmin) {
@@ -3454,6 +3466,7 @@ function openInvoiceInfoModal() {
     document.getElementById('modal-client-number').value = clientNumero;
     document.getElementById('modal-client-type').value = clientTypeId;
     document.getElementById('modal-client-nif').value = clientNif;
+    document.getElementById('modal-client-address').value = clientAddress;
 
     // Remplir la liste des articles
     const itemsList = document.getElementById('invoice-items-list');
@@ -3501,6 +3514,7 @@ function confirmInvoiceInfo() {
     const clientNumber = document.getElementById('modal-client-number').value.trim();
     const clientType = document.getElementById('modal-client-type').value;
     const clientNif = document.getElementById('modal-client-nif').value;
+    const clientAddress = document.getElementById('modal-client-address').value;
 
     if (clientNumber && !PHONE_NUMBER_REGEX.test(clientNumber)) {
         alert('Le numéro de téléphone doit respecter le format 08xxxxxxxx ou 09xxxxxxxx.');
@@ -3514,6 +3528,12 @@ function confirmInvoiceInfo() {
     document.getElementById('client-number').value = clientNumber;
     document.getElementById('client-type').value = clientType;
     document.getElementById('client-nif').value = clientNif;
+    document.getElementById('client-address').value = clientAddress;
+
+    // Mémoriser l'adresse sur le client courant
+    if (posCart.currentClient) {
+        posCart.currentClient.adresse = clientAddress;
+    }
 
     // Fermer ce modal
     closeInvoiceInfoModal();
@@ -3575,6 +3595,7 @@ async function searchClientFromModal() {
             document.getElementById('modal-client-name').value = data.client.nom_client || '';
             document.getElementById('modal-client-type').value = data.client.type_id || '';
             document.getElementById('modal-client-nif').value = data.client.nif || '';
+            document.getElementById('modal-client-address').value = data.client.adresse || '';
             // Mémoriser le client pour permettre l'édition ensuite
             if (typeof posCart !== 'undefined' && posCart) {
                 posCart.currentClient = data.client;
@@ -3594,6 +3615,7 @@ async function saveClientFromModal() {
     const numero = document.getElementById('modal-client-number')?.value?.trim();
     const typeId = document.getElementById('modal-client-type')?.value;
     const nif = document.getElementById('modal-client-nif')?.value?.trim();
+    const adresse = document.getElementById('modal-client-address')?.value?.trim();
 
     if (!nom || !numero) {
         showModalClientMessage('Veuillez remplir le nom et le numéro', 'error');
@@ -3609,7 +3631,7 @@ async function saveClientFromModal() {
         const res = await fetch(APP_URL + '/api/client', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ nom, numero, type_client_id: typeId, nif })
+            body: JSON.stringify({ nom, numero, type_client_id: typeId, nif, adresse })
         });
         const data = await res.json();
 
