@@ -1055,7 +1055,7 @@ const posCart = {
         const previewSign = previewShouldNegate ? -1 : 1;
 
         // Construire les items du reçu
-        let itemsHtml = '<table class="receipt-table"><thead><tr><th>Article</th><th>Qté</th><th>HT</th></tr></thead><tbody>';
+        let itemsHtml = '<table class="receipt-table"><thead><tr><th>Article</th><th>Qté x Prix unitaire</th><th>Total HT</th></tr></thead><tbody>';
         for (let i = 0; i < this.items.length; i++) {
             const item = this.items[i];
             const itemPrice = parseFloat(item.prix) || 0;
@@ -1068,8 +1068,8 @@ const posCart = {
             itemsHtml += `
                 <tr>
                     <td><span class="item-name"> ${item.nom}<span class="item-tax-badge">${taxLabel}</span>${prodService}</span></td>
-                    <td class="item-qty">${qtyDisplay}</td>
-                    <td class="item-total">${truncateDecimals(itemTotalHT).toFixed(3)} Fc</td>
+                    <td class="item-qty" style="text-align:left; white-space:nowrap;">${qtyDisplay} x ${formatCurrency(itemPrice)}</td>
+                    <td class="item-total" style="text-align:right;">${truncateDecimals(itemTotalHT).toFixed(3)} Fc</td>
                 </tr>
             `;
         }
@@ -1329,7 +1329,16 @@ const posCart = {
                 $('#confirm-sale').innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> Valider la facture';
                 return;
             }
+            console.log(dgiResponse.data.codeDEFDGI)
+            if(dgiResponse.data.codeDEFDGI === "Nul" ) {
+                alert("Imposible de valider cette facture de ****, elle a deja ete ...")
+              //  $('#receipt-modal').classList.add('active');
+               $('#confirm-sale').disabled = false;
+            // Reinitialiser le bouton
+            $('#confirm-sale').innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> Valider la facture';
 
+                return
+            }
             // Etape 2: Sauvegarder la vente
             // Si la facture N'est PAS FA ou EA, on envoie les quantités et
             // les totaux en négatif au backend (cohérent avec la DGI)
@@ -1457,7 +1466,7 @@ const posCart = {
 
 
             // Construire les items du reçu avec les taxes par produit
-            let itemsHtml = '<table class="receipt-table"><thead><tr><th>Article</th><th>Qté</th><th>Total HT</th></tr></thead><tbody>';
+            let itemsHtml = '<table class="receipt-table"><thead><tr><th>Article</th><th>Qté x Prix unitaire</th><th>Total HT</th></tr></thead><tbody>';
             for (let i = 0; i < this.items.length; i++) {
                 const item = this.items[i];
                 const itemPrice = parseFloat(item.prix) || 0;
@@ -1472,8 +1481,8 @@ const posCart = {
                 itemsHtml += `
                     <tr>
                         <td><span class="item-name">${item.nom}<span class="item-tax-badge">${taxLabel}</span>${prodService}</span></td>
-                        <td class="item-qty">${formatQty(itemQty, isPoidsItem)}</td>
-                        <td class="item-total">${itemTotalHT.toFixed(2)} Fc</td>
+                        <td class="item-qty" style="text-align:left; white-space:nowrap;">${formatQty(itemQty, isPoidsItem)} x ${formatCurrency(itemPrice)}</td>
+                        <td class="item-total" style="text-align:right;">${itemTotalHT.toFixed(2)} Fc</td>
                     </tr>
                 `;
             }
@@ -1565,6 +1574,12 @@ const posCart = {
 
     async saveProduct() {
         const isEdit = !!$('#product-id').value;
+        const priceValue = parseFloat($('#product-price').value);
+        if (!Number.isFinite(priceValue) || priceValue <= 0) {
+            alert('Le prix du produit doit être supérieur à 0 pour enregistrer.');
+            return;
+        }
+
         const url = isEdit ? APP_URL + '/api/produit/update' : APP_URL + '/api/produit';
         const formData = new FormData();
         formData.append('id', $('#product-id').value);
@@ -2060,11 +2075,12 @@ function renderServiceBillContent(data, sale) {
     if (info.store_email || STORE_INFO.email) html += '<div>Email: ' + (info.store_email || STORE_INFO.email) + '</div>';
     if (info.store_ice) html += '<div>ID Nat: ' + info.store_ice + '</div>';
     if (info.store_rccm) html += '<div>RCCM: ' + info.store_rccm + '</div>';
-    if (info.store_isf) html += '<div>Numero Agent: ' + info.store_isf + '</div>';
+    if (info.store_isf) html += '<div>Numero Impot: ' + info.store_isf + '</div>';
     html += '</div>';
 
     // Section Vendeur / Client
     const vendeur = info.sellerName || (sale && sale.nom_vendeur) || 'N/A';
+    const agentNumber = (sale && sale.agent_code) || (typeof CURRENT_USER !== 'undefined' && CURRENT_USER.agentCode) || '';
     const clientNom = info.client_name || '';
     const clientNumero = info.client_number || '';
     const clientType = info.client_type || '';
@@ -2072,6 +2088,7 @@ function renderServiceBillContent(data, sale) {
 
     html += '<div style="border-top:1px dashed #ccc; margin-top:6px; padding-top:6px; text-align:left; font-size:15px; line-height:1.5;">';
     html += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>VENDEUR:</strong></span><span>' + vendeur + '</span></div>';
+    if (agentNumber) html += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>Numero Agent:</strong></span><span>' + agentNumber + '</span></div>';
     if (clientNom) html += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>CLIENT:</strong></span><span>' + clientNom + '</span></div>';
     if (clientNumero) html += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>NUM:</strong></span><span>' + formatPhoneNumber(clientNumero) + '</span></div>';
     if (clientType) html += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>TYPE:</strong></span><span>' + getClientTypeLabel(clientType) + '</span></div>';
@@ -2203,10 +2220,12 @@ function renderLocalSaleDetails(sale, details) {
     if (STORE_INFO.email) html += '<div>Email: ' + STORE_INFO.email + '</div>';
     if (STORE_INFO.ice) html += '<div>ID Nat: ' + STORE_INFO.ice + '</div>';
     if (STORE_INFO.rccm) html += '<div>RCCM: ' + STORE_INFO.rccm + '</div>';
-    if (STORE_INFO.isf) html += '<div>Numero Agent: ' + STORE_INFO.isf + '</div>';
+    if (STORE_INFO.isf) html += '<div>Numero Impot: ' + STORE_INFO.isf + '</div>';
     html += '</div>';
+    const localAgentNumber = (sale && sale.agent_code) || (typeof CURRENT_USER !== 'undefined' && CURRENT_USER.agentCode) || '';
     html += '<div style="border-top:1px dashed #ccc; margin-top:6px; padding-top:6px; text-align:left; font-size:15px; line-height:1.5;">';
     html += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>VENDEUR:</strong></span><span>' + (sale.nom_vendeur || 'N/A') + '</span></div>';
+    if (localAgentNumber) html += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>Numero Agent:</strong></span><span>' + localAgentNumber + '</span></div>';
     if (sale.nom_client) html += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>CLIENT:</strong></span><span>' + sale.nom_client + '</span></div>';
     if (sale.client_numero) html += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>NUM:</strong></span><span>' + formatPhoneNumber(sale.client_numero) + '</span></div>';
     if (sale.client_type_code) html += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>TYPE:</strong></span><span>' + getClientTypeLabel(sale.client_type_code) + '</span></div>';
