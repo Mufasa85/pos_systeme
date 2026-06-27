@@ -520,8 +520,9 @@ class BillPayment {
                 //
                 ref_facture: refFacture,
                 exoneration: exoneration,
-                payment_type: paymentType,
+               // payment_type: paymentType,
                 payments: payments,
+                rate: (typeof USD_RATE !== 'undefined') ? USD_RATE : 0,
                 client_name: clientNom,
                 client_type: clientType,
                 client_nif: clientNif,

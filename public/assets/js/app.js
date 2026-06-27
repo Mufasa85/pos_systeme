@@ -630,9 +630,9 @@ const posCart = {
             const clientNumero = $('#client-number')?.value || (this.clientNumber || '');
             const clientAddress = $('#client-address')?.value || (this.currentClient?.adresse || '');
 
-            // Récupérer le type de facture et la référence document
+            // Récupérer le type de facture et les références documents
             const invoiceType = document.getElementById('invoice-type')?.value || 'FV';
-            const invoiceRef = document.getElementById('invoice-ref')?.value || '';
+            const invoiceRefs = getModalRefDocs();
             const refFacture = document.getElementById('modal-invoice-num')?.value || '';
             const exoneration = document.getElementById('modal-exoneration')?.value || '';
 
@@ -642,8 +642,8 @@ const posCart = {
             const sign = shouldNegate ? -1 : 1;
 
             // Récupérer les paiements (multi-paiements depuis le modal ou fallback)
-            const payments = this.currentPayments?.length > 0 ? this.currentPayments : [{ type: (document.getElementById('modal-payment-type') || document.getElementById('payment-type'))?.value || 'espece', amount: this.currentTotals.total }];
-            const paymentType = payments[0]?.type || 'espece';
+            const payments = this.currentPayments?.length > 0 ? this.currentPayments : [{ type: (document.getElementById('modal-payment-type') || document.getElementById('payment-type'))?.value || 'ESPECES', amount: this.currentTotals.total }];
+            const paymentType = payments[0]?.type || 'ESPECES';
 
             // Récupérer le type de client (via le modal ou les champs directs)
             const clientTypeSelect = document.getElementById('modal-client-type');
@@ -675,11 +675,13 @@ const posCart = {
                 client_number: clientNumero,
                 invoice_number: this.currentInvoiceNum,
                 invoice_type: invoiceType,
-                invoice_ref: invoiceRef,
+                invoice_refs: invoiceRefs,
+                invoice_ref: invoiceRefs[0] || '',
                 ref_facture: refFacture,
                 exoneration: exoneration,
-                payment_type: paymentType,
+               // payment_type: paymentType,
                 payments: payments,
+                rate: (typeof USD_RATE !== 'undefined') ? USD_RATE : 0,
                 articles: this.items.map(item => ({
                     name: item.nom,
                     quantity: item.quantite,
@@ -1005,7 +1007,7 @@ const posCart = {
             paymentsHtml += `</div>`;
         } else {
             const paymentTypeSelect = document.getElementById('modal-payment-type') || document.getElementById('payment-type');
-            const paymentType = paymentTypeSelect?.value || 'espece';
+            const paymentType = paymentTypeSelect?.value || 'ESPECES';
             const paymentLabel = getPaymentTypeLabel(paymentType);
             paymentsHtml += `<div class="receipt-total-row" style="font-size: 11px; color: #555;">
                 <span>Paiment : </span>
@@ -1392,7 +1394,7 @@ const posCart = {
                     tva: this.currentTotals.tva * saveSign,
                     total: this.currentTotals.total * saveSign,
                     type_facture: saveTypeFacture,
-                    payments: this.currentPayments?.length > 0 ? this.currentPayments : [{ type: (document.getElementById('modal-payment-type') || document.getElementById('payment-type'))?.value || 'espece', amount: this.currentTotals.total }],
+                    payments: this.currentPayments?.length > 0 ? this.currentPayments : [{ type: (document.getElementById('modal-payment-type') || document.getElementById('payment-type'))?.value || 'ESPECES', amount: this.currentTotals.total }],
                     dgi_data: {
                         dateDGI: dgiResponse.data ? dgiResponse.data.dateDGI : null,
                         qrCode: dgiResponse.data ? dgiResponse.data.qrCode : '',
@@ -3561,6 +3563,9 @@ function openInvoiceInfoModal() {
     if (isAdmin) {
         document.getElementById('modal-invoice-type').value = invoiceType;
         document.getElementById('modal-invoice-ref').value = invoiceRef;
+        initModalRefDocs();
+        const extraRefs = (posCart.currentRefDocs || []).slice(1);
+        extraRefs.forEach(ref => addModalRefDocLine(ref));
     }
     document.getElementById('modal-client-name').value = clientNom;
     document.getElementById('modal-client-number').value = clientNumero;
@@ -3615,13 +3620,13 @@ function initModalPayments() {
     if (!list) return;
     list.innerHTML = '';
     const total = posCart.currentTotals?.total || 0;
-    addModalPaymentLine('espece', total);
+    addModalPaymentLine('ESPECES', total);
 }
 
-function addModalPaymentLine(type = 'espece', amount = 0) {
+function addModalPaymentLine(type = 'ESPECES', amount = 0) {
     const list = document.getElementById('modal-payments-list');
     if (!list) return;
-    const maxLines = 5;
+    const maxLines = 6;
     if (list.children.length >= maxLines) return;
     const line = document.createElement('div');
     line.className = 'modal-payment-line';
@@ -3630,11 +3635,13 @@ function addModalPaymentLine(type = 'espece', amount = 0) {
         <div>
             <label style="font-size: 0.7rem; color: #166534; display: block; margin-bottom: 4px;">Type</label>
             <select class="modal-payment-type client-number-input" style="width: 100%; background: #fff;" onchange="calculateModalPayments()">
-                <option value="espece" ${type === 'espece' ? 'selected' : ''}>Espèces</option>
-                <option value="mobile_money" ${type === 'mobile_money' ? 'selected' : ''}>Mobile Money</option>
-                <option value="card" ${type === 'card' ? 'selected' : ''}>Carte Bancaire</option>
-                <option value="transfer" ${type === 'transfer' ? 'selected' : ''}>Virement</option>
-                <option value="credit" ${type === 'credit' ? 'selected' : ''}>Crédit</option>
+                <option value="ESPECES" ${type === 'ESPECES' ? 'selected' : ''}>Espèces</option>
+                <option value="MOBILEMONEY" ${type === 'MOBILEMONEY' ? 'selected' : ''}>Mobile Money</option>
+                <option value="CARTEBANCAIRE" ${type === 'CARTEBANCAIRE' ? 'selected' : ''}>Carte Bancaire</option>
+                <option value="VIREMENT" ${type === 'VIREMENT' ? 'selected' : ''}>Virement</option>
+                <option value="CREDIT" ${type === 'CREDIT' ? 'selected' : ''}>Crédit</option>
+                <option value="CHEQUES" ${type === 'CHEQUES' ? 'selected' : ''}>Chèques</option>
+                <option value="AUTRE" ${type === 'AUTRE' ? 'selected' : ''}>Autres</option>
             </select>
         </div>
         <div>
@@ -3653,7 +3660,7 @@ function updateAddPaymentButton() {
     const list = document.getElementById('modal-payments-list');
     const btn = document.getElementById('add-payment-line-btn');
     if (!list || !btn) return;
-    const maxLines = 5;
+    const maxLines = 6;
     btn.style.display = list.children.length >= maxLines ? 'none' : 'flex';
 }
 
@@ -3678,7 +3685,7 @@ function calculateModalPayments() {
     let total = 0;
     const payments = [];
     lines.forEach(line => {
-        const type = line.querySelector('.modal-payment-type')?.value || 'espece';
+        const type = line.querySelector('.modal-payment-type')?.value || 'ESPECES';
         const amount = parseFloat(line.querySelector('.modal-payment-amount')?.value) || 0;
         total += amount;
         payments.push({ type, amount });
@@ -3714,20 +3721,89 @@ function getModalPayments() {
     const lines = document.querySelectorAll('.modal-payment-line');
     const payments = [];
     lines.forEach(line => {
-        const type = line.querySelector('.modal-payment-type')?.value || 'espece';
+        const type = line.querySelector('.modal-payment-type')?.value || 'ESPECES';
         const amount = parseFloat(line.querySelector('.modal-payment-amount')?.value) || 0;
         if (amount > 0) payments.push({ type, amount });
     });
     return payments;
 }
 
+function initModalRefDocs() {
+    const list = document.getElementById('modal-ref-docs-list');
+    if (!list) return;
+    list.innerHTML = '';
+    updateAddRefDocButton();
+}
+
+function addModalRefDocLine(value = '') {
+    const list = document.getElementById('modal-ref-docs-list');
+    if (!list) return;
+    const maxLines = 6;
+    const mainInput = document.getElementById('modal-invoice-ref');
+    const totalLines = (mainInput ? 1 : 0) + list.children.length;
+    if (totalLines >= maxLines) return;
+
+    const line = document.createElement('div');
+    line.className = 'modal-ref-doc-line';
+    line.style.cssText = 'display: flex; gap: 8px; align-items: center;';
+    line.innerHTML = `
+        <input type="text" class="modal-ref-doc-input client-number-input" placeholder="Réf..." value="${value}" style="width: 100%;" oninput="syncRefDocsCount()">
+        <button type="button" onclick="removeModalRefDocLine(this)" style="background: #fee2e2; color: #dc2626; border: none; border-radius: 6px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1rem;">×</button>
+    `;
+    list.appendChild(line);
+    updateAddRefDocButton();
+    syncRefDocsCount();
+}
+
+function removeModalRefDocLine(btn) {
+    const line = btn.closest('.modal-ref-doc-line');
+    if (line) line.remove();
+    updateAddRefDocButton();
+    syncRefDocsCount();
+}
+
+function updateAddRefDocButton() {
+    const list = document.getElementById('modal-ref-docs-list');
+    const btn = document.getElementById('add-ref-doc-btn');
+    const mainInput = document.getElementById('modal-invoice-ref');
+    if (!list || !btn) return;
+    const maxLines = 6;
+    const totalLines = (mainInput ? 1 : 0) + list.children.length;
+    btn.style.display = totalLines >= maxLines ? 'none' : 'flex';
+}
+
+function syncRefDocsCount() {
+    const list = document.getElementById('modal-ref-docs-list');
+    const countInput = document.getElementById('modal-ref-docs-count');
+    const mainInput = document.getElementById('modal-invoice-ref');
+    if (countInput) {
+        const totalLines = (mainInput ? 1 : 0) + (list ? list.children.length : 0);
+        countInput.value = totalLines;
+    }
+}
+
+function getModalRefDocs() {
+    const refs = [];
+    const mainInput = document.getElementById('modal-invoice-ref');
+    if (mainInput && mainInput.value.trim()) refs.push(mainInput.value.trim());
+    const list = document.getElementById('modal-ref-docs-list');
+    if (list) {
+        list.querySelectorAll('.modal-ref-doc-input').forEach(input => {
+            if (input.value.trim()) refs.push(input.value.trim());
+        });
+    }
+    return refs;
+}
+
 function getPaymentTypeLabel(type) {
     const labels = {
-        espece: 'Espèces',
-        mobile_money: 'Mobile Money',
-        card: 'Carte Bancaire',
-        transfer: 'Virement',
-        credit: 'Crédit'
+        ESPECES: 'Espèces',
+        MOBILEMONEY: 'Mobile Money',
+        CARTEBANCAIRE: 'Carte Bancaire',
+        VIREMENT: 'Virement',
+        CREDIT: 'Crédit',
+        CHEQUES: 'Chèques',
+        AUTRE: 'Autres'
     };
     return labels[type] || type;
 }
@@ -3756,7 +3832,8 @@ function highlightModalField(fieldId) {
 function confirmInvoiceInfo() {
     const isAdmin = typeof CURRENT_USER !== 'undefined' && CURRENT_USER.role === 'admin';
     const invoiceType = isAdmin ? document.getElementById('modal-invoice-type').value : 'FV';
-    const invoiceRef = isAdmin ? document.getElementById('modal-invoice-ref').value : '';
+    const invoiceRefs = getModalRefDocs();
+    const invoiceRef = invoiceRefs[0] || '';
     const clientName = document.getElementById('modal-client-name').value;
     const clientNumber = document.getElementById('modal-client-number').value.trim();
     const clientType = document.getElementById('modal-client-type').value;
@@ -3791,8 +3868,7 @@ function confirmInvoiceInfo() {
     }
 
     if (clientTypeCode === 'AO') {
-        const refDocument = document.getElementById('modal-invoice-ref')?.value || '';
-        if (!refDocument.trim()) {
+        if (invoiceRefs.length === 0 || invoiceRefs.every(r => !r.trim())) {
             alert("La référence document est obligatoire pour les ambassades et organisations internationales.");
             highlightModalField('modal-invoice-ref');
             return;
@@ -3821,8 +3897,9 @@ function confirmInvoiceInfo() {
     document.getElementById('client-nif').value = clientNif;
     document.getElementById('client-address').value = clientAddress;
 
-    // Mémoriser les paiements et l'adresse sur le client courant
+    // Mémoriser les paiements, les références documents et l'adresse sur le client courant
     posCart.currentPayments = payments;
+    posCart.currentRefDocs = invoiceRefs;
     if (posCart.currentClient) {
         posCart.currentClient.adresse = clientAddress;
     }
