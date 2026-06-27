@@ -358,6 +358,7 @@ class BillPayment {
                 total: total * rechargeSign,
                 type_facture: rechargeTypeFacture,
                 providerService: service,
+                payments: this.currentPayments?.length > 0 ? this.currentPayments : [{ type: (document.getElementById('modal-payment-type') || document.getElementById('payment-type'))?.value || 'cash', amount: total }],
                 dgi_data: {
                     dateDGI: dgiResponse.data?.dateDGI || null,
                     qrCode: dgiResponse.data?.qrCode || '',
@@ -486,8 +487,8 @@ class BillPayment {
             const modalClientTel = document.getElementById('modal-client-tel1')?.value;
             const refFacture = document.getElementById('modal-invoice-num')?.value || '';
             const exoneration = document.getElementById('modal-exoneration')?.value || '';
-            const paymentTypeSelect = document.getElementById('modal-payment-type') || document.getElementById('payment-type');
-            const paymentType = paymentTypeSelect?.value || 'cash';
+            const payments = this.currentPayments?.length > 0 ? this.currentPayments : [{ type: (document.getElementById('modal-payment-type') || document.getElementById('payment-type'))?.value || 'cash', amount: total }];
+            const paymentType = payments[0]?.type || 'cash';
 
             const clientTel = (modalClientTel && modalClientTel !== '0000') ? modalClientTel : (this.clientInfo?.numero || this.apiResponse?.client_numero || '');
             const clientCommune = this.clientInfo?.commune || this.apiResponse?.client_commune || '';
@@ -520,6 +521,7 @@ class BillPayment {
                 ref_facture: refFacture,
                 exoneration: exoneration,
                 payment_type: paymentType,
+                payments: payments,
                 client_name: clientNom,
                 client_type: clientType,
                 client_nif: clientNif,
@@ -791,6 +793,9 @@ class BillPayment {
             document.getElementById('modal-client-type').value = clientType;
         }
 
+        // Initialiser la liste des modes de paiement
+        this.initModalPaymentsRecharge();
+
         // Afficher le modal
         modal.classList.add('active');
         document.body.style.overflow = 'hidden';
@@ -803,6 +808,141 @@ class BillPayment {
             modal.classList.remove('active');
             document.body.style.overflow = '';
         }
+    }
+
+    // ==================== MODAL MULTI-PAIEMENT ====================
+
+    highlightModalField(fieldId) {
+        const el = document.getElementById(fieldId);
+        if (!el) return;
+        const originalBoxShadow = el.style.boxShadow;
+        const originalBorderColor = el.style.borderColor;
+        el.style.boxShadow = '0 0 0 3px rgba(220, 38, 38, 0.5)';
+        el.style.borderColor = '#dc2626';
+        const clearHighlight = () => {
+            el.style.boxShadow = originalBoxShadow;
+            el.style.borderColor = originalBorderColor;
+            el.removeEventListener('input', clearHighlight);
+            el.removeEventListener('change', clearHighlight);
+            el.removeEventListener('focus', clearHighlight);
+        };
+        el.addEventListener('input', clearHighlight, { once: true });
+        el.addEventListener('change', clearHighlight, { once: true });
+        el.addEventListener('focus', clearHighlight, { once: true });
+        el.focus();
+    }
+
+    getPaymentTypeLabel(type) {
+        const labels = {
+            cash: 'Espèces',
+            mobile_money: 'Mobile Money',
+            card: 'Carte Bancaire',
+            transfer: 'Virement',
+            credit: 'Crédit'
+        };
+        return labels[type] || type;
+    }
+
+    getCartTotal() {
+        return this.selectedMonths.reduce((acc, m) => acc + m.montant, 0);
+    }
+
+    initModalPaymentsRecharge() {
+        const list = document.getElementById('modal-payments-list');
+        if (!list) return;
+        list.innerHTML = '';
+        this.addModalPaymentLineRecharge('cash', this.getCartTotal());
+    }
+
+    addModalPaymentLineRecharge(type = 'cash', amount = 0) {
+        const list = document.getElementById('modal-payments-list');
+        if (!list) return;
+        const line = document.createElement('div');
+        line.className = 'modal-payment-line';
+        line.style.cssText = 'display: grid; grid-template-columns: 1fr 100px 28px; gap: 8px; align-items: end;';
+        line.innerHTML = `
+            <div>
+                <label style="font-size: 0.7rem; color: #166534; display: block; margin-bottom: 4px;">Type</label>
+                <select class="modal-payment-type client-number-input" style="width: 100%; background: #fff;" onchange="billPayment.calculateModalPaymentsRecharge()">
+                    <option value="cash" ${type === 'cash' ? 'selected' : ''}>Espèces</option>
+                    <option value="mobile_money" ${type === 'mobile_money' ? 'selected' : ''}>Mobile Money</option>
+                    <option value="card" ${type === 'card' ? 'selected' : ''}>Carte Bancaire</option>
+                    <option value="transfer" ${type === 'transfer' ? 'selected' : ''}>Virement</option>
+                    <option value="credit" ${type === 'credit' ? 'selected' : ''}>Crédit</option>
+                </select>
+            </div>
+            <div>
+                <label style="font-size: 0.7rem; color: #166534; display: block; margin-bottom: 4px;">Montant</label>
+                <input type="number" class="modal-payment-amount client-number-input" step="0.01" min="0" placeholder="0.00" value="${amount > 0 ? amount.toFixed(2) : ''}" style="width: 100%;" oninput="billPayment.calculateModalPaymentsRecharge()">
+            </div>
+            <button type="button" onclick="removeModalPaymentLineRecharge(this)" style="background: #fee2e2; color: #dc2626; border: none; border-radius: 6px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1rem;">×</button>
+        `;
+        list.appendChild(line);
+        this.updateModalPaymentRemoveButtonsRecharge();
+        this.calculateModalPaymentsRecharge();
+    }
+
+    removeModalPaymentLineRecharge(btn) {
+        const line = btn.closest('.modal-payment-line');
+        if (line) line.remove();
+        this.updateModalPaymentRemoveButtonsRecharge();
+        this.calculateModalPaymentsRecharge();
+    }
+
+    updateModalPaymentRemoveButtonsRecharge() {
+        const lines = document.querySelectorAll('.modal-payment-line');
+        lines.forEach(line => {
+            const btn = line.querySelector('button[onclick^="removeModalPaymentLineRecharge"]');
+            if (btn) btn.style.display = lines.length > 1 ? 'flex' : 'none';
+        });
+    }
+
+    calculateModalPaymentsRecharge() {
+        const lines = document.querySelectorAll('.modal-payment-line');
+        let total = 0;
+        const payments = [];
+        lines.forEach(line => {
+            const type = line.querySelector('.modal-payment-type')?.value || 'cash';
+            const amount = parseFloat(line.querySelector('.modal-payment-amount')?.value) || 0;
+            total += amount;
+            payments.push({ type, amount });
+        });
+        const cartTotal = this.getCartTotal();
+        const diff = total - cartTotal;
+        const summary = document.getElementById('modal-payment-summary');
+        const summaryLabel = document.getElementById('modal-payment-summary-label');
+        const summaryAmount = document.getElementById('modal-payment-summary-amount');
+        if (summary && summaryLabel && summaryAmount) {
+            if (Math.abs(diff) < 0.001) {
+                summary.style.display = 'none';
+            } else if (diff < 0) {
+                summary.style.display = 'block';
+                summaryLabel.textContent = 'Reste à payer:';
+                summaryLabel.style.color = '#c62828';
+                summaryAmount.textContent = Math.abs(diff).toFixed(2) + ' Fc';
+                summaryAmount.style.color = '#c62828';
+            } else {
+                summary.style.display = 'block';
+                summaryLabel.textContent = 'Monnaie à rendre:';
+                summaryLabel.style.color = '#166534';
+                summaryAmount.textContent = diff.toFixed(2) + ' Fc';
+                summaryAmount.style.color = '#0B5E88';
+            }
+        }
+        const hiddenType = document.getElementById('modal-payment-type');
+        if (hiddenType && payments.length > 0) hiddenType.value = payments[0].type;
+        return payments;
+    }
+
+    getModalPaymentsRecharge() {
+        const lines = document.querySelectorAll('.modal-payment-line');
+        const payments = [];
+        lines.forEach(line => {
+            const type = line.querySelector('.modal-payment-type')?.value || 'cash';
+            const amount = parseFloat(line.querySelector('.modal-payment-amount')?.value) || 0;
+            if (amount > 0) payments.push({ type, amount });
+        });
+        return payments;
     }
 
     // Confirmer les infos client et ouvrir le preview
@@ -820,6 +960,43 @@ class BillPayment {
 
         if (modalClientNumber && !RECHARGE_PHONE_NUMBER_REGEX.test(modalClientNumber)) {
             alert('Le numéro de téléphone doit respecter le format 08xxxxxxxx ou 09xxxxxxxx.');
+            this.highlightModalField('modal-client-tel1');
+            return;
+        }
+
+        // Validation selon le type de client avant d'ouvrir la preview
+        // PM, PL, PC : adresse obligatoire
+        if (['PM', 'PL', 'PC'].includes(modalClientType)) {
+            if (!modalClientAddress.trim()) {
+                alert("L'adresse est obligatoire pour ce type de client.");
+                this.highlightModalField('modal-client-address');
+                return;
+            }
+        }
+
+        // AO : NIF et référence document obligatoires
+        if (modalClientType === 'AO') {
+            if (!modalClientNif.trim()) {
+                alert("Le NIF est obligatoire pour les ambassades et organisations internationales.");
+                this.highlightModalField('modal-client-nif');
+                return;
+            }
+            const refDocument = document.getElementById('modal-invoice-ref')?.value || '';
+            if (!refDocument.trim()) {
+                alert("La référence document est obligatoire pour les ambassades et organisations internationales.");
+                this.highlightModalField('modal-invoice-ref');
+                return;
+            }
+        }
+
+        // Récupérer et valider les paiements
+        const payments = this.getModalPaymentsRecharge();
+        const cartTotal = this.getCartTotal();
+        const paymentsTotal = payments.reduce((sum, p) => sum + p.amount, 0);
+        if (payments.length === 0 || paymentsTotal < cartTotal - 0.001) {
+            alert('Le montant total des paiements est insuffisant par rapport au total de la facture.');
+            const firstAmount = document.querySelector('#modal-payments-list .modal-payment-amount');
+            this.highlightModalField(firstAmount?.id || 'modal-payments-list');
             return;
         }
 
@@ -832,7 +1009,8 @@ class BillPayment {
         document.getElementById('client-address').value = modalClientAddress;
         document.getElementById('client-numero').value = modalClientNumber;
 
-        // Mémoriser l'adresse sur le client courant
+        // Mémoriser les paiements et l'adresse sur le client courant
+        this.currentPayments = payments;
         if (this.clientInfo) {
             this.clientInfo.adresse = modalClientAddress;
         }
@@ -1398,10 +1576,35 @@ class BillPayment {
     // Generate payment info HTML for receipts (called after TOTAL TTC)
     getPaymentInfoHtml() {
         const totalQty = this.selectedMonths.reduce((sum, m) => sum + 1, 0);
-        const paymentTypeSelect = document.getElementById('modal-payment-type') || document.getElementById('payment-type');
-        const paymentType = paymentTypeSelect?.value || 'cash';
-        const paymentLabel = paymentType === 'cash' ? 'Espèces' : paymentType === 'card' ? 'Carte' : paymentType === 'transfer' ? 'Virement' : paymentType;
         const total = this.selectedMonths.reduce((acc, m) => acc + m.montant, 0);
+
+        let paymentsHtml = '';
+        const payments = this.currentPayments?.length > 0 ? this.currentPayments : null;
+        if (payments) {
+            const paymentsTotal = payments.reduce((sum, p) => sum + p.amount, 0);
+            paymentsHtml += `<div style="border-top: 1px dashed #ccc; margin-top: 6px; padding-top: 6px;">`;
+            payments.forEach(p => {
+                paymentsHtml += `<div class="receipt-total-row" style="font-size: 11px; color: #555;">
+                    <span>${this.getPaymentTypeLabel(p.type)} :</span>
+                    <span>${p.amount.toFixed(2)} Fc</span>
+                </div>`;
+            });
+            if (paymentsTotal > total + 0.001) {
+                paymentsHtml += `<div class="receipt-total-row" style="font-size: 11px; color: #2e7d32;">
+                    <span>Monnaie rendue :</span>
+                    <span>${(paymentsTotal - total).toFixed(2)} Fc</span>
+                </div>`;
+            }
+            paymentsHtml += `</div>`;
+        } else {
+            const paymentTypeSelect = document.getElementById('modal-payment-type') || document.getElementById('payment-type');
+            const paymentType = paymentTypeSelect?.value || 'cash';
+            const paymentLabel = this.getPaymentTypeLabel(paymentType);
+            paymentsHtml += `<div class="receipt-total-row" style="font-size: 11px; color: #555;">
+                <span>Paiment : </span>
+                <span>${paymentLabel}</span>
+            </div>`;
+        }
 
         const amountInWords = this.numberToFrenchWords(total || 0);
 
@@ -1415,10 +1618,7 @@ class BillPayment {
                 <span>Equivalent en USD :</span>   
                 <span> ${(total / USD_RATE).toFixed(2)}$ </span>
             </div>
-            <div class="receipt-total-row" style="font-size: 11px; color: #555;">
-                <span>Paiment : </span>
-                <span>${paymentLabel}</span>
-            </div>
+            ${paymentsHtml}
             <div class="receipt-total-row" style="font-size: 11px; color: #555;">
                 <span>Qté:</span>
                 <span>${totalQty}</span>
