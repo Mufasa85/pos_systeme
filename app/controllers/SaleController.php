@@ -95,7 +95,9 @@ class SaleController extends Controller
                         'vente_id'   => $saleId,
                         'produit_id' => $produitId,
                         'quantite'   => $quantite,
-                        'prix'       => $item['prix']
+                        'prix'       => $item['prix'],
+                        'remise_type' => $item['remise_type'] ?? '%',
+                        'remise_value' => $item['remise_value'] ?? 0
                     ]);
                 }
             }
