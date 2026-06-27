@@ -974,13 +974,15 @@ class BillPayment {
             }
         }
 
-        // AO : NIF et référence document obligatoires
+        // Le NIF est obligatoire pour tous les types de client sauf PP (Particulier)
+        if (modalClientType !== 'PP' && !modalClientNif.trim()) {
+            alert("Le NIF est obligatoire pour ce type de client.");
+            this.highlightModalField('modal-client-nif');
+            return;
+        }
+
+        // AO : référence document obligatoire
         if (modalClientType === 'AO') {
-            if (!modalClientNif.trim()) {
-                alert("Le NIF est obligatoire pour les ambassades et organisations internationales.");
-                this.highlightModalField('modal-client-nif');
-                return;
-            }
             const refDocument = document.getElementById('modal-invoice-ref')?.value || '';
             if (!refDocument.trim()) {
                 alert("La référence document est obligatoire pour les ambassades et organisations internationales.");

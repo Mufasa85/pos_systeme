@@ -3696,12 +3696,14 @@ function confirmInvoiceInfo() {
         }
     }
 
+    // Le NIF est obligatoire pour tous les types de client sauf PP (Particulier)
+    if (clientTypeCode !== 'PP' && !clientNif.trim()) {
+        alert("Le NIF est obligatoire pour ce type de client.");
+        highlightModalField('modal-client-nif');
+        return;
+    }
+
     if (clientTypeCode === 'AO') {
-        if (!clientNif.trim()) {
-            alert("Le NIF est obligatoire pour les ambassades et organisations internationales.");
-            highlightModalField('modal-client-nif');
-            return;
-        }
         const refDocument = document.getElementById('modal-invoice-ref')?.value || '';
         if (!refDocument.trim()) {
             alert("La référence document est obligatoire pour les ambassades et organisations internationales.");
