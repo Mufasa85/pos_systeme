@@ -3610,6 +3610,8 @@ function initModalPayments() {
 function addModalPaymentLine(type = 'espece', amount = 0) {
     const list = document.getElementById('modal-payments-list');
     if (!list) return;
+    const maxLines = 5;
+    if (list.children.length >= maxLines) return;
     const line = document.createElement('div');
     line.className = 'modal-payment-line';
     line.style.cssText = 'display: grid; grid-template-columns: 1fr 100px 28px; gap: 8px; align-items: end;';
@@ -3632,13 +3634,23 @@ function addModalPaymentLine(type = 'espece', amount = 0) {
     `;
     list.appendChild(line);
     updateModalPaymentRemoveButtons();
+    updateAddPaymentButton();
     calculateModalPayments();
+}
+
+function updateAddPaymentButton() {
+    const list = document.getElementById('modal-payments-list');
+    const btn = document.getElementById('add-payment-line-btn');
+    if (!list || !btn) return;
+    const maxLines = 5;
+    btn.style.display = list.children.length >= maxLines ? 'none' : 'flex';
 }
 
 function removeModalPaymentLine(btn) {
     const line = btn.closest('.modal-payment-line');
     if (line) line.remove();
     updateModalPaymentRemoveButtons();
+    updateAddPaymentButton();
     calculateModalPayments();
 }
 
