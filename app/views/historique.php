@@ -14,6 +14,14 @@
               <option value="<?= htmlspecialchars($v) ?>"><?= htmlspecialchars($v) ?></option>
             <?php endforeach; ?>
           </select>
+          <button class="btn btn-secondary btn-small" id="export-history-csv" onclick="exportHistoryCSV()" title="Exporter le rapport en CSV">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle; margin-right:4px;">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            CSV
+          </button>
         </div>
         <div class="table-container">
           <table class="data-table" style="width:100%; border-collapse:collapse;">
@@ -24,13 +32,16 @@
                 <th>Vendeur</th>
                 <th>Total</th>
                 <th>codeDEFDGI</th>
+                <th>Compteur</th>
+                <th>NIM</th>
+                <th>QR Code</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               <?php if (empty($ventes)): ?>
                 <tr>
-                  <td colspan="6" style="text-align:center; padding:1rem;">Aucune vente enregistrée.</td>
+                  <td colspan="9" style="text-align:center; padding:1rem;">Aucune vente enregistrée.</td>
                 </tr>
               <?php else: ?>
                 <?php foreach ($ventes as $v): ?>
@@ -45,6 +56,27 @@
                     <td data-label="codeDEFDGI" style="padding:0.75rem;">
                       <?php if (!empty($v['codeDEFDGI'])): ?>
                         <span class="badge badge-success" title="codeDEFDGI"><?= htmlspecialchars($v['codeDEFDGI']) ?></span>
+                      <?php else: ?>
+                        <span style="color:#999; font-size:0.85em;">-</span>
+                      <?php endif; ?>
+                    </td>
+                    <td data-label="Compteur" style="padding:0.75rem; font-size:0.85em; word-break:break-all;">
+                      <?php if (!empty($v['counters'])): ?>
+                        <span title="<?= htmlspecialchars($v['counters']) ?>"><?= htmlspecialchars($v['counters']) ?></span>
+                      <?php else: ?>
+                        <span style="color:#999; font-size:0.85em;">-</span>
+                      <?php endif; ?>
+                    </td>
+                    <td data-label="NIM" style="padding:0.75rem; font-size:0.85em; word-break:break-all;">
+                      <?php if (!empty($v['nim'])): ?>
+                        <span class="badge badge-info" title="NIM"><?= htmlspecialchars($v['nim']) ?></span>
+                      <?php else: ?>
+                        <span style="color:#999; font-size:0.85em;">-</span>
+                      <?php endif; ?>
+                    </td>
+                    <td data-label="QR Code" style="padding:0.75rem; font-size:0.85em; word-break:break-all;">
+                      <?php if (!empty($v['qrCode'])): ?>
+                        <span title="<?= htmlspecialchars($v['qrCode']) ?>"><?= htmlspecialchars(substr($v['qrCode'], 0, 20)) ?><?= strlen($v['qrCode']) > 20 ? '...' : '' ?></span>
                       <?php else: ?>
                         <span style="color:#999; font-size:0.85em;">-</span>
                       <?php endif; ?>
