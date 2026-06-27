@@ -362,7 +362,7 @@ const posCart = {
                 tax_etiquette: product.tax_etiquette || '',
                 product_type: product.product_type || 'unite',
                 prod_service: product.prod_service || '',
-                remise_type: product.remise_type || 'percent',
+                remise_type: product.remise_type || '%',
                 remise_value: parseFloat(product.remise_value) || 0,
             });
         }
@@ -424,7 +424,7 @@ const posCart = {
                 tax_etiquette: product.tax_etiquette || '',
                 product_type: 'poids',
                 prod_service: product.prod_service || '',
-                remise_type: product.remise_type || 'percent',
+                remise_type: product.remise_type || '%',
                 remise_value: parseFloat(product.remise_value) || 0,
             });
         }
@@ -557,7 +557,7 @@ const posCart = {
                 const unitLabel = isPoids ? 'Unite' : 'Unite';
                 const step = isPoids ? 0.5 : 1;
                 const discountLabel = item.remise_value > 0
-                    ? (item.remise_type === 'amount'
+                    ? (item.remise_type === 'CDF'
                         ? ` - ${formatCurrency(item.remise_value)} remise`
                         : ` - ${item.remise_value}% remise`)
                     : '';
@@ -642,8 +642,8 @@ const posCart = {
             const sign = shouldNegate ? -1 : 1;
 
             // Récupérer les paiements (multi-paiements depuis le modal ou fallback)
-            const payments = this.currentPayments?.length > 0 ? this.currentPayments : [{ type: (document.getElementById('modal-payment-type') || document.getElementById('payment-type'))?.value || 'cash', amount: this.currentTotals.total }];
-            const paymentType = payments[0]?.type || 'cash';
+            const payments = this.currentPayments?.length > 0 ? this.currentPayments : [{ type: (document.getElementById('modal-payment-type') || document.getElementById('payment-type'))?.value || 'espece', amount: this.currentTotals.total }];
+            const paymentType = payments[0]?.type || 'espece';
 
             // Récupérer le type de client (via le modal ou les champs directs)
             const clientTypeSelect = document.getElementById('modal-client-type');
@@ -687,10 +687,8 @@ const posCart = {
                     tax_rate: item.tax_rate || 0,
                     tax_etiquette: item.tax_etiquette || '',
                     prod_service: item.prod_service || '',
-                    remise_type: item.remise_type || 'percent',
+                    remise_type: item.remise_type || '%',
                     remise_value: item.remise_value || 0,
-                    //remise: item.remise_type === 'percent' ? (item.remise_value || 0) : 0,
-                    //remise_cash: item.remise_type === 'amount' ? (item.remise_value || 0) : 0,
                 })),
                 client_name: clientNom,
                 client_type: acheteurTypeInitiales,
@@ -1007,7 +1005,7 @@ const posCart = {
             paymentsHtml += `</div>`;
         } else {
             const paymentTypeSelect = document.getElementById('modal-payment-type') || document.getElementById('payment-type');
-            const paymentType = paymentTypeSelect?.value || 'cash';
+            const paymentType = paymentTypeSelect?.value || 'espece';
             const paymentLabel = getPaymentTypeLabel(paymentType);
             paymentsHtml += `<div class="receipt-total-row" style="font-size: 11px; color: #555;">
                 <span>Paiment : </span>
@@ -1392,7 +1390,7 @@ const posCart = {
                     tva: this.currentTotals.tva * saveSign,
                     total: this.currentTotals.total * saveSign,
                     type_facture: saveTypeFacture,
-                    payments: this.currentPayments?.length > 0 ? this.currentPayments : [{ type: (document.getElementById('modal-payment-type') || document.getElementById('payment-type'))?.value || 'cash', amount: this.currentTotals.total }],
+                    payments: this.currentPayments?.length > 0 ? this.currentPayments : [{ type: (document.getElementById('modal-payment-type') || document.getElementById('payment-type'))?.value || 'espece', amount: this.currentTotals.total }],
                     dgi_data: {
                         dateDGI: dgiResponse.data ? dgiResponse.data.dateDGI : null,
                         qrCode: dgiResponse.data ? dgiResponse.data.qrCode : '',
@@ -1617,13 +1615,13 @@ const posCart = {
             return;
         }
 
-        const remiseType = $('#product-remise-type').value || 'percent';
+        const remiseType = $('#product-remise-type').value || '%';
         const remiseValue = parseFloat($('#product-remise-value').value) || 0;
-        if (remiseType === 'percent' && (remiseValue < 0 || remiseValue > 100)) {
+        if (remiseType === '%' && (remiseValue < 0 || remiseValue > 100)) {
             alert('La remise en pourcentage doit être comprise entre 0 et 100.');
             return;
         }
-        if (remiseType === 'amount' && (remiseValue < 0 || remiseValue > priceValue)) {
+        if (remiseType === 'CDF' && (remiseValue < 0 || remiseValue > priceValue)) {
             alert('La remise en montant fixe doit être comprise entre 0 et le prix du produit.');
             return;
         }
@@ -1640,7 +1638,7 @@ const posCart = {
         formData.append('taxe_id', $('#product-tax').value);
         formData.append('product_type', $('#product-type').value);
         formData.append('prod_service', $('#product-prod-service').value || '');
-        formData.append('remise_type', $('#product-remise-type').value || 'percent');
+        formData.append('remise_type', $('#product-remise-type').value || '%');
         formData.append('remise_value', $('#product-remise-value').value || 0);
         if ($('#product-image').files[0]) {
             formData.append('image', $('#product-image').files[0]);
@@ -1727,7 +1725,7 @@ function setProductForm(product) {
     const remiseTypeSelect = $('#product-remise-type');
     const remiseValueInput = $('#product-remise-value');
     if (remiseTypeSelect && product.remise_type !== undefined) {
-        remiseTypeSelect.value = product.remise_type || 'percent';
+        remiseTypeSelect.value = product.remise_type || '%';
     }
     if (remiseValueInput && product.remise_value !== undefined) {
         remiseValueInput.value = product.remise_value || 0;
@@ -3606,10 +3604,10 @@ function initModalPayments() {
     if (!list) return;
     list.innerHTML = '';
     const total = posCart.currentTotals?.total || 0;
-    addModalPaymentLine('cash', total);
+    addModalPaymentLine('espece', total);
 }
 
-function addModalPaymentLine(type = 'cash', amount = 0) {
+function addModalPaymentLine(type = 'espece', amount = 0) {
     const list = document.getElementById('modal-payments-list');
     if (!list) return;
     const line = document.createElement('div');
@@ -3619,7 +3617,7 @@ function addModalPaymentLine(type = 'cash', amount = 0) {
         <div>
             <label style="font-size: 0.7rem; color: #166534; display: block; margin-bottom: 4px;">Type</label>
             <select class="modal-payment-type client-number-input" style="width: 100%; background: #fff;" onchange="calculateModalPayments()">
-                <option value="cash" ${type === 'cash' ? 'selected' : ''}>Espèces</option>
+                <option value="espece" ${type === 'espece' ? 'selected' : ''}>Espèces</option>
                 <option value="mobile_money" ${type === 'mobile_money' ? 'selected' : ''}>Mobile Money</option>
                 <option value="card" ${type === 'card' ? 'selected' : ''}>Carte Bancaire</option>
                 <option value="transfer" ${type === 'transfer' ? 'selected' : ''}>Virement</option>
@@ -3657,7 +3655,7 @@ function calculateModalPayments() {
     let total = 0;
     const payments = [];
     lines.forEach(line => {
-        const type = line.querySelector('.modal-payment-type')?.value || 'cash';
+        const type = line.querySelector('.modal-payment-type')?.value || 'espece';
         const amount = parseFloat(line.querySelector('.modal-payment-amount')?.value) || 0;
         total += amount;
         payments.push({ type, amount });
@@ -3693,7 +3691,7 @@ function getModalPayments() {
     const lines = document.querySelectorAll('.modal-payment-line');
     const payments = [];
     lines.forEach(line => {
-        const type = line.querySelector('.modal-payment-type')?.value || 'cash';
+        const type = line.querySelector('.modal-payment-type')?.value || 'espece';
         const amount = parseFloat(line.querySelector('.modal-payment-amount')?.value) || 0;
         if (amount > 0) payments.push({ type, amount });
     });
@@ -3702,7 +3700,7 @@ function getModalPayments() {
 
 function getPaymentTypeLabel(type) {
     const labels = {
-        cash: 'Espèces',
+        espece: 'Espèces',
         mobile_money: 'Mobile Money',
         card: 'Carte Bancaire',
         transfer: 'Virement',
