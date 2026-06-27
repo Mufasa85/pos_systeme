@@ -3134,7 +3134,7 @@ function initHistoryFilters() {
             const tbody = document.querySelector('#page-history tbody');
             const tr = document.createElement('tr');
             tr.id = 'history-empty-message';
-            tr.innerHTML = '<td colspan="5" style="text-align:center; padding:2rem; color:#888;">Aucune vente trouvée</td>';
+            tr.innerHTML = '<td colspan="9" style="text-align:center; padding:2rem; color:#888;">Aucune vente trouvée</td>';
             tbody.appendChild(tr);
         } else if (emptyMsg && visibleCount > 0) {
             emptyMsg.remove();
@@ -3153,6 +3153,50 @@ function initHistoryFilters() {
     }
 
     filterHistory();
+}
+
+// ==================== EXPORT HISTORY CSV ====================
+
+function exportHistoryCSV() {
+    const table = document.querySelector('#page-history table.data-table');
+    if (!table) return;
+
+    const headers = Array.from(table.querySelectorAll('thead th'))
+        .map(th => th.textContent.trim())
+        .filter(h => h !== 'Actions');
+
+    const rows = Array.from(table.querySelectorAll('tbody tr[data-invoice]'))
+        .filter(row => row.style.display !== 'none');
+
+    const lines = [headers];
+    rows.forEach(row => {
+        const cells = Array.from(row.querySelectorAll('td'))
+            .filter((td, index) => headers[index] !== 'Actions');
+        const values = cells.map(td => {
+            let text = td.textContent.trim().replace(/\s+/g, ' ');
+            if (text.includes(';') || text.includes('"') || text.includes('\n')) {
+                text = '"' + text.replace(/"/g, '""') + '"';
+            }
+            return text;
+        });
+        lines.push(values);
+    });
+
+    if (lines.length <= 1) {
+        alert('Aucune vente a exporter.');
+        return;
+    }
+
+    const csv = lines.map(line => line.join(';')).join('\n');
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const date = new Date().toISOString().split('T')[0];
+    link.href = URL.createObjectURL(blob);
+    link.download = 'historique_ventes_' + date + '.csv';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(link.href);
 }
 
 // ==================== PRINT RECEIPT ====================
