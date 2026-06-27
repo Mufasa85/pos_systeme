@@ -53,6 +53,7 @@ class SaleController extends Controller
                 'sous_total_ht'  => $data['sous_total_ht'],
                 'tva'            => $data['tva'],
                 'total'          => $data['total'],
+                'payments'       => $data['payments'] ?? null,
                 'vendeur_id'     => $_SESSION['user_id'],
                 'date'           => date('Y-m-d H:i:s'),
                 'dateDGI'        => $dgiData['dateDGI'] ?? null,
