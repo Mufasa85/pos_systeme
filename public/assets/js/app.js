@@ -362,8 +362,8 @@ const posCart = {
                 tax_etiquette: product.tax_etiquette || '',
                 product_type: product.product_type || 'unite',
                 prod_service: product.prod_service || '',
-                remise: product.remise || 0,
-                remise_cash: 0,
+                remise_type: product.remise_type || 'percent',
+                remise_value: parseFloat(product.remise_value) || 0,
             });
         }
         this.renderCart();
@@ -424,8 +424,8 @@ const posCart = {
                 tax_etiquette: product.tax_etiquette || '',
                 product_type: 'poids',
                 prod_service: product.prod_service || '',
-                remise: product.remise || 0,
-                remise_cash: 0,
+                remise_type: product.remise_type || 'percent',
+                remise_value: parseFloat(product.remise_value) || 0,
             });
         }
         this.renderCart();
@@ -556,11 +556,16 @@ const posCart = {
                 const isPoids = (item.product_type === 'coupe' || item.product_type === 'poids');
                 const unitLabel = isPoids ? 'Unite' : 'Unite';
                 const step = isPoids ? 0.5 : 1;
+                const discountLabel = item.remise_value > 0
+                    ? (item.remise_type === 'amount'
+                        ? ` - ${formatCurrency(item.remise_value)} remise`
+                        : ` - ${item.remise_value}% remise`)
+                    : '';
                 return `
               <div class="cart-item">
                 <div class="info">
                   <div class="name">${item.nom}</div>
-                  <div class="price">${formatCurrency(item.prix)} / ${unitLabel}</div>
+                  <div class="price">${formatCurrency(item.prix)} / ${unitLabel}<small style="color:var(--success);font-weight:600;">${discountLabel}</small></div>
                 </div>
                 <div class="quantity-controls">
                   <button onclick="posCart.updateQty(${item.produit_id}, -${step})">-</button>
@@ -682,9 +687,10 @@ const posCart = {
                     tax_rate: item.tax_rate || 0,
                     tax_etiquette: item.tax_etiquette || '',
                     prod_service: item.prod_service || '',
-                    remise: item.remise || 0,
-                    remise_cash: 0,
-
+                    remise_type: item.remise_type || 'percent',
+                    remise_value: item.remise_value || 0,
+                    //remise: item.remise_type === 'percent' ? (item.remise_value || 0) : 0,
+                    //remise_cash: item.remise_type === 'amount' ? (item.remise_value || 0) : 0,
                 })),
                 client_name: clientNom,
                 client_type: acheteurTypeInitiales,
@@ -1623,7 +1629,8 @@ const posCart = {
         formData.append('taxe_id', $('#product-tax').value);
         formData.append('product_type', $('#product-type').value);
         formData.append('prod_service', $('#product-prod-service').value || '');
-        formData.append('remise', $('#product-remise').value || 0);
+        formData.append('remise_type', $('#product-remise-type').value || 'percent');
+        formData.append('remise_value', $('#product-remise-value').value || 0);
         if ($('#product-image').files[0]) {
             formData.append('image', $('#product-image').files[0]);
         }
@@ -1706,9 +1713,13 @@ function setProductForm(product) {
     }
 
     // Selectionner la remise
-    const remiseInput = $('#product-remise');
-    if (remiseInput && product.remise !== undefined) {
-        remiseInput.value = product.remise || 0;
+    const remiseTypeSelect = $('#product-remise-type');
+    const remiseValueInput = $('#product-remise-value');
+    if (remiseTypeSelect && product.remise_type !== undefined) {
+        remiseTypeSelect.value = product.remise_type || 'percent';
+    }
+    if (remiseValueInput && product.remise_value !== undefined) {
+        remiseValueInput.value = product.remise_value || 0;
     }
 
     $('#product-modal').classList.add('active');
