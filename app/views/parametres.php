@@ -115,6 +115,58 @@
             </div>
           </div>
 
+          <!-- Informations POS -->
+          <div class="card" style="padding: 1.5rem;">
+            <div class="card-header" style="margin-bottom: 1.5rem; padding: 0;">
+              <h3>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 8px; vertical-align: middle;">
+                  <rect x="2" y="4" width="20" height="16" rx="2" ry="2"></rect>
+                  <line x1="6" y1="8" x2="6" y2="8"></line>
+                  <line x1="6" y1="12" x2="18" y2="12"></line>
+                  <line x1="6" y1="16" x2="18" y2="16"></line>
+                </svg>
+                Informations POS
+              </h3>
+              <p style="font-size: 0.85rem; color: var(--muted); margin-top: 0.25rem;">Paramètres de connexion au serveur DGI</p>
+            </div>
+            <div class="settings-form-container" style="background: var(--background); border-radius: var(--radius); padding: 1.25rem;">
+              <div class="form-row">
+                <div class="form-group">
+                  <label>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;">
+                      <rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect>
+                      <path d="M9 9h6v6H9z"></path>
+                    </svg>
+                    NID
+                  </label>
+                  <input type="text" id="pos-nid" name="pos_nid" value="" placeholder="Ex: NID123456" readonly>
+                </div>
+                <div class="form-group">
+                  <label>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;">
+                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                      <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                    </svg>
+                    TOKEN
+                  </label>
+                  <input type="text" id="pos-token" name="pos_token" value="" placeholder="Ex: abcdef123456" style="font-family: 'JetBrains Mono', monospace;" readonly>
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;">
+                      <path d="M5 12h14"></path>
+                      <path d="M12 5v14"></path>
+                    </svg>
+                    PORT
+                  </label>
+                  <input type="text" id="pos-port" name="pos_port" value="" placeholder="Ex: 443" readonly>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- Format d'impression (papier) -->
           <div class="card" style="padding: 1.5rem;">
             <div class="card-header" style="margin-bottom: 1.5rem; padding: 0;">
@@ -417,6 +469,9 @@
             document.getElementById('store-ice').value = data.store_ice || '';
             document.getElementById('store-rccm').value = data.store_rccm || '';
             document.getElementById('store-isf').value = data.store_isf || '';
+            document.getElementById('pos-nid').value = data.nid || '';
+            document.getElementById('pos-token').value = data.token || '';
+            document.getElementById('pos-port').value = data.port || '';
           } catch (e) {
             console.error('Erreur chargement settings:', e);
           }
