@@ -349,7 +349,7 @@
               </svg>
               Mode de Paiement
             </span>
-            <button type="button" onclick="addModalPaymentLine()" style="background: #0B5E88; color: #fff; border: none; border-radius: 6px; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1rem; line-height: 1;">+</button>
+            <button id="add-payment-line-btn" type="button" onclick="addModalPaymentLine()" style="background: #0B5E88; color: #fff; border: none; border-radius: 6px; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1rem; line-height: 1;">+</button>
           </div>
           <div id="modal-payments-list" style="display: flex; flex-direction: column; gap: 0.5rem;">
             <!-- payment lines will be inserted here -->
@@ -358,7 +358,7 @@
             <span id="modal-payment-summary-label" style="color: #166534;"></span>
             <span id="modal-payment-summary-amount" style="color: #0B5E88; font-size: 1.1rem;"></span>
           </div>
-          <input type="hidden" id="modal-payment-type" value="cash">
+          <input type="hidden" id="modal-payment-type" value="espece">
         </div>
 
         <!-- Info Client avec recherche -->
