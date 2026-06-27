@@ -38,8 +38,8 @@ class Product
 
     public function create($data)
     {
-        $sql = "INSERT INTO produits (code_barres, nom, category_id, prix, stock, stock_minimum, image, taxe_id, product_type, prod_service, remise)
-                VALUES (:code_barres, :nom, :category_id, :prix, :stock, :stock_minimum, :image, :taxe_id, :product_type, :prod_service, :remise)";
+        $sql = "INSERT INTO produits (code_barres, nom, category_id, prix, stock, stock_minimum, image, taxe_id, product_type, prod_service, remise_type, remise_value)
+                VALUES (:code_barres, :nom, :category_id, :prix, :stock, :stock_minimum, :image, :taxe_id, :product_type, :prod_service, :remise_type, :remise_value)";
         $this->db->query($sql, [
             ':code_barres'   => $data['code_barres'],
             ':nom'           => $data['nom'],
@@ -51,7 +51,8 @@ class Product
             ':taxe_id'       => $data['taxe_id'] ?? 1,
             ':product_type'  => $data['product_type'] ?? 'unite',
             ':prod_service'  => $data['prod_service'] ?? null,
-            ':remise'        => $data['remise'] ?? 0
+            ':remise_type'   => $data['remise_type'] ?? '%',
+            ':remise_value'  => $data['remise_value'] ?? 0
         ]);
         return $this->db->getConnection()->lastInsertId();
     }
@@ -75,7 +76,8 @@ class Product
                 taxe_id = :taxe_id,
                 product_type = :product_type,
                 prod_service = :prod_service,
-                remise = :remise
+                remise_type = :remise_type,
+                remise_value = :remise_value
                 WHERE id = :id";
         return $this->db->query($sql, [
             ':id' => $id,
@@ -89,7 +91,8 @@ class Product
             ':taxe_id' => $data['taxe_id'] ?? 1,
             ':product_type' => $data['product_type'] ?? 'unite',
             ':prod_service' => $data['prod_service'] ?? null,
-            ':remise' => $data['remise'] ?? 0
+            ':remise_type' => $data['remise_type'] ?? '%',
+            ':remise_value' => $data['remise_value'] ?? 0
         ]);
     }
 
