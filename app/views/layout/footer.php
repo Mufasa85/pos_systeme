@@ -233,10 +233,24 @@
                     <path d="M16 8l-8 8"></path>
                     <path d="M8 8l8 8"></path>
                   </svg>
-                  Remise (%)
+                  Type de remise
                 </label>
-                <input type="number" id="product-remise" min="0" max="100" step="0.01" value="0" placeholder="0.00" style="text-align: center;">
-                <small style="color: var(--muted);">Remise en pourcentage (0-100)</small>
+                <select id="product-remise-type" style="width: 100%;">
+                  <option value="percent">Pourcentage (%)</option>
+                  <option value="amount">Montant fixe (Fc)</option>
+                </select>
+                <small style="color: var(--muted);">Appliquée automatiquement sur le prix de vente</small>
+              </div>
+              <div class="form-group">
+                <label>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;">
+                    <line x1="12" y1="1" x2="12" y2="23"></line>
+                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                  </svg>
+                  Valeur de la remise
+                </label>
+                <input type="number" id="product-remise-value" min="0" step="0.01" value="0" placeholder="0.00" style="text-align: center;">
+                <small style="color: var(--muted);">0-100 pour %, montant en Fc pour montant fixe</small>
               </div>
             </div>
           </div>
@@ -570,9 +584,9 @@
     <!-- Modal : choix du format d'impression (57mm, 80mm, A4, A5, Letter, Legal) -->
     <?php include __DIR__ . '/print-format-modal.php'; ?>
 
-    <script src="./assets/js/app.js?v=1.0.9988999999999999999999999999999999999999999"></script>
-    <script src="./assets/js/recharges.js?v=1.0.9"></script>
-    <script src="./assets/js/paper-type.js?v=1.0.3"></script>
+    <script src="./assets/js/app.js?v=1.0.998899999999999999999999999999999999999999999"></script>
+    <script src="./assets/js/recharges.js?v=1.0.10"></script>
+    <script src="./assets/js/paper-type.js?v=1.0.4"></script>
 
     </body>
 
