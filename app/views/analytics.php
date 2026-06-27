@@ -425,8 +425,26 @@
           .analytics-card.kpi { padding: 0.875rem 1rem; }
         }
         @media print {
+          body * { visibility: hidden; }
+          #page-analytics,
+          #page-analytics * { visibility: visible; }
+          #page-analytics {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            padding: 0;
+            margin: 0;
+          }
           .sidebar, .mobile-header, .analytics-actions { display: none !important; }
-          .main-content { margin-left: 0; padding: 0; }
-          .analytics-card { break-inside: avoid; }
+          .main-content { margin-left: 0 !important; padding: 0 !important; }
+          .page { display: none !important; }
+          .page.active { display: block !important; }
+          .analytics-grid { grid-template-columns: repeat(3, 1fr) !important; }
+          .analytics-charts-row { grid-template-columns: 1fr !important; }
+          .analytics-tables-row { grid-template-columns: 1fr !important; }
+          .analytics-card { break-inside: avoid; box-shadow: none !important; border: 1px solid #ddd !important; }
+          .chart-body { height: 240px !important; }
+          .doughnut-body { height: 200px !important; }
         }
       </style>
