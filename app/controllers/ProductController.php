@@ -47,7 +47,8 @@ class ProductController extends Controller
             'taxe_id' => (int)$this->sanitaze($_POST['taxe_id']) ?: 1,
             'product_type' => $this->sanitaze($_POST['product_type']) ?: 'unite',
             'prod_service' => $this->sanitaze($_POST['prod_service']) ?: null,
-            'remise' => (float)$this->sanitaze($_POST['remise']) ?: 0
+            'remise_type' => in_array($this->sanitaze($_POST['remise_type']), ['%', 'CDF']) ? $this->sanitaze($_POST['remise_type']) : '%',
+            'remise_value' => (float)$this->sanitaze($_POST['remise_value']) ?: 0
         ];
 
         // Vérifier si le code-barres existe déjà
@@ -136,7 +137,8 @@ class ProductController extends Controller
             'taxe_id' => (int)$this->sanitaze($_POST['taxe_id']) ?: 1,
             'product_type' => $this->sanitaze($_POST['product_type']) ?: 'unite',
             'prod_service' => $this->sanitaze($_POST['prod_service']) ?: null,
-            'remise' => (float)$this->sanitaze($_POST['remise']) ?: 0,
+            'remise_type' => in_array($this->sanitaze($_POST['remise_type']), ['%', 'CDF']) ? $this->sanitaze($_POST['remise_type']) : '%',
+            'remise_value' => (float)$this->sanitaze($_POST['remise_value']) ?: 0,
             'image' => $oldImage
         ];
 
