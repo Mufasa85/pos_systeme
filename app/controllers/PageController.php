@@ -187,6 +187,290 @@ class PageController
         $this->render('historique', ['ventes' => $ventes]);
     }
 
+    public function analytics()
+    {
+        if ($_SESSION['role'] !== 'admin') {
+            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";
+            $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+            header('Location: ' . $protocol . '://' . $host . '/dashboard');
+            exit;
+        }
+
+        $saleModel = new Sale();
+        $saleDetailModel = new \App\Models\SaleDetail();
+        $productModel = new Product();
+        $userModel = new User();
+        $categoryModel = new \App\Models\Category();
+        $clientModel = new \App\Models\Client();
+
+        $ventes = $saleModel->getAllSales();
+        $produits = $productModel->getAll();
+        $categories = $categoryModel->all();
+        $users = $userModel->all();
+        $clients = $clientModel->getAll();
+
+        // Périodes
+        $today = date('Y-m-d');
+        $weekStart = date('Y-m-d 00:00:00', strtotime('-6 days'));
+        $monthStart = date('Y-m-01 00:00:00');
+        $yearStart = date('Y-01-01 00:00:00');
+        $yearEnd = date('Y-12-31 23:59:59');
+
+        $stats = [
+            'today' => ['total' => 0, 'count' => 0],
+            'week' => ['total' => 0, 'count' => 0],
+            'month' => ['total' => 0, 'count' => 0],
+            'year' => ['total' => 0, 'count' => 0],
+            'all_time' => ['total' => 0, 'count' => 0],
+        ];
+
+        $salesByDay = [];
+        $salesByMonth = [];
+        $salesByHour = [];
+        $salesBySeller = [];
+        $revenueByCategory = [];
+        $productQuantities = [];
+        $clientSales = [];
+        $paymentTotals = [];
+        $rechargeVsProducts = ['products' => 0, 'recharges' => 0];
+
+        $categoryNames = [];
+        foreach ($categories as $cat) {
+            $categoryNames[$cat['id']] = $cat['category'];
+        }
+
+        foreach ($ventes as $v) {
+            $vDate = strtotime($v['date']);
+            $vDateStr = date('Y-m-d', $vDate);
+            $vMonthStr = date('Y-m', $vDate);
+            $vHour = (int) date('H', $vDate);
+            $total = (float) $v['total'];
+            $sellerId = $v['vendeur_id'];
+            $sellerName = $v['nom_vendeur'] ?? 'Inconnu';
+            $clientId = $v['client_id'];
+            $isRecharge = !empty($v['service']);
+
+            // Stats globales
+            $stats['all_time']['total'] += $total;
+            $stats['all_time']['count']++;
+            if ($vDateStr === $today) {
+                $stats['today']['total'] += $total;
+                $stats['today']['count']++;
+            }
+            if ($vDate >= strtotime($weekStart)) {
+                $stats['week']['total'] += $total;
+                $stats['week']['count']++;
+            }
+            if ($vDate >= strtotime($monthStart)) {
+                $stats['month']['total'] += $total;
+                $stats['month']['count']++;
+            }
+            if ($vDate >= strtotime($yearStart) && $vDate <= strtotime($yearEnd)) {
+                $stats['year']['total'] += $total;
+                $stats['year']['count']++;
+            }
+
+            // Recharge vs produits
+            if ($isRecharge) {
+                $rechargeVsProducts['recharges'] += $total;
+            } else {
+                $rechargeVsProducts['products'] += $total;
+            }
+
+            // Par jour
+            $salesByDay[$vDateStr] = ($salesByDay[$vDateStr] ?? 0) + $total;
+            // Par mois
+            $salesByMonth[$vMonthStr] = ($salesByMonth[$vMonthStr] ?? 0) + $total;
+            // Par heure
+            $salesByHour[$vHour] = ($salesByHour[$vHour] ?? 0) + $total;
+            // Par vendeur
+            if (!isset($salesBySeller[$sellerId])) {
+                $salesBySeller[$sellerId] = ['name' => $sellerName, 'total' => 0, 'count' => 0];
+            }
+            $salesBySeller[$sellerId]['total'] += $total;
+            $salesBySeller[$sellerId]['count']++;
+
+            // Par client
+            if ($clientId) {
+                $clientSales[$clientId] = ($clientSales[$clientId] ?? 0) + $total;
+            }
+
+            // Paiements
+            if (!empty($v['payments'])) {
+                $payments = json_decode($v['payments'], true);
+                if (is_array($payments)) {
+                    foreach ($payments as $p) {
+                        $method = $p['method'] ?? 'Autre';
+                        $amount = (float) ($p['amount'] ?? 0);
+                        $paymentTotals[$method] = ($paymentTotals[$method] ?? 0) + $amount;
+                    }
+                }
+            }
+        }
+
+        // Détails des ventes pour les produits et catégories
+        foreach ($ventes as $v) {
+            $totalSale = (float) $v['total'];
+            $details = $saleDetailModel->getBySaleId($v['id']);
+            if (empty($details)) {
+                continue;
+            }
+            foreach ($details as $d) {
+                $pid = $d['produit_id'];
+                $qty = (float) $d['quantite'];
+                $lineTotal = (float) $d['prix'] * $qty;
+                $productName = $d['produit_nom'] ?? 'Produit #' . $pid;
+                $categoryId = 0;
+                foreach ($produits as $p) {
+                    if ($p['id'] == $pid) {
+                        $categoryId = $p['category_id'];
+                        break;
+                    }
+                }
+                $categoryName = $categoryNames[$categoryId] ?? 'Non catégorisé';
+
+                if (!isset($productQuantities[$pid])) {
+                    $productQuantities[$pid] = ['name' => $productName, 'qty' => 0, 'revenue' => 0];
+                }
+                $productQuantities[$pid]['qty'] += $qty;
+                $productQuantities[$pid]['revenue'] += $lineTotal;
+
+                if (!isset($revenueByCategory[$categoryName])) {
+                    $revenueByCategory[$categoryName] = 0;
+                }
+                $revenueByCategory[$categoryName] += $lineTotal;
+            }
+        }
+
+        // Trier les top produits
+        uasort($productQuantities, function ($a, $b) {
+            return $b['revenue'] <=> $a['revenue'];
+        });
+        $topProducts = array_slice($productQuantities, 0, 10, true);
+
+        // Trier les vendeurs
+        uasort($salesBySeller, function ($a, $b) {
+            return $b['total'] <=> $a['total'];
+        });
+        $topSellers = array_slice($salesBySeller, 0, 10, true);
+
+        // Trier les clients
+        arsort($clientSales);
+        $topClients = array_slice($clientSales, 0, 10, true);
+        $topClientsNames = [];
+        foreach ($clients as $c) {
+            if (isset($topClients[$c['id']])) {
+                $topClientsNames[$c['id']] = $c['nom_client'];
+            }
+        }
+
+        // Données pour les 30 derniers jours
+        $dailyLabels = [];
+        $dailyValues = [];
+        for ($i = 29; $i >= 0; $i--) {
+            $day = date('Y-m-d', strtotime("-$i days"));
+            $dailyLabels[] = date('d/m', strtotime($day));
+            $dailyValues[] = round($salesByDay[$day] ?? 0, 2);
+        }
+
+        // Données pour les 12 derniers mois
+        $monthlyLabels = [];
+        $monthlyValues = [];
+        $monthNames = ['01' => 'Jan', '02' => 'Fév', '03' => 'Mar', '04' => 'Avr', '05' => 'Mai', '06' => 'Juin', '07' => 'Juil', '08' => 'Août', '09' => 'Sep', '10' => 'Oct', '11' => 'Nov', '12' => 'Déc'];
+        for ($i = 11; $i >= 0; $i--) {
+            $month = date('Y-m', strtotime("-$i months"));
+            $monthlyLabels[] = ($monthNames[substr($month, 5, 2)] ?? substr($month, 5, 2)) . ' ' . substr($month, 0, 4);
+            $monthlyValues[] = round($salesByMonth[$month] ?? 0, 2);
+        }
+
+        // Heures de vente
+        $hourlyLabels = [];
+        $hourlyValues = [];
+        for ($i = 0; $i < 24; $i++) {
+            $hourlyLabels[] = sprintf('%02dh', $i);
+            $hourlyValues[] = round($salesByHour[$i] ?? 0, 2);
+        }
+
+        // Calculs KPI
+        $averageBasket = $stats['all_time']['count'] > 0 ? $stats['all_time']['total'] / $stats['all_time']['count'] : 0;
+        $bestDay = !empty($salesByDay) ? array_search(max($salesByDay), $salesByDay) : null;
+        $bestDayAmount = $bestDay ? $salesByDay[$bestDay] : 0;
+        $bestDayLabel = $bestDay ? date('d/m/Y', strtotime($bestDay)) : '-';
+        $activeClients = count($clientSales);
+        $totalClients = count($clients);
+        $customerRate = $totalClients > 0 ? round(($activeClients / $totalClients) * 100, 1) : 0;
+        $uniqueDays = count($salesByDay);
+        $averageDailySales = $uniqueDays > 0 ? $stats['all_time']['total'] / $uniqueDays : 0;
+
+        // Best seller
+        $bestSeller = !empty($topSellers) ? reset($topSellers) : null;
+        $bestSellerName = $bestSeller ? $bestSeller['name'] : '-';
+        $bestSellerAmount = $bestSeller ? $bestSeller['total'] : 0;
+
+        // Best product
+        $bestProduct = !empty($topProducts) ? reset($topProducts) : null;
+        $bestProductName = $bestProduct ? $bestProduct['name'] : '-';
+        $bestProductRevenue = $bestProduct ? $bestProduct['revenue'] : 0;
+
+        // Stock
+        $stockAlerts = array_filter($produits, function ($p) {
+            return $p['stock'] <= $p['stock_minimum'];
+        });
+        $stockOut = count(array_filter($produits, function ($p) {
+            return (int) $p['stock'] === 0;
+        }));
+
+        $this->render('analytics', [
+            'ventes' => $ventes,
+            'produits' => $produits,
+            'categories' => $categories,
+            'users' => $users,
+            'clients' => $clients,
+            'stats' => $stats,
+            'salesByDay' => $salesByDay,
+            'salesByMonth' => $salesByMonth,
+            'salesByHour' => $salesByHour,
+            'salesBySeller' => $salesBySeller,
+            'topSellers' => $topSellers,
+            'topProducts' => $topProducts,
+            'topClients' => $topClients,
+            'topClientsNames' => $topClientsNames,
+            'revenueByCategory' => $revenueByCategory,
+            'paymentTotals' => $paymentTotals,
+            'rechargeVsProducts' => $rechargeVsProducts,
+            'dailyLabels' => json_encode($dailyLabels),
+            'dailyValues' => json_encode($dailyValues),
+            'monthlyLabels' => json_encode($monthlyLabels),
+            'monthlyValues' => json_encode($monthlyValues),
+            'hourlyLabels' => json_encode($hourlyLabels),
+            'hourlyValues' => json_encode($hourlyValues),
+            'categoryLabels' => json_encode(array_keys($revenueByCategory)),
+            'categoryValues' => json_encode(array_values($revenueByCategory)),
+            'sellerLabels' => json_encode(array_values(array_map(function ($s) {
+                return $s['name'];
+            }, $topSellers))),
+            'sellerValues' => json_encode(array_values(array_map(function ($s) {
+                return $s['total'];
+            }, $topSellers))),
+            'paymentLabels' => json_encode(array_keys($paymentTotals)),
+            'paymentValues' => json_encode(array_values($paymentTotals)),
+            'rechargeValues' => json_encode([$rechargeVsProducts['products'], $rechargeVsProducts['recharges']]),
+            'averageBasket' => $averageBasket,
+            'averageDailySales' => $averageDailySales,
+            'bestDayLabel' => $bestDayLabel,
+            'bestDayAmount' => $bestDayAmount,
+            'bestSellerName' => $bestSellerName,
+            'bestSellerAmount' => $bestSellerAmount,
+            'bestProductName' => $bestProductName,
+            'bestProductRevenue' => $bestProductRevenue,
+            'activeClients' => $activeClients,
+            'totalClients' => $totalClients,
+            'customerRate' => $customerRate,
+            'stockAlerts' => $stockAlerts,
+            'stockOut' => $stockOut,
+        ]);
+    }
+
     public function parametres()
     {
         if ($_SESSION['role'] !== 'admin') {
