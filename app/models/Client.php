@@ -63,15 +63,16 @@ class Client
         $code_client = 'CLI-' . str_pad($nextNum, 3, '0', STR_PAD_LEFT);
 
         $sql = "INSERT INTO {$this->table} 
-                (nom_client, numero, code_client, type_client_id, nif) 
-                VALUES (?, ?, ?, ?, ?)";
+                (nom_client, numero, code_client, type_client_id, nif, adresse) 
+                VALUES (?, ?, ?, ?, ?, ?)";
 
         $this->db->execute($sql, [
             $data['nom_client'],
             $data['numero'],
             $code_client,
             $data['type_client_id'] ?? 1,
-            $data['nif'] ?? ''
+            $data['nif'] ?? '',
+            $data['adresse'] ?? ''
         ]);
 
         return $this->db->lastInsertId();
@@ -83,7 +84,7 @@ class Client
     public function update($id, $data)
     {
         $sql = "UPDATE {$this->table}
-                SET nom_client = ?, numero = ?, type_client_id = ?, nif = ?
+                SET nom_client = ?, numero = ?, type_client_id = ?, nif = ?, adresse = ?
                 WHERE id = ?";
 
         return $this->db->execute($sql, [
@@ -91,6 +92,7 @@ class Client
             $data['numero'],
             $data['type_client_id'] ?? 1,
             $data['nif'] ?? '',
+            $data['adresse'] ?? '',
             $id
         ]);
     }
