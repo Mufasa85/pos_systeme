@@ -8,6 +8,7 @@ use App\Controllers\SaleController;
 use App\Controllers\UserController;
 use App\Controllers\SettingsController;
 use App\Controllers\ClientController;
+use App\Controllers\TaxController;
 use App\Core\Router;
 use App\Models\Settings;
 
@@ -52,6 +53,12 @@ Router::get("/api/settings/theme", [SettingsController::class, 'getTheme']);
 // Format d'impression (papier)
 Router::post("/api/settings/paper-type", [SettingsController::class, 'updatePaperType']);
 Router::get("/api/settings/paper-type", [SettingsController::class, 'getPaperType']);
+
+// Routes pour la gestion des taxes
+Router::get("/api/taxes", [TaxController::class, 'index']);
+Router::post("/api/taxes", [TaxController::class, 'create']);
+Router::post("/api/taxes/update", [TaxController::class, 'update']);
+Router::post("/api/taxes/delete", [TaxController::class, 'delete']);
 
 // Proxy Bill Payment API (OSAT-Energie pour éviter CORS)
 // POST vers https://osat-energie.com/snel_regideso/
