@@ -95,4 +95,14 @@ class Tax
         $sql = "DELETE FROM {$this->table} WHERE id = ?";
         return $this->db->query($sql, [$id]);
     }
+
+    /**
+     * Compter le nombre de produits utilisant cette taxe
+     */
+    public function countProducts($id)
+    {
+        $sql = "SELECT COUNT(*) as count FROM produits WHERE taxe_id = ?";
+        $result = $this->db->query($sql, [$id]);
+        return $result ? (int)$result[0]['count'] : 0;
+    }
 }
