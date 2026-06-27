@@ -1617,6 +1617,17 @@ const posCart = {
             return;
         }
 
+        const remiseType = $('#product-remise-type').value || 'percent';
+        const remiseValue = parseFloat($('#product-remise-value').value) || 0;
+        if (remiseType === 'percent' && (remiseValue < 0 || remiseValue > 100)) {
+            alert('La remise en pourcentage doit être comprise entre 0 et 100.');
+            return;
+        }
+        if (remiseType === 'amount' && (remiseValue < 0 || remiseValue > priceValue)) {
+            alert('La remise en montant fixe doit être comprise entre 0 et le prix du produit.');
+            return;
+        }
+
         const url = isEdit ? APP_URL + '/api/produit/update' : APP_URL + '/api/produit';
         const formData = new FormData();
         formData.append('id', $('#product-id').value);
