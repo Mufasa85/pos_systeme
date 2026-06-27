@@ -122,9 +122,10 @@
                   </optgroup>
                   <optgroup label="Formats papier standard">
                     <option value="A4">A4 (210 × 297 mm)</option>
-                    <option value="A5">A5 (148 × 210 mm)</option>
-                    <option value="Letter">Letter (8.5 × 11 in)</option>
+                    <!-- <option value="A5">A5 (148 × 210 mm)</option> -->
+                    <!-- <option value="Letter">Letter (8.5 × 11 in)</option>
                     <option value="Legal">Legal (8.5 × 14 in)</option>
+                     -->
                   </optgroup>
                 </select>
                 <p style="font-size: 0.75rem; color: var(--muted); margin-top: 0.5rem;">
@@ -266,6 +267,38 @@
         #page-settings input[readonly]:focus {
           border-color: var(--border);
           outline: none;
+        }
+
+        #page-settings .form-row {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 1rem;
+        }
+
+        #page-settings .form-group {
+          min-width: 0;
+        }
+
+        #page-settings .form-group>label {
+          display: inline-flex;
+          align-items: center;
+          flex-wrap: wrap;
+          gap: 4px;
+          word-break: break-word;
+        }
+
+        #page-settings .form-group input,
+        #page-settings .form-group select {
+          width: 100%;
+          box-sizing: border-box;
+          min-width: 0;
+        }
+
+        /* Responsive settings page - Tablet and below */
+        @media (max-width: 900px) {
+          #page-settings .form-row {
+            grid-template-columns: 1fr;
+          }
         }
 
         /* Responsive settings page - Mobile only (600px and below) */
