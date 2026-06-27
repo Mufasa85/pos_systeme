@@ -83,6 +83,7 @@ class ClientController
             $numero = $input['numero'] ?? '';
             $typeClientId = $input['type_client_id'] ?? 1;
             $nif = $input['nif'] ?? '';
+            $adresse = $input['adresse'] ?? '';
 
             if (empty($nom) || empty($numero)) {
                 echo json_encode([
@@ -108,7 +109,8 @@ class ClientController
                 'nom_client' => $nom,
                 'numero' => $numero,
                 'type_client_id' => $typeClientId,
-                'nif' => $nif
+                'nif' => $nif,
+                'adresse' => $adresse
             ]);
 
             // Récupérer le client créé
@@ -162,6 +164,7 @@ class ClientController
             $numero = $input['numero'] ?? '';
             $typeClientId = $input['type_client_id'] ?? 1;
             $nif = $input['nif'] ?? '';
+            $adresse = $input['adresse'] ?? '';
 
             if (empty($nom) || empty($numero)) {
                 echo json_encode([
@@ -175,7 +178,8 @@ class ClientController
                 'nom_client' => $nom,
                 'numero' => $numero,
                 'type_client_id' => $typeClientId,
-                'nif' => $nif
+                'nif' => $nif,
+                'adresse' => $adresse
             ]);
 
             $client = $this->clientModel->findById($id);
@@ -244,7 +248,8 @@ class ClientController
                         'type_id' => $client['type_client_id'] ?? null,
                         'type_code' => $client['type_code'] ?? '',
                         'type_description' => $client['type_description'] ?? '',
-                        'nif' => $client['nif'] ?? ''
+                        'nif' => $client['nif'] ?? '',
+                        'adresse' => $client['adresse'] ?? ''
                     ]
                 ]);
             } else {
