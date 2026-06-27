@@ -198,6 +198,19 @@ class PageController
         $this->render('parametres');
     }
 
+    public function taxes()
+    {
+        if ($_SESSION['role'] !== 'admin') {
+            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";
+            $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+            header('Location: ' . $protocol . '://' . $host . '/dashboard');
+            exit;
+        }
+        $taxModel = new \App\Models\Tax();
+        $taxes = $taxModel->getAll();
+        $this->render('taxes', ['taxes' => $taxes]);
+    }
+
     public function categories()
     {
         if ($_SESSION['role'] !== 'admin') {
