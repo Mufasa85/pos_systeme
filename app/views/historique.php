@@ -23,7 +23,7 @@
                 <th>Date</th>
                 <th>Vendeur</th>
                 <th>Total</th>
-                <th>Compteur DGI</th>
+                <th>codeDEFDGI</th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -42,9 +42,9 @@
                     <td data-label="Date" style="padding:0.75rem;"><?= date('d/m/Y H:i', strtotime($v['date'])) ?></td>
                     <td data-label="Vendeur" style="padding:0.75rem;"><?= htmlspecialchars($v['nom_vendeur']) ?></td>
                     <td data-label="Total" style="padding:0.75rem;"><strong><?= number_format($v['total'], 2) ?> Fc</strong></td>
-                    <td data-label="Compteur DGI" style="padding:0.75rem;">
-                      <?php if (!empty($v['counters'])): ?>
-                        <span class="badge badge-success" title="Compteur DGI"><?= htmlspecialchars($v['counters']) ?></span>
+                    <td data-label="codeDEFDGI" style="padding:0.75rem;">
+                      <?php if (!empty($v['codeDEFDGI'])): ?>
+                        <span class="badge badge-success" title="codeDEFDGI"><?= htmlspecialchars($v['codeDEFDGI']) ?></span>
                       <?php else: ?>
                         <span style="color:#999; font-size:0.85em;">-</span>
                       <?php endif; ?>
