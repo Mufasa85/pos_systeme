@@ -81,6 +81,7 @@
       <input type="hidden" id="client-number" value="0000">
       <input type="hidden" id="client-type" value="">
       <input type="hidden" id="client-nif" value="">
+      <input type="hidden" id="client-address" value="">
       <!-- Bouton icone pour ouvrir les infos client/facture -->
       <button type="button" onclick="openInvoiceInfoModal()" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 0.6rem; margin-bottom: 0.5rem; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 8px; cursor: pointer; color: #64748b; transition: all 0.2s;" title="Ajouter client / facture">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -340,27 +341,24 @@
 
         <!-- Mode de Paiement -->
         <div style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border: 1px solid #86efac; border-radius: 12px; padding: 1rem; margin-bottom: 1rem;">
-          <div style="font-size: 0.75rem; font-weight: 600; color: #166534; margin-bottom: 0.75rem; text-transform: uppercase; display: flex; align-items: center; gap: 6px;">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
-              <line x1="1" y1="10" x2="23" y2="10"></line>
-            </svg>
-            Mode de Paiement
+          <div style="font-size: 0.75rem; font-weight: 600; color: #166534; margin-bottom: 0.75rem; text-transform: uppercase; display: flex; align-items: center; justify-content: space-between; gap: 6px;">
+            <span style="display: flex; align-items: center; gap: 6px;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
+                <line x1="1" y1="10" x2="23" y2="10"></line>
+              </svg>
+              Mode de Paiement
+            </span>
+            <button type="button" onclick="addModalPaymentLine()" style="background: #0B5E88; color: #fff; border: none; border-radius: 6px; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1rem; line-height: 1;">+</button>
           </div>
-          <div>
-            <label for="modal-payment-type" style="font-size: 0.7rem; color: #166534; display: block; margin-bottom: 4px;">Type de paiement</label>
-            <select id="modal-payment-type" class="client-number-input" style="width: 100%; background: #fff;">
-              <option value="cash">Espèces</option>
-              <option value="mobile_money">Mobile Money</option>
-              <option value="card">Carte Bancaire</option>
-              <option value="transfer">Virement</option>
-              <option value="credit">Crédit</option>
-            </select>
+          <div id="modal-payments-list" style="display: flex; flex-direction: column; gap: 0.5rem;">
+            <!-- payment lines will be inserted here -->
           </div>
-          <div id="modal-payment-change" style="margin-top: 0.75rem; padding: 0.5rem; background: #fff; border-radius: 8px; text-align: center; font-weight: 600; display: none;">
-            <span style="color: #166534;">Monnaie à rendre: </span>
-            <span id="modal-change-amount" style="color: #0B5E88; font-size: 1.1rem;">0.00 Fc</span>
+          <div id="modal-payment-summary" style="margin-top: 0.75rem; padding: 0.5rem; background: #fff; border-radius: 8px; text-align: center; font-weight: 600; display: none;">
+            <span id="modal-payment-summary-label" style="color: #166534;"></span>
+            <span id="modal-payment-summary-amount" style="color: #0B5E88; font-size: 1.1rem;"></span>
           </div>
+          <input type="hidden" id="modal-payment-type" value="cash">
         </div>
 
         <!-- Info Client avec recherche -->
@@ -418,6 +416,10 @@
               <div style="grid-column: span 2;">
                 <label for="modal-client-nif" style="font-size: 0.7rem; color: #94a3b8; display: block; margin-bottom: 2px;">NIF</label>
                 <input type="text" id="modal-client-nif" class="client-number-input" placeholder="NIF client" style="width: 100%;">
+              </div>
+              <div style="grid-column: span 2;">
+                <label for="modal-client-address" style="font-size: 0.7rem; color: #94a3b8; display: block; margin-bottom: 2px;">Adresse</label>
+                <input type="text" id="modal-client-address" class="client-number-input" placeholder="Adresse du client" style="width: 100%;">
               </div>
             </div>
             <!-- Message de recherche -->
