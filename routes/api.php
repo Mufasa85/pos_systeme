@@ -38,6 +38,7 @@ Router::get("/api/vente/next-invoice", [SaleController::class, 'nextInvoice']);
 // Routes pour les clients
 Router::get("/api/clients", [ClientController::class, 'index']);
 Router::get("/api/client/lookup", [ClientController::class, 'lookup']);
+Router::get("/api/client/search", [ClientController::class, 'searchByNumero']);
 Router::post("/api/client", [ClientController::class, 'create']);
 Router::put("/api/client/[i:id]", [ClientController::class, 'update']);
 Router::post("/api/client/update/[i:id]", [ClientController::class, 'update']);
