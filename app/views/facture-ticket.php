@@ -62,7 +62,7 @@ $localQrData  = $sale['qrCode'] ?? '';
         ?>
         <div class="receipt" id="receipt-ticket">
             <div class="receipt-header">
-                <div style="text-align: center; font-weight: 800; font-size: 24px; color: #000; margin-bottom: 10px; border-bottom: 2px solid #000; padding-bottom: 5px;">PROFORMA</div>
+                <div style="text-align: center; font-weight: 800; font-size: 24px; color: #000; margin-bottom: 10px; border-bottom: 2px solid #000; padding-bottom: 5px;">DUPLICATA</div>
                 <div class="store-name"><?= htmlspecialchars($storeInfo['name'] ?? 'SuperMarche Express') ?></div>
                 <div class="store-info">
                     <div><?= htmlspecialchars($storeInfo['address'] ?? '') ?></div>
@@ -120,8 +120,8 @@ $localQrData  = $sale['qrCode'] ?? '';
                             <?= htmlspecialchars($item['produit_nom'] ?? 'Produit') ?>
                             <span class="item-tax-badge"><?= $taxLabel ?></span>
                         </span>
-                        <span class="item-qty">x<?= $item['quantite'] ?></span>
-                        <span class="item-price"><?= number_format($itemTTC, 2, '.', '') ?></span>
+                        <span class="item-qty"><?= $item['quantite'] ?> × <?= number_format(floatval($item['prix']), 2, '.', ' ') ?> Fc</span>
+                        <span class="item-price"><?= number_format($itemHT, 2, '.', ' ') ?> Fc</span>
                     </div>
                 <?php endforeach; ?>
             </div>
@@ -457,7 +457,7 @@ $localQrData  = $sale['qrCode'] ?? '';
             // Header
             html += '<div class="receipt" id="receipt-ticket">';
             html += '<div class="receipt-header">';
-            html += '<div style="text-align:center; font-weight:800; font-size:24px; color:#000; margin-bottom:10px; border-bottom:2px solid #000; padding-bottom:5px;">PROFORMA</div>';
+            html += '<div style="text-align:center; font-weight:800; font-size:24px; color:#000; margin-bottom:10px; border-bottom:2px solid #000; padding-bottom:5px;">DUPLICATA</div>';
             html += '<div class="store-name">' + esc(info.store_name || (window.STORE_INFO && window.STORE_INFO.name) || '') + '</div>';
             html += '<div class="store-info">';
             html += '<div><strong>Point de vente :</strong> ' + esc(info.store_address || '') + '</div>';
@@ -481,14 +481,14 @@ $localQrData  = $sale['qrCode'] ?? '';
             // Meta
             html += '<div class="receipt-meta" style="justify-content:center; font-size:14px; font-weight:555; display:flex; flex-direction:column; text-align:center; gap:4px;">';
             html += '<div>' + esc(invoiceLabel(info.invoice_type)) + '</div>';
-           // if (info.invoice_ref) html += '<div style="font-size:11px; color:#888; font-style:italic;">Réf: ' + esc(info.invoice_ref) + '</div>';
+            // if (info.invoice_ref) html += '<div style="font-size:11px; color:#888; font-style:italic;">Réf: ' + esc(info.invoice_ref) + '</div>';
             if (info.ref_facture) html += '<div style="font-size:11px; color:#888; font-style:italic;">' + esc(info.ref_facture) + '</div>';
             if (info.ref_facture) html += '<div style="font-size:11px; color:#888; font-style:italic;">' + esc(exonerationLabel(info.exoneration).toUpperCase()) + '</div>';
             //if (info.payment_type) html += '<div style="font-size:11px; color:#666;">Paiement: ' + esc(info.payment_type) + '</div>';
             html += '</div>';
 
             // Articles
-            html += '<div class="receipt-items receipt-items-grid"><table class="receipt-table"><thead><tr><th>Article</th><th>Qté</th><th>Total HT</th></tr></thead><tbody>';
+            html += '<div class="receipt-items receipt-items-grid"><table class="receipt-table"><thead><tr><th>Article</th><th style="text-align:right">Total HT</th></tr></thead><tbody>';
             var totalQty = 0;
             if (articles.length > 0) {
                 for (var j = 0; j < articles.length; j++) {
@@ -499,14 +499,18 @@ $localQrData  = $sale['qrCode'] ?? '';
                     var totalHt = price * qty;
                     var taxLabel = a.taxGroup || 'null';
                     var typeLabel = a.type ? '<span class="item-prod-service">[' + esc(a.type) + ']</span>' : '';
-                    html += '<tr>';
-                    html += '<td><span class="item-name">' + esc(a.name || 'Article') + '<span class="item-tax-badge">' + esc(taxLabel) + '</span>' + typeLabel + '</span></td>';
-                    html += '<td class="item-qty">' + qty + '</td>';
+                    // Ligne 1 : nom article (colspan=2)
+                    html += '<tr class="item-name-row">';
+                    html += '<td colspan="2"><span class="item-name">' + esc(a.name || 'Article') + '<span class="item-tax-badge">' + esc(taxLabel) + '</span>' + typeLabel + '</span></td>';
+                    html += '</tr>';
+                    // Ligne 2 : qty × prix unitaire | total
+                    html += '<tr class="item-detail-row">';
+                    html += '<td class="item-qty">' + qty + ' × ' + price.toFixed(2) + ' Fc</td>';
                     html += '<td class="item-total">' + totalHt.toFixed(2) + ' Fc</td>';
                     html += '</tr>';
                 }
             } else {
-                html += '<tr><td colspan="3" style="text-align:center; color:#888; padding:8px;">Aucun article</td></tr>';
+                html += '<tr><td colspan="2" style="text-align:center; color:#888; padding:8px;">Aucun article</td></tr>';
             }
             html += '</tbody></table></div>';
 
@@ -519,7 +523,7 @@ $localQrData  = $sale['qrCode'] ?? '';
             html += '<div class="receipt-total-row" style="font-size:11px; color:#555;"><span>Equivalent en USD :</span><span>' + (usdRate ? (totalTTC < 0 ? -totalTTC / usdRate : totalTTC / usdRate).toFixed(2) + ' $' : '-') + '</span></div>';
             html += '<div class="receipt-total-row" style="font-size:11px; color:#555;"><span>Paiement:</span><span>' + esc(info.payment_type) + '</span></div>';
             html += '<div class="receipt-total-row" style="font-size:11px; color:#555;"><span>Nombre d\'article(s):</span><span>' + totalQty.toFixed(2) + '</span></div>';
-            html += '<div style="text-align:center; font-size:12px; color:#888; font-style:italic; margin-top:2px;">Arrêté la présente proforma à la somme de ' + numToFr(totalTTC) + ' congolais toutes taxes comprises</div>';
+            html += '<div style="text-align:center; font-size:12px; color:#888; font-style:italic; margin-top:2px;">Arrêté le présent duplicata à la somme de ' + numToFr(totalTTC) + ' congolais toutes taxes comprises</div>';
             if (info.isf || info.store_isf) {
                 html += '<div style="margin:10px 0; font-size:11px; color:#333; border:1px dashed #ccc; padding:8px; border-radius:4px; text-align:center;">ISF : ' + esc(info.isf || info.store_isf) + '</div>';
             }
@@ -634,7 +638,7 @@ $localQrData  = $sale['qrCode'] ?? '';
                             generateQr(info.qrCode, 'ticket-qrcode-dgi');
                         }, 100);
                     }
-                    console.log('[TICKET] Proforma DGI generee avec succes.');
+                    console.log('[TICKET] duplicata DGI generee avec succes.');
                 } else {
                     console.warn('[TICKET] API DGI sans succes, conservation du contenu serveur.');
                 }

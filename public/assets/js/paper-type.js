@@ -402,17 +402,18 @@
                 var name = nameEl2 ? nameEl2.textContent.trim() : el.textContent.trim();
                 var qtyPrice = qtyEl ? qtyEl.textContent.trim() : '';
                 var totalPrice = priceEl ? priceEl.textContent.trim() : '';
-                rows += '<tr>' +
-                    '<td style="padding:6px 8px;border-bottom:1px solid #eee;">' + name + '</td>' +
-                    '<td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:left;white-space:nowrap;">' + qtyPrice + '</td>' +
-                    '<td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;font-weight:600;">' + totalPrice + '</td>' +
+                rows += '<tr class="item-name-row">' +
+                    '<td colspan="2" style="padding:4px 4px 1px; border-bottom:none;">' + name + '</td>' +
+                    '</tr>' +
+                    '<tr class="item-detail-row">' +
+                    '<td style="padding:1px 4px 5px; border-bottom:1px dashed #ccc; font-size:10px; color:#555; font-style:italic; word-break:break-word; overflow-wrap:anywhere;">' + qtyPrice + '</td>' +
+                    '<td style="padding:1px 4px 5px; border-bottom:1px dashed #ccc; font-size:10px; font-weight:700; text-align:right; word-break:break-all; overflow-wrap:anywhere;">' + totalPrice + '</td>' +
                     '</tr>';
             });
             itemTableHtml = '<table style="width:100%;border-collapse:collapse;">' +
                 '<thead><tr style="background:#f5f5f5;">' +
-                '<th style="padding:8px;text-align:left;border-bottom:2px solid #333;">Article</th>' +
-                '<th style="padding:8px;text-align:left;border-bottom:2px solid #333;">Qté x Prix unitaire</th>' +
-                '<th style="padding:8px;text-align:right;border-bottom:2px solid #333;">Total HT</th>' +
+                '<th style="padding:6px 4px;text-align:left;border-bottom:2px solid #333;">Article</th>' +
+                '<th style="padding:6px 4px;text-align:right;border-bottom:2px solid #333;">Total HT</th>' +
                 '</tr></thead><tbody>' + rows + '</tbody></table>';
         }
 
@@ -617,15 +618,16 @@
             '.receipt-header .store-info { font-size: 13px; line-height: 1.6; color: #222; }\n' +
             '.receipt-meta { display: flex; justify-content: space-between; font-size: 13px; font-weight: 600; padding: 8px 0; margin-bottom: 10px; border-bottom: 2px solid #000; }\n' +
             '.receipt-items { margin-bottom: 10px; }\n' +
-            '.receipt-item { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 5px; font-size: 13px; gap: 3px; }\n' +
-            '.receipt-item .item-name { flex: 2; min-width: 0; white-space: normal; overflow-wrap: break-word; }\n' +
-            '.receipt-item .item-qty { flex: 1; text-align: center; white-space: nowrap; }\n' +
-            '.receipt-item .item-price { flex: 1; text-align: right; font-weight: 700; white-space: nowrap; }\n' +
+            '.receipt-item { display: grid; grid-template-columns: 1fr auto; grid-template-rows: auto auto; column-gap: 4px; row-gap: 0; padding: 4px 0; border-bottom: 1px dashed #ccc; font-size: 13px; width: 100%; }\n' +
+            '.receipt-item .item-name { grid-column: 1 / -1; grid-row: 1; white-space: normal; overflow-wrap: break-word; word-break: break-word; }\n' +
+            '.receipt-item .item-qty { grid-column: 1; grid-row: 2; font-size: 11px; color: #555; font-style: italic; white-space: normal; word-break: break-word; overflow-wrap: anywhere; }\n' +
+            '.receipt-item .item-price { grid-column: 2; grid-row: 2; text-align: right; font-weight: 700; white-space: normal; word-break: break-all; overflow-wrap: anywhere; min-width: 0; }\n' +
             '.receipt-table { width: 100%; border-collapse: collapse; }\n' +
-            '.receipt-table th { text-align: left; padding: 4px 0; border-bottom: 1px solid #000; font-size: 12px; }\n' +
-            '.receipt-table td { padding: 3px 0; font-size: 12px; vertical-align: top; }\n' +
-            '.receipt-table td:nth-child(2) { text-align: left; white-space: nowrap; }\n' +
-            '.receipt-table td:last-child { text-align: right; font-weight: 600; }\n' +
+            '.receipt-table th { text-align: left; padding: 4px 4px; border-bottom: 1px solid #000; font-size: 12px; }\n' +
+            '.receipt-table th:last-child { text-align: right; }\n' +
+            '.receipt-table .item-name-row td { padding: 4px 4px 1px; border-bottom: none; font-size: 12px; vertical-align: top; }\n' +
+            '.receipt-table .item-detail-row td { padding: 1px 4px 5px; border-bottom: 1px dashed #ccc; font-size: 11px; color: #555; font-style: italic; vertical-align: top; word-break: break-word; overflow-wrap: anywhere; }\n' +
+            '.receipt-table .item-detail-row .item-total { text-align: right; font-weight: 700; color: #000; word-break: break-all; overflow-wrap: anywhere; }\n' +
             '.item-tax-badge { display: inline-block; font-size: 9px; border: 1px solid #999; border-radius: 2px; padding: 0 3px; margin-left: 3px; }\n' +
             '.receipt-totals { margin-bottom: 8px; }\n' +
             '.receipt-total-row { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 5px; }\n' +

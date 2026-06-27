@@ -1085,7 +1085,7 @@ const posCart = {
         const previewSign = previewShouldNegate ? -1 : 1;
 
         // Construire les items du reçu
-        let itemsHtml = '<table class="receipt-table"><thead><tr><th>Article</th><th>Qté x Prix unitaire</th><th>Total HT</th></tr></thead><tbody>';
+        let itemsHtml = '<table class="receipt-table"><thead><tr><th>Article</th><th style="text-align:right">Total HT</th></tr></thead><tbody>';
         for (let i = 0; i < this.items.length; i++) {
             const item = this.items[i];
             const itemPrice = parseFloat(item.prix) || 0;
@@ -1096,10 +1096,12 @@ const posCart = {
             const isPoidsItem = (item.product_type === 'coupe' || item.product_type === 'poids');
             const qtyDisplay = formatQty(itemQty, isPoidsItem);
             itemsHtml += `
-                <tr>
-                    <td><span class="item-name"> ${item.nom}<span class="item-tax-badge">${taxLabel}</span>${prodService}</span></td>
-                    <td class="item-qty" style="text-align:left; white-space:nowrap;">${qtyDisplay} x ${formatCurrency(itemPrice)}</td>
-                    <td class="item-total" style="text-align:right;">${truncateDecimals(itemTotalHT).toFixed(3)} Fc</td>
+                <tr class="item-name-row">
+                    <td colspan="2"><span class="item-name"> ${item.nom}<span class="item-tax-badge">${taxLabel}</span>${prodService}</span></td>
+                </tr>
+                <tr class="item-detail-row">
+                    <td class="item-qty">${qtyDisplay} × ${formatCurrency(itemPrice)} Fc</td>
+                    <td class="item-total">${truncateDecimals(itemTotalHT).toFixed(3)} Fc</td>
                 </tr>
             `;
         }
@@ -1501,7 +1503,7 @@ const posCart = {
 
 
             // Construire les items du reçu avec les taxes par produit
-            let itemsHtml = '<table class="receipt-table"><thead><tr><th>Article</th><th>Qté x Prix unitaire</th><th>Total HT</th></tr></thead><tbody>';
+            let itemsHtml = '<table class="receipt-table"><thead><tr><th>Article</th><th style="text-align:right">Total HT</th></tr></thead><tbody>';
             for (let i = 0; i < this.items.length; i++) {
                 const item = this.items[i];
                 const itemPrice = parseFloat(item.prix) || 0;
@@ -1514,10 +1516,12 @@ const posCart = {
                 const isPoidsItem = (item.product_type === 'coupe' || item.product_type === 'poids');
 
                 itemsHtml += `
-                    <tr>
-                        <td><span class="item-name">${item.nom}<span class="item-tax-badge">${taxLabel}</span>${prodService}</span></td>
-                        <td class="item-qty" style="text-align:left; white-space:nowrap;">${formatQty(itemQty, isPoidsItem)} x ${formatCurrency(itemPrice)}</td>
-                        <td class="item-total" style="text-align:right;">${itemTotalHT.toFixed(2)} Fc</td>
+                    <tr class="item-name-row">
+                        <td colspan="2"><span class="item-name">${item.nom}<span class="item-tax-badge">${taxLabel}</span>${prodService}</span></td>
+                    </tr>
+                    <tr class="item-detail-row">
+                        <td class="item-qty">${formatQty(itemQty, isPoidsItem)} × ${formatCurrency(itemPrice)} Fc</td>
+                        <td class="item-total">${itemTotalHT.toFixed(2)} Fc</td>
                     </tr>
                 `;
             }
@@ -2159,7 +2163,7 @@ function renderServiceBillContent(data, sale) {
     html += '</div>';
 
     // ----- Articles -----
-    html += '<div class="receipt-items"><table class="receipt-table"><thead><tr><th>Article</th><th>Qté</th><th>Total HT</th></tr></thead><tbody>';
+    html += '<div class="receipt-items"><table class="receipt-table"><thead><tr><th>Article</th><th style="text-align:right">Total HT</th></tr></thead><tbody>';
     let totalQty = 0;
     if (articlesList.length > 0) {
         articlesList.forEach(article => {
@@ -2169,15 +2173,17 @@ function renderServiceBillContent(data, sale) {
             totalQty += quantity;
             const taxLabel = article.taxGroup || 'null';
             const prodService = article.type ? '<span class="item-prod-service">[' + article.type + ']</span>' : '';
-            html += '<tr>';
-            html += '<td><span class="item-name">' + (article.name || 'Article') + '<span class="item-tax-badge">' + taxLabel + '</span>' + prodService + '</span></td>';
-            html += '<td class="item-qty">' + quantity + '</td>';
+            html += '<tr class="item-name-row">';
+            html += '<td colspan="2"><span class="item-name">' + (article.name || 'Article') + '<span class="item-tax-badge">' + taxLabel + '</span>' + prodService + '</span></td>';
+            html += '</tr>';
+            html += '<tr class="item-detail-row">';
+            html += '<td class="item-qty">' + quantity + ' × ' + articleHT.toFixed(2) + ' Fc</td>';
             html += '<td class="item-total">' + articleTotal.toFixed(2) + ' Fc</td>';
             html += '</tr>';
         });
         console.log(articlesList)
     } else {
-        html += '<tr><td colspan="3" style="text-align:center; color:#888; padding:8px;">Aucun article</td></tr>';
+        html += '<tr><td colspan="2" style="text-align:center; color:#888; padding:8px;">Aucun article</td></tr>';
     }
     html += '</tbody></table></div>';
 
@@ -2288,16 +2294,18 @@ function renderLocalSaleDetails(sale, details) {
 
     html += '<div class="receipt-meta" style="justify-content:center; font-size:14px; font-weight:555;">' + getInvoiceTypeLabel(sale.type_facture) + '</div>';
 
-    html += '<div class="receipt-items"><table class="receipt-table"><thead><tr><th>Article</th><th>Qté</th><th>Total HT</th></tr></thead><tbody>';
+    html += '<div class="receipt-items"><table class="receipt-table"><thead><tr><th>Article</th><th style="text-align:right">Total HT</th></tr></thead><tbody>';
     (details || []).forEach(item => {
         const itemPrice = parseFloat(item.prix) || 0;
         const itemQty = parseFloat(item.quantite) || 0;
         const itemTotalHT = itemPrice * itemQty;
         const taxRate = parseFloat(item.tax_rate || 0);
         const taxLabel = item.tax_etiquette || (taxRate > 0 ? 'TVA ' + taxRate + '%' : 'Exonere');
-        html += '<tr>';
-        html += '<td><span class="item-name">' + (item.produit_nom || 'Produit') + '<span class="item-tax-badge">' + taxLabel + '</span></span></td>';
-        html += '<td class="item-qty">' + itemQty + '</td>';
+        html += '<tr class="item-name-row">';
+        html += '<td colspan="2"><span class="item-name">' + (item.produit_nom || 'Produit') + '<span class="item-tax-badge">' + taxLabel + '</span></span></td>';
+        html += '</tr>';
+        html += '<tr class="item-detail-row">';
+        html += '<td class="item-qty">' + itemQty + ' × ' + itemPrice.toFixed(2) + ' Fc</td>';
         html += '<td class="item-total">' + itemTotalHT.toFixed(2) + ' Fc</td>';
         html += '</tr>';
     });
@@ -2378,7 +2386,7 @@ async function viewSaleDetails(saleId) {
         const tvaNumber = parseFloat(sale.tva || 0);
 
         // Items en tableau (comme /caisse)
-        let itemsHtml = '<table class="receipt-table"><thead><tr><th>Article</th><th>Qté</th><th>HT</th></tr></thead><tbody>';
+        let itemsHtml = '<table class="receipt-table"><thead><tr><th>Article</th><th style="text-align:right">Total HT</th></tr></thead><tbody>';
         data.details.forEach(item => {
             const itemPrice = parseFloat(item.prix) || 0;
             const itemQty = parseFloat(item.quantite) || 0;
@@ -2386,7 +2394,8 @@ async function viewSaleDetails(saleId) {
             const taxRate = parseFloat(item.tax_rate || 0);
             const taxLabel = item.tax_etiquette || (taxRate > 0 ? 'TVA ' + taxRate + '%' : 'Exonere');
             const prodService = item.prod_service ? '<span class="item-prod-service">[' + item.prod_service + ']</span>' : '';
-            itemsHtml += '<tr><td><span class="item-name">' + (item.produit_nom || 'Produit') + '<span class="item-tax-badge">' + taxLabel + '</span>' + prodService + '</span></td><td class="item-qty">' + itemQty + '</td><td class="item-total">' + itemTotalHT.toFixed(2) + ' Fc</td></tr>';
+            itemsHtml += '<tr class="item-name-row"><td colspan="2"><span class="item-name">' + (item.produit_nom || 'Produit') + '<span class="item-tax-badge">' + taxLabel + '</span>' + prodService + '</span></td></tr>' +
+                '<tr class="item-detail-row"><td class="item-qty">' + itemQty + ' × ' + itemPrice.toFixed(2) + ' Fc</td><td class="item-total">' + itemTotalHT.toFixed(2) + ' Fc</td></tr>';
         });
         itemsHtml += '</tbody></table>';
 
@@ -3250,10 +3259,12 @@ function _printReceiptContent(content) {
             .receipt-header .store-info { font-size: 13px; line-height: 1.6; color: #222; }
             .receipt-meta { display: flex; justify-content: space-between; font-size: 13px; font-weight: 600; padding: 8px 0; margin-bottom: 10px; border-bottom: 2px solid #000; }
             .receipt-items { margin-bottom: 10px; }
-            .receipt-item { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 5px; font-size: 13px; gap: 3px; }
-            .receipt-item .item-name { flex: 2; min-width: 0; white-space: normal; overflow-wrap: break-word; }
-            .receipt-item .item-qty { flex: 1; text-align: center; white-space: nowrap; }
-            .receipt-item .item-price { flex: 1; text-align: right; font-weight: 700; white-space: nowrap; }
+            .receipt-table { width: 100%; border-collapse: collapse; }
+            .receipt-table th { text-align: left; padding: 4px 4px; border-bottom: 1px solid #000; font-size: 12px; }
+            .receipt-table th:last-child { text-align: right; }
+            .receipt-table .item-name-row td { padding: 4px 4px 1px; border-bottom: none; font-size: 13px; vertical-align: top; }
+            .receipt-table .item-detail-row td { padding: 1px 4px 5px; border-bottom: 1px dashed #ccc; font-size: 11px; color: #555; font-style: italic; vertical-align: top; word-break: break-word; overflow-wrap: anywhere; }
+            .receipt-table .item-detail-row .item-total { text-align: right; font-weight: 700; color: #000; word-break: break-all; overflow-wrap: anywhere; }
             .receipt-totals { margin-bottom: 8px; }
             .receipt-total-row { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 5px; }
             .receipt-total-row.grand-total { font-size: 18px; font-weight: 700; border-top: 3px solid #000; border-bottom: 3px solid #000; padding: 8px 0; margin-top: 8px; }

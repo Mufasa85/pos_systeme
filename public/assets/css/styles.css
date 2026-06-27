@@ -1629,15 +1629,15 @@ body {
 .receipt-items {
   margin-bottom: 1rem;
   width: 100%;
-  overflow-x: auto;
+  overflow-x: hidden;
 }
 
 .receipt-items-grid {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
 }
 
+/* Table 2-colonnes : Article (full-width) + ligne détail qty×pu / total */
 .receipt-table {
   width: 100%;
   border-collapse: collapse;
@@ -1645,68 +1645,89 @@ body {
   margin: 0;
 }
 
+/* En-tête du tableau */
 .receipt-table thead th {
   text-align: left;
-  padding: 8px 6px;
+  padding: 5px 4px;
   border-bottom: 1px solid #333;
   font-weight: 700;
 }
-
-.receipt-table tbody tr td {
-  padding: 8px 6px;
-  border-bottom: 1px dashed #ccc;
-  vertical-align: top;
-}
-
-.receipt-table .item-qty,
-.receipt-table .item-total {
-  text-align: left !important;
-  white-space: nowrap;
-}
-
-.receipt-table .item-price {
+.receipt-table thead th:last-child {
   text-align: right;
-  white-space: nowrap;
 }
 
+/* Ligne nom (occupe toute la largeur, colspan=2) */
+.receipt-table .item-name-row td {
+  padding: 5px 4px 1px;
+  border-bottom: none;
+}
+
+/* Ligne détail : qty×pu à gauche, total à droite */
+.receipt-table .item-detail-row td {
+  padding: 1px 4px 5px;
+  border-bottom: 1px dashed #ccc;
+  font-size: 10px;
+  color: #555;
+}
+.receipt-table .item-detail-row .item-qty {
+  font-style: italic;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.receipt-table .item-detail-row .item-total {
+  text-align: right;
+  font-weight: 700;
+  color: #000;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-all;
+}
+
+/* Layout 2-lignes par article pour le mode div (non-DGI) */
 .receipt-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  margin-bottom: 0.25rem;
-  padding: 0.25rem 0;
-  gap: 0.75rem;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-rows: auto auto;
+  column-gap: 0.5rem;
+  row-gap: 0.05rem;
+  padding: 0.3rem 0;
+  border-bottom: 1px dashed #eee;
   font-size: 11px;
   width: 100%;
 }
 
+/* Ligne 1 : nom occupe toute la largeur */
 .receipt-item .item-name {
-  flex: 1;
-  min-width: 0;
+  grid-column: 1 / -1;
+  grid-row: 1;
   white-space: normal;
   overflow-wrap: break-word;
   word-break: break-word;
 }
 
+/* Ligne 2 gauche : qty × prix unitaire */
 .receipt-item .item-qty {
-  flex-shrink: 0;
-  text-align: right;
-  min-width: 30px;
-  font-weight: 600;
+  grid-column: 1;
+  grid-row: 2;
+  font-size: 10px;
+  color: #555;
+  font-style: italic;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
-.receipt-item .item-pu {
-  flex-shrink: 0;
-  text-align: center;
-  min-width: 50px;
-}
-
+/* Ligne 2 droite : total */
 .receipt-item .item-price {
-  flex-shrink: 0;
+  grid-column: 2;
+  grid-row: 2;
   text-align: right;
   font-weight: 700;
-  white-space: nowrap;
-  min-width: 60px;
+  white-space: normal;
+  word-break: break-all;
+  overflow-wrap: anywhere;
+  min-width: 0;
 }
 
 /* Etiquette du type de taxe pour le receipt preview */
