@@ -1638,7 +1638,7 @@ class BillPayment {
 
         const units = ['', 'un', 'deux', 'trois', 'quatre', 'cinq', 'six', 'sept', 'huit', 'neuf', 'dix',
             'onze', 'douze', 'treize', 'quatorze', 'quinze', 'seize', 'dix-sept', 'dix-huit', 'dix-neuf'];
-        const tens = ['', '', 'vingt', 'trente', 'quarante', 'cinquante', 'soixante', 'soixante', 'quatre-vingt', 'quatre-vingt-dix'];
+        const tens = ['', '', 'vingt', 'trente', 'quarante', 'cinquante', 'soixante', 'soixante', 'quatre-vingt', 'nonante'];
 
         if (num === 0) return 'zéro';
 
@@ -1651,10 +1651,10 @@ class BillPayment {
             if (n < 100) {
                 const ten = Math.floor(n / 10);
                 const unit = n % 10;
-                if (ten === 7 || ten === 9) {
-                    const base = ten === 7 ? 60 : 80;
-                    if (unit === 1) return base + '-et-' + units[unit];
-                    return base + '-' + units[unit];
+                if (ten === 7) {
+                    const teen = 10 + unit;
+                    if (unit === 1) return 'soixante-et-' + units[teen];
+                    return 'soixante-' + units[teen];
                 }
                 if (ten === 8 && unit === 0) return 'quatre-vingts';
                 if (unit === 0) return tens[ten];
