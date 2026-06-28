@@ -818,7 +818,7 @@ const posCart = {
         let sign = 1
         const units = ['', 'un', 'deux', 'trois', 'quatre', 'cinq', 'six', 'sept', 'huit', 'neuf', 'dix',
             'onze', 'douze', 'treize', 'quatorze', 'quinze', 'seize', 'dix-sept', 'dix-huit', 'dix-neuf'];
-        const tens = ['', '', 'vingt', 'trente', 'quarante', 'cinquante', 'soixante', 'soixante', 'quatre-vingt', 'quatre-vingt-dix'];
+        const tens = ['', '', 'vingt', 'trente', 'quarante', 'cinquante', 'soixante', 'soixante', 'quatre-vingt', 'nonante'];
 
         if (num === 0) return 'zéro';
         if (num < 0) {
@@ -835,10 +835,10 @@ const posCart = {
             if (n < 100) {
                 const ten = Math.floor(n / 10);
                 const unit = n % 10;
-                if (ten === 7 || ten === 9) {
-                    const base = ten === 7 ? 60 : 80;
-                    if (unit === 1) return base + '-et-' + units[unit];
-                    return base + '-' + units[unit];
+                if (ten === 7) {
+                    const teen = 10 + unit;
+                    if (unit === 1) return 'soixante-et-' + units[teen];
+                    return 'soixante-' + units[teen];
                 }
                 if (ten === 8 && unit === 0) return 'quatre-vingts';
                 if (unit === 0) return tens[ten];
@@ -3738,7 +3738,7 @@ function initModalRefDocs() {
 function addModalRefDocLine(value = '') {
     const list = document.getElementById('modal-ref-docs-list');
     if (!list) return;
-    const maxLines = 6;
+    const maxLines = 8;
     const mainInput = document.getElementById('modal-invoice-ref');
     const totalLines = (mainInput ? 1 : 0) + list.children.length;
     if (totalLines >= maxLines) return;
