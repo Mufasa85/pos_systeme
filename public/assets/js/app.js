@@ -2212,9 +2212,28 @@ function renderServiceBillContent(data, sale) {
     html += '<div class="receipt-total-row" style="font-size:11px; color:#555;">'
         + '<span>Equivalent en USD :</span><span>' + (usdRate ? (total < 0 ? -total / usdRate : total / usdRate).toFixed(2) + ' $' : '-') + '</span>'
         + '</div>';
-    html += '<div class="receipt-total-row" style="font-size:11px; color:#555;">'
-        + '<span>Paiement:</span><span>' + info.payment_type + '</span>'
-        + '</div>';
+    // Bloc paiement (support multi-paiements depuis payment_type JSON)
+    if (info.payment_type) {
+        let paymentList = [];
+        try {
+            const parsed = JSON.parse(info.payment_type);
+            if (Array.isArray(parsed)) paymentList = parsed;
+        } catch (e) { /* garder la valeur brute ci-dessous */ }
+        if (paymentList.length > 0) {
+            paymentList.forEach(p => {
+                const label = getPaymentTypeLabel(p.name) || p.name || 'Paiement';
+                const amount = parseFloat(p.amount) || 0;
+                const curCode ='Fc';
+                html += '<div class="receipt-total-row" style="font-size:11px; color:#555;">'
+                    + '<span>' + label + ':</span><span>' + amount.toFixed(2) + ' ' + curCode + '</span>'
+                    + '</div>';
+            });
+        } else {
+            html += '<div class="receipt-total-row" style="font-size:11px; color:#555;">'
+                + '<span>Paiement:</span><span>' + info.payment_type + '</span>'
+                + '</div>';
+        }
+    }
     html += '<div class="receipt-total-row" style="font-size:11px; color:#555;">'
         + '<span>Nombre d\'article(s):</span><span>' + totalQty.toFixed(2) + '</span>'
         + '</div>';
