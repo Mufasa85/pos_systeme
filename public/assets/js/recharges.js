@@ -797,6 +797,11 @@ class BillPayment {
         // Initialiser la liste des modes de paiement
         this.initModalPaymentsRecharge();
 
+        // Initialiser les références documents (max 8)
+        this.initModalRefDocsRecharge();
+        const extraRefs = (this.currentRefDocs || []).slice(1);
+        extraRefs.forEach(ref => this.addModalRefDocLineRecharge(ref));
+
         // Afficher le modal
         modal.classList.add('active');
         document.body.style.overflow = 'hidden';
@@ -839,7 +844,9 @@ class BillPayment {
             mobile_money: 'Mobile Money',
             card: 'Carte Bancaire',
             transfer: 'Virement',
-            credit: 'Crédit'
+            credit: 'Crédit',
+            cheque: 'Chèques',
+            autre: 'Autres'
         };
         return labels[type] || type;
     }
@@ -870,6 +877,8 @@ class BillPayment {
                     <option value="card" ${type === 'card' ? 'selected' : ''}>Carte Bancaire</option>
                     <option value="transfer" ${type === 'transfer' ? 'selected' : ''}>Virement</option>
                     <option value="credit" ${type === 'credit' ? 'selected' : ''}>Crédit</option>
+                    <option value="cheque" ${type === 'cheque' ? 'selected' : ''}>Chèques</option>
+                    <option value="autre" ${type === 'autre' ? 'selected' : ''}>Autres</option>
                 </select>
             </div>
             <div>
@@ -946,18 +955,85 @@ class BillPayment {
         return payments;
     }
 
+    // ==================== MODAL MULTI-RÉFÉRENCES DOCUMENTS ====================
+
+    initModalRefDocsRecharge() {
+        const list = document.getElementById('modal-ref-docs-list');
+        if (!list) return;
+        list.innerHTML = '';
+        this.updateAddRefDocButtonRecharge();
+    }
+
+    addModalRefDocLineRecharge(value = '') {
+        const list = document.getElementById('modal-ref-docs-list');
+        if (!list) return;
+        const maxLines = 8;
+        const mainInput = document.getElementById('modal-invoice-ref');
+        const totalLines = (mainInput ? 1 : 0) + list.children.length;
+        if (totalLines >= maxLines) return;
+
+        const line = document.createElement('div');
+        line.className = 'modal-ref-doc-line';
+        line.style.cssText = 'display: flex; gap: 8px; align-items: center;';
+        line.innerHTML = `
+            <input type="text" class="modal-ref-doc-input client-number-input" placeholder="Réf..." value="${value}" style="width: 100%;" oninput="billPayment.syncRefDocsCountRecharge()">
+            <button type="button" onclick="billPayment.removeModalRefDocLineRecharge(this)" style="background: #fee2e2; color: #dc2626; border: none; border-radius: 6px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1rem;">×</button>
+        `;
+        list.appendChild(line);
+        this.updateAddRefDocButtonRecharge();
+        this.syncRefDocsCountRecharge();
+    }
+
+    removeModalRefDocLineRecharge(btn) {
+        const line = btn.closest('.modal-ref-doc-line');
+        if (line) line.remove();
+        this.updateAddRefDocButtonRecharge();
+        this.syncRefDocsCountRecharge();
+    }
+
+    updateAddRefDocButtonRecharge() {
+        const list = document.getElementById('modal-ref-docs-list');
+        const btn = document.getElementById('add-ref-doc-btn');
+        const mainInput = document.getElementById('modal-invoice-ref');
+        if (!list || !btn) return;
+        const maxLines = 8;
+        const totalLines = (mainInput ? 1 : 0) + list.children.length;
+        btn.style.display = totalLines >= maxLines ? 'none' : 'flex';
+    }
+
+    syncRefDocsCountRecharge() {
+        const list = document.getElementById('modal-ref-docs-list');
+        const countInput = document.getElementById('modal-ref-docs-count');
+        const mainInput = document.getElementById('modal-invoice-ref');
+        if (countInput) {
+            const totalLines = (mainInput ? 1 : 0) + (list ? list.children.length : 0);
+            countInput.value = totalLines;
+        }
+    }
+
+    getModalRefDocsRecharge() {
+        const refs = [];
+        const mainInput = document.getElementById('modal-invoice-ref');
+        if (mainInput && mainInput.value.trim()) refs.push(mainInput.value.trim());
+        const list = document.getElementById('modal-ref-docs-list');
+        if (list) {
+            list.querySelectorAll('.modal-ref-doc-input').forEach(input => {
+                if (input.value.trim()) refs.push(input.value.trim());
+            });
+        }
+        return refs;
+    }
+
     // Confirmer les infos client et ouvrir le preview
     async confirmInvoiceInfoRecharge() {
         // Sauvegarder les valeurs du modal vers les champs du panier
         const isAdmin = typeof CURRENT_USER !== 'undefined' && CURRENT_USER.role === 'admin';
         const modalInvoiceType = isAdmin ? document.getElementById('modal-invoice-type')?.value || 'FV' : 'FV';
-        const modalInvoiceRef = isAdmin ? document.getElementById('modal-invoice-ref')?.value || '' : '';
         const modalClientName = document.getElementById('modal-client-name')?.value || '';
         const modalClientNumber = document.getElementById('modal-client-tel1')?.value?.trim() || '';
         const modalClientType = document.getElementById('modal-client-type')?.value || '';
         const modalClientNif = document.getElementById('modal-client-nif')?.value || '';
         const modalClientAddress = document.getElementById('modal-client-address')?.value || '';
-        const modalPaymentType = document.getElementById('modal-payment-type')?.value || 'cash';
 
         if (modalClientNumber && !RECHARGE_PHONE_NUMBER_REGEX.test(modalClientNumber)) {
             alert('Le numéro de téléphone doit respecter le format 08xxxxxxxx ou 09xxxxxxxx.');
@@ -965,9 +1041,14 @@ class BillPayment {
             return;
         }
 
+        // Extraire le code client depuis le texte de l'option sélectionnée (ex: "PP - Particulier")
+        const clientTypeSelect = document.getElementById('modal-client-type');
+        const modalClientTypeText = clientTypeSelect?.options?.[clientTypeSelect.selectedIndex]?.textContent || '';
+        const modalClientTypeCode = modalClientTypeText.split(' - ')[0].trim() || '';
+
         // Validation selon le type de client avant d'ouvrir la preview
-        // PM, PL, PC : adresse obligatoire
-        if (['PM', 'PL', 'PC'].includes(modalClientType)) {
+        // PM, PL, PC, AO : adresse obligatoire
+        if (['PM', 'PL', 'PC', 'AO'].includes(modalClientTypeCode)) {
             if (!modalClientAddress.trim()) {
                 alert("L'adresse est obligatoire pour ce type de client.");
                 this.highlightModalField('modal-client-address');
@@ -976,16 +1057,19 @@ class BillPayment {
         }
 
         // Le NIF est obligatoire pour tous les types de client sauf PP (Particulier)
-        if (modalClientType !== 'PP' && !modalClientNif.trim()) {
+        if (modalClientTypeCode !== 'PP' && !modalClientNif.trim()) {
             alert("Le NIF est obligatoire pour ce type de client.");
             this.highlightModalField('modal-client-nif');
             return;
         }
 
+        // Récupérer les références documents (jusqu'à 8)
+        const modalInvoiceRefs = isAdmin ? this.getModalRefDocsRecharge() : [];
+        const modalInvoiceRef = modalInvoiceRefs[0] || '';
+
         // AO : référence document obligatoire
-        if (modalClientType === 'AO') {
-            const refDocument = document.getElementById('modal-invoice-ref')?.value || '';
-            if (!refDocument.trim()) {
+        if (modalClientTypeCode === 'AO') {
+            if (modalInvoiceRefs.length === 0 || modalInvoiceRefs.every(r => !r.trim())) {
                 alert("La référence document est obligatoire pour les ambassades et organisations internationales.");
                 this.highlightModalField('modal-invoice-ref');
                 return;
@@ -1012,8 +1096,9 @@ class BillPayment {
         document.getElementById('client-address').value = modalClientAddress;
         document.getElementById('client-numero').value = modalClientNumber;
 
-        // Mémoriser les paiements et l'adresse sur le client courant
+        // Mémoriser les paiements, les références documents et l'adresse sur le client courant
         this.currentPayments = payments;
+        this.currentRefDocs = modalInvoiceRefs;
         if (this.clientInfo) {
             this.clientInfo.adresse = modalClientAddress;
         }
@@ -1716,6 +1801,20 @@ class BillPayment {
 // ==========================================
 
 let billPayment;
+
+// Fonctions globales pour les boutons inline du modal
+function addModalPaymentLineRecharge(type, amount) {
+    if (billPayment) billPayment.addModalPaymentLineRecharge(type, amount);
+}
+function removeModalPaymentLineRecharge(btn) {
+    if (billPayment) billPayment.removeModalPaymentLineRecharge(btn);
+}
+function addModalRefDocLineRecharge(value) {
+    if (billPayment) billPayment.addModalRefDocLineRecharge(value);
+}
+function removeModalRefDocLineRecharge(btn) {
+    if (billPayment) billPayment.removeModalRefDocLineRecharge(btn);
+}
 
 document.addEventListener('DOMContentLoaded', () => {
     billPayment = new BillPayment();
