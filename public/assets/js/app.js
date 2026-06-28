@@ -595,9 +595,9 @@ const posCart = {
                 totalTax += itemTax;
             }
 
-            const subtotalTTC = subtotalHT;
+            const subtotalTTC = Math.round(subtotalHT * 100) / 100;
 
-            $('#subtotal').textContent = formatCurrency(subtotalHT);
+            $('#subtotal').textContent = formatCurrency(subtotalTTC);
             $('#total').textContent = formatCurrency(subtotalTTC);
 
             // Afficher l'équivalent USD (taux dynamique depuis API)
@@ -607,7 +607,7 @@ const posCart = {
                 totalUsdEl.textContent = '≈ $' + totalUsd.toFixed(2) + ' USD';
             }
 
-            this.currentTotals = { sous_total_ht: subtotalHT, tva: totalTax, total: subtotalTTC };
+            this.currentTotals = { sous_total_ht: subtotalTTC, tva: Math.round(totalTax * 100) / 100, total: subtotalTTC };
         }
     },
 
@@ -1305,6 +1305,10 @@ const posCart = {
             restFc = inputValue - totalFc;
             restUsd = restFc / TAUX_CHANGE;
         }
+
+        // Éviter les erreurs de précision flottante (ex: 0.30000000000000004)
+        restFc = Math.round(restFc * 100) / 100;
+        restUsd = Math.round(restUsd * 100) / 100;
 
         const resultDiv = $('#payment-result');
         const changeLabel = $('#payment-change-label');
