@@ -216,7 +216,7 @@ $localQrData  = $sale['qrCode'] ?? '';
                 n = n * sign
             }
             var u = ['', 'un', 'deux', 'trois', 'quatre', 'cinq', 'six', 'sept', 'huit', 'neuf', 'dix', 'onze', 'douze', 'treize', 'quatorze', 'quinze', 'seize', 'dix-sept', 'dix-huit', 'dix-neuf'];
-            var t = ['', '', 'vingt', 'trente', 'quarante', 'cinquante', 'soixante', 'soixante', 'quatre-vingt', 'quatre-vingt-dix'];
+            var t = ['', '', 'vingt', 'trente', 'quarante', 'cinquante', 'soixante', 'soixante', 'quatre-vingt', 'nonante'];
             var ip = Math.floor(n),
                 dp = Math.round((n - ip) * 100);
 
@@ -226,10 +226,10 @@ $localQrData  = $sale['qrCode'] ?? '';
                 if (x < 100) {
                     var tn = Math.floor(x / 10),
                         un = x % 10;
-                    if (tn === 7 || tn === 9) {
-                        var b = tn === 7 ? 60 : 80;
-                        if (un === 1) return b + '-et-' + u[un];
-                        return b + '-' + u[un];
+                    if (tn === 7) {
+                        var teen = 10 + un;
+                        if (un === 1) return 'soixante-et-' + u[teen];
+                        return 'soixante-' + u[teen];
                     }
                     if (tn === 8 && un === 0) return 'quatre-vingts';
                     if (un === 0) return t[tn];
@@ -298,6 +298,20 @@ $localQrData  = $sale['qrCode'] ?? '';
                 'COR': 'Correction'
             };
             return m[c] || c || '';
+        }
+
+        function paymentTypeLabel(c) {
+            var m = {
+                'ESPECES': 'Espèces',
+                'MOBILEMONEY': 'Mobile Money',
+                'CARTEBANCAIRE': 'Carte Bancaire',
+                'VIREMENT': 'Virement',
+                'CREDIT': 'Crédit',
+                'CHEQUES': 'Chèques',
+                'AUTRE': 'Autres',
+                
+            };
+            return m[c] || c || 'Paiement';
         }
 
         var TAX_CATS = [{
@@ -521,7 +535,24 @@ $localQrData  = $sale['qrCode'] ?? '';
             html += '<div class="receipt-total-row grand-total"><span>TOTAL TTC:</span><span>' + totalTTC.toFixed(2) + ' Fc</span></div>';
             html += '<div class="receipt-total-row" style="font-size:11px; color:#555;"><span>TAUX DU JOUR :</span><span>' + (usdRate || '-') + ' Fc/USD</span></div>';
             html += '<div class="receipt-total-row" style="font-size:11px; color:#555;"><span>Equivalent en USD :</span><span>' + (usdRate ? (totalTTC < 0 ? -totalTTC / usdRate : totalTTC / usdRate).toFixed(2) + ' $' : '-') + '</span></div>';
-            html += '<div class="receipt-total-row" style="font-size:11px; color:#555;"><span>Paiement:</span><span>' + esc(info.payment_type) + '</span></div>';
+            // Bloc paiement (support multi-paiements depuis payment_type JSON)
+            if (info.payment_type) {
+                var paymentList = [];
+                try {
+                    var parsed = JSON.parse(info.payment_type);
+                    if (Array.isArray(parsed)) paymentList = parsed;
+                } catch (e) { /* garder la valeur brute ci-dessous */ }
+                if (paymentList.length > 0) {
+                    paymentList.forEach(function(p) {
+                        var label = paymentTypeLabel(p.name) || p.name || 'Paiement';
+                        var amount = parseFloat(p.amount) || 0;
+                        var curCode = p.curCode || 'Fc';
+                        html += '<div class="receipt-total-row" style="font-size:11px; color:#555;"><span>' + esc(label) + ':</span><span>' + amount.toFixed(2) + ' ' + esc(curCode) + '</span></div>';
+                    });
+                } else {
+                    html += '<div class="receipt-total-row" style="font-size:11px; color:#555;"><span>Paiement:</span><span>' + esc(info.payment_type) + '</span></div>';
+                }
+            }
             html += '<div class="receipt-total-row" style="font-size:11px; color:#555;"><span>Nombre d\'article(s):</span><span>' + totalQty.toFixed(2) + '</span></div>';
             html += '<div style="text-align:center; font-size:12px; color:#888; font-style:italic; margin-top:2px;">Arrêté le présent duplicata à la somme de ' + numToFr(totalTTC) + ' congolais toutes taxes comprises</div>';
             if (info.isf || info.store_isf) {
