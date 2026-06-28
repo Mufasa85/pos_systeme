@@ -456,6 +456,7 @@ $localQrData  = $sale['qrCode'] ?? '';
         // ==================== Render proforma ====================
         function renderProforma(info) {
             var articles = [];
+            console.log(info)
             try {
                 if (info.articles) {
                     if (typeof info.articles === 'string') articles = JSON.parse(info.articles);
@@ -474,12 +475,13 @@ $localQrData  = $sale['qrCode'] ?? '';
             html += '<div style="text-align:center; font-weight:800; font-size:24px; color:#000; margin-bottom:10px; border-bottom:2px solid #000; padding-bottom:5px;">DUPLICATA</div>';
             html += '<div class="store-name">' + esc(info.store_name || (window.STORE_INFO && window.STORE_INFO.name) || '') + '</div>';
             html += '<div class="store-info">';
-            html += '<div><strong>Point de vente :</strong> ' + esc(info.store_address || '') + '</div>';
-            html += '<div>Tel: ' + esc(info.store_phone || '') + '</div>';
+            html += '<div><strong>Point de vente :</strong> ' + esc(info.pdv || (window.STORE_INFO && window.STORE_INFO.pdv) || '') + '</div>';
+            html += '<div>Addresse : ' + esc(info.store_address || (window.STORE_INFO && window.STORE_INFO.address) || '') + '</div>';
+            html += '<div>Tel: ' + esc(info.store_phone || (window.STORE_INFO && window.STORE_INFO.phone) || '') + '</div>';
             if (info.store_email || (window.STORE_INFO && window.STORE_INFO.email)) html += '<div>Email: ' + esc(info.store_email || window.STORE_INFO.email) + '</div>';
             if (info.store_ice) html += '<div>ID Nat: ' + esc(info.store_ice) + '</div>';
             if (info.store_rccm) html += '<div>RCCM: ' + esc(info.store_rccm) + '</div>';
-            if (info.store_isf) html += '<div>Numero Agent: ' + esc(info.store_isf) + '</div>';
+            if (info.store_isf) html += '<div>Numero Impot: ' + esc(info.store_isf) + '</div>';
             html += '</div>';
 
             // Vendeur / Client
@@ -546,7 +548,7 @@ $localQrData  = $sale['qrCode'] ?? '';
                     paymentList.forEach(function(p) {
                         var label = paymentTypeLabel(p.name) || p.name || 'Paiement';
                         var amount = parseFloat(p.amount) || 0;
-                        var curCode = p.curCode || 'Fc';
+                        var curCode = 'Fc';
                         html += '<div class="receipt-total-row" style="font-size:11px; color:#555;"><span>' + esc(label) + ':</span><span>' + amount.toFixed(2) + ' ' + esc(curCode) + '</span></div>';
                     });
                 } else {
