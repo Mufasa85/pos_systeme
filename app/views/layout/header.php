@@ -110,7 +110,7 @@
           </svg>
           <span>Caisse</span>
         </a>
-        <!-- <a href="/recharges" class="nav-item <?= $currentPage == 'recharges' ? 'active' : '' ?>">
+        <a href="/recharges" class="nav-item <?= $currentPage == 'recharges' ? 'active' : '' ?>">
           <div class="nav-icon-split">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path>
@@ -120,7 +120,7 @@
             </svg>
           </div>
           <span>ELECTRICITE/EAU</span>
-        </a> -->
+        </a>
         <a href="/produits" class="nav-item <?= $currentPage == 'produits' ? 'active' : '' ?>">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
@@ -128,6 +128,14 @@
             <path d="M16 10a4 4 0 0 1-8 0"></path>
           </svg>
           <span>Produits</span>
+        </a>
+
+        <a href="/analytics" class="nav-item <?= $currentPage == 'analytics' ? 'active' : '' ?>">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 3v18h18"></path>
+            <path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3"></path>
+          </svg>
+          <span>Analytics</span>
         </a>
 
         <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin'): ?>
@@ -156,6 +164,14 @@
               <path d="M4 6h16M4 10h16M4 14h7M4 18h10"></path>
             </svg>
             <span>Categories</span>
+          </a>
+          <a href="/taxes" class="nav-item <?= $currentPage == 'taxes' ? 'active' : '' ?>">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="19" y1="5" x2="5" y2="19"></line>
+              <circle cx="6.5" cy="6.5" r="2.5"></circle>
+              <circle cx="17.5" cy="17.5" r="2.5"></circle>
+            </svg>
+            <span>Taxes</span>
           </a>
           <a href="/parametres" class="nav-item <?= $currentPage == 'parametres' ? 'active' : '' ?>">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
