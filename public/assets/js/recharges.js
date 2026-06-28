@@ -840,13 +840,13 @@ class BillPayment {
 
     getPaymentTypeLabel(type) {
         const labels = {
-            cash: 'Espèces',
-            mobile_money: 'Mobile Money',
-            card: 'Carte Bancaire',
-            transfer: 'Virement',
-            credit: 'Crédit',
-            cheque: 'Chèques',
-            autre: 'Autres'
+            ESPECES: 'Espèces',
+            MOBILEMONEY: 'Mobile Money',
+            CARTEBANCAIRE: 'Carte Bancaire',
+            VIREMENT: 'Virement',
+            CREDIT: 'Crédit',
+            CHEQUES: 'Chèques',
+            AUTRE: 'Autres'
         };
         return labels[type] || type;
     }
@@ -859,12 +859,15 @@ class BillPayment {
         const list = document.getElementById('modal-payments-list');
         if (!list) return;
         list.innerHTML = '';
-        this.addModalPaymentLineRecharge('cash', this.getCartTotal());
+        this.addModalPaymentLineRecharge('ESPECES', this.getCartTotal());
+        this.updateAddPaymentButtonRecharge();
     }
 
-    addModalPaymentLineRecharge(type = 'cash', amount = 0) {
+    addModalPaymentLineRecharge(type = 'ESPECES', amount = 0) {
         const list = document.getElementById('modal-payments-list');
         if (!list) return;
+        const maxLines = 6;
+        if (list.children.length >= maxLines) return;
         const line = document.createElement('div');
         line.className = 'modal-payment-line';
         line.style.cssText = 'display: grid; grid-template-columns: 1fr 100px 28px; gap: 8px; align-items: end;';
@@ -872,13 +875,13 @@ class BillPayment {
             <div>
                 <label style="font-size: 0.7rem; color: #166534; display: block; margin-bottom: 4px;">Type</label>
                 <select class="modal-payment-type client-number-input" style="width: 100%; background: #fff;" onchange="billPayment.calculateModalPaymentsRecharge()">
-                    <option value="cash" ${type === 'cash' ? 'selected' : ''}>Espèces</option>
-                    <option value="mobile_money" ${type === 'mobile_money' ? 'selected' : ''}>Mobile Money</option>
-                    <option value="card" ${type === 'card' ? 'selected' : ''}>Carte Bancaire</option>
-                    <option value="transfer" ${type === 'transfer' ? 'selected' : ''}>Virement</option>
-                    <option value="credit" ${type === 'credit' ? 'selected' : ''}>Crédit</option>
-                    <option value="cheque" ${type === 'cheque' ? 'selected' : ''}>Chèques</option>
-                    <option value="autre" ${type === 'autre' ? 'selected' : ''}>Autres</option>
+                    <option value="ESPECES" ${type === 'ESPECES' ? 'selected' : ''}>Espèces</option>
+                    <option value="MOBILEMONEY" ${type === 'MOBILEMONEY' ? 'selected' : ''}>Mobile Money</option>
+                    <option value="CARTEBANCAIRE" ${type === 'CARTEBANCAIRE' ? 'selected' : ''}>Carte Bancaire</option>
+                    <option value="VIREMENT" ${type === 'VIREMENT' ? 'selected' : ''}>Virement</option>
+                    <option value="CREDIT" ${type === 'CREDIT' ? 'selected' : ''}>Crédit</option>
+                    <option value="CHEQUES" ${type === 'CHEQUES' ? 'selected' : ''}>Chèques</option>
+                    <option value="AUTRE" ${type === 'AUTRE' ? 'selected' : ''}>Autres</option>
                 </select>
             </div>
             <div>
@@ -889,13 +892,23 @@ class BillPayment {
         `;
         list.appendChild(line);
         this.updateModalPaymentRemoveButtonsRecharge();
+        this.updateAddPaymentButtonRecharge();
         this.calculateModalPaymentsRecharge();
+    }
+
+    updateAddPaymentButtonRecharge() {
+        const list = document.getElementById('modal-payments-list');
+        const btn = document.getElementById('add-payment-line-btn');
+        if (!list || !btn) return;
+        const maxLines = 6;
+        btn.style.display = list.children.length >= maxLines ? 'none' : 'flex';
     }
 
     removeModalPaymentLineRecharge(btn) {
         const line = btn.closest('.modal-payment-line');
         if (line) line.remove();
         this.updateModalPaymentRemoveButtonsRecharge();
+        this.updateAddPaymentButtonRecharge();
         this.calculateModalPaymentsRecharge();
     }
 
