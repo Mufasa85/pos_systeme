@@ -3871,7 +3871,7 @@ function confirmInvoiceInfo() {
     const clientTypeCode = clientTypeText.split(' - ')[0].trim() || '';
 
     // Validation selon le type de client avant d'ouvrir la preview
-    if (['PM', 'PL', 'PC'].includes(clientTypeCode)) {
+    if (['PM', 'PL', 'PC', 'AO'].includes(clientTypeCode)) {
         if (!clientAddress.trim()) {
             alert("L'adresse est obligatoire pour ce type de client.");
             highlightModalField('modal-client-address');
