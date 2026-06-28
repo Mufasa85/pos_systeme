@@ -452,7 +452,8 @@ class BillPayment {
             const clientNom = document.getElementById('client-nom')?.value || this.clientInfo?.nom || 'Client';
             const clientNumero = document.getElementById('invoice-number')?.value || '';
             const invoiceType = document.getElementById('invoice-type')?.value || 'FV';
-            const invoiceRef = document.getElementById('invoice-ref')?.value || '';
+            const invoiceRefs = (this.currentRefDocs?.length > 0 ? this.currentRefDocs : [document.getElementById('invoice-ref')?.value || '']).filter(r => r.trim());
+            const invoiceRef = invoiceRefs[0] || '';
 
             // Construire les articles (mois sélectionnés) pour la DGI
             // Si la facture N'est PAS FA ou EA, on envoie les quantités et
@@ -511,6 +512,7 @@ class BillPayment {
                 client_commune: clientCommune,
                 invoice_number: invoiceNum,
                 invoice_type: invoiceType,
+                invoice_refs: invoiceRefs,
                 invoice_ref: invoiceRef,
 
                 articles: articles,
