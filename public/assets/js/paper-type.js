@@ -391,7 +391,31 @@
         tmpItems.innerHTML = itemsHtml;
         var existingTable = tmpItems.querySelector('table.receipt-table, table');
         if (existingTable) {
-            itemTableHtml = existingTable.outerHTML;
+            // Transformer le tableau 2 lignes/article en 1 ligne avec 3 colonnes
+            var newRows = '';
+            var bodyRows = existingTable.querySelectorAll('tbody tr');
+            for (var i = 0; i < bodyRows.length; i += 2) {
+                var nameRow = bodyRows[i];
+                var detailRow = bodyRows[i + 1];
+                if (!nameRow || !detailRow) continue;
+                var nameCell = nameRow.querySelector('td');
+                var qtyCell = detailRow.querySelector('.item-qty, td:first-child');
+                var totalCell = detailRow.querySelector('.item-total, td:last-child');
+                var name = nameCell ? nameCell.innerHTML.trim() : '';
+                var qty = qtyCell ? qtyCell.innerHTML.trim() : '';
+                var total = totalCell ? totalCell.innerHTML.trim() : '';
+                newRows += '<tr>' +
+                    '<td style="padding:4px 4px 4px; border-bottom:1px dashed #ccc; vertical-align:top; word-break:break-word; overflow-wrap:anywhere;">' + name + '</td>' +
+                    '<td style="padding:4px 4px 4px; border-bottom:1px dashed #ccc; font-size:10px; color:#555; font-style:italic; text-align:center; word-break:break-word; overflow-wrap:anywhere; vertical-align:top;">' + qty + '</td>' +
+                    '<td style="padding:4px 4px 4px; border-bottom:1px dashed #ccc; font-size:10px; font-weight:700; text-align:right; word-break:break-all; overflow-wrap:anywhere; vertical-align:top;">' + total + '</td>' +
+                    '</tr>';
+            }
+            itemTableHtml = '<table style="width:100%;border-collapse:collapse;">' +
+                '<thead><tr style="background:#f5f5f5;">' +
+                '<th style="padding:6px 4px;text-align:left;border-bottom:2px solid #333;">Article</th>' +
+                '<th style="padding:6px 4px;text-align:center;border-bottom:2px solid #333;">Qté × PU</th>' +
+                '<th style="padding:6px 4px;text-align:right;border-bottom:2px solid #333;">Total HT</th>' +
+                '</tr></thead><tbody>' + newRows + '</tbody></table>';
         } else {
             var rows = '';
             var itemEls = tmpItems.querySelectorAll('.receipt-item');
@@ -399,20 +423,19 @@
                 var nameEl2 = el.querySelector('.item-name');
                 var qtyEl = el.querySelector('.item-qty');
                 var priceEl = el.querySelector('.item-price, .item-total');
-                var name = nameEl2 ? nameEl2.textContent.trim() : el.textContent.trim();
+                var name = nameEl2 ? nameEl2.innerHTML.trim() : el.innerHTML.trim();
                 var qtyPrice = qtyEl ? qtyEl.textContent.trim() : '';
                 var totalPrice = priceEl ? priceEl.textContent.trim() : '';
-                rows += '<tr class="item-name-row">' +
-                    '<td colspan="2" style="padding:4px 4px 1px; border-bottom:none;">' + name + '</td>' +
-                    '</tr>' +
-                    '<tr class="item-detail-row">' +
-                    '<td style="padding:1px 4px 5px; border-bottom:1px dashed #ccc; font-size:10px; color:#555; font-style:italic; word-break:break-word; overflow-wrap:anywhere;">' + qtyPrice + '</td>' +
-                    '<td style="padding:1px 4px 5px; border-bottom:1px dashed #ccc; font-size:10px; font-weight:700; text-align:right; word-break:break-all; overflow-wrap:anywhere;">' + totalPrice + '</td>' +
+                rows += '<tr class="item-row">' +
+                    '<td style="padding:4px 4px 4px; border-bottom:1px dashed #ccc; vertical-align:top; word-break:break-word; overflow-wrap:anywhere;">' + name + '</td>' +
+                    '<td style="padding:4px 4px 4px; border-bottom:1px dashed #ccc; font-size:10px; color:#555; font-style:italic; text-align:center; word-break:break-word; overflow-wrap:anywhere; vertical-align:top;">' + qtyPrice + '</td>' +
+                    '<td style="padding:4px 4px 4px; border-bottom:1px dashed #ccc; font-size:10px; font-weight:700; text-align:right; word-break:break-all; overflow-wrap:anywhere; vertical-align:top;">' + totalPrice + '</td>' +
                     '</tr>';
             });
             itemTableHtml = '<table style="width:100%;border-collapse:collapse;">' +
                 '<thead><tr style="background:#f5f5f5;">' +
                 '<th style="padding:6px 4px;text-align:left;border-bottom:2px solid #333;">Article</th>' +
+                '<th style="padding:6px 4px;text-align:center;border-bottom:2px solid #333;">Qté × PU</th>' +
                 '<th style="padding:6px 4px;text-align:right;border-bottom:2px solid #333;">Total HT</th>' +
                 '</tr></thead><tbody>' + rows + '</tbody></table>';
         }
