@@ -236,8 +236,8 @@
                   Type de remise
                 </label>
                 <select id="product-remise-type" style="width: 100%;">
-                  <option value="percent">Pourcentage (%)</option>
-                  <option value="amount">Montant fixe (Fc)</option>
+                  <option value="%">Pourcentage (%)</option>
+                  <option value="CDF">Montant fixe (Fc)</option>
                 </select>
                 <small style="color: var(--muted);">Appliquée automatiquement sur le prix de vente</small>
               </div>
