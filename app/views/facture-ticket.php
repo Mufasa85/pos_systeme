@@ -114,11 +114,17 @@ $localQrData  = $sale['qrCode'] ?? '';
                     $itemTax = $itemHT * ($taxRate / 100);
                     $itemTTC = $itemHT + $itemTax;
                     $taxLabel = !empty($item['tax_etiquette']) ? htmlspecialchars($item['tax_etiquette']) : ($taxRate > 0 ? 'TVA ' . $taxRate . '%' : 'Exonere');
+                    $itemDiscount = (!empty($item['remise_value']) && floatval($item['remise_value']) > 0)
+                        ? ($item['remise_type'] === 'CDF'
+                            ? ' - ' . number_format(floatval($item['remise_value']), 2, '.', ' ') . ' remise'
+                            : ' - ' . htmlspecialchars($item['remise_value']) . '% remise')
+                        : '';
                 ?>
                     <div class="receipt-item">
                         <span class="item-name">
                             <?= htmlspecialchars($item['produit_nom'] ?? 'Produit') ?>
                             <span class="item-tax-badge"><?= $taxLabel ?></span>
+                            <small style="color:var(--success);font-weight:600;"><?= $itemDiscount ?></small>
                         </span>
                         <span class="item-qty"><?= $item['quantite'] ?> × <?= number_format(floatval($item['prix']), 2, '.', ' ') ?> Fc</span>
                         <span class="item-price"><?= number_format($itemHT, 2, '.', ' ') ?> Fc</span>
@@ -515,9 +521,14 @@ $localQrData  = $sale['qrCode'] ?? '';
                     var totalHt = price * qty;
                     var taxLabel = a.taxGroup || 'null';
                     var typeLabel = a.type ? '<span class="item-prod-service">[' + esc(a.type) + ']</span>' : '';
+                    var discountLabel = a.remise_value > 0
+                        ? (a.remise_type === 'CDF'
+                            ? ' - ' + parseFloat(a.remise_value).toFixed(2) + ' remise'
+                            : ' - ' + a.remise_value + '% remise')
+                        : '';
                     // Ligne 1 : nom article (colspan=2)
                     html += '<tr class="item-name-row">';
-                    html += '<td colspan="2"><span class="item-name">' + esc(a.name || 'Article') + '<span class="item-tax-badge">' + esc(taxLabel) + '</span>' + typeLabel + '</span></td>';
+                    html += '<td colspan="2"><span class="item-name">' + esc(a.name || 'Article') + '<span class="item-tax-badge">' + esc(taxLabel) + '</span>' + typeLabel + '<small style="color:var(--success);font-weight:600;">' + discountLabel + '</small></span></td>';
                     html += '</tr>';
                     // Ligne 2 : qty × prix unitaire | total
                     html += '<tr class="item-detail-row">';
