@@ -41,7 +41,7 @@
                   </svg>
                   Adresse
                 </label>
-                <input type="text" id="store-address" name="store_address" value="" placeholder="Ex: 123 Rue Mohammed V, Casablanca" readonly>
+                <input type="text" id="store-address" name="store_address" value="" placeholder="Ex: 123 Rue Mohammed V, Casablanca">
               </div>
               <div class="form-row">
                 <div class="form-group">
@@ -52,7 +52,7 @@
                     </svg>
                     Email
                   </label>
-                  <input type="text" id="store-email" name="store_email" value="" placeholder="Ex: contact@magasin.com" readonly>
+                  <input type="text" id="store-email" name="store_email" value="" placeholder="Ex: contact@magasin.com">
                 </div>
                 <div class="form-group">
                   <label>
@@ -62,7 +62,7 @@
                     </svg>
                     Point de vente (PDV)
                   </label>
-                  <input type="text" id="store-pdv" name="pdv" value="" placeholder="Ex: PDV001" readonly>
+                  <input type="text" id="store-pdv" name="pdv" value="" placeholder="Ex: PDV001">
                 </div>
               </div>
               <div class="form-row">
@@ -73,7 +73,7 @@
                     </svg>
                     Téléphone
                   </label>
-                  <input type="text" id="store-phone" name="store_phone" value="" placeholder="Ex: +212 522 123 456" readonly>
+                  <input type="text" id="store-phone" name="store_phone" value="" placeholder="Ex: +212 522 123 456">
                 </div>
                 <div class="form-group">
                   <label>
@@ -83,7 +83,7 @@
                     </svg>
                     ID Nat
                   </label>
-                  <input type="text" id="store-ice" name="store_ice" value="" placeholder="Ex: 001234567890123" style="font-family: 'JetBrains Mono', monospace;" readonly>
+                  <input type="text" id="store-ice" name="store_ice" value="" placeholder="Ex: 001234567890123" style="font-family: 'JetBrains Mono', monospace;">
                 </div>
               </div>
               <div class="form-row">
@@ -109,7 +109,7 @@
                     </svg>
                     ISF
                   </label>
-                  <input type="text" id="store-isf" name="store_isf" value="" placeholder="Ex: ISF123456" readonly>
+                  <input type="text" id="store-isf" name="store_isf" value="" placeholder="Ex: ISF123456">
                 </div>
               </div>
             </div>
@@ -139,7 +139,7 @@
                     </svg>
                     NID
                   </label>
-                  <input type="text" id="pos-nid" name="pos_nid" value="" placeholder="Ex: NID123456" readonly>
+                  <input type="text" id="pos-nid" name="pos_nid" value="" placeholder="Ex: NID123456">
                 </div>
                 <div class="form-group">
                   <label>
@@ -149,7 +149,7 @@
                     </svg>
                     TOKEN
                   </label>
-                  <input type="text" id="pos-token" name="pos_token" value="" placeholder="Ex: abcdef123456" style="font-family: 'JetBrains Mono', monospace;" readonly>
+                  <input type="text" id="pos-token" name="pos_token" value="" placeholder="Ex: abcdef123456" style="font-family: 'JetBrains Mono', monospace;">
                 </div>
               </div>
               <div class="form-row">
@@ -161,8 +161,19 @@
                     </svg>
                     PORT
                   </label>
-                  <input type="text" id="pos-port" name="pos_port" value="" placeholder="Ex: 443" readonly>
+                  <input type="text" id="pos-port" name="pos_port" value="" placeholder="Ex: 443">
                 </div>
+              </div>
+              <div style="margin-top: 1rem; display: flex; gap: 0.5rem;">
+                <button type="button" id="btn-save-store-pos" class="btn btn-primary" style="display: inline-flex; align-items: center; gap: 6px;">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                    <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                    <polyline points="7 3 7 8 15 8"></polyline>
+                  </svg>
+                  Enregistrer
+                </button>
+                <span id="store-pos-status" style="font-size: 0.85rem; color: var(--muted); display: inline-flex; align-items: center;"></span>
               </div>
             </div>
           </div>
@@ -529,10 +540,78 @@
           }
         }
 
-        // Init bouton
+        // Sauvegarder les informations magasin et POS
+        async function saveStoreAndPosSettings() {
+          const btn = document.getElementById('btn-save-store-pos');
+          const status = document.getElementById('store-pos-status');
+          if (btn) btn.disabled = true;
+          if (status) {
+            status.textContent = 'Enregistrement...';
+            status.style.color = 'var(--muted)';
+          }
+
+          const payload = {
+            store_name: document.getElementById('store-name')?.value || '',
+            store_address: document.getElementById('store-address')?.value || '',
+            store_email: document.getElementById('store-email')?.value || '',
+            pdv: document.getElementById('store-pdv')?.value || '',
+            store_phone: document.getElementById('store-phone')?.value || '',
+            store_ice: document.getElementById('store-ice')?.value || '',
+            store_rccm: document.getElementById('store-rccm')?.value || '',
+            store_isf: document.getElementById('store-isf')?.value || '',
+            nid: document.getElementById('pos-nid')?.value || '',
+            token: document.getElementById('pos-token')?.value || '',
+            port: document.getElementById('pos-port')?.value || ''
+          };
+
+          try {
+            const res = await fetch(APP_URL + '/api/settings', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            if (data.success) {
+              if (status) {
+                status.textContent = '✓ Enregistré';
+                status.style.color = '#16A34A';
+              }
+              // Mettre à jour STORE_INFO en mémoire
+              if (typeof STORE_INFO !== 'undefined') {
+                STORE_INFO.name = payload.store_name || STORE_INFO.name;
+                STORE_INFO.address = payload.store_address || STORE_INFO.address;
+                STORE_INFO.email = payload.store_email || STORE_INFO.email;
+                STORE_INFO.pdv = payload.pdv || STORE_INFO.pdv;
+                STORE_INFO.phone = payload.store_phone || STORE_INFO.phone;
+                STORE_INFO.ice = payload.store_ice || STORE_INFO.ice;
+                STORE_INFO.rccm = payload.store_rccm || STORE_INFO.rccm;
+                STORE_INFO.isf = payload.store_isf || STORE_INFO.isf;
+              }
+            } else {
+              if (status) {
+                status.textContent = '✗ ' + (data.error || 'Erreur');
+                status.style.color = '#DC2626';
+              }
+            }
+          } catch (e) {
+            console.error('Erreur sauvegarde settings:', e);
+            if (status) {
+              status.textContent = '✗ Erreur réseau';
+              status.style.color = '#DC2626';
+            }
+          } finally {
+            if (btn) btn.disabled = false;
+            setTimeout(() => { if (status) status.textContent = ''; }, 2500);
+          }
+        }
+
+        // Init boutons
         document.addEventListener('DOMContentLoaded', () => {
           const btn = document.getElementById('btn-save-paper-type');
           if (btn) btn.addEventListener('click', savePaperType);
+
+          const storePosBtn = document.getElementById('btn-save-store-pos');
+          if (storePosBtn) storePosBtn.addEventListener('click', saveStoreAndPosSettings);
         });
 
         // Recharger l'abonnement - redirection vers Mobile Money
