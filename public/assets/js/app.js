@@ -1095,11 +1095,16 @@ const posCart = {
             const itemTotalHT = itemPrice * itemQty;
             const taxLabel = item.tax_etiquette || (item.tax_rate > 0 ? 'TVA ' + item.tax_rate + '%' : 'Exonere');
             const prodService = item.prod_service ? `<span class="item-prod-service">[${item.prod_service}]</span>` : '';
+            const discountLabel = item.remise_value > 0
+                ? (item.remise_type === 'CDF'
+                    ? ` - ${formatCurrency(item.remise_value)} remise`
+                    : ` - ${item.remise_value}% remise`)
+                : '';
             const isPoidsItem = (item.product_type === 'coupe' || item.product_type === 'poids');
             const qtyDisplay = formatQty(itemQty, isPoidsItem);
             itemsHtml += `
                 <tr class="item-name-row">
-                    <td colspan="2"><span class="item-name"> ${item.nom}<span class="item-tax-badge">${taxLabel}</span>${prodService}</span></td>
+                    <td colspan="2"><span class="item-name"> ${item.nom}<span class="item-tax-badge">${taxLabel}</span>${prodService}<small style="color:var(--success);font-weight:600;">${discountLabel}</small></span></td>
                 </tr>
                 <tr class="item-detail-row">
                     <td class="item-qty">${qtyDisplay} × ${formatCurrency(itemPrice)} Fc</td>
@@ -1519,11 +1524,16 @@ const posCart = {
                 console.log(" item Qty : " + itemQty + " - " + itemTotalHT)
                 const taxLabel = item.tax_etiquette || (item.tax_rate > 0 ? 'TVA ' + item.tax_rate + '%' : 'Exonere');
                 const prodService = item.prod_service ? `<span class="item-prod-service">[${item.prod_service}]</span>` : '';
+                const discountLabel = item.remise_value > 0
+                    ? (item.remise_type === 'CDF'
+                        ? ` - ${formatCurrency(item.remise_value)} remise`
+                        : ` - ${item.remise_value}% remise`)
+                    : '';
                 const isPoidsItem = (item.product_type === 'coupe' || item.product_type === 'poids');
 
                 itemsHtml += `
                     <tr class="item-name-row">
-                        <td colspan="2"><span class="item-name">${item.nom}<span class="item-tax-badge">${taxLabel}</span>${prodService}</span></td>
+                        <td colspan="2"><span class="item-name">${item.nom}<span class="item-tax-badge">${taxLabel}</span>${prodService}<small style="color:var(--success);font-weight:600;">${discountLabel}</small></span></td>
                     </tr>
                     <tr class="item-detail-row">
                         <td class="item-qty">${formatQty(itemQty, isPoidsItem)} × ${formatCurrency(itemPrice)} Fc</td>
@@ -1588,7 +1598,7 @@ const posCart = {
                         <div id="${qrContainerId}" class="qrcode-container"></div>
                         <div class="thank-you">FACTURE n°${saleData.numero_facture}</div>
                         <div class="thank-you" style="font-size: 10px;">Date: ${ticketDateTime}</div>
-                        ${dgiResponse.data?.dateDGI ? '<div style="font-size: 10px; color: #666; margin-top: 4px;">DEF Heure : ' + dgiResponse.data.dateDGI + '</div>' : ''}
+                        
                        
                         <div class="thank-you">Merci de votre visite!</div>
                         <div style="margin-top: 5px; font-size: 9px; font-style: italic;">---Powered By Osat---</div>
