@@ -1187,11 +1187,11 @@ class BillPayment {
             const data = await res.json();
             if (data.invoice_number) {
                 invoiceNum = data.invoice_number;
-                this.currentInvoiceNum = invoiceNum;
             }
         } catch (e) {
             console.warn('Erreur récupération numéro facture:', e);
         }
+        this.currentInvoiceNum = invoiceNum;
 
         const total = this.selectedMonths.reduce((acc, m) => acc + m.montant, 0);
         const service = this.currentProvider === 1 ? 'ELECTRICITE' : 'EAU';
@@ -1258,7 +1258,7 @@ class BillPayment {
 
 
         // Section infos (Vendeur + Client) - style caisse
-        let infoSection = `<div style="border-top: 1px dashed #ccc; margin-top: 6px; padding-top: 6px; text-align: left; font-size: 11px; line-height: 1.5;">
+        let infoSection = `<div class="client-vendor-info" style="border-top: 1px dashed #ccc; margin-top: 6px; padding-top: 6px; text-align: left; font-size: 11px; line-height: 1.5;">
                            <div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>VENDEUR:</strong></span><span>${vendeur}</span></div>
                            ${agentNumero ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>CODE AGENT:</strong></span><span>${agentNumero}</span></div>` : ''}
                            ${clientNom ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>CLIENT:</strong></span><span>${clientNom}</span></div>` : ''}
@@ -1301,7 +1301,7 @@ class BillPayment {
                 </div>
                 <div class="receipt-footer">
                     <div class="thank-you">FACTURE n°${invoiceNum}</div>
-                    <div class="thank-you">Paiement ${service}</div>
+                    <div class="thank-you">Merci de votre visite!</div>
                     <div style="margin-top: 5px; font-size: 9px; font-style: italic;">---Powered By Osat---</div>
                 </div>
             </div>
@@ -1450,7 +1450,7 @@ class BillPayment {
         }
 
         // Section infos (Vendeur + Client) - style caisse
-        let infoSection = `<div style="border-top: 1px dashed #ccc; margin-top: 6px; padding-top: 6px; text-align: left; font-size: 11px; line-height: 1.5;">
+        let infoSection = `<div class="client-vendor-info" style="border-top: 1px dashed #ccc; margin-top: 6px; padding-top: 6px; text-align: left; font-size: 11px; line-height: 1.5;">
                            <div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>VENDEUR:</strong></span><span>${vendeur}</span></div>
                            ${agentNumero ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>N° AGENT:</strong></span><span>${agentNumero}</span></div>` : ''}
                            ${clientNom ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>CLIENT:</strong></span><span>${clientNom}</span></div>` : ''}
@@ -1472,8 +1472,8 @@ class BillPayment {
                     ${dgiResponse.data.codeDEFDGI ? 'CODE DEF/DGI: ' + dgiResponse.data.codeDEFDGI : ''}
                     ${dgiResponse.data.nim ? '<br> DEF NID : ' + dgiResponse.data.nim : ''}
                     ${dgiResponse.data.counters ? '<br> DEF Compteurs: ' + dgiResponse.data.counters : ''}
-                    ${dgiResponse.data.dateDGI ? '<br> DEF Heure : ' + dgiResponse.data.dateDGI : ''}
-                    <br> ISF : ${STORE_INFO.isf || '0'}
+                    ${dgiResponse.data.dateTime ? '<br> DEF Heure : ' + dgiResponse.data.dateTime : ''}
+                    
                 </div>
             </div>`;
         }
@@ -1487,7 +1487,7 @@ class BillPayment {
                     <div class="store-name">${STORE_INFO.name}</div>
                     <div class="store-info">
                         <div><strong>Point De vente :</strong> ${STORE_INFO.pdv}</div>
-                        <div>Adresse ${STORE_INFO.address}/div>
+                        <div>Adresse ${STORE_INFO.address}</div>
                         <div>Tel: ${STORE_INFO.phone}</div>
                         ${STORE_INFO.email ? `<div>Email: ${STORE_INFO.email}</div>` : ''}
                         <div>ID Nat: ${STORE_INFO.ice}</div>
@@ -1521,7 +1521,7 @@ class BillPayment {
                     <div id="${qrContainerId}" class="qrcode-container"></div>
                     <div class="thank-you">FACTURE n°${invoiceNum}</div>
                     <div class="thank-you" style="font-size: 10px;">Date: ${ticketDateTime}</div>
-                    <div class="thank-you">Paiement ${service}</div>
+                    <div class="thank-you">Merci de votre visite!</div>
                     <div style="margin-top: 5px; font-size: 9px; font-style: italic;">---Powered By Osat---</div>
                 </div>
             </div>
