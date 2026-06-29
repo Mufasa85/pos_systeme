@@ -231,7 +231,9 @@
 
         var infoSectionEl = null;
         var headerEl = receipt.querySelector('.receipt-header');
-        if (headerEl) {
+        // Priorité : bloc avec la classe client-vendor-info (recharges)
+        infoSectionEl = receipt.querySelector('.client-vendor-info');
+        if (!infoSectionEl && headerEl) {
             var headerChildren = headerEl.children;
             for (var i = headerChildren.length - 1; i >= 0; i--) {
                 var child = headerChildren[i];
@@ -391,19 +393,46 @@
         tmpItems.innerHTML = itemsHtml;
         var existingTable = tmpItems.querySelector('table.receipt-table, table');
         if (existingTable) {
-            // Transformer le tableau 2 lignes/article en 1 ligne avec 3 colonnes
+            // Transformer le tableau (1 ou 2 lignes/article) en 1 ligne avec 3 colonnes
             var newRows = '';
             var bodyRows = existingTable.querySelectorAll('tbody tr');
-            for (var i = 0; i < bodyRows.length; i += 2) {
-                var nameRow = bodyRows[i];
-                var detailRow = bodyRows[i + 1];
-                if (!nameRow || !detailRow) continue;
-                var nameCell = nameRow.querySelector('td');
-                var qtyCell = detailRow.querySelector('.item-qty, td:first-child');
-                var totalCell = detailRow.querySelector('.item-total, td:last-child');
-                var name = nameCell ? nameCell.innerHTML.trim() : '';
-                var qty = qtyCell ? qtyCell.innerHTML.trim() : '';
-                var total = totalCell ? totalCell.innerHTML.trim() : '';
+            for (var i = 0; i < bodyRows.length; i++) {
+                var row = bodyRows[i];
+                var nextRow = bodyRows[i + 1] || null;
+                var isNameRow = row.classList.contains('item-name-row') || row.querySelector('.item-name');
+                var isDetailRow = row.classList.contains('item-detail-row') || row.querySelector('.item-qty, .item-total');
+                var nextIsDetailRow = nextRow && (nextRow.classList.contains('item-detail-row') || nextRow.querySelector('.item-qty, .item-total'));
+                var name = '';
+                var qty = '';
+                var total = '';
+
+                if (isNameRow && nextIsDetailRow) {
+                    // Format 2 lignes (app.js) : nom sur la ligne courante, detail sur la suivante
+                    var nameCell = row.querySelector('.item-name') || row.querySelector('td');
+                    var qtyCell = nextRow.querySelector('.item-qty');
+                    var totalCell = nextRow.querySelector('.item-total');
+                    name = nameCell ? nameCell.innerHTML.trim() : '';
+                    qty = qtyCell ? qtyCell.innerHTML.trim() : '';
+                    total = totalCell ? totalCell.innerHTML.trim() : '';
+                    i++; // consommer la ligne de détail
+                } else if (isNameRow) {
+                    // Format 1 ligne (recharges.js) : nom, qte/prix, total dans la même ligne
+                    var cells = row.querySelectorAll('td');
+                    if (cells.length >= 3) {
+                        name = cells[0].innerHTML.trim();
+                        qty = cells[1].innerHTML.trim();
+                        total = cells[2].innerHTML.trim();
+                    } else if (cells.length === 2) {
+                        name = cells[0].innerHTML.trim();
+                        total = cells[1].innerHTML.trim();
+                    } else {
+                        continue;
+                    }
+                } else {
+                    // Ligne de détail orpheline, ignorer
+                    continue;
+                }
+
                 newRows += '<tr>' +
                     '<td style="padding:4px 4px 4px; border-bottom:1px dashed #ccc; vertical-align:top; word-break:break-word; overflow-wrap:anywhere;">' + name + '</td>' +
                     '<td style="padding:4px 4px 4px; border-bottom:1px dashed #ccc; font-size:10px; color:#555; font-style:italic; text-align:center; word-break:break-word; overflow-wrap:anywhere; vertical-align:top;">' + qty + '</td>' +
@@ -594,7 +623,7 @@
             (dgiFields.codeDEF ? '      <tr><td><strong>CODE DEF/DGI :</strong></td><td>' + dgiFields.codeDEF + '</td></tr>\n' : '') +
             (dgiFields.nim ? '      <tr><td><strong>DEF NID :</strong></td><td>' + dgiFields.nim + '</td></tr>\n' : '') +
             (dgiFields.counters ? '      <tr><td><strong>DEF Compteurs :</strong></td><td>' + dgiFields.counters + '</td></tr>\n' : '') +
-            (ren.dateTime ? '      <tr><td><strong>DEF Heure :</strong></td><td>' + ren.dateTime + '</td></tr>\n' : '') +
+            (dgiFields.date ? '      <tr><td><strong>DEF Heure :</strong></td><td>' + dgiFields.date + '</td></tr>\n' : '') +
 
             (!dgiFields.codeDEF && !dgiFields.nim && !dgiFields.counters && !dgiFields.date && !dgiFields.isf ? '      <tr><td colspan="2">Aucune information DGI disponible.</td></tr>\n' : '') +
             '    </table>\n' +
