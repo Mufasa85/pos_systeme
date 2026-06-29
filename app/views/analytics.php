@@ -155,15 +155,6 @@
 
           <div class="analytics-card chart-card">
             <div class="card-header">
-              <h3>Modes de paiement</h3>
-            </div>
-            <div class="card-body chart-body doughnut-body">
-              <canvas id="payment-chart"></canvas>
-            </div>
-          </div>
-
-          <div class="analytics-card chart-card">
-            <div class="card-header">
               <h3>Produits vs Recharges</h3>
             </div>
             <div class="card-body chart-body doughnut-body">
@@ -348,12 +339,6 @@
         new Chart(document.getElementById('category-chart'), {
           type: 'doughnut',
           data: { labels: <?= $categoryLabels ?? '[]' ?>, datasets: [{ data: <?= $categoryValues ?? '[]' ?>, backgroundColor: chartColors, borderWidth: 0, hoverOffset: 8 }] },
-          options: { ...commonOptions, cutout: '65%', plugins: { ...commonOptions.plugins, tooltip: { callbacks: { label: (c) => c.label + ': ' + formatFc(c.parsed) } } } }
-        });
-
-        new Chart(document.getElementById('payment-chart'), {
-          type: 'doughnut',
-          data: { labels: <?= $paymentLabels ?? '[]' ?>, datasets: [{ data: <?= $paymentValues ?? '[]' ?>, backgroundColor: chartColors, borderWidth: 0, hoverOffset: 8 }] },
           options: { ...commonOptions, cutout: '65%', plugins: { ...commonOptions.plugins, tooltip: { callbacks: { label: (c) => c.label + ': ' + formatFc(c.parsed) } } } }
         });
 
