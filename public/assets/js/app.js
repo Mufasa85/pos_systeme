@@ -2189,8 +2189,13 @@ function renderServiceBillContent(data, sale) {
             totalQty += quantity;
             const taxLabel = article.taxGroup || 'null';
             const prodService = article.type ? '<span class="item-prod-service">[' + article.type + ']</span>' : '';
+            const discountLabel = article.remise_value > 0
+                ? (article.remise_type === 'CDF'
+                    ? ' - ' + parseFloat(article.remise_value).toFixed(2) + ' remise'
+                    : ' - ' + article.remise_value + '% remise')
+                : '';
             html += '<tr class="item-name-row">';
-            html += '<td colspan="2"><span class="item-name">' + (article.name || 'Article') + '<span class="item-tax-badge">' + taxLabel + '</span>' + prodService + '</span></td>';
+            html += '<td colspan="2"><span class="item-name">' + (article.name || 'Article') + '<span class="item-tax-badge">' + taxLabel + '</span>' + prodService + '<small style="color:var(--success);font-weight:600;">' + discountLabel + '</small></span></td>';
             html += '</tr>';
             html += '<tr class="item-detail-row">';
             html += '<td class="item-qty">' + quantity + ' × ' + articleHT.toFixed(2) + ' Fc</td>';
@@ -2336,8 +2341,13 @@ function renderLocalSaleDetails(sale, details) {
         const itemTotalHT = itemPrice * itemQty;
         const taxRate = parseFloat(item.tax_rate || 0);
         const taxLabel = item.tax_etiquette || (taxRate > 0 ? 'TVA ' + taxRate + '%' : 'Exonere');
+        const discountLabel = item.remise_value > 0
+            ? (item.remise_type === 'CDF'
+                ? ' - ' + parseFloat(item.remise_value).toFixed(2) + ' remise'
+                : ' - ' + item.remise_value + '% remise')
+            : '';
         html += '<tr class="item-name-row">';
-        html += '<td colspan="2"><span class="item-name">' + (item.produit_nom || 'Produit') + '<span class="item-tax-badge">' + taxLabel + '</span></span></td>';
+        html += '<td colspan="2"><span class="item-name">' + (item.produit_nom || 'Produit') + '<span class="item-tax-badge">' + taxLabel + '</span><small style="color:var(--success);font-weight:600;">' + discountLabel + '</small></span></td>';
         html += '</tr>';
         html += '<tr class="item-detail-row">';
         html += '<td class="item-qty">' + itemQty + ' × ' + itemPrice.toFixed(2) + ' Fc</td>';
@@ -2429,7 +2439,12 @@ async function viewSaleDetails(saleId) {
             const taxRate = parseFloat(item.tax_rate || 0);
             const taxLabel = item.tax_etiquette || (taxRate > 0 ? 'TVA ' + taxRate + '%' : 'Exonere');
             const prodService = item.prod_service ? '<span class="item-prod-service">[' + item.prod_service + ']</span>' : '';
-            itemsHtml += '<tr class="item-name-row"><td colspan="2"><span class="item-name">' + (item.produit_nom || 'Produit') + '<span class="item-tax-badge">' + taxLabel + '</span>' + prodService + '</span></td></tr>' +
+            const discountLabel = item.remise_value > 0
+                ? (item.remise_type === 'CDF'
+                    ? ' - ' + parseFloat(item.remise_value).toFixed(2) + ' remise'
+                    : ' - ' + item.remise_value + '% remise')
+                : '';
+            itemsHtml += '<tr class="item-name-row"><td colspan="2"><span class="item-name">' + (item.produit_nom || 'Produit') + '<span class="item-tax-badge">' + taxLabel + '</span>' + prodService + '<small style="color:var(--success);font-weight:600;">' + discountLabel + '</small></span></td></tr>' +
                 '<tr class="item-detail-row"><td class="item-qty">' + itemQty + ' × ' + itemPrice.toFixed(2) + ' Fc</td><td class="item-total">' + itemTotalHT.toFixed(2) + ' Fc</td></tr>';
         });
         itemsHtml += '</tbody></table>';
