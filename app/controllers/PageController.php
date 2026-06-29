@@ -231,7 +231,6 @@ class PageController
         $revenueByCategory = [];
         $productQuantities = [];
         $clientSales = [];
-        $paymentTotals = [];
         $rechargeVsProducts = ['products' => 0, 'recharges' => 0];
 
         $categoryNames = [];
@@ -295,17 +294,6 @@ class PageController
                 $clientSales[$clientId] = ($clientSales[$clientId] ?? 0) + $total;
             }
 
-            // Paiements
-            if (!empty($v['payments'])) {
-                $payments = json_decode($v['payments'], true);
-                if (is_array($payments)) {
-                    foreach ($payments as $p) {
-                        $method = $p['method'] ?? 'Autre';
-                        $amount = (float) ($p['amount'] ?? 0);
-                        $paymentTotals[$method] = ($paymentTotals[$method] ?? 0) + $amount;
-                    }
-                }
-            }
         }
 
         // Détails des ventes pour les produits et catégories
@@ -436,7 +424,6 @@ class PageController
             'topClients' => $topClients,
             'topClientsNames' => $topClientsNames,
             'revenueByCategory' => $revenueByCategory,
-            'paymentTotals' => $paymentTotals,
             'rechargeVsProducts' => $rechargeVsProducts,
             'dailyLabels' => json_encode($dailyLabels),
             'dailyValues' => json_encode($dailyValues),
@@ -452,8 +439,6 @@ class PageController
             'sellerValues' => json_encode(array_values(array_map(function ($s) {
                 return $s['total'];
             }, $topSellers))),
-            'paymentLabels' => json_encode(array_keys($paymentTotals)),
-            'paymentValues' => json_encode(array_values($paymentTotals)),
             'rechargeValues' => json_encode([$rechargeVsProducts['products'], $rechargeVsProducts['recharges']]),
             'averageBasket' => $averageBasket,
             'averageDailySales' => $averageDailySales,
