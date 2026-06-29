@@ -172,8 +172,15 @@
                     </select>
                   </div>
                   <div>
-                    <label for="modal-invoice-ref" style="font-size: 0.7rem; font-weight: 600; color: #64748b; display: block; margin-bottom: 4px;">RÉF DOCUMENT</label>
-                    <input type="text" id="modal-invoice-ref" class="client-number-input" placeholder="Réf..." style="width: 100%;">
+                    <label style="font-size: 0.7rem; font-weight: 600; color: #64748b; display: block; margin-bottom: 4px;">RÉF DOCUMENT</label>
+                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px;">
+                      <input type="text" id="modal-invoice-ref" class="client-number-input" placeholder="Réf..." style="width: 100%;" oninput="syncRefDocsCountRecharge()">
+                      <button id="add-ref-doc-btn" type="button" onclick="addModalRefDocLineRecharge()" style="background: #0B5E88; color: #fff; border: none; border-radius: 6px; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1rem; line-height: 1;">+</button>
+                    </div>
+                    <div id="modal-ref-docs-list" style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem;">
+                      <!-- additional reference document lines will be inserted here -->
+                    </div>
+                    <input type="hidden" id="modal-ref-docs-count" value="0">
                   </div>
                 </div>
                 <!-- Ref Facture et Exonération -->
@@ -204,7 +211,7 @@
                     </svg>
                     Mode de Paiement
                   </span>
-                  <button type="button" onclick="addModalPaymentLineRecharge()" style="background: #0B5E88; color: #fff; border: none; border-radius: 6px; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1rem; line-height: 1;">+</button>
+                  <button id="add-payment-line-btn" type="button" onclick="addModalPaymentLineRecharge()" style="background: #0B5E88; color: #fff; border: none; border-radius: 6px; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1rem; line-height: 1;">+</button>
                 </div>
                 <div id="modal-payments-list" style="display: flex; flex-direction: column; gap: 0.5rem;">
                   <!-- payment lines will be inserted here -->
@@ -213,7 +220,7 @@
                   <span id="modal-payment-summary-label" style="color: #166534;"></span>
                   <span id="modal-payment-summary-amount" style="color: #0B5E88; font-size: 1.1rem;"></span>
                 </div>
-                <input type="hidden" id="modal-payment-type" value="cash">
+                <input type="hidden" id="modal-payment-type" value="ESPECES">
               </div>
 
               <!-- Info Client avec données pré-remplies -->
