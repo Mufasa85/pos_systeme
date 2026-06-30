@@ -1646,6 +1646,17 @@ const posCart = {
             return;
         }
 
+        const taxeSpecifiqueType = $('#product-taxe-specifique-type').value || '%';
+        const taxeSpecifiqueValue = parseFloat($('#product-taxe-specifique-value').value) || 0;
+        if (taxeSpecifiqueType === '%' && (taxeSpecifiqueValue < 0 || taxeSpecifiqueValue > 100)) {
+            alert('La taxe spécifique en pourcentage doit être comprise entre 0 et 100.');
+            return;
+        }
+        if (taxeSpecifiqueType === 'CDF' && (taxeSpecifiqueValue < 0 || taxeSpecifiqueValue > priceValue)) {
+            alert('La taxe spécifique en montant fixe doit être comprise entre 0 et le prix du produit.');
+            return;
+        }
+
         const url = isEdit ? APP_URL + '/api/produit/update' : APP_URL + '/api/produit';
         const formData = new FormData();
         formData.append('id', $('#product-id').value);
@@ -1660,6 +1671,8 @@ const posCart = {
         formData.append('prod_service', $('#product-prod-service').value || '');
         formData.append('remise_type', $('#product-remise-type').value || '%');
         formData.append('remise_value', $('#product-remise-value').value || 0);
+        formData.append('taxe_specifique_type', $('#product-taxe-specifique-type').value || '%');
+        formData.append('taxe_specifique_value', $('#product-taxe-specifique-value').value || 0);
         if ($('#product-image').files[0]) {
             formData.append('image', $('#product-image').files[0]);
         }
@@ -1749,6 +1762,15 @@ function setProductForm(product) {
     }
     if (remiseValueInput && product.remise_value !== undefined) {
         remiseValueInput.value = product.remise_value || 0;
+    }
+
+    const taxeSpecifiqueTypeSelect = $('#product-taxe-specifique-type');
+    const taxeSpecifiqueValueInput = $('#product-taxe-specifique-value');
+    if (taxeSpecifiqueTypeSelect && product.taxe_specifique_type !== undefined) {
+        taxeSpecifiqueTypeSelect.value = product.taxe_specifique_type || '%';
+    }
+    if (taxeSpecifiqueValueInput && product.taxe_specifique_value !== undefined) {
+        taxeSpecifiqueValueInput.value = product.taxe_specifique_value || 0;
     }
 
     $('#product-modal').classList.add('active');
