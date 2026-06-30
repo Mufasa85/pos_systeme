@@ -109,11 +109,21 @@ $localQrData  = $sale['qrCode'] ?? '';
             </div>
             <div class="receipt-items receipt-items-grid">
                 <?php foreach (($details ?? []) as $item):
-                    $itemHT = floatval($item['quantite']) * floatval($item['prix']);
+                    $quantity = floatval($item['quantite']);
+                    $unitPrice = floatval($item['prix']);
                     $taxRate = floatval($item['tax_rate'] ?? 0);
+                    $specificTaxValue = floatval($item['taxe_specifique_value'] ?? 0);
+                    $specificTaxType = $item['taxe_specifique_type'] ?? '%';
+                    $specificTaxUnit = $specificTaxType === 'CDF' ? $specificTaxValue : ($unitPrice * ($specificTaxValue / 100));
+                    $itemHT = $quantity * ($unitPrice + $specificTaxUnit);
                     $itemTax = $itemHT * ($taxRate / 100);
                     $itemTTC = $itemHT + $itemTax;
                     $taxLabel = !empty($item['tax_etiquette']) ? htmlspecialchars($item['tax_etiquette']) : ($taxRate > 0 ? 'TVA ' . $taxRate . '%' : 'Exonere');
+                    $specificTaxLabel = $specificTaxValue > 0
+                        ? ($specificTaxType === 'CDF'
+                            ? ' <span style="color:#b45309;font-weight:700;">[TS]</span> ' . number_format($specificTaxValue, 2, '.', ' ') . ' Fc taxe spécifique'
+                            : ' <span style="color:#b45309;font-weight:700;">[TS]</span> ' . htmlspecialchars($specificTaxValue) . '% taxe spécifique')
+                        : '';
                     $itemDiscount = (!empty($item['remise_value']) && floatval($item['remise_value']) > 0)
                         ? ($item['remise_type'] === 'CDF'
                             ? ' - ' . number_format(floatval($item['remise_value']), 2, '.', ' ') . ' remise'
@@ -125,6 +135,7 @@ $localQrData  = $sale['qrCode'] ?? '';
                             <?= htmlspecialchars($item['produit_nom'] ?? 'Produit') ?>
                             <span class="item-tax-badge"><?= $taxLabel ?></span>
                             <small style="color:var(--success);font-weight:600;"><?= $itemDiscount ?></small>
+                            <small style="color:#b45309;font-weight:600;"><?= $specificTaxLabel ?></small>
                         </span>
                         <span class="item-qty"><?= $item['quantite'] ?> × <?= number_format(floatval($item['prix']), 2, '.', ' ') ?> Fc</span>
                         <span class="item-price"><?= number_format($itemHT, 2, '.', ' ') ?> Fc</span>
@@ -546,6 +557,9 @@ $localQrData  = $sale['qrCode'] ?? '';
             html += taxBreakdownHtml(info.ht_tva);
             html += '<div class="receipt-total-row"><span>Total TVA:</span><span>' + tva.toFixed(2) + ' Fc</span></div>';
             html += '<div class="receipt-total-row grand-total"><span>TOTAL TTC:</span><span>' + totalTTC.toFixed(2) + ' Fc</span></div>';
+            if (info.remise != null && parseFloat(info.remise) !== 0) {
+                html += '<div class="receipt-total-row" style="font-size:11px; color:#555;"><span>Remise :</span><span>' + parseFloat(info.remise).toFixed(2) + ' Fc</span></div>';
+            }
             html += '<div class="receipt-total-row" style="font-size:11px; color:#555;"><span>TAUX DU JOUR :</span><span>' + (usdRate || '-') + ' Fc/USD</span></div>';
             html += '<div class="receipt-total-row" style="font-size:11px; color:#555;"><span>Equivalent en USD :</span><span>' + (usdRate ? (totalTTC < 0 ? -totalTTC / usdRate : totalTTC / usdRate).toFixed(2) + ' $' : '-') + '</span></div>';
             // Bloc paiement (support multi-paiements depuis payment_type JSON)
