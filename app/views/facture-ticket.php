@@ -121,8 +121,8 @@ $localQrData  = $sale['qrCode'] ?? '';
                     $taxLabel = !empty($item['tax_etiquette']) ? htmlspecialchars($item['tax_etiquette']) : ($taxRate > 0 ? 'TVA ' . $taxRate . '%' : 'Exonere');
                     $specificTaxLabel = $specificTaxValue > 0
                         ? ($specificTaxType === 'CDF'
-                            ? ' <span style="color:#b45309;font-weight:700;">[TS]</span> ' . number_format($specificTaxValue, 2, '.', ' ') . ' Fc taxe spécifique'
-                            : ' <span style="color:#b45309;font-weight:700;">[TS]</span> ' . htmlspecialchars($specificTaxValue) . '% taxe spécifique')
+                            ? ' <span style="color:#b45309;font-weight:700;">[TS]</span> ' . number_format($specificTaxValue, 2, '.', ' ') . ' Fc '
+                            : ' <span style="color:#b45309;font-weight:700;">[TS]</span> ' . htmlspecialchars($specificTaxValue) . '% ')
                         : '';
                     $itemDiscount = (!empty($item['remise_value']) && floatval($item['remise_value']) > 0)
                         ? ($item['remise_type'] === 'CDF'
