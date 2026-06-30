@@ -573,8 +573,8 @@ const posCart = {
         const value = parseFloat(item.taxe_specifique_value) || 0;
         if (value <= 0) return '';
         return item.taxe_specifique_type === 'CDF'
-            ? ` <span style="color:#b45309;font-weight:700;">[TS]</span> ${formatCurrency(value)} taxe spécifique`
-            : ` <span style="color:#b45309;font-weight:700;">[TS]</span> ${value}% taxe spécifique`;
+            ? ` <span style="color:#b45309;font-weight:700;">[TS]</span> ${formatCurrency(value)} `
+            : ` <span style="color:#b45309;font-weight:700;">[TS]</span> ${value}% `;
     },
 
     calculateCartTotals() {
