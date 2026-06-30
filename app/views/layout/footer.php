@@ -252,6 +252,32 @@
                 <input type="number" id="product-remise-value" min="0" step="0.01" value="0" placeholder="0.00" style="text-align: center;">
                 <small style="color: var(--muted);">0-100 pour %, montant en Fc pour montant fixe</small>
               </div>
+              <div class="form-group">
+                <label>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <path d="M16 8l-8 8"></path>
+                    <path d="M8 8l8 8"></path>
+                  </svg>
+                  Taxe spécifique
+                </label>
+                <select id="product-taxe-specifique-type" style="width: 100%;">
+                  <option value="%">Pourcentage (%)</option>
+                  <option value="CDF">Montant fixe (Fc)</option>
+                </select>
+                <small style="color: var(--muted);">Appliquée comme taxe spécifique sur le produit</small>
+              </div>
+              <div class="form-group">
+                <label>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;">
+                    <line x1="12" y1="1" x2="12" y2="23"></line>
+                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                  </svg>
+                  Valeur taxe spécifique
+                </label>
+                <input type="number" id="product-taxe-specifique-value" min="0" step="0.01" value="0" placeholder="0.00" style="text-align: center;">
+                <small style="color: var(--muted);">0-100 pour %, montant en Fc pour montant fixe</small>
+              </div>
             </div>
           </div>
 
