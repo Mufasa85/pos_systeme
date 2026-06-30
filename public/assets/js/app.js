@@ -364,6 +364,8 @@ const posCart = {
                 prod_service: product.prod_service || '',
                 remise_type: product.remise_type || '%',
                 remise_value: parseFloat(product.remise_value) || 0,
+                taxe_specifique_type: product.taxe_specifique_type || '%',
+                taxe_specifique_value: parseFloat(product.taxe_specifique_value) || 0,
             });
         }
         this.renderCart();
@@ -426,6 +428,8 @@ const posCart = {
                 prod_service: product.prod_service || '',
                 remise_type: product.remise_type || '%',
                 remise_value: parseFloat(product.remise_value) || 0,
+                taxe_specifique_type: product.taxe_specifique_type || '%',
+                taxe_specifique_value: parseFloat(product.taxe_specifique_value) || 0,
             });
         }
         this.renderCart();
@@ -536,6 +540,65 @@ const posCart = {
         }
     },
 
+    calculateSpecificTaxUnit(item) {
+        const price = parseFloat(item.prix) || 0;
+        const value = parseFloat(item.taxe_specifique_value) || 0;
+        return item.taxe_specifique_type === 'CDF' ? value : price * (value / 100);
+    },
+
+    calculateItemTTC(item, quantityOverride = null) {
+        const price = parseFloat(item.prix) || 0;
+        const quantity = quantityOverride !== null ? quantityOverride : (parseFloat(item.quantite) || 0);
+        const taxRate = parseFloat(item.tax_rate) || 0;
+        const specificTaxUnit = this.calculateSpecificTaxUnit(item);
+        const vatOnPriceUnit = price * (taxRate / 100);
+        const vatOnSpecificTaxUnit = specificTaxUnit * (taxRate / 100);
+        const unitTTC = price + specificTaxUnit + vatOnPriceUnit + vatOnSpecificTaxUnit;
+
+        return {
+            priceHT: price,
+            quantity,
+            specificTaxUnit,
+            specificTaxTotal: specificTaxUnit * quantity,
+            vatOnPriceTotal: vatOnPriceUnit * quantity,
+            vatOnSpecificTaxTotal: vatOnSpecificTaxUnit * quantity,
+            taxTotal: (vatOnPriceUnit + vatOnSpecificTaxUnit) * quantity,
+            lineHT: (price + specificTaxUnit) * quantity,
+            lineTTC: unitTTC * quantity,
+            unitTTC
+        };
+    },
+
+    getSpecificTaxLabel(item) {
+        const value = parseFloat(item.taxe_specifique_value) || 0;
+        if (value <= 0) return '';
+        return item.taxe_specifique_type === 'CDF'
+            ? ` <span style="color:#b45309;font-weight:700;">[TS]</span> ${formatCurrency(value)} taxe spécifique`
+            : ` <span style="color:#b45309;font-weight:700;">[TS]</span> ${value}% taxe spécifique`;
+    },
+
+    calculateCartTotals() {
+        let sousTotalHT = 0;
+        let tva = 0;
+        let total = 0;
+        let taxeSpecifique = 0;
+
+        for (const item of this.items) {
+            const calc = this.calculateItemTTC(item);
+            sousTotalHT += calc.lineHT;
+            tva += calc.taxTotal;
+            total += calc.lineTTC;
+            taxeSpecifique += calc.specificTaxTotal;
+        }
+
+        return {
+            sous_total_ht: Math.round(sousTotalHT * 100) / 100,
+            tva: Math.round(tva * 100) / 100,
+            total: Math.round(total * 100) / 100,
+            taxe_specifique: Math.round(taxeSpecifique * 100) / 100
+        };
+    },
+
     renderCart() {
         const cartItems = $('#cart-items');
         if (!cartItems) return;
@@ -561,18 +624,20 @@ const posCart = {
                         ? ` - ${formatCurrency(item.remise_value)} remise`
                         : ` - ${item.remise_value}% remise`)
                     : '';
+                const specificTaxLabel = this.getSpecificTaxLabel(item);
+                const itemCalc = this.calculateItemTTC(item);
                 return `
               <div class="cart-item">
                 <div class="info">
                   <div class="name">${item.nom}</div>
-                  <div class="price">${formatCurrency(item.prix)} / ${unitLabel}<small style="color:var(--success);font-weight:600;">${discountLabel}</small></div>
+                  <div class="price">${formatCurrency(item.prix)} / ${unitLabel}<small style="color:var(--success);font-weight:600;">${discountLabel}</small><small style="color:#b45309;font-weight:600;">${specificTaxLabel}</small></div>
                 </div>
                 <div class="quantity-controls">
                   <button onclick="posCart.updateQty(${item.produit_id}, -${step})">-</button>
                 <span>${formatQty(item.quantite, isPoids)}</span>
                   <button onclick="posCart.updateQty(${item.produit_id}, ${step})">+</button>
                 </div>
-                <div class="item-total">${formatCurrency(item.prix * item.quantite)}</div>
+                <div class="item-total">${formatCurrency(itemCalc.lineTTC)}</div>
                 <button class="remove-item" onclick="posCart.removeFromCart(${item.produit_id})">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -584,30 +649,17 @@ const posCart = {
             }).join('');
             $('#show-preview').disabled = false;
 
-            // Les prix sont maintenant HT (sans TVA), calculer la TVA par produit selon son taux
-            let subtotalHT = 0;
-            let totalTax = 0;
+            this.currentTotals = this.calculateCartTotals();
 
-            for (const item of this.items) {
-                const itemHT = item.prix * item.quantite;
-                const itemTax = itemHT * (item.tax_rate / 100);
-                subtotalHT += itemHT;
-                totalTax += itemTax;
-            }
-
-            const subtotalTTC = Math.round(subtotalHT * 100) / 100;
-
-            $('#subtotal').textContent = formatCurrency(subtotalTTC);
-            $('#total').textContent = formatCurrency(subtotalTTC);
+            $('#subtotal').textContent = formatCurrency(this.currentTotals.sous_total_ht);
+            $('#total').textContent = formatCurrency(this.currentTotals.total);
 
             // Afficher l'équivalent USD (taux dynamique depuis API)
-            const totalUsd = subtotalTTC / USD_RATE;
+            const totalUsd = this.currentTotals.total / USD_RATE;
             const totalUsdEl = $('#total-usd');
             if (totalUsdEl) {
                 totalUsdEl.textContent = '≈ $' + totalUsd.toFixed(2) + ' USD';
             }
-
-            this.currentTotals = { sous_total_ht: subtotalTTC, tva: Math.round(totalTax * 100) / 100, total: subtotalTTC };
         }
     },
 
@@ -691,6 +743,8 @@ const posCart = {
                     prod_service: item.prod_service || '',
                     remise_type: item.remise_type || '%',
                     remise_value: item.remise_value || 0,
+                    taxe_specifique_type: item.taxe_specifique_type || '%',
+                    taxe_specifique_value: item.taxe_specifique_value || 0,
                 })),
                 client_name: clientNom,
                 client_type: acheteurTypeInitiales,
@@ -804,11 +858,10 @@ const posCart = {
                 breakdown[taxKey] = { ht: 0, tax: 0, rate: taxRate };
             }
 
-            const itemHT = item.prix * item.quantite;
-            const itemTax = itemHT * (taxRate / 100);
+            const itemCalc = this.calculateItemTTC(item);
 
-            breakdown[taxKey].ht += itemHT;
-            breakdown[taxKey].tax += itemTax;
+            breakdown[taxKey].ht += itemCalc.lineHT;
+            breakdown[taxKey].tax += itemCalc.taxTotal;
         }
         return breakdown;
     },
@@ -966,7 +1019,7 @@ const posCart = {
         // Only show exonerated items when tax_etiquette is "A" (haa)
         if (dgiResponse) {
             const exoneratedItems = this.items.filter(item => item.tax_etiquette === 'A' || item.tax_etiquette === 'haa');
-            const exoneratedTotal = exoneratedItems.reduce((sum, item) => sum + (item.prix * item.quantite), 0) * taxBreakdownSign;
+            const exoneratedTotal = exoneratedItems.reduce((sum, item) => sum + this.calculateItemTTC(item).lineHT, 0) * taxBreakdownSign;
             if (exoneratedItems.length > 0 && Math.abs(exoneratedTotal) > 0) {
                 html += `<div class="receipt-total-row" style="font-size: 11px; padding-left: 5px; color: #888;">
                     <span>EXONERE ET HORS CHAMP:</span>
@@ -1092,7 +1145,8 @@ const posCart = {
             const item = this.items[i];
             const itemPrice = parseFloat(item.prix) || 0;
             const itemQty = (parseFloat(item.quantite) || 0) * previewSign;
-            const itemTotalHT = itemPrice * itemQty;
+            const itemCalc = this.calculateItemTTC(item, itemQty);
+            const itemTotalHT = itemCalc.lineHT;
             const taxLabel = item.tax_etiquette || (item.tax_rate > 0 ? 'TVA ' + item.tax_rate + '%' : 'Exonere');
             const prodService = item.prod_service ? `<span class="item-prod-service">[${item.prod_service}]</span>` : '';
             const discountLabel = item.remise_value > 0
@@ -1100,11 +1154,12 @@ const posCart = {
                     ? ` - ${formatCurrency(item.remise_value)} remise`
                     : ` - ${item.remise_value}% remise`)
                 : '';
+            const specificTaxLabel = this.getSpecificTaxLabel(item);
             const isPoidsItem = (item.product_type === 'coupe' || item.product_type === 'poids');
             const qtyDisplay = formatQty(itemQty, isPoidsItem);
             itemsHtml += `
                 <tr class="item-name-row">
-                    <td colspan="2"><span class="item-name"> ${item.nom}<span class="item-tax-badge">${taxLabel}</span>${prodService}<small style="color:var(--success);font-weight:600;">${discountLabel}</small></span></td>
+                    <td colspan="2"><span class="item-name"> ${item.nom}<span class="item-tax-badge">${taxLabel}</span>${prodService}<small style="color:var(--success);font-weight:600;">${discountLabel}</small><small style="color:#b45309;font-weight:600;">${specificTaxLabel}</small></span></td>
                 </tr>
                 <tr class="item-detail-row">
                     <td class="item-qty">${qtyDisplay} × ${formatCurrency(itemPrice)} Fc</td>
@@ -1519,7 +1574,8 @@ const posCart = {
                 const item = this.items[i];
                 const itemPrice = parseFloat(item.prix) || 0;
                 const itemQty = (parseFloat(item.quantite) || 0) * ticketSign;
-                const itemTotalHT = itemPrice * itemQty;
+                const itemCalc = this.calculateItemTTC(item, itemQty);
+                const itemTotalHT = itemCalc.lineHT;
 
                 console.log(" item Qty : " + itemQty + " - " + itemTotalHT)
                 const taxLabel = item.tax_etiquette || (item.tax_rate > 0 ? 'TVA ' + item.tax_rate + '%' : 'Exonere');
@@ -1529,11 +1585,12 @@ const posCart = {
                         ? ` - ${formatCurrency(item.remise_value)} remise`
                         : ` - ${item.remise_value}% remise`)
                     : '';
+                const specificTaxLabel = this.getSpecificTaxLabel(item);
                 const isPoidsItem = (item.product_type === 'coupe' || item.product_type === 'poids');
 
                 itemsHtml += `
                     <tr class="item-name-row">
-                        <td colspan="2"><span class="item-name">${item.nom}<span class="item-tax-badge">${taxLabel}</span>${prodService}<small style="color:var(--success);font-weight:600;">${discountLabel}</small></span></td>
+                        <td colspan="2"><span class="item-name">${item.nom}<span class="item-tax-badge">${taxLabel}</span>${prodService}<small style="color:var(--success);font-weight:600;">${discountLabel}</small><small style="color:#b45309;font-weight:600;">${specificTaxLabel}</small></span></td>
                     </tr>
                     <tr class="item-detail-row">
                         <td class="item-qty">${formatQty(itemQty, isPoidsItem)} × ${formatCurrency(itemPrice)} Fc</td>
@@ -1585,6 +1642,8 @@ const posCart = {
                             <span>TOTAL TTC:</span>
                             <span>${(dgiResponse.data.total).toFixed(2)} Fc</span>
                         </div>
+
+                        ${(dgiResponse.data?.remise != null && parseFloat(dgiResponse.data.remise) !== 0) ? `<div class="receipt-total-row" style="font-size: 11px; color: #555;"><span>Remise :</span><span>${parseFloat(dgiResponse.data.remise).toFixed(2)} Fc</span></div>` : ''}
                         ${this.getPaymentInfoHtml()}
                          <div style="margin: 10px 0; font-size: 11px; color: #333; border: 1px dashed #ccc; padding: 8px; border-radius: 4px; text-align: center;">
                             ISF : ${dgiResponse.data?.isf}
@@ -2247,6 +2306,9 @@ function renderServiceBillContent(data, sale) {
     // Bloc paiement (taux + USD + nb articles + montant en lettres)
     const amountInWords = posCart && posCart.numberToFrenchWords ? posCart.numberToFrenchWords(total) : '';
     const usdRate = (typeof USD_RATE !== 'undefined' && USD_RATE > 0) ? USD_RATE : 0;
+    if (info.remise != null && parseFloat(info.remise) !== 0) {
+        html += '<div class="receipt-total-row" style="font-size:11px; color:#555;"><span>Remise :</span><span>' + parseFloat(info.remise).toFixed(2) + ' Fc</span></div>';
+    }
     html += '<div class="receipt-total-row" style="font-size:11px; color:#555;">'
         + '<span>TAUX DU JOUR :</span><span>' + (usdRate || '-') + ' Fc/USD</span>'
         + '</div>';
@@ -2383,6 +2445,9 @@ function renderLocalSaleDetails(sale, details) {
     html += '<div class="receipt-totals">';
     html += '<div class="receipt-total-row"><span>Total TVA:</span><span>' + tvaNumber.toFixed(2) + ' Fc</span></div>';
     html += '<div class="receipt-total-row grand-total"><span>TOTAL TTC:</span><span>' + totalNumber.toFixed(2) + ' Fc</span></div>';
+    if (sale.remise != null && parseFloat(sale.remise) !== 0) {
+        html += '<div class="receipt-total-row" style="font-size:11px; color:#555;"><span>Remise :</span><span>' + parseFloat(sale.remise).toFixed(2) + ' Fc</span></div>';
+    }
     html += '</div>';
 
     if (sale.counters || sale.codeDEFDGI) {
@@ -2488,7 +2553,11 @@ async function viewSaleDetails(saleId) {
 
         // Paiement + ISF (comme /caisse)
         const amountInWords = posCart.numberToFrenchWords ? posCart.numberToFrenchWords(totalNumber) : '';
+        const remiseLine = (sale.remise != null && parseFloat(sale.remise) !== 0)
+            ? '<div class="receipt-total-row" style="font-size: 11px; color: #555"><span>Remise :</span><span>' + parseFloat(sale.remise).toFixed(2) + ' Fc</span></div>'
+            : '';
         const paymentInfoHtml =
+            remiseLine +
             '<div class="receipt-total-row" style="font-size: 11px; color: #555"><span>TAUX DU JOUR :</span><span>' + (typeof USD_RATE !== 'undefined' ? USD_RATE : '-') + ' Fc/USD</span></div>' +
             '<div class="receipt-total-row" style="font-size: 11px; color: #555"><span>Equivalent en USD :</span><span>' + (USD_RATE ? (totalNumber / USD_RATE).toFixed(2) + ' $' : '-') + '</span></div>' +
             '<div class="receipt-total-row" style="font-size: 11px; color: #555;"><span>Nombre d\'article(s):</span><span>' + (data.details.reduce((s, i) => s + parseFloat(i.quantite || 0), 0)).toFixed(2) + '</span></div>' +
@@ -3094,7 +3163,7 @@ function updateCartFloatingButton() {
     if (!badge || !total) return;
 
     const itemCount = posCart.items.reduce((sum, item) => sum + item.quantite, 0);
-    const totalAmount = posCart.items.reduce((sum, item) => sum + (item.prix * item.quantite), 0);
+    const totalAmount = posCart.currentTotals ? posCart.currentTotals.total : posCart.calculateCartTotals().total;
 
     badge.textContent = itemCount.toFixed(2);
     total.textContent = totalAmount.toFixed(2) + ' Fc';
@@ -3651,7 +3720,7 @@ function openInvoiceInfoModal() {
     if (itemsList) {
         let html = '';
         posCart.items.forEach(item => {
-            const itemTotal = item.prix * item.quantite;
+            const itemTotal = posCart.calculateItemTTC(item).lineTTC;
             html += `<div style="display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid #e2e8f0;">
                 <span>${item.nom} x${item.quantite}</span>
                 <span style="font-weight: 500;">${formatCurrency(itemTotal)}</span>
