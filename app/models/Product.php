@@ -38,8 +38,8 @@ class Product
 
     public function create($data)
     {
-        $sql = "INSERT INTO produits (code_barres, nom, category_id, prix, stock, stock_minimum, image, taxe_id, product_type, prod_service, remise_type, remise_value)
-                VALUES (:code_barres, :nom, :category_id, :prix, :stock, :stock_minimum, :image, :taxe_id, :product_type, :prod_service, :remise_type, :remise_value)";
+        $sql = "INSERT INTO produits (code_barres, nom, category_id, prix, stock, stock_minimum, image, taxe_id, product_type, prod_service, remise_type, remise_value, taxe_specifique_type, taxe_specifique_value)
+                VALUES (:code_barres, :nom, :category_id, :prix, :stock, :stock_minimum, :image, :taxe_id, :product_type, :prod_service, :remise_type, :remise_value, :taxe_specifique_type, :taxe_specifique_value)";
         $this->db->query($sql, [
             ':code_barres'   => $data['code_barres'],
             ':nom'           => $data['nom'],
@@ -52,7 +52,9 @@ class Product
             ':product_type'  => $data['product_type'] ?? 'unite',
             ':prod_service'  => $data['prod_service'] ?? null,
             ':remise_type'   => $data['remise_type'] ?? '%',
-            ':remise_value'  => $data['remise_value'] ?? 0
+            ':remise_value'  => $data['remise_value'] ?? 0,
+            ':taxe_specifique_type' => $data['taxe_specifique_type'] ?? '%',
+            ':taxe_specifique_value' => $data['taxe_specifique_value'] ?? 0
         ]);
         return $this->db->getConnection()->lastInsertId();
     }
@@ -77,7 +79,9 @@ class Product
                 product_type = :product_type,
                 prod_service = :prod_service,
                 remise_type = :remise_type,
-                remise_value = :remise_value
+                remise_value = :remise_value,
+                taxe_specifique_type = :taxe_specifique_type,
+                taxe_specifique_value = :taxe_specifique_value
                 WHERE id = :id";
         return $this->db->query($sql, [
             ':id' => $id,
@@ -92,7 +96,9 @@ class Product
             ':product_type' => $data['product_type'] ?? 'unite',
             ':prod_service' => $data['prod_service'] ?? null,
             ':remise_type' => $data['remise_type'] ?? '%',
-            ':remise_value' => $data['remise_value'] ?? 0
+            ':remise_value' => $data['remise_value'] ?? 0,
+            ':taxe_specifique_type' => $data['taxe_specifique_type'] ?? '%',
+            ':taxe_specifique_value' => $data['taxe_specifique_value'] ?? 0
         ]);
     }
 
