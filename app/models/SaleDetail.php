@@ -15,15 +15,17 @@ class SaleDetail
 
     public function create($data)
     {
-        $sql = "INSERT INTO details_vente (vente_id, produit_id, quantite, prix, remise_type, remise_value) 
-                VALUES (:vente_id, :produit_id, :quantite, :prix, :remise_type, :remise_value)";
+        $sql = "INSERT INTO details_vente (vente_id, produit_id, quantite, prix, remise_type, remise_value, taxe_specifique_type, taxe_specifique_value) 
+                VALUES (:vente_id, :produit_id, :quantite, :prix, :remise_type, :remise_value, :taxe_specifique_type, :taxe_specifique_value)";
         return $this->db->query($sql, [
             ':vente_id'   => $data['vente_id'],
             ':produit_id' => $data['produit_id'],
             ':quantite'   => $data['quantite'],
             ':prix'       => $data['prix'],
             ':remise_type' => $data['remise_type'] ?? '%',
-            ':remise_value' => $data['remise_value'] ?? 0
+            ':remise_value' => $data['remise_value'] ?? 0,
+            ':taxe_specifique_type' => $data['taxe_specifique_type'] ?? '%',
+            ':taxe_specifique_value' => $data['taxe_specifique_value'] ?? 0
         ]);
     }
     public function exist($id)

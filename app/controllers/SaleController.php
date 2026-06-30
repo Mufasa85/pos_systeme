@@ -97,7 +97,9 @@ class SaleController extends Controller
                         'quantite'   => $quantite,
                         'prix'       => $item['prix'],
                         'remise_type' => $item['remise_type'] ?? '%',
-                        'remise_value' => $item['remise_value'] ?? 0
+                        'remise_value' => $item['remise_value'] ?? 0,
+                        'taxe_specifique_type' => $item['taxe_specifique_type'] ?? '%',
+                        'taxe_specifique_value' => $item['taxe_specifique_value'] ?? 0
                     ]);
                 }
             }
