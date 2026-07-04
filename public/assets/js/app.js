@@ -2165,40 +2165,58 @@ const PROFORMA_TAX_CATEGORIES = [
     { key: 'hal', label: 'L', tax: 0, description: 'Prélèvements sur les ventes' },
     { key: 'ham', label: 'M', tax: 0, description: 'Ventes réglementées TVA spécifique' },
     { key: 'han', label: 'N', tax: 0, description: 'TVA spécifique' },
-    { key: 'hao', label: 'O', tax: 1, description: 'Taxable' },
-    { key: 'hap', label: 'P', tax: 1, description: 'TVA marché public à financement ext.' }
+    { key: 'hao', label: 'O', tax: 1, description: 'Taxable', ts: 'tso' },
+    { key: 'hap', label: 'P', tax: 1, description: 'TVA marché public à financement ext.', ts: 'tsp' }
 ];
 
-function parseHtTva(htTvaRaw) {
+function parseHtTva(htTvaRaw, tsRaw) {
     // Le champ ht_tva est une chaîne JSON imbriquée:
-    // { success, message, data: { ha: {hab, hac, ...}, va: {vab, vac, ...} } }
+    // { success, message, data: { ha: {hab, hac, ...}, va: {vab, vac, ...}, ts: {tsb, tsc, ...} } }
     let haData = {};
     let vaData = {};
+    let tsData = {};
     try {
-        if (!htTvaRaw) return { ha: {}, va: {} };
+        if (tsRaw) {
+            tsData = typeof tsRaw === 'string' ? JSON.parse(tsRaw) : tsRaw;
+        }
+    } catch (e) {
+        console.warn('parseHtTva ts error:', e);
+    }
+    try {
+        if (!htTvaRaw) return { ha: {}, va: {}, ts: tsData };
         const parsed = typeof htTvaRaw === 'string' ? JSON.parse(htTvaRaw) : htTvaRaw;
         if (parsed && parsed.data) {
             haData = parsed.data.ha || {};
             vaData = parsed.data.va || {};
+            if (Object.keys(tsData).length === 0) {
+                tsData = parsed.data.ts || {};
+            }
         }
     } catch (e) {
         console.warn('parseHtTva error:', e);
     }
-    return { ha: haData, va: vaData };
+    return { ha: haData, va: vaData, ts: tsData };
 }
 
-function buildProformaTaxBreakdownHtml(htTvaRaw) {
-    const { ha, va } = parseHtTva(htTvaRaw);
+function buildProformaTaxBreakdownHtml(htTvaRaw, tsRaw) {
+    const { ha, va, ts } = parseHtTva(htTvaRaw, tsRaw);
     let html = '';
     PROFORMA_TAX_CATEGORIES.forEach(cat => {
         const ht = parseFloat(ha[cat.key]) || 0;
         const vaKey = 'va' + cat.key.slice(-1); // haa -> vaa, hab -> vab
         const vat = parseFloat(va[vaKey]) || 0;
-        if (Math.abs(ht) > 0 || Math.abs(vat) > 0) {
+        const tsValue = parseFloat(ts[cat.ts]) || 0;
+        if (Math.abs(ht) > 0 || Math.abs(vat) > 0 || Math.abs(tsValue) > 0) {
             html += '<div class="receipt-total-row" style="font-size:11px; padding-left:10px;">'
                 + '<span>HT[' + cat.label + '] ' + cat.description + ' ' + cat.tax + '% :</span>'
                 + '<span>' + ht.toFixed(2) + ' Fc</span>'
                 + '</div>';
+            if (Math.abs(tsValue) > 0) {
+                html += '<div class="receipt-total-row" style="font-size:11px; padding-left:10px; color:#666;">'
+                    + '<span>TS[' + cat.label + '] ' + cat.description + ' ' + cat.tax + '% :</span>'
+                    + '<span>' + tsValue.toFixed(2) + ' Fc</span>'
+                    + '</div>';
+            }
             if (Math.abs(vat) > 0) {
                 html += '<div class="receipt-total-row" style="font-size:11px; padding-left:10px; color:#666;">'
                     + '<span>TVA[' + cat.label + '] ' + cat.description + ' ' + cat.tax + '% :</span>'
@@ -2318,8 +2336,8 @@ function renderServiceBillContent(data, sale) {
 
     html += '<div class="receipt-totals">';
 
-    // Détail HT/TVA par catégorie (depuis ht_tva)
-    html += buildProformaTaxBreakdownHtml(info.ht_tva);
+    // Détail HT/TVA/TS par catégorie (depuis ht_tva et ts)
+    html += buildProformaTaxBreakdownHtml(info.ht_tva, info.ts);
 
     // Total TVA + TOTAL TTC
     html += '<div class="receipt-total-row"><span>Total TVA:</span><span>' + tva.toFixed(2) + ' Fc</span></div>';
