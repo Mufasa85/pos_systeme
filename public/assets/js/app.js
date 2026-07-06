@@ -958,9 +958,22 @@ const posCart = {
         const taxBreakdownShouldNegate = taxBreakdownTypeFacture === 'FA' || taxBreakdownTypeFacture === 'EA';
         const taxBreakdownSign = taxBreakdownShouldNegate ? -1 : 1;
 
-        // Try to parse ht_tva_group from DGI response
+        // Try to parse ht_tva_group and top-level ts from DGI response
         let haData = {};
         let vaData = {};
+        let tsData = {};
+
+        try {
+            if (dgiResponse?.data?.ts) {
+                tsData = typeof dgiResponse.data.ts === 'string'
+                    ? JSON.parse(dgiResponse.data.ts)
+                    : dgiResponse.data.ts;
+
+                console.log(tsData)
+            }
+        } catch (e) {
+            console.warn('Error parsing data.ts:', e);
+        }
 
         try {
             if (dgiResponse?.data?.ht_tva_group) {
@@ -971,6 +984,9 @@ const posCart = {
                 if (parsed?.data) {
                     haData = parsed.data.ha || {};
                     vaData = parsed.data.va || {};
+                    if (Object.keys(tsData).length === 0) {
+                        tsData = parsed.data.ts || {};
+                    }
                 }
             }
         } catch (e) {
@@ -979,34 +995,41 @@ const posCart = {
 
         // Display each category (a=standard, b, c, d, e, f=reduced, g, h, i, j, k, l, m, n, o, p)
         const TAX_CATEGORIES = [
-            { key: 'haa', label: 'A', tax: 0, description: 'EXONERE ET HORS CHAMP' },
-            { key: 'hab', label: 'B', tax: 16, description: 'Taxable' },
-            { key: 'hac', label: 'C', tax: 5, description: 'Taxable' },
-            { key: 'had', label: 'D', tax: 0, description: 'Régimes dérogatoires TVA' },
-            { key: 'hae', label: 'E', tax: 0, description: 'Exportation et opération assimilées' },
-            { key: 'haf', label: 'F', tax: 16, description: 'TVA marché public à financement exterieur ' },
-            { key: 'hag', label: 'G', tax: 5, description: 'TVA marché public à financement exterieur ' },
-            { key: 'hah', label: 'H', tax: 0, description: 'consignation/déconsignation emballage' },
-            { key: 'hai', label: 'I', tax: 0, description: 'Garantie et caution' },
-            { key: 'haj', label: 'J', tax: 0, description: 'Débours' },
-            { key: 'hak', label: 'K', tax: 0, description: 'Opérations réalisées par les non-assujettis' },
-            { key: 'hal', label: 'L', tax: 0, description: 'Prélèvements sur les ventes' },
-            { key: 'ham', label: 'M', tax: 0, description: 'Ventes réglemntées TVA spécifique' },
-            { key: 'han', label: 'N', tax: 0, description: 'TVA spécifique' },
-            { key: 'hao', label: 'O', tax: 1, description: 'Taxable' },
-            { key: 'hap', label: 'P', tax: 1, description: 'TVA marché public à financement extérieur' }
+            { key: 'haa', label: 'A', tax: 0, description: 'EXONERE ET HORS CHAMP', ts: 'tsa' },
+            { key: 'hab', label: 'B', tax: 16, description: 'Taxable', ts: 'tsb' },
+            { key: 'hac', label: 'C', tax: 5, description: 'Taxable', ts: 'tsc' },
+            { key: 'had', label: 'D', tax: 0, description: 'Régimes dérogatoires TVA', ts: 'tsd' },
+            { key: 'hae', label: 'E', tax: 0, description: 'Exportation et opération assimilées', ts: 'tse' },
+            { key: 'haf', label: 'F', tax: 16, description: 'TVA marché public à financement exterieur ', ts: 'tsf' },
+            { key: 'hag', label: 'G', tax: 5, description: 'TVA marché public à financement exterieur ', ts: 'tsg' },
+            { key: 'hah', label: 'H', tax: 0, description: 'consignation/déconsignation emballage', ts: 'tsh' },
+            { key: 'hai', label: 'I', tax: 0, description: 'Garantie et caution', ts: 'tsi' },
+            { key: 'haj', label: 'J', tax: 0, description: 'Débours', ts: 'tsj' },
+            { key: 'hak', label: 'K', tax: 0, description: 'Opérations réalisées par les non-assujettis', ts: 'tsk' },
+            { key: 'hal', label: 'L', tax: 0, description: 'Prélèvements sur les ventes', ts: 'tsl' },
+            { key: 'ham', label: 'M', tax: 0, description: 'Ventes réglemntées TVA spécifique', ts: 'tsm' },
+            { key: 'han', label: 'N', tax: 0, description: 'TVA spécifique', ts: 'tsn' },
+            { key: 'hao', label: 'O', tax: 1, description: 'Taxable', ts: 'tso' },
+            { key: 'hap', label: 'P', tax: 1, description: 'TVA marché public à financement extérieur', ts: 'tsp' }
         ];
 
         TAX_CATEGORIES.forEach(cat => {
             // Appliquer le signe de négation (sign = -1 quand le type EST FA ou EA)
             const ht = (parseFloat(haData[cat.key]) || 0);
             const va = (parseFloat(vaData['va' + cat.key.slice(-1)]) || 0);
+            const ts = (parseFloat(tsData[cat.ts]) || 0);
 
-            if (Math.abs(ht) > 0 || Math.abs(va) > 0) {
+            if (Math.abs(ht) > 0 || Math.abs(va) > 0 || Math.abs(ts) > 0) {
                 html += `<div class="receipt-total-row" style="font-size: 11px; padding-left: 10px;">
                     <span>HT[${cat.label}] ${cat.description} ${cat.tax} % :</span>
                     <span>${ht.toFixed(2)} Fc</span>
                 </div>`;
+                if (Math.abs(ts) > 0) {
+                    html += `<div class="receipt-total-row" style="font-size: 11px; padding-left: 10px; color: #666;">
+                        <span>TS[${cat.label}] ${cat.description} ${cat.tax} % :</span>
+                        <span>${ts.toFixed(2)} Fc</span>
+                    </div>`;
+                }
                 if (Math.abs(va) > 0) {
                     html += `<div class="receipt-total-row" style="font-size: 11px; padding-left: 10px; color: #666;">
                         <span>TVA[${cat.label}] ${cat.description} ${cat.tax} % :</span>
@@ -1032,7 +1055,7 @@ const posCart = {
     },
 
     // Generate payment info HTML for receipts (called after TOTAL TTC)
-    getPaymentInfoHtml() {
+    getPaymentInfoHtml(dgiResponse = null) {
         const invoiceType = document.getElementById('invoice-type')?.value || 'FV';
         const shouldNegate = invoiceType === 'FA' || invoiceType === 'EA';
         const sign = shouldNegate ? -1 : 1;
@@ -1071,7 +1094,6 @@ const posCart = {
         const amountInWords = this.numberToFrenchWords(totalTTC * sign);
 
         return `
-
             <div class="receipt-total-row" style="font-size: 11px; color: #555">
                 <span>TAUX DU JOUR :</span>
                 <span>${USD_RATE} Fc/USD</span>
@@ -1644,7 +1666,7 @@ const posCart = {
                         </div>
 
                         ${(dgiResponse.data?.remise != null && parseFloat(dgiResponse.data.remise) !== 0) ? `<div class="receipt-total-row" style="font-size: 11px; color: #555;"><span>Remise :</span><span>${parseFloat(dgiResponse.data.remise).toFixed(2)} Fc</span></div>` : ''}
-                        ${this.getPaymentInfoHtml()}
+                        ${this.getPaymentInfoHtml(dgiResponse)}
                          <div style="margin: 10px 0; font-size: 11px; color: #333; border: 1px dashed #ccc; padding: 8px; border-radius: 4px; text-align: center;">
                             ISF : ${dgiResponse.data?.isf}
                          </div>
@@ -2143,40 +2165,58 @@ const PROFORMA_TAX_CATEGORIES = [
     { key: 'hal', label: 'L', tax: 0, description: 'Prélèvements sur les ventes' },
     { key: 'ham', label: 'M', tax: 0, description: 'Ventes réglementées TVA spécifique' },
     { key: 'han', label: 'N', tax: 0, description: 'TVA spécifique' },
-    { key: 'hao', label: 'O', tax: 1, description: 'Taxable' },
-    { key: 'hap', label: 'P', tax: 1, description: 'TVA marché public à financement ext.' }
+    { key: 'hao', label: 'O', tax: 1, description: 'Taxable', ts: 'tso' },
+    { key: 'hap', label: 'P', tax: 1, description: 'TVA marché public à financement ext.', ts: 'tsp' }
 ];
 
-function parseHtTva(htTvaRaw) {
+function parseHtTva(htTvaRaw, tsRaw) {
     // Le champ ht_tva est une chaîne JSON imbriquée:
-    // { success, message, data: { ha: {hab, hac, ...}, va: {vab, vac, ...} } }
+    // { success, message, data: { ha: {hab, hac, ...}, va: {vab, vac, ...}, ts: {tsb, tsc, ...} } }
     let haData = {};
     let vaData = {};
+    let tsData = {};
     try {
-        if (!htTvaRaw) return { ha: {}, va: {} };
+        if (tsRaw) {
+            tsData = typeof tsRaw === 'string' ? JSON.parse(tsRaw) : tsRaw;
+        }
+    } catch (e) {
+        console.warn('parseHtTva ts error:', e);
+    }
+    try {
+        if (!htTvaRaw) return { ha: {}, va: {}, ts: tsData };
         const parsed = typeof htTvaRaw === 'string' ? JSON.parse(htTvaRaw) : htTvaRaw;
         if (parsed && parsed.data) {
             haData = parsed.data.ha || {};
             vaData = parsed.data.va || {};
+            if (Object.keys(tsData).length === 0) {
+                tsData = parsed.data.ts || {};
+            }
         }
     } catch (e) {
         console.warn('parseHtTva error:', e);
     }
-    return { ha: haData, va: vaData };
+    return { ha: haData, va: vaData, ts: tsData };
 }
 
-function buildProformaTaxBreakdownHtml(htTvaRaw) {
-    const { ha, va } = parseHtTva(htTvaRaw);
+function buildProformaTaxBreakdownHtml(htTvaRaw, tsRaw) {
+    const { ha, va, ts } = parseHtTva(htTvaRaw, tsRaw);
     let html = '';
     PROFORMA_TAX_CATEGORIES.forEach(cat => {
         const ht = parseFloat(ha[cat.key]) || 0;
         const vaKey = 'va' + cat.key.slice(-1); // haa -> vaa, hab -> vab
         const vat = parseFloat(va[vaKey]) || 0;
-        if (Math.abs(ht) > 0 || Math.abs(vat) > 0) {
+        const tsValue = parseFloat(ts[cat.ts]) || 0;
+        if (Math.abs(ht) > 0 || Math.abs(vat) > 0 || Math.abs(tsValue) > 0) {
             html += '<div class="receipt-total-row" style="font-size:11px; padding-left:10px;">'
                 + '<span>HT[' + cat.label + '] ' + cat.description + ' ' + cat.tax + '% :</span>'
                 + '<span>' + ht.toFixed(2) + ' Fc</span>'
                 + '</div>';
+            if (Math.abs(tsValue) > 0) {
+                html += '<div class="receipt-total-row" style="font-size:11px; padding-left:10px; color:#666;">'
+                    + '<span>TS[' + cat.label + '] ' + cat.description + ' ' + cat.tax + '% :</span>'
+                    + '<span>' + tsValue.toFixed(2) + ' Fc</span>'
+                    + '</div>';
+            }
             if (Math.abs(vat) > 0) {
                 html += '<div class="receipt-total-row" style="font-size:11px; padding-left:10px; color:#666;">'
                     + '<span>TVA[' + cat.label + '] ' + cat.description + ' ' + cat.tax + '% :</span>'
@@ -2296,8 +2336,8 @@ function renderServiceBillContent(data, sale) {
 
     html += '<div class="receipt-totals">';
 
-    // Détail HT/TVA par catégorie (depuis ht_tva)
-    html += buildProformaTaxBreakdownHtml(info.ht_tva);
+    // Détail HT/TVA/TS par catégorie (depuis ht_tva et ts)
+    html += buildProformaTaxBreakdownHtml(info.ht_tva, info.ts);
 
     // Total TVA + TOTAL TTC
     html += '<div class="receipt-total-row"><span>Total TVA:</span><span>' + tva.toFixed(2) + ' Fc</span></div>';
