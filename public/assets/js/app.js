@@ -559,12 +559,12 @@ const posCart = {
             priceHT: price,
             quantity,
             specificTaxUnit,
-            specificTaxTotal: specificTaxUnit * quantity,
+            specificTaxTotal: specificTaxUnit ,
             vatOnPriceTotal: vatOnPriceUnit * quantity,
             vatOnSpecificTaxTotal: vatOnSpecificTaxUnit * quantity,
             taxTotal: (vatOnPriceUnit + vatOnSpecificTaxUnit) * quantity,
-            lineHT: (price + specificTaxUnit) * quantity,
-            lineTTC: unitTTC * quantity,
+            lineHT: (price * quantity + specificTaxUnit + vatOnSpecificTaxUnit) ,
+            lineTTC: (price * quantity + specificTaxUnit + vatOnSpecificTaxUnit),
             unitTTC
         };
     },
