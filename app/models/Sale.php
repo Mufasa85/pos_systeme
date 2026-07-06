@@ -40,7 +40,7 @@ class Sale
     public function getAllSales()
     {
         $sql = "SELECT v.*, u.nom_complet as nom_vendeur, 
-                       c.nom_client, c.code_client, c.numero as client_numero, c.nif as client_nif, c.adresse as client_adresse,
+                       c.nom_client, c.code_client, c.numero as client_numero, c.nif as client_nif,
                        tc.code as client_type_code
                  FROM ventes v 
                  LEFT JOIN utilisateurs u ON v.vendeur_id = u.id 

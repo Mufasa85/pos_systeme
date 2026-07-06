@@ -23,25 +23,27 @@
               <p style="font-size: 0.85rem; color: var(--muted); margin-top: 0.25rem;">Configurez les informations affichées sur vos factures</p>
             </div>
             <div class="settings-form-container" style="background: var(--background); border-radius: var(--radius); padding: 1.25rem;">
-              <div class="form-group">
-                <label>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;">
-                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-                    <polyline points="9 22 9 12 15 12 15 22"></polyline>
-                  </svg>
-                  Nom du magasin
-                </label>
-                <input type="text" id="store-name" name="store_name" value="" placeholder="Ex: SuperMarché Express" readonly>
-              </div>
-              <div class="form-group">
-                <label>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;">
-                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-                    <circle cx="12" cy="10" r="3"></circle>
-                  </svg>
-                  Adresse
-                </label>
-                <input type="text" id="store-address" name="store_address" value="" placeholder="Ex: 123 Rue Mohammed V, Casablanca">
+              <div class="form-row">
+                <div class="form-group">
+                  <label>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;">
+                      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                      <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                    </svg>
+                    Nom du magasin
+                  </label>
+                  <input type="text" id="store-name" name="store_name" value="" placeholder="Ex: SuperMarché Express" readonly>
+                </div>
+                <div class="form-group">
+                  <label>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;">
+                      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                      <circle cx="12" cy="10" r="3"></circle>
+                    </svg>
+                    Adresse
+                  </label>
+                  <input type="text" id="store-address" name="store_address" value="" placeholder="Ex: 123 Rue Mohammed V, Casablanca">
+                </div>
               </div>
               <div class="form-row">
                 <div class="form-group">
@@ -165,7 +167,7 @@
                 </div>
               </div>
               <div style="margin-top: 1rem; display: flex; gap: 0.5rem;">
-                <button type="button" id="btn-save-store-pos" class="btn btn-primary" style="display: inline-flex; align-items: center; gap: 6px;">
+                <button type="button" id="btn-save-store-pos" class="btn btn-primary"class="btn btn-primary" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
                     <polyline points="17 21 17 13 7 13 7 21"></polyline>
@@ -218,7 +220,7 @@
                 </p>
               </div>
               <div style="margin-top: 1rem; display: flex; gap: 0.5rem;">
-                <button type="button" id="btn-save-paper-type" class="btn btn-primary" style="display: inline-flex; align-items: center; gap: 6px;">
+                <button type="button" id="btn-save-paper-type" class="btn btn-primary" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
                     <polyline points="17 21 17 13 7 13 7 21"></polyline>
@@ -342,6 +344,12 @@
       </div>
 
       <style>
+        #page-settings .settings-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 1.5rem;
+        }
+
         #page-settings input[readonly] {
           background-color: var(--background);
           color: var(--text);
