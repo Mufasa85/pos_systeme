@@ -13,7 +13,7 @@
           </div>
           <div class="analytics-actions">
             <span id="analytics-date" class="analytics-date"><?= date('d/m/Y') ?></span>
-            <button class="btn btn-secondary btn-small" onclick="window.print()">
+            <button class="btn btn-secondary btn-small" onclick="printAnalyticsReport()">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <polyline points="6 9 6 2 18 2 18 9"></polyline>
                 <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
@@ -353,6 +353,80 @@
           data: { labels: <?= $sellerLabels ?? '[]' ?>, datasets: [{ label: 'Chiffre d\'affaires', data: <?= $sellerValues ?? '[]' ?>, backgroundColor: '#10b981', borderRadius: 6, borderSkipped: false }] },
           options: { ...commonOptions, indexAxis: 'y', plugins: { ...commonOptions.plugins, legend: { display: false } }, scales: { x: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { callback: (v) => v.toLocaleString('fr-FR') + ' Fc' } }, y: { grid: { display: false } } } }
         });
+
+        function printAnalyticsReport() {
+          const source = document.getElementById('page-analytics');
+          if (!source) return;
+
+          const clone = source.cloneNode(true);
+          clone.querySelectorAll('.analytics-actions').forEach(el => el.remove());
+
+          const sourceCanvases = source.querySelectorAll('canvas');
+          const cloneCanvases = clone.querySelectorAll('canvas');
+          cloneCanvases.forEach((canvas, index) => {
+            const sourceCanvas = sourceCanvases[index];
+            if (!sourceCanvas) return;
+            const img = document.createElement('img');
+            img.src = sourceCanvas.toDataURL('image/png');
+            img.style.width = '100%';
+            img.style.height = 'auto';
+            img.style.display = 'block';
+            canvas.replaceWith(img);
+          });
+
+          const iframe = document.createElement('iframe');
+          iframe.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:210mm;height:297mm;border:none;';
+          document.body.appendChild(iframe);
+
+          const doc = iframe.contentDocument || iframe.contentWindow.document;
+          doc.open();
+          doc.write(`<!DOCTYPE html>
+            <html>
+              <head>
+                <meta charset="UTF-8">
+                <title>Analytics</title>
+                <style>
+                  @page { size: A4 portrait; margin: 10mm; }
+                  * { box-sizing: border-box; }
+                  body { margin: 0; font-family: Inter, Arial, sans-serif; color: #0f172a; background: #fff; font-size: 12px; }
+                  .page { display: block !important; }
+                  .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; }
+                  .page-header h2 { margin: 0 0 4px; font-size: 22px; }
+                  .page-header p { margin: 0; color: #64748b; }
+                  .analytics-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 14px; }
+                  .analytics-card { background: #fff; border: 1px solid #dbe3ea; border-radius: 8px; overflow: hidden; break-inside: avoid; page-break-inside: avoid; margin-bottom: 12px; }
+                  .analytics-card.kpi { display: flex; align-items: center; gap: 10px; padding: 10px; }
+                  .kpi-icon { width: 34px; height: 34px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; background: #eef6fb; color: #0B5E88; }
+                  .kpi-info { display: flex; flex-direction: column; min-width: 0; }
+                  .kpi-label { font-size: 10px; color: #64748b; text-transform: uppercase; letter-spacing: .04em; }
+                  .kpi-value { font-size: 13px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+                  .kpi-sub { font-size: 10px; color: #64748b; }
+                  .card-header { padding: 9px 10px; border-bottom: 1px solid #dbe3ea; }
+                  .card-header h3 { margin: 0; font-size: 13px; }
+                  .card-body { padding: 10px; }
+                  .chart-body, .doughnut-body { height: auto !important; }
+                  .analytics-charts-row, .analytics-tables-row { display: grid; grid-template-columns: 1fr; gap: 12px; margin-top: 12px; }
+                  table { width: 100%; border-collapse: collapse; }
+                  th, td { padding: 6px; border-bottom: 1px solid #e5e7eb; font-size: 11px; }
+                  th { text-align: left; background: #f8fafc; color: #64748b; text-transform: uppercase; }
+                  .text-right { text-align: right; }
+                  .insight-item, .alert-item { display: flex; justify-content: space-between; gap: 10px; padding: 6px 0; border-bottom: 1px solid #e5e7eb; }
+                  svg { max-width: 20px; max-height: 20px; }
+                  img { max-width: 100%; }
+                </style>
+              </head>
+              <body>${clone.outerHTML}</body>
+            </html>`);
+          doc.close();
+
+          iframe.onload = function () {
+            setTimeout(() => {
+              iframe.contentWindow.focus();
+              iframe.contentWindow.print();
+              setTimeout(() => iframe.remove(), 1000);
+            }, 300);
+          };
+        }
       </script>
 
       <style>
