@@ -364,7 +364,7 @@ const posCart = {
                 prod_service: product.prod_service || '',
                 remise_type: product.remise_type || '%',
                 remise_value: parseFloat(product.remise_value) || 0,
-                taxe_specifique_type: 'CDF',
+                taxe_specifique_type: product.taxe_specifique_type || '%',
                 taxe_specifique_value: parseFloat(product.taxe_specifique_value) || 0,
             });
         }
@@ -428,7 +428,7 @@ const posCart = {
                 prod_service: product.prod_service || '',
                 remise_type: product.remise_type || '%',
                 remise_value: parseFloat(product.remise_value) || 0,
-                taxe_specifique_type: 'CDF',
+                taxe_specifique_type: product.taxe_specifique_type || '%',
                 taxe_specifique_value: parseFloat(product.taxe_specifique_value) || 0,
             });
         }
@@ -541,7 +541,9 @@ const posCart = {
     },
 
     calculateSpecificTaxUnit(item) {
-        return parseFloat(item.taxe_specifique_value) || 0;
+        const price = parseFloat(item.prix) || 0;
+        const value = parseFloat(item.taxe_specifique_value) || 0;
+        return item.taxe_specifique_type === 'CDF' ? value : price * (value / 100);
     },
 
     calculateItemTTC(item, quantityOverride = null) {
@@ -571,7 +573,9 @@ const posCart = {
     getSpecificTaxLabel(item) {
         const value = parseFloat(item.taxe_specifique_value) || 0;
         if (value <= 0) return '';
-        return ` <span style="color:#b45309;font-weight:700;">[TS]</span> ${formatCurrency(value)} `;
+        return item.taxe_specifique_type === 'CDF'
+            ? ` <span style="color:#b45309;font-weight:700;">[TS]</span> ${formatCurrency(value)} `
+            : ` <span style="color:#b45309;font-weight:700;">[TS]</span> ${value}% `;
     },
 
     calculateCartTotals() {
@@ -731,18 +735,34 @@ const posCart = {
                // payment_type: paymentType,
                 payments: payments,
                 rate: (typeof USD_RATE !== 'undefined') ? USD_RATE : 0,
-                articles: this.items.map(item => ({
-                    name: item.nom,
-                    quantity: item.quantite,
-                    price: item.prix,
-                    tax_rate: item.tax_rate || 0,
-                    tax_etiquette: item.tax_etiquette || '',
-                    prod_service: item.prod_service || '',
-                    remise_type: item.remise_type || '%',
-                    remise_value: item.remise_value || 0,
-                    taxe_specifique_type: 'CDF',
-                    taxe_specifique_value: item.taxe_specifique_value || 0,
-                })),
+                articles: this.items.map(item => {
+                    const itemPrice = parseFloat(item.prix) || 0;
+
+                    const remiseType = item.remise_type || '%';
+                    const rawRemiseValue = parseFloat(item.remise_value) || 0;
+                    const remiseValue = remiseType === '%'
+                        ? itemPrice * (rawRemiseValue / 100)
+                        : rawRemiseValue;
+
+                    const specificTaxType = item.taxe_specifique_type || '%';
+                    const rawSpecificTaxValue = parseFloat(item.taxe_specifique_value) || 0;
+                    const specificTaxValue = specificTaxType === '%'
+                        ? itemPrice * (rawSpecificTaxValue / 100)
+                        : rawSpecificTaxValue;
+
+                    return {
+                        name: item.nom,
+                        quantity: item.quantite,
+                        price: item.prix,
+                        tax_rate: item.tax_rate || 0,
+                        tax_etiquette: item.tax_etiquette || '',
+                        prod_service: item.prod_service || '',
+                        remise_type: remiseType,
+                        remise_value: remiseValue,
+                        taxe_specifique_type: specificTaxType,
+                        taxe_specifique_value: specificTaxValue,
+                    };
+                }),
                 client_name: clientNom,
                 client_type: acheteurTypeInitiales,
                 client_type_val: getClientTypeLabel(acheteurTypeInitiales),
@@ -1724,8 +1744,13 @@ const posCart = {
             return;
         }
 
+        const taxeSpecifiqueType = $('#product-taxe-specifique-type').value || '%';
         const taxeSpecifiqueValue = parseFloat($('#product-taxe-specifique-value').value) || 0;
-        if (taxeSpecifiqueValue < 0 || taxeSpecifiqueValue > priceValue) {
+        if (taxeSpecifiqueType === '%' && (taxeSpecifiqueValue < 0 || taxeSpecifiqueValue > 100)) {
+            alert('La taxe spécifique en pourcentage doit être comprise entre 0 et 100.');
+            return;
+        }
+        if (taxeSpecifiqueType === 'CDF' && (taxeSpecifiqueValue < 0 || taxeSpecifiqueValue > priceValue)) {
             alert('La taxe spécifique en montant fixe doit être comprise entre 0 et le prix du produit.');
             return;
         }
@@ -1744,7 +1769,7 @@ const posCart = {
         formData.append('prod_service', $('#product-prod-service').value || '');
         formData.append('remise_type', $('#product-remise-type').value || '%');
         formData.append('remise_value', $('#product-remise-value').value || 0);
-        formData.append('taxe_specifique_type', 'CDF');
+        formData.append('taxe_specifique_type', $('#product-taxe-specifique-type').value || '%');
         formData.append('taxe_specifique_value', $('#product-taxe-specifique-value').value || 0);
         if ($('#product-image').files[0]) {
             formData.append('image', $('#product-image').files[0]);
@@ -1839,8 +1864,8 @@ function setProductForm(product) {
 
     const taxeSpecifiqueTypeSelect = $('#product-taxe-specifique-type');
     const taxeSpecifiqueValueInput = $('#product-taxe-specifique-value');
-    if (taxeSpecifiqueTypeSelect) {
-        taxeSpecifiqueTypeSelect.value = 'CDF';
+    if (taxeSpecifiqueTypeSelect && product.taxe_specifique_type !== undefined) {
+        taxeSpecifiqueTypeSelect.value = product.taxe_specifique_type || '%';
     }
     if (taxeSpecifiqueValueInput && product.taxe_specifique_value !== undefined) {
         taxeSpecifiqueValueInput.value = product.taxe_specifique_value || 0;
