@@ -622,8 +622,8 @@ const posCart = {
                 const step = isPoids ? 0.5 : 1;
                 const discountLabel = item.remise_value > 0
                     ? (item.remise_type === 'CDF'
-                        ? ` - ${formatCurrency(item.remise_value)} remise`
-                        : ` - ${item.remise_value}% remise`)
+                        ? ` - ${formatCurrency(item.remise_value)} `
+                        : ` - ${item.remise_value}% `)
                     : '';
                 const specificTaxLabel = this.getSpecificTaxLabel(item);
                 const itemCalc = this.calculateItemTTC(item);
@@ -1201,7 +1201,7 @@ const posCart = {
                     <td colspan="2"><span class="item-name"> ${item.nom}<span class="item-tax-badge">${taxLabel}</span>${prodService}<small style="color:var(--success);font-weight:600;">${discountLabel}</small><small style="color:#b45309;font-weight:600;">${specificTaxLabel}</small></span></td>
                 </tr>
                 <tr class="item-detail-row">
-                    <td class="item-qty">${qtyDisplay} × ${formatCurrency(itemPrice)} Fc</td>
+                    <td class="item-qty">${qtyDisplay} × ${formatCurrency(itemPrice)} </td>
                     <td class="item-total">${truncateDecimals(itemTotalHT).toFixed(3)} Fc</td>
                 </tr>
             `;
@@ -1621,8 +1621,8 @@ const posCart = {
                 const prodService = item.prod_service ? `<span class="item-prod-service">[${item.prod_service}]</span>` : '';
                 const discountLabel = item.remise_value > 0
                     ? (item.remise_type === 'CDF'
-                        ? ` - ${formatCurrency(item.remise_value)} remise`
-                        : ` - ${item.remise_value}% remise`)
+                        ? ` - ${formatCurrency(item.remise_value)} `
+                        : ` - ${item.remise_value}% `)
                     : '';
                 const specificTaxLabel = this.getSpecificTaxLabel(item);
                 const isPoidsItem = (item.product_type === 'coupe' || item.product_type === 'poids');
@@ -1632,7 +1632,7 @@ const posCart = {
                         <td colspan="2"><span class="item-name">${item.nom}<span class="item-tax-badge">${taxLabel}</span>${prodService}<small style="color:var(--success);font-weight:600;">${discountLabel}</small><small style="color:#b45309;font-weight:600;">${specificTaxLabel}</small></span></td>
                     </tr>
                     <tr class="item-detail-row">
-                        <td class="item-qty">${formatQty(itemQty, isPoidsItem)} × ${formatCurrency(itemPrice)} Fc</td>
+                        <td class="item-qty">${formatQty(itemQty, isPoidsItem)} × ${formatCurrency(itemPrice)} </td>
                         <td class="item-total">${itemTotalHT.toFixed(2)} Fc</td>
                     </tr>
                 `;
