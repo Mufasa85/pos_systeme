@@ -1037,19 +1037,21 @@ const posCart = {
             const ts = (parseFloat(tsData[cat.ts]) || 0);
 
             if (Math.abs(ht) > 0 || Math.abs(va) > 0 || Math.abs(ts) > 0) {
+                const htLabel = cat.tax === 0 ? 'TOTAL' : 'HT';
+                const taxRateText = cat.tax === 0 ? '' : ` ${cat.tax} %`;
                 html += `<div class="receipt-total-row" style="font-size: 11px; padding-left: 10px;">
-                    <span>HT[${cat.label}] ${cat.description} ${cat.tax} % :</span>
+                    <span>${htLabel}[${cat.label}] ${cat.description}${taxRateText} :</span>
                     <span>${ht.toFixed(2)} Fc</span>
                 </div>`;
                 if (Math.abs(ts) > 0) {
                     html += `<div class="receipt-total-row" style="font-size: 11px; padding-left: 10px; color: #666;">
-                        <span>TS[${cat.label}] ${cat.description} ${cat.tax} % :</span>
+                        <span>TS[${cat.label}] ${cat.description}${taxRateText} :</span>
                         <span>${ts.toFixed(2)} Fc</span>
                     </div>`;
                 }
                 if (Math.abs(va) > 0) {
                     html += `<div class="receipt-total-row" style="font-size: 11px; padding-left: 10px; color: #666;">
-                        <span>TVA[${cat.label}] ${cat.description} ${cat.tax} % :</span>
+                        <span>TVA[${cat.label}] ${cat.description}${taxRateText} :</span>
                         <span>${va.toFixed(2)} Fc</span>
                     </div>`;
                 }
@@ -2257,18 +2259,18 @@ function getDiscountLabelForArticle(article) {
     if (value === null || value === undefined || value === '') {
         if (!article.remise_value || parseFloat(article.remise_value) <= 0) return '';
         if (article.remise_type === 'CDF') {
-            return ' - ' + parseFloat(article.remise_value).toFixed(2) + ' Fc remise';
+            return ' - ' + parseFloat(article.remise_value).toFixed(2) + 'Fc';
         }
-        return ' - ' + article.remise_value + '% remise';
+        return ' - ' + article.remise_value + '% ';
     }
     const str = String(value).trim();
     if (str === '') return '';
     if (str.indexOf('%') !== -1) {
-        return ' - ' + str + ' remise';
+        return ' - ' + str + '';
     }
     const num = parseFloat(str);
     if (isNaN(num) || num <= 0) return '';
-    return ' - ' + num.toFixed(2) + ' Fc remise';
+    return ' - ' + num.toFixed(2) + 'Fc';
 }
 
 function getTaxSpecificLabelForArticle(article) {
@@ -2277,11 +2279,11 @@ function getTaxSpecificLabelForArticle(article) {
     const str = String(value).trim();
     if (str === '') return '';
     if (str.indexOf('%') !== -1) {
-        return ' <span style="color:#b45309;font-weight:700;">[TS]</span> ' + str + ' ';
+        return ' <span style="color:#b45309;font-weight:700;">[TS]</span> ' + str ;
     }
     const num = parseFloat(str);
     if (isNaN(num) || num <= 0) return '';
-    return ' <span style="color:#b45309;font-weight:700;">[TS]</span> ' + num.toFixed(2) + ' Fc ';
+    return ' <span style="color:#b45309;font-weight:700;">[TS]</span> ' + num.toFixed(2) + 'Fc';
 }
 
 function getTaxSpecificUnitForArticle(article) {
