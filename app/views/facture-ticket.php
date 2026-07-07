@@ -335,131 +335,164 @@ $localQrData  = $sale['qrCode'] ?? '';
                 key: 'haa',
                 label: 'A',
                 tax: 0,
-                desc: 'EXONERE ET HORS CHAMP'
+                desc: 'EXONERE ET HORS CHAMP',
+                ts: 'tsa'
             },
             {
                 key: 'hab',
                 label: 'B',
                 tax: 16,
-                desc: 'Taxable'
+                desc: 'Taxable',
+                ts: 'tsb'
             },
             {
                 key: 'hac',
                 label: 'C',
                 tax: 5,
-                desc: 'Taxable'
+                desc: 'Taxable',
+                ts: 'tsc'
             },
             {
                 key: 'had',
                 label: 'D',
                 tax: 0,
-                desc: 'Régimes dérogatoires TVA'
+                desc: 'Régimes dérogatoires TVA',
+                ts: 'tsd'
             },
             {
                 key: 'hae',
                 label: 'E',
                 tax: 0,
-                desc: 'Exportation et opération assimilée'
+                desc: 'Exportation et opération assimilée',
+                ts: 'tse'
             },
             {
                 key: 'haf',
                 label: 'F',
                 tax: 16,
-                desc: 'TVA marché public à financement ext.'
+                desc: 'TVA marché public à financement ext.',
+                ts: 'tsf'
             },
             {
                 key: 'hag',
                 label: 'G',
                 tax: 5,
-                desc: 'TVA marché public à financement ext.'
+                desc: 'TVA marché public à financement ext.',
+                ts: 'tsg'
             },
             {
                 key: 'hah',
                 label: 'H',
                 tax: 0,
-                desc: 'Consignation/déconsignation emballage'
+                desc: 'Consignation/déconsignation emballage',
+                ts: 'tsh'
             },
             {
                 key: 'hai',
                 label: 'I',
                 tax: 0,
-                desc: 'Garantie et caution'
+                desc: 'Garantie et caution',
+                ts: 'tsi'
             },
             {
                 key: 'haj',
                 label: 'J',
                 tax: 0,
-                desc: 'Débours'
+                desc: 'Débours',
+                ts: 'tsj'
             },
             {
                 key: 'hak',
                 label: 'K',
                 tax: 0,
-                desc: 'Opérations par les non-assujettis'
+                desc: 'Opérations par les non-assujettis',
+                ts: 'tsk'
             },
             {
                 key: 'hal',
                 label: 'L',
                 tax: 0,
-                desc: 'Prélèvements sur les ventes'
+                desc: 'Prélèvements sur les ventes',
+                ts: 'tsl'
             },
             {
                 key: 'ham',
                 label: 'M',
                 tax: 0,
-                desc: 'Ventes réglementées TVA spécifique'
+                desc: 'Ventes réglementées TVA spécifique',
+                ts: 'tsm'
             },
             {
                 key: 'han',
                 label: 'N',
                 tax: 0,
-                desc: 'TVA spécifique'
+                desc: 'TVA spécifique',
+                ts: 'tsn'
             },
             {
                 key: 'hao',
                 label: 'O',
                 tax: 1,
-                desc: 'Taxable'
+                desc: 'Taxable',
+                ts: 'tso'
             },
             {
                 key: 'hap',
                 label: 'P',
                 tax: 1,
-                desc: 'TVA marché public à financement ext.'
+                desc: 'TVA marché public à financement ext.',
+                ts: 'tsp'
             }
         ];
 
-        function parseHtTva(raw) {
+        function parseHtTva(raw, tsRaw) {
             var ha = {},
-                va = {};
+                va = {},
+                ts = {};
+            try {
+                if (tsRaw) {
+                    ts = typeof tsRaw === 'string' ? JSON.parse(tsRaw) : tsRaw;
+                }
+            } catch (e) {}
             try {
                 if (!raw) return {
                     ha: ha,
-                    va: va
+                    va: va,
+                    ts: ts
                 };
                 var p = typeof raw === 'string' ? JSON.parse(raw) : raw;
                 if (p && p.data) {
                     ha = p.data.ha || {};
                     va = p.data.va || {};
+                    if (Object.keys(ts).length === 0) {
+                        ts = p.data.ts || {};
+                    }
                 }
             } catch (e) {}
             return {
                 ha: ha,
-                va: va
+                va: va,
+                ts: ts
             };
         }
 
-        function taxBreakdownHtml(raw) {
-            var x = parseHtTva(raw);
+        function taxBreakdownHtml(raw, tsRaw) {
+            var x = parseHtTva(raw, tsRaw);
             var h = '';
             for (var i = 0; i < TAX_CATS.length; i++) {
                 var cat = TAX_CATS[i];
                 var ht = parseFloat(x.ha[cat.key]) || 0;
                 var vat = parseFloat(x.va['va' + cat.key.slice(-1)]) || 0;
-                if (Math.abs(ht) > 0 || Math.abs(vat) > 0) {
+                var tsValue = parseFloat(x.ts[cat.ts]) || 0;
+                if (Math.abs(ht) > 0 || Math.abs(vat) > 0 || Math.abs(tsValue) > 0) {
                     h += '<div class="receipt-total-row" style="font-size:11px; padding-left:10px;">' +
                         '<span>HT[' + cat.label + '] ' + cat.desc + ' ' + cat.tax + '% :</span>' +
                         '<span>' + ht.toFixed(2) + ' Fc</span></div>';
+                    if (Math.abs(tsValue) > 0) {
+                        h += '<div class="receipt-total-row" style="font-size:11px; padding-left:10px; color:#666;">' +
+                            '<span>TS[' + cat.label + '] ' + cat.desc + ' ' + cat.tax + '% :</span>' +
+                            '<span>' + tsValue.toFixed(2) + ' Fc</span></div>';
+                    }
                     if (Math.abs(vat) > 0) {
                         h += '<div class="receipt-total-row" style="font-size:11px; padding-left:10px; color:#666;">' +
                             '<span>TVA[' + cat.label + '] ' + cat.desc + ' ' + cat.tax + '% :</span>' +
@@ -468,6 +501,61 @@ $localQrData  = $sale['qrCode'] ?? '';
                 }
             }
             return h;
+        }
+
+        function getTaxRateFromGroup(group) {
+            if (!group) return 0;
+            var g = String(group).toUpperCase();
+            for (var i = 0; i < TAX_CATS.length; i++) {
+                if (TAX_CATS[i].label === g) return TAX_CATS[i].tax;
+            }
+            return 0;
+        }
+
+        function getDiscountLabel(article) {
+            var value = article.priceModification;
+            if (value === null || value === undefined || value === '') {
+                if (!article.remise_value || parseFloat(article.remise_value) <= 0) return '';
+                if (article.remise_type === 'CDF') {
+                    return ' - ' + parseFloat(article.remise_value).toFixed(2) + ' Fc ';
+                }
+                return ' - ' + article.remise_value + '% ';
+            }
+            var str = String(value).trim();
+            if (str === '') return '';
+            if (str.indexOf('%') !== -1) {
+                return ' - ' + esc(str) + ' ';
+            }
+            var num = parseFloat(str);
+            if (isNaN(num) || num <= 0) return '';
+            return ' - ' + num.toFixed(2) + ' Fc ';
+        }
+
+        function getTaxSpecificLabel(article) {
+            var value = article.taxSpecificValue;
+            if (value === null || value === undefined || value === '') return '';
+            var str = String(value).trim();
+            if (str === '') return '';
+            if (str.indexOf('%') !== -1) {
+                return ' <span style="color:#b45309;font-weight:700;">[TS]</span> ' + esc(str) + ' ';
+            }
+            var num = parseFloat(str);
+            if (isNaN(num) || num <= 0) return '';
+            return ' <span style="color:#b45309;font-weight:700;">[TS]</span> ' + num.toFixed(2) + ' Fc ';
+        }
+
+        function getTaxSpecificUnit(article) {
+            var amount = parseFloat(article.taxSpecificAmount);
+            if (!isNaN(amount) && amount > 0) return amount;
+            var value = article.taxSpecificValue;
+            if (value === null || value === undefined || value === '') return 0;
+            var str = String(value).trim();
+            if (str === '') return 0;
+            var price = parseFloat(article.price) || 0;
+            if (str.indexOf('%') !== -1) {
+                return price * (parseFloat(str) / 100);
+            }
+            return parseFloat(str) || 0;
         }
 
         // ==================== Render proforma ====================
@@ -529,17 +617,17 @@ $localQrData  = $sale['qrCode'] ?? '';
                     var price = parseFloat(a.price) || 0;
                     var qty = parseFloat(a.quantity) || 1;
                     totalQty += qty;
-                    var totalHt = price * qty;
+                    var taxRate = getTaxRateFromGroup(a.taxGroup);
+                    var specificTaxUnit = getTaxSpecificUnit(a);
+                    var vatOnSpecificTax = specificTaxUnit * (taxRate / 100);
+                    var totalHt = price * qty + specificTaxUnit + vatOnSpecificTax;
                     var taxLabel = a.taxGroup || 'null';
                     var typeLabel = a.type ? '<span class="item-prod-service">[' + esc(a.type) + ']</span>' : '';
-                    var discountLabel = a.remise_value > 0
-                        ? (a.remise_type === 'CDF'
-                            ? ' - ' + parseFloat(a.remise_value).toFixed(2) + ' remise'
-                            : ' - ' + a.remise_value + '% remise')
-                        : '';
+                    var discountLabel = getDiscountLabel(a);
+                    var specificTaxLabel = getTaxSpecificLabel(a);
                     // Ligne 1 : nom article (colspan=2)
                     html += '<tr class="item-name-row">';
-                    html += '<td colspan="2"><span class="item-name">' + esc(a.name || 'Article') + '<span class="item-tax-badge">' + esc(taxLabel) + '</span>' + typeLabel + '<small style="color:var(--success);font-weight:600;">' + discountLabel + '</small></span></td>';
+                    html += '<td colspan="2"><span class="item-name">' + esc(a.name || 'Article') + '<span class="item-tax-badge">' + esc(taxLabel) + '</span>' + typeLabel + '<small style="color:var(--success);font-weight:600;">' + discountLabel + '</small><small style="color:#b45309;font-weight:600;">' + specificTaxLabel + '</small></span></td>';
                     html += '</tr>';
                     // Ligne 2 : qty × prix unitaire | total
                     html += '<tr class="item-detail-row">';
@@ -554,7 +642,7 @@ $localQrData  = $sale['qrCode'] ?? '';
 
             // Totaux
             html += '<div class="receipt-totals">';
-            html += taxBreakdownHtml(info.ht_tva);
+            html += taxBreakdownHtml(info.ht_tva, info.ts);
             html += '<div class="receipt-total-row"><span>Total TVA:</span><span>' + tva.toFixed(2) + ' Fc</span></div>';
             html += '<div class="receipt-total-row grand-total"><span>TOTAL TTC:</span><span>' + totalTTC.toFixed(2) + ' Fc</span></div>';
             if (info.remise != null && parseFloat(info.remise) !== 0) {
