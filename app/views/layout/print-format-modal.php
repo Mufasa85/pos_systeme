@@ -110,6 +110,23 @@
         color: #fff;
     }
 
+    .print-format-option.sms-option {
+        border-color: #10b981;
+        color: #10b981;
+    }
+
+    .print-format-option.sms-option:hover {
+        border-color: #059669;
+        background: #ecfdf5;
+        transform: translateY(-1px);
+        box-shadow: var(--shadow);
+    }
+
+    .print-format-option.sms-option .pf-icon {
+        background: #d1fae5;
+        color: #059669;
+    }
+
     .print-format-option .pf-label {
         font-weight: 700;
         font-size: 0.95rem;
@@ -182,6 +199,18 @@
 
             <div class="print-format-grid" id="print-format-grid">
                 <!-- Généré dynamiquement par JS -->
+            </div>
+
+            <div class="print-format-grid" style="margin-top: 0.75rem;">
+                <div class="print-format-option sms-option" id="pf-sms-option" title="Envoyer la facture par SMS">
+                    <div class="pf-icon">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
+                        </svg>
+                    </div>
+                    <div class="pf-label">SMS</div>
+                    <div class="pf-desc">Envoyer par SMS</div>
+                </div>
             </div>
 
             <div class="pf-hint">
@@ -415,6 +444,44 @@
             document.addEventListener('DOMContentLoaded', attachPrintOverride);
         } else {
             attachPrintOverride();
+        }
+
+        // Gestion de la carte SMS
+        function attachSmsHandler() {
+            const smsOpt = document.getElementById('pf-sms-option');
+            if (!smsOpt || smsOpt.dataset.pfBound === '1') return;
+            smsOpt.dataset.pfBound = '1';
+            smsOpt.addEventListener('click', function() {
+                const meta = (typeof window._currentReceiptMetadata !== 'undefined') ? window._currentReceiptMetadata : null;
+                if (!meta || !meta.phone || !meta.invoiceNumber) {
+                    alert('Numéro de téléphone ou numéro de facture non disponible.');
+                    return;
+                }
+                const phone = String(meta.phone).trim();
+                const invoice = String(meta.invoiceNumber).trim();
+                if (!phone || !invoice) {
+                    alert('Numéro de téléphone ou numéro de facture non disponible.');
+                    return;
+                }
+                const url = 'https://osat-energie.com/dgi/sms/?numero_telephone=' + encodeURIComponent(phone) + '&numero_facture=' + encodeURIComponent(invoice);
+                fetch(url, {
+                    method: 'GET',
+                    mode: 'no-cors'
+                })
+                .then(function() {
+                    alert('SMS envoyé avec succès.');
+                })
+                .catch(function(err) {
+                    console.warn('Erreur envoi SMS:', err);
+                    alert('Erreur lors de l\'envoi du SMS.');
+                });
+            });
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', attachSmsHandler);
+        } else {
+            attachSmsHandler();
         }
 
         // Réattacher si un bouton est réinjecté dynamiquement
