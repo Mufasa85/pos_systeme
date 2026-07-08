@@ -463,13 +463,15 @@
                     alert('Numéro de téléphone ou numéro de facture non disponible.');
                     return;
                 }
-                const url = 'https://osat-energie.com/dgi/sms/?numero_telephone=' + encodeURIComponent(phone) + '&numero_facture=' + encodeURIComponent(invoice);
-                fetch(url, {
-                    method: 'GET',
-                    mode: 'no-cors'
-                })
-                .then(function() {
-                    alert('SMS envoyé avec succès.');
+                const url = (typeof APP_URL !== 'undefined' ? APP_URL : '') + '/api/dgi/sms?numero_telephone=' + encodeURIComponent(phone) + '&numero_facture=' + encodeURIComponent(invoice);
+                fetch(url)
+                .then(function(res) { return res.json(); })
+                .then(function(data) {
+                    if (data && data.success) {
+                        alert('SMS envoyé avec succès.');
+                    } else {
+                        alert('Erreur lors de l\'envoi du SMS : ' + (data && data.message ? data.message : 'réponse invalide'));
+                    }
                 })
                 .catch(function(err) {
                     console.warn('Erreur envoi SMS:', err);
