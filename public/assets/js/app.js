@@ -1533,6 +1533,12 @@ const posCart = {
                 items: [...this.items]
             };
 
+            // Métadonnées pour l'envoi SMS depuis le modal d'impression
+            window._currentReceiptMetadata = {
+                phone: acheteurNumero,
+                invoiceNumber: saleData.numero_facture
+            };
+
             // Construire le HTML du recap DGI
             let dgiInfoHtml = '<div style="background: #e8f5e9; border: 1px solid #4caf50; border-radius: 8px; padding: 10px; margin: 10px 0; text-align: center;"><div style="color: #2e7d32; font-weight: bold; font-size: 11px;">--- Elements de securite de la facture normalisee ---</div>';
             if (dgiResponse.data) {
@@ -2170,20 +2176,20 @@ async function fetchServiceBillData(invoice_number, store_isf) {
 
 // Catégories de taxes (DGI) pour le détail HT/TVA
 const PROFORMA_TAX_CATEGORIES = [
-    { key: 'haa', label: 'A', tax: 0, description: 'EXONERE ET HORS CHAMP' },
-    { key: 'hab', label: 'B', tax: 16, description: 'Taxable' },
-    { key: 'hac', label: 'C', tax: 5, description: 'Taxable' },
-    { key: 'had', label: 'D', tax: 0, description: 'Régimes dérogatoires TVA' },
-    { key: 'hae', label: 'E', tax: 0, description: 'Exportation et opération assimilée' },
-    { key: 'haf', label: 'F', tax: 16, description: 'TVA marché public à financement ext.' },
-    { key: 'hag', label: 'G', tax: 5, description: 'TVA marché public à financement ext.' },
-    { key: 'hah', label: 'H', tax: 0, description: 'Consignation/déconsignation emballage' },
-    { key: 'hai', label: 'I', tax: 0, description: 'Garantie et caution' },
-    { key: 'haj', label: 'J', tax: 0, description: 'Débours' },
-    { key: 'hak', label: 'K', tax: 0, description: 'Opérations par les non-assujettis' },
-    { key: 'hal', label: 'L', tax: 0, description: 'Prélèvements sur les ventes' },
-    { key: 'ham', label: 'M', tax: 0, description: 'Ventes réglementées TVA spécifique' },
-    { key: 'han', label: 'N', tax: 0, description: 'TVA spécifique' },
+    { key: 'haa', label: 'A', tax: 0, description: 'EXONERE ET HORS CHAMP', ts: 'tsa' },
+    { key: 'hab', label: 'B', tax: 16, description: 'Taxable', ts: 'tsb' },
+    { key: 'hac', label: 'C', tax: 5, description: 'Taxable', ts: 'tsc' },
+    { key: 'had', label: 'D', tax: 0, description: 'Régimes dérogatoires TVA', ts: 'tsd' },
+    { key: 'hae', label: 'E', tax: 0, description: 'Exportation et opération assimilée', ts: 'tse' },
+    { key: 'haf', label: 'F', tax: 16, description: 'TVA marché public à financement ext.', ts: 'tsf' },
+    { key: 'hag', label: 'G', tax: 5, description: 'TVA marché public à financement ext.', ts: 'tsg' },
+    { key: 'hah', label: 'H', tax: 0, description: 'Consignation/déconsignation emballage', ts: 'tsh' },
+    { key: 'hai', label: 'I', tax: 0, description: 'Garantie et caution', ts: 'tsi' },
+    { key: 'haj', label: 'J', tax: 0, description: 'Débours', ts: 'tsj' },
+    { key: 'hak', label: 'K', tax: 0, description: 'Opérations par les non-assujettis', ts: 'tsk' },
+    { key: 'hal', label: 'L', tax: 0, description: 'Prélèvements sur les ventes', ts: 'tsl' },
+    { key: 'ham', label: 'M', tax: 0, description: 'Ventes réglementées TVA spécifique', ts: 'tsm' },
+    { key: 'han', label: 'N', tax: 0, description: 'TVA spécifique', ts: 'tsn' },
     { key: 'hao', label: 'O', tax: 1, description: 'Taxable', ts: 'tso' },
     { key: 'hap', label: 'P', tax: 1, description: 'TVA marché public à financement ext.', ts: 'tsp' }
 ];
@@ -2628,6 +2634,12 @@ async function viewSaleDetails(saleId) {
             document.getElementById('sale-details-content').innerHTML = '<div style="background:#ffebee; padding:15px; border-radius:8px; margin:10px 0;"><strong>Erreur:</strong> Impossible de charger les details.</div><button class="btn btn-secondary" onclick="document.getElementById(\'sale-details-modal\').classList.remove(\'active\')">Fermer</button>';
         }
 
+        // Métadonnées pour l'envoi SMS depuis le modal d'impression
+        window._currentReceiptMetadata = {
+            phone: sale.client_numero,
+            invoiceNumber: sale.numero_facture
+        };
+
         document.getElementById('print-sale-btn').onclick = () => printSaleReceipt(saleId);
     } else {
         // Design unifié avec /caisse (même structure)
@@ -2731,6 +2743,13 @@ async function viewSaleDetails(saleId) {
             '</div>';
 
         posCart.generateDGIQRCode(sale.qrCode || sale.numero_facture, 'history-qrcode-container');
+
+        // Métadonnées pour l'envoi SMS depuis le modal d'impression
+        window._currentReceiptMetadata = {
+            phone: sale.client_numero,
+            invoiceNumber: sale.numero_facture
+        };
+
         document.getElementById('print-sale-btn').onclick = () => printSaleReceipt(saleId);
         document.getElementById('sale-details-modal').classList.add('active');
     }
