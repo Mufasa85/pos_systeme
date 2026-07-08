@@ -2226,19 +2226,21 @@ function buildProformaTaxBreakdownHtml(htTvaRaw, tsRaw) {
         const vat = parseFloat(va[vaKey]) || 0;
         const tsValue = parseFloat(ts[cat.ts]) || 0;
         if (Math.abs(ht) > 0 || Math.abs(vat) > 0 || Math.abs(tsValue) > 0) {
+            const htLabel = cat.tax === 0 ? 'TOTAL' : 'HT';
+            const taxRateText = cat.tax === 0 ? '' : (' ' + cat.tax + '%');
             html += '<div class="receipt-total-row" style="font-size:11px; padding-left:10px;">'
-                + '<span>HT[' + cat.label + '] ' + cat.description + ' ' + cat.tax + '% :</span>'
+                + '<span>' + htLabel + '[' + cat.label + '] ' + cat.description + taxRateText + ' :</span>'
                 + '<span>' + ht.toFixed(2) + ' Fc</span>'
                 + '</div>';
             if (Math.abs(tsValue) > 0) {
                 html += '<div class="receipt-total-row" style="font-size:11px; padding-left:10px; color:#666;">'
-                    + '<span>TS[' + cat.label + '] ' + cat.description + ' ' + cat.tax + '% :</span>'
+                    + '<span>TS[' + cat.label + '] ' + cat.description + taxRateText + ' :</span>'
                     + '<span>' + tsValue.toFixed(2) + ' Fc</span>'
                     + '</div>';
             }
             if (Math.abs(vat) > 0) {
                 html += '<div class="receipt-total-row" style="font-size:11px; padding-left:10px; color:#666;">'
-                    + '<span>TVA[' + cat.label + '] ' + cat.description + ' ' + cat.tax + '% :</span>'
+                    + '<span>TVA[' + cat.label + '] ' + cat.description + taxRateText + ' :</span>'
                     + '<span>' + vat.toFixed(2) + ' Fc</span>'
                     + '</div>';
             }
