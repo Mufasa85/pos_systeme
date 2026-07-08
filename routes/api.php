@@ -232,49 +232,72 @@ $smsHandler = function () {
         exit;
     }
 
-    $numeroTelephone = $_GET['numero_telephone'] ?? '';
-    $numeroFacture = $_GET['numero_facture'] ?? '';
-    $isf = $_GET['isf'] ?? '';
+    try {
+        $numeroTelephone = $_GET['numero_telephone'] ?? '';
+        $numeroFacture = $_GET['numero_facture'] ?? '';
+        $isf = $_GET['isf'] ?? '';
 
-    if (empty($numeroTelephone) || empty($numeroFacture)) {
-        echo json_encode(['success' => false, 'message' => 'Paramètres manquants']);
-        return;
-    }
+        // Formatage : 0895511485 -> 243895511485 ; 243xxxxxxxxx reste inchangé
+        $numeroTelephone = trim((string)$numeroTelephone);
+        if (strpos($numeroTelephone, '0') === 0) {
+            $numeroTelephone = '243' . substr($numeroTelephone, 1);
+        }
 
-    $settings = new Settings();
-    $token = trim((string)$settings->get('token'));
+        if (empty($numeroTelephone) || empty($numeroFacture)) {
+            echo json_encode(['success' => false, 'message' => 'Paramètres manquants']);
+            return;
+        }
 
-    if ($token === '') {
+        $settings = new Settings();
+        $token = trim((string)$settings->get('token'));
+
+        if ($token === '') {
+            http_response_code(500);
+            echo json_encode(['success' => false, 'message' => 'Token DGI non configuré dans settings avec la clé token']);
+            return;
+        }
+
+        $smsUrl = 'https://osat-energie.com/dgi/sms/index.php?numero=' . urlencode($numeroTelephone)
+            . '&msg=' . urlencode($numeroFacture)
+            . '&token=' . urlencode($token);
+        if (!empty($isf)) {
+            $smsUrl .= '&isf=' . urlencode($isf);
+        }
+
+        error_log('[SMS PROXY] URL appelée: ' . $smsUrl);
+
+        $ch = curl_init($smsUrl);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curlError = curl_error($ch);
+        curl_close($ch);
+
+        error_log('[SMS PROXY] HTTP code: ' . $httpCode . ' | Erreur curl: ' . ($curlError ?: 'aucune'));
+
+        if ($response === false) {
+            echo json_encode(['success' => false, 'message' => 'Erreur connexion SMS: ' . $curlError]);
+            return;
+        }
+
+        // Toujours renvoyer un JSON interprétable par le frontend
+        $data = json_decode($response, true);
+        if (json_last_error() === JSON_ERROR_NONE) {
+            http_response_code($httpCode < 400 ? 200 : $httpCode);
+            echo json_encode($data);
+        } else {
+            http_response_code($httpCode < 400 ? 200 : $httpCode);
+            echo json_encode(['success' => $httpCode < 400, 'message' => 'Réponse SMS', 'raw' => $response]);
+        }
+    } catch (\Throwable $e) {
+        error_log('[SMS PROXY] Exception: ' . $e->getMessage());
         http_response_code(500);
-        echo json_encode(['success' => false, 'message' => 'Token DGI non configuré dans settings avec la clé token']);
-        return;
+        echo json_encode(['success' => false, 'message' => 'Erreur interne proxy SMS: ' . $e->getMessage()]);
     }
-
-    $smsUrl = 'https://osat-energie.com/dgi/sms/?numero=' . urlencode($numeroTelephone)
-        . '&msg=' . urlencode($numeroFacture)
-        . '&token=' . urlencode($token);
-    if (!empty($isf)) {
-        $smsUrl .= '&isf=' . urlencode($isf);
-    }
-
-    $ch = curl_init($smsUrl);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 30);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-
-    $response = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    $curlError = curl_error($ch);
-    curl_close($ch);
-
-    if ($response === false) {
-        echo json_encode(['success' => false, 'message' => 'Erreur connexion SMS: ' . $curlError]);
-        return;
-    }
-
-    http_response_code($httpCode);
-    echo $response;
 };
 Router::get("/api/dgi/sms", $smsHandler);
 Router::post("/api/dgi/sms", $smsHandler);
