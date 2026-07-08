@@ -485,17 +485,19 @@ $localQrData  = $sale['qrCode'] ?? '';
                 var vat = parseFloat(x.va['va' + cat.key.slice(-1)]) || 0;
                 var tsValue = parseFloat(x.ts[cat.ts]) || 0;
                 if (Math.abs(ht) > 0 || Math.abs(vat) > 0 || Math.abs(tsValue) > 0) {
+                    var htLabel = cat.tax === 0 ? 'TOTAL' : 'HT';
+                    var taxRateText = cat.tax === 0 ? '' : (' ' + cat.tax + '%');
                     h += '<div class="receipt-total-row" style="font-size:11px; padding-left:10px;">' +
-                        '<span>HT[' + cat.label + '] ' + cat.desc + ' ' + cat.tax + '% :</span>' +
+                        '<span>' + htLabel + '[' + cat.label + '] ' + cat.desc + taxRateText + ' :</span>' +
                         '<span>' + ht.toFixed(2) + ' Fc</span></div>';
                     if (Math.abs(tsValue) > 0) {
                         h += '<div class="receipt-total-row" style="font-size:11px; padding-left:10px; color:#666;">' +
-                            '<span>TS[' + cat.label + '] ' + cat.desc + ' ' + cat.tax + '% :</span>' +
+                            '<span>TS[' + cat.label + '] ' + cat.desc + taxRateText + ' :</span>' +
                             '<span>' + tsValue.toFixed(2) + ' Fc</span></div>';
                     }
                     if (Math.abs(vat) > 0) {
                         h += '<div class="receipt-total-row" style="font-size:11px; padding-left:10px; color:#666;">' +
-                            '<span>TVA[' + cat.label + '] ' + cat.desc + ' ' + cat.tax + '% :</span>' +
+                            '<span>TVA[' + cat.label + '] ' + cat.desc + taxRateText + ' :</span>' +
                             '<span>' + vat.toFixed(2) + ' Fc</span></div>';
                     }
                 }
