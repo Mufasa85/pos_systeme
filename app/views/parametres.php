@@ -219,17 +219,6 @@
                   Le format sera appliqué lors de l'impression des tickets et factures.
                 </p>
               </div>
-              <div style="margin-top: 1rem; display: flex; gap: 0.5rem;">
-                <button type="button" id="btn-save-paper-type" class="btn btn-primary" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
-                    <polyline points="17 21 17 13 7 13 7 21"></polyline>
-                    <polyline points="7 3 7 8 15 8"></polyline>
-                  </svg>
-                  Enregistrer
-                </button>
-                <span id="paper-type-status" style="font-size: 0.85rem; color: var(--muted); display: inline-flex; align-items: center;"></span>
-              </div>
             </div>
           </div>
 
@@ -579,7 +568,16 @@
               body: JSON.stringify(payload)
             });
             const data = await res.json();
-            if (data.success) {
+
+            const paperType = document.getElementById('paper-type')?.value || '80mm';
+            const paperRes = await fetch(APP_URL + '/api/settings/paper-type', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ paper_type: paperType })
+            });
+            const paperData = await paperRes.json();
+
+            if (data.success && paperData.success) {
               if (status) {
                 status.textContent = '✓ Enregistré';
                 status.style.color = '#16A34A';
@@ -597,7 +595,7 @@
               }
             } else {
               if (status) {
-                status.textContent = '✗ ' + (data.error || 'Erreur');
+                status.textContent = '✗ ' + (data.error || paperData.error || 'Erreur');
                 status.style.color = '#DC2626';
               }
             }
@@ -615,9 +613,6 @@
 
         // Init boutons
         document.addEventListener('DOMContentLoaded', () => {
-          const btn = document.getElementById('btn-save-paper-type');
-          if (btn) btn.addEventListener('click', savePaperType);
-
           const storePosBtn = document.getElementById('btn-save-store-pos');
           if (storePosBtn) storePosBtn.addEventListener('click', saveStoreAndPosSettings);
         });
