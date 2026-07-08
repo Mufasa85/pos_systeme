@@ -220,20 +220,42 @@ Router::post("/api/dgi", function () {
     echo $response;
 });
 
-// Proxy SMS DGI API - GET (forward vers https://osat-energie.com/dgi/sms/)
-Router::get("/api/dgi/sms", function () {
+// Proxy SMS DGI API - GET/POST (forward vers https://osat-energie.com/dgi/sms/)
+$smsHandler = function () {
     header('Access-Control-Allow-Origin: *');
+    header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+    header('Access-Control-Allow-Headers: Content-Type');
     header('Content-Type: application/json');
+
+    if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+        http_response_code(200);
+        exit;
+    }
 
     $numeroTelephone = $_GET['numero_telephone'] ?? '';
     $numeroFacture = $_GET['numero_facture'] ?? '';
+    $isf = $_GET['isf'] ?? '';
 
     if (empty($numeroTelephone) || empty($numeroFacture)) {
         echo json_encode(['success' => false, 'message' => 'Paramètres manquants']);
         return;
     }
 
-    $smsUrl = 'https://osat-energie.com/dgi/sms/?numero_telephone=' . urlencode($numeroTelephone) . '&numero_facture=' . urlencode($numeroFacture);
+    $settings = new Settings();
+    $token = trim((string)$settings->get('token'));
+
+    if ($token === '') {
+        http_response_code(500);
+        echo json_encode(['success' => false, 'message' => 'Token DGI non configuré dans settings avec la clé token']);
+        return;
+    }
+
+    $smsUrl = 'https://osat-energie.com/dgi/sms/?numero=' . urlencode($numeroTelephone)
+        . '&msg=' . urlencode($numeroFacture)
+        . '&token=' . urlencode($token);
+    if (!empty($isf)) {
+        $smsUrl .= '&isf=' . urlencode($isf);
+    }
 
     $ch = curl_init($smsUrl);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -253,7 +275,9 @@ Router::get("/api/dgi/sms", function () {
 
     http_response_code($httpCode);
     echo $response;
-});
+};
+Router::get("/api/dgi/sms", $smsHandler);
+Router::post("/api/dgi/sms", $smsHandler);
 
 // Proxy DGI Facture (enregistrée) - GET/POST (pour éviter CORS)
 // URL distante: https://osat-energie.com/dgi/facture/?store_isf=...&invoice_number=...
