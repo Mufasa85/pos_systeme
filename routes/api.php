@@ -220,6 +220,41 @@ Router::post("/api/dgi", function () {
     echo $response;
 });
 
+// Proxy SMS DGI API - GET (forward vers https://osat-energie.com/dgi/sms/)
+Router::get("/api/dgi/sms", function () {
+    header('Access-Control-Allow-Origin: *');
+    header('Content-Type: application/json');
+
+    $numeroTelephone = $_GET['numero_telephone'] ?? '';
+    $numeroFacture = $_GET['numero_facture'] ?? '';
+
+    if (empty($numeroTelephone) || empty($numeroFacture)) {
+        echo json_encode(['success' => false, 'message' => 'Paramètres manquants']);
+        return;
+    }
+
+    $smsUrl = 'https://osat-energie.com/dgi/sms/?numero_telephone=' . urlencode($numeroTelephone) . '&numero_facture=' . urlencode($numeroFacture);
+
+    $ch = curl_init($smsUrl);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curlError = curl_error($ch);
+    curl_close($ch);
+
+    if ($response === false) {
+        echo json_encode(['success' => false, 'message' => 'Erreur connexion SMS: ' . $curlError]);
+        return;
+    }
+
+    http_response_code($httpCode);
+    echo $response;
+});
+
 // Proxy DGI Facture (enregistrée) - GET/POST (pour éviter CORS)
 // URL distante: https://osat-energie.com/dgi/facture/?store_isf=...&invoice_number=...
 $serviceBillHandler = function () {
