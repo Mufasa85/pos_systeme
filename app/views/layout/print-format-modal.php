@@ -463,8 +463,17 @@
                     alert('Numéro de téléphone ou numéro de facture non disponible.');
                     return;
                 }
-                const url = (typeof APP_URL !== 'undefined' ? APP_URL : '') + '/api/dgi/sms?numero_telephone=' + encodeURIComponent(phone) + '&numero_facture=' + encodeURIComponent(invoice);
-                fetch(url)
+                const isf = (meta && meta.isf) ? String(meta.isf).trim() : '';
+                let url = (typeof APP_URL !== 'undefined' ? APP_URL : '') + '/api/dgi/sms?numero_telephone=' + encodeURIComponent(phone) + '&numero_facture=' + encodeURIComponent(invoice);
+                if (isf) {
+                    url += '&isf=' + encodeURIComponent(isf);
+                }
+                fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                })
                 .then(function(res) { return res.json(); })
                 .then(function(data) {
                     if (data && data.success) {
