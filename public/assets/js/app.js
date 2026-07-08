@@ -1536,7 +1536,8 @@ const posCart = {
             // Métadonnées pour l'envoi SMS depuis le modal d'impression
             window._currentReceiptMetadata = {
                 phone: acheteurNumero,
-                invoiceNumber: saleData.numero_facture
+                invoiceNumber: saleData.numero_facture,
+                isf: STORE_INFO.isf || ''
             };
 
             // Construire le HTML du recap DGI
@@ -2637,7 +2638,8 @@ async function viewSaleDetails(saleId) {
         // Métadonnées pour l'envoi SMS depuis le modal d'impression
         window._currentReceiptMetadata = {
             phone: sale.client_numero,
-            invoiceNumber: sale.numero_facture
+            invoiceNumber: sale.numero_facture,
+            isf: STORE_INFO.isf || ''
         };
 
         document.getElementById('print-sale-btn').onclick = () => printSaleReceipt(saleId);
@@ -2747,7 +2749,8 @@ async function viewSaleDetails(saleId) {
         // Métadonnées pour l'envoi SMS depuis le modal d'impression
         window._currentReceiptMetadata = {
             phone: sale.client_numero,
-            invoiceNumber: sale.numero_facture
+            invoiceNumber: sale.numero_facture,
+            isf: STORE_INFO.isf || ''
         };
 
         document.getElementById('print-sale-btn').onclick = () => printSaleReceipt(saleId);
