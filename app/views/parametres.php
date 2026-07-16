@@ -176,6 +176,9 @@
                     <option value="Caisse">Caisse</option>
                     <option value="Quincaillerie">Quincaillerie</option>
                     <option value="Restaurant">Restaurant</option>
+                    <option value="Reparation">Reparation</option>
+                    <option value="Livraison">Livraison</option>
+                    
                     <option value="Coiffure">Coiffure</option>
                   </select>
                 </div>
