@@ -1534,11 +1534,7 @@ const posCart = {
             };
 
             // Métadonnées pour l'envoi SMS depuis le modal d'impression
-            window._currentReceiptMetadata = {
-                phone: acheteurNumero,
-                invoiceNumber: saleData.numero_facture,
-                isf: STORE_INFO.isf || ''
-            };
+           
 
             // Construire le HTML du recap DGI
             let dgiInfoHtml = '<div style="background: #e8f5e9; border: 1px solid #4caf50; border-radius: 8px; padding: 10px; margin: 10px 0; text-align: center;"><div style="color: #2e7d32; font-weight: bold; font-size: 11px;">--- Elements de securite de la facture normalisee ---</div>';
@@ -1642,7 +1638,7 @@ const posCart = {
                     </tr>
                     <tr class="item-detail-row">
                         <td class="item-qty">${formatQty(itemQty, isPoidsItem)} × ${formatCurrency(itemPrice)} </td>
-                        <td class="item-total">${itemTotalHT.toFixed(2)} Fc</td>
+                        <td class="item-total">${truncateDecimals(itemTotalHT).toFixed(3)} Fc</td>
                     </tr>
                 `;
             }
@@ -1725,6 +1721,11 @@ const posCart = {
             // Vider le panier et rafraichir les produits
             this.clearCart();
             this.loadProducts();
+            window._currentReceiptMetadata = {
+                phone: acheteurNumero,
+                invoiceNumber: saleData.numero_facture,
+                isf: STORE_INFO.isf || ''
+            };
 
         } catch (e) {
             console.error('Erreur confirmSale:', e);
@@ -4051,7 +4052,7 @@ function updateAddRefDocButton() {
     const btn = document.getElementById('add-ref-doc-btn');
     const mainInput = document.getElementById('modal-invoice-ref');
     if (!list || !btn) return;
-    const maxLines = 6;
+    const maxLines = 8;
     const totalLines = (mainInput ? 1 : 0) + list.children.length;
     btn.style.display = totalLines >= maxLines ? 'none' : 'flex';
 }
