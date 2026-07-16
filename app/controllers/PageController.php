@@ -28,9 +28,10 @@ class PageController
         }
 
         $page = $view;
-        // Charger le nom du magasin pour toutes les pages
+        // Charger le nom du magasin et le type de service pour toutes les pages
         $settingsModel = new Settings();
         $data['storeName'] = $settingsModel->get('store_name') ?? 'Mon Magasin';
+        $data['serviceType'] = $settingsModel->get('service_type') ?? 'Caisse';
         extract($data);
         require_once dirname(__DIR__) . DIRECTORY_SEPARATOR . 'views/layout/header.php';
         require_once dirname(__DIR__) . DIRECTORY_SEPARATOR . 'views/' . $view . '.php';
