@@ -7,6 +7,9 @@ use App\Controllers\PageController;
 Router::get("/", [AuthController::class, 'showLogin']);
 Router::post("/login", [AuthController::class, 'login']);
 Router::get("/logout", [AuthController::class, 'logout']);
+Router::get("/verify-otp", [AuthController::class, 'showVerifyOtp']);
+Router::get("/forgot-password", [AuthController::class, 'showForgotPassword']);
+Router::get("/reset-password", [AuthController::class, 'showResetPassword']);
 
 Router::get("/dashboard", [PageController::class, 'dashboard']);
 Router::get("/caisse", [PageController::class, 'caisse']);

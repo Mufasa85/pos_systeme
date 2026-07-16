@@ -3,8 +3,9 @@
 namespace App\Controllers;
 
 use App\Models\Settings;
+use App\controllers\Controller;
 
-class SettingsController
+class SettingsController extends Controller
 {
     private $settingsModel;
 
@@ -13,31 +14,17 @@ class SettingsController
         $this->settingsModel = new Settings();
     }
 
-    private function json($data)
-    {
-        header("Content-Type:application/json");
-        echo json_encode($data, JSON_PRETTY_PRINT);
-    }
-
-    private function status($code)
-    {
-        http_response_code($code);
-        return $this;
-    }
-
     // GET /api/settings - Récupérer tous les paramètres
     public function index()
     {
-        $this->json($this->settingsModel->getAll());
+        $shopId = $this->isSuperAdmin() ? null : $this->getShopId();
+        $this->json($this->settingsModel->getAll($shopId));
     }
 
     // POST /api/settings - Mettre à jour les paramètres
     public function update()
     {
-        if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
-            $this->status(403)->json(['error' => 'Accès réservé aux administrateurs']);
-            return;
-        }
+        if (!$this->requireAdmin()) return;
 
         // Gestion des données POST ou JSON
         $raw = file_get_contents('php://input');
@@ -49,8 +36,12 @@ class SettingsController
             return;
         }
 
+        $shopId = $this->getShopId();
         try {
-            $this->settingsModel->setMultiple($input);
+            foreach ($input as $key => $value) {
+                $this->settingsModel->set($key, $value, $shopId);
+            }
+            $this->logAudit('update', 'settings', null, ['keys' => array_keys($input)]);
             $this->json(['success' => true, 'message' => 'Paramètres mis à jour avec succès']);
         } catch (\Exception $e) {
             $this->status(500)->json(['error' => 'Erreur lors de la mise à jour: ' . $e->getMessage()]);
@@ -60,7 +51,8 @@ class SettingsController
     // GET /api/settings/:key - Récupérer un paramètre spécifique
     public function get($key)
     {
-        $value = $this->settingsModel->get($key);
+        $shopId = $this->isSuperAdmin() ? null : $this->getShopId();
+        $value = $this->settingsModel->get($key, $shopId);
         if ($value === null) {
             $this->status(404)->json(['error' => 'Paramètre non trouvé']);
             return;
@@ -71,10 +63,7 @@ class SettingsController
     // POST /api/settings/store - Mettre à jour les infos du magasin
     public function updateStore()
     {
-        if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
-            $this->status(403)->json(['error' => 'Accès réservé aux administrateurs']);
-            return;
-        }
+        if (!$this->requireAdmin()) return;
 
         $data = [
             'store_name'    => $_POST['store_name'] ?? '',
@@ -85,8 +74,12 @@ class SettingsController
             'store_isf'     => $_POST['store_isf'] ?? ''
         ];
 
+        $shopId = $this->getShopId();
         try {
-            $this->settingsModel->setMultiple($data);
+            foreach ($data as $key => $value) {
+                $this->settingsModel->set($key, $value, $shopId);
+            }
+            $this->logAudit('update', 'store_info', null);
             $this->json(['success' => true, 'message' => 'Informations du magasin mises à jour']);
         } catch (\Exception $e) {
             $this->status(500)->json(['error' => 'Erreur: ' . $e->getMessage()]);
@@ -96,10 +89,7 @@ class SettingsController
     // POST /api/settings/tax - Mettre à jour les paramètres TVA
     public function updateTax()
     {
-        if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
-            $this->status(403)->json(['error' => 'Accès réservé aux administrateurs']);
-            return;
-        }
+        if (!$this->requireAdmin()) return;
 
         $taxRate = $_POST['tax_rate'] ?? null;
 
@@ -108,8 +98,9 @@ class SettingsController
             return;
         }
 
+        $shopId = $this->getShopId();
         try {
-            $this->settingsModel->set('tax_rate', (float)$taxRate);
+            $this->settingsModel->set('tax_rate', (float)$taxRate, $shopId);
             $this->json(['success' => true, 'message' => 'Taux de TVA mis à jour']);
         } catch (\Exception $e) {
             $this->status(500)->json(['error' => 'Erreur: ' . $e->getMessage()]);
@@ -119,10 +110,7 @@ class SettingsController
     // POST /api/settings/theme - Sauvegarder le thème (Admin only)
     public function saveTheme()
     {
-        if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
-            $this->status(403)->json(['error' => 'Accès réservé aux administrateurs']);
-            return;
-        }
+        if (!$this->requireAdmin()) return;
 
         $theme = $_POST['theme'] ?? null;
 
@@ -131,8 +119,9 @@ class SettingsController
             return;
         }
 
+        $shopId = $this->getShopId();
         try {
-            $this->settingsModel->set('theme', $theme);
+            $this->settingsModel->set('theme', $theme, $shopId);
             $this->json(['success' => true, 'message' => 'Thème sauvegardé']);
         } catch (\Exception $e) {
             $this->status(500)->json(['error' => 'Erreur: ' . $e->getMessage()]);
@@ -142,7 +131,8 @@ class SettingsController
     // GET /api/settings/theme - Récupérer le thème actuel
     public function getTheme()
     {
-        $theme = $this->settingsModel->get('theme') ?? 'blue';
+        $shopId = $this->isSuperAdmin() ? null : $this->getShopId();
+        $theme = $this->settingsModel->get('theme', $shopId) ?? 'blue';
         $this->json(['theme' => $theme]);
     }
 
@@ -150,10 +140,7 @@ class SettingsController
     // Formats acceptés : 80mm, 57mm, A4, A5, Letter, Legal
     public function updatePaperType()
     {
-        if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
-            $this->status(403)->json(['error' => 'Accès réservé aux administrateurs']);
-            return;
-        }
+        if (!$this->requireAdmin()) return;
 
         $allowed = ['80mm', '57mm', 'A4', 'A5', 'Letter', 'Legal'];
 
@@ -177,8 +164,9 @@ class SettingsController
             return;
         }
 
+        $shopId = $this->getShopId();
         try {
-            $this->settingsModel->set('paper_type', $paperType);
+            $this->settingsModel->set('paper_type', $paperType, $shopId);
             $this->json(['success' => true, 'message' => 'Format d\'impression mis à jour', 'paper_type' => $paperType]);
         } catch (\Exception $e) {
             $this->status(500)->json(['error' => 'Erreur: ' . $e->getMessage()]);
@@ -188,7 +176,8 @@ class SettingsController
     // GET /api/settings/paper-type - Récupérer le format d'impression actuel
     public function getPaperType()
     {
-        $paperType = $this->settingsModel->get('paper_type') ?? '80mm';
+        $shopId = $this->isSuperAdmin() ? null : $this->getShopId();
+        $paperType = $this->settingsModel->get('paper_type', $shopId) ?? '80mm';
         $this->json(['paper_type' => $paperType]);
     }
 }

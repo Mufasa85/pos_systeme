@@ -11,13 +11,20 @@ class Product
         $this->db = \App\Core\Database::getInstance();
     }
 
-    public function getAll()
+    public function getAll($shopId = null)
     {
+        $where = '';
+        $params = [];
+        if ($shopId) {
+            $where = 'WHERE p.shop_id = ?';
+            $params[] = $shopId;
+        }
         return $this->db->fetchAll("SELECT p.*, c.category AS categorie, t.taux AS tax_rate, t.etiquette AS tax_etiquette 
             FROM produits p 
             INNER JOIN categories c ON p.category_id = c.id 
             LEFT JOIN taxes t ON p.taxe_id = t.id 
-            ORDER BY p.nom ASC");
+            $where
+            ORDER BY p.nom ASC", $params);
     }
 
     public function findByBarcode($barcode)
@@ -38,12 +45,13 @@ class Product
 
     public function create($data)
     {
-        $sql = "INSERT INTO produits (code_barres, nom, category_id, prix, stock, stock_minimum, image, taxe_id, product_type, prod_service, remise_type, remise_value, taxe_specifique_type, taxe_specifique_value)
-                VALUES (:code_barres, :nom, :category_id, :prix, :stock, :stock_minimum, :image, :taxe_id, :product_type, :prod_service, :remise_type, :remise_value, :taxe_specifique_type, :taxe_specifique_value)";
+        $sql = "INSERT INTO produits (code_barres, nom, category_id, shop_id, prix, stock, stock_minimum, image, taxe_id, product_type, prod_service, remise_type, remise_value, taxe_specifique_type, taxe_specifique_value)
+                VALUES (:code_barres, :nom, :category_id, :shop_id, :prix, :stock, :stock_minimum, :image, :taxe_id, :product_type, :prod_service, :remise_type, :remise_value, :taxe_specifique_type, :taxe_specifique_value)";
         $this->db->query($sql, [
             ':code_barres'   => $data['code_barres'],
             ':nom'           => $data['nom'],
             ':category_id'   => $data['category_id'],
+            ':shop_id'       => $data['shop_id'] ?? null,
             ':prix'          => $data['prix'],
             ':stock'         => $data['stock'],
             ':stock_minimum' => $data['stock_minimum'],
@@ -71,6 +79,7 @@ class Product
                 code_barres = :code_barres,
                 nom = :nom, 
                 category_id = :category_id,
+                shop_id = :shop_id,
                 prix = :prix,
                 stock = :stock,
                 stock_minimum = :stock_minimum,
@@ -88,6 +97,7 @@ class Product
             ':code_barres' => $data['code_barres'],
             ':nom' => $data['nom'],
             ':category_id' => $data['category_id'],
+            ':shop_id' => $data['shop_id'] ?? null,
             ':prix' => $data['prix'],
             ':stock' => $data['stock'],
             ':stock_minimum' => $data['stock_minimum'],

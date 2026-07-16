@@ -7,8 +7,10 @@ use App\Models\User;
 use App\Models\Product;
 use App\Models\Sale;
 use App\Models\Settings;
+use App\Models\Notification;
+use App\controllers\Controller;
 
-class PageController
+class PageController extends Controller
 {
     public function __construct()
     {
@@ -30,8 +32,19 @@ class PageController
         $page = $view;
         // Charger le nom du magasin et le type de service pour toutes les pages
         $settingsModel = new Settings();
-        $data['storeName'] = $settingsModel->get('store_name') ?? 'Mon Magasin';
-        $data['serviceType'] = $settingsModel->get('service_type') ?? 'Caisse';
+        $shopId = $this->getShopId();
+        $data['storeName'] = $settingsModel->get('store_name', $shopId) ?? 'Mon Magasin';
+        $data['serviceType'] = $settingsModel->get('service_type', $shopId) ?? 'Caisse';
+        $data['currentRole'] = $_SESSION['role'] ?? '';
+        $data['currentShopId'] = $shopId;
+
+        // Notifications non lues
+        try {
+            $notifModel = new Notification();
+            $data['unreadNotifications'] = $notifModel->getUnreadCount($_SESSION['user_id']);
+        } catch (\Exception $e) {
+            $data['unreadNotifications'] = 0;
+        }
         extract($data);
         require_once dirname(__DIR__) . DIRECTORY_SEPARATOR . 'views/layout/header.php';
         require_once dirname(__DIR__) . DIRECTORY_SEPARATOR . 'views/' . $view . '.php';
@@ -42,8 +55,9 @@ class PageController
     {
         $saleModel = new Sale();
         $productModel = new Product();
-        $ventes = $saleModel->getAllSales();
-        $produits = $productModel->getAll();
+        $shopId = $this->isSuperAdmin() ? null : $this->getShopId();
+        $ventes = $saleModel->getAllSales($shopId);
+        $produits = $productModel->getAll($shopId);
 
         $today = date('Y-m-d');
         $today_start = date('Y-m-d 00:00:00');
@@ -126,7 +140,8 @@ class PageController
     public function caisse()
     {
         $categoryModel = new \App\Models\Category();
-        $categories = $categoryModel->all();
+        $shopId = $this->isSuperAdmin() ? null : $this->getShopId();
+        $categories = $categoryModel->all($shopId);
 
         // Charger les types de clients pour le select
         $typeClientModel = new \App\Models\TypeClient();
@@ -141,7 +156,8 @@ class PageController
     public function recharges()
     {
         $categoryModel = new \App\Models\Category();
-        $categories = $categoryModel->all();
+        $shopId = $this->isSuperAdmin() ? null : $this->getShopId();
+        $categories = $categoryModel->all($shopId);
         $typeClientModel = new \App\Models\TypeClient();
         $clientTypes = $typeClientModel->getAll();
 
@@ -157,8 +173,9 @@ class PageController
         $categoryModel = new \App\Models\Category();
         $taxModel = new \App\Models\Tax();
 
-        $produits = $productModel->getAll();
-        $categories = $categoryModel->all();
+        $shopId = $this->isSuperAdmin() ? null : $this->getShopId();
+        $produits = $productModel->getAll($shopId);
+        $categories = $categoryModel->all($shopId);
         $taxes = $taxModel->getAll();
 
         $this->render('produits', [
@@ -170,27 +187,37 @@ class PageController
 
     public function utilisateurs()
     {
-        if ($_SESSION['role'] !== 'admin') {
+        if (!$this->isAdmin() && !$this->isSuperAdmin()) {
             $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";
             $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
             header('Location: ' . $protocol . '://' . $host . '/dashboard');
             exit;
         }
         $userModel = new User();
-        $utilisateurs = $userModel->all();
-        $this->render('utilisateurs', ['utilisateurs' => $utilisateurs]);
+        $shopId = $this->isSuperAdmin() ? null : $this->getShopId();
+        $utilisateurs = $userModel->all($shopId);
+
+        // Charger les boutiques pour le super_admin
+        $shops = [];
+        if ($this->isSuperAdmin()) {
+            $shopModel = new \App\Models\Shop();
+            $shops = $shopModel->getAll();
+        }
+
+        $this->render('utilisateurs', ['utilisateurs' => $utilisateurs, 'shops' => $shops]);
     }
 
     public function historique()
     {
         $saleModel = new Sale();
-        $ventes = $saleModel->getAllSales();
+        $shopId = $this->isSuperAdmin() ? null : $this->getShopId();
+        $ventes = $saleModel->getAllSales($shopId);
         $this->render('historique', ['ventes' => $ventes]);
     }
 
     public function analytics()
     {
-        if ($_SESSION['role'] !== 'admin') {
+        if (!$this->isAdmin() && !$this->isSuperAdmin()) {
             $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";
             $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
             header('Location: ' . $protocol . '://' . $host . '/dashboard');
@@ -204,11 +231,12 @@ class PageController
         $categoryModel = new \App\Models\Category();
         $clientModel = new \App\Models\Client();
 
-        $ventes = $saleModel->getAllSales();
-        $produits = $productModel->getAll();
-        $categories = $categoryModel->all();
-        $users = $userModel->all();
-        $clients = $clientModel->getAll();
+        $shopId = $this->isSuperAdmin() ? null : $this->getShopId();
+        $ventes = $saleModel->getAllSales($shopId);
+        $produits = $productModel->getAll($shopId);
+        $categories = $categoryModel->all($shopId);
+        $users = $userModel->all($shopId);
+        $clients = $clientModel->getAll($shopId);
 
         // Périodes
         $today = date('Y-m-d');
@@ -459,7 +487,7 @@ class PageController
 
     public function parametres()
     {
-        if ($_SESSION['role'] !== 'admin') {
+        if (!$this->isAdmin() && !$this->isSuperAdmin()) {
             $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";
             $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
             header('Location: ' . $protocol . '://' . $host . '/dashboard');
@@ -470,7 +498,7 @@ class PageController
 
     public function taxes()
     {
-        if ($_SESSION['role'] !== 'admin') {
+        if (!$this->isAdmin() && !$this->isSuperAdmin()) {
             $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";
             $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
             header('Location: ' . $protocol . '://' . $host . '/dashboard');
@@ -483,7 +511,7 @@ class PageController
 
     public function categories()
     {
-        if ($_SESSION['role'] !== 'admin') {
+        if (!$this->isAdmin() && !$this->isSuperAdmin()) {
             $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";
             $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
             header('Location: ' . $protocol . '://' . $host . '/dashboard');
@@ -492,11 +520,13 @@ class PageController
         $productModel = new Product();
         $categoryModel = new \App\Models\Category();
 
+        $shopId = $this->isSuperAdmin() ? null : $this->getShopId();
+
         // Get all categories from database
-        $dbCategories = $categoryModel->all();
+        $dbCategories = $categoryModel->all($shopId);
 
         // Get all products to count by category
-        $produits = $productModel->getAll();
+        $produits = $productModel->getAll($shopId);
         $categoryCounts = [];
 
         foreach ($produits as $p) {

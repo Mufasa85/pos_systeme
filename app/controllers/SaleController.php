@@ -12,10 +12,7 @@ class SaleController extends Controller
 {
     public function create()
     {
-        if (!isset($_SESSION['user_id'])) {
-            $this->status(403)->json(['error' => 'Non authentifié']);
-            return;
-        }
+        if (!$this->requireAuth()) return;
 
         $data = json_decode(file_get_contents('php://input'), true);
         if (empty($data) || empty($data['articles'])) {
@@ -55,6 +52,7 @@ class SaleController extends Controller
                 'total'          => $data['total'],
                 'payments'       => $data['payments'] ?? null,
                 'vendeur_id'     => $_SESSION['user_id'],
+                'shop_id'        => $this->getShopId(),
                 'date'           => date('Y-m-d H:i:s'),
                 'dateDGI'        => $dgiData['dateDGI'] ?? null,
                 'qrCode'         => $dgiData['qrCode'] ?? null,
@@ -90,6 +88,20 @@ class SaleController extends Controller
                     // si négatif on incrémente (retour/annulation)
                     $productModel->updateStock($produitId, $quantite);
 
+                    // Vérifier si le stock passe sous le minimum → notification
+                    if ($quantite > 0) {
+                        $updatedProduct = $productModel->findById($produitId);
+                        if ($updatedProduct && $updatedProduct['stock'] <= ($updatedProduct['stock_minimum'] ?? 0)) {
+                            $this->notifyShopAdmins(
+                                $this->getShopId(),
+                                'stock_low',
+                                'Stock faible : ' . $updatedProduct['nom'],
+                                "Le produit \"{$updatedProduct['nom']}\" n'a plus que {$updatedProduct['stock']} unités (minimum: {$updatedProduct['stock_minimum']})",
+                                '/produits'
+                            );
+                        }
+                    }
+
                     // Créer le détail avec la quantité (négative ou positive selon le type)
                     $detailModel->create([
                         'vente_id'   => $saleId,
@@ -105,6 +117,13 @@ class SaleController extends Controller
             }
 
             $db->commit();
+
+            $this->logAudit('create', 'vente', $saleId, [
+                'numero_facture' => $invoiceNum,
+                'total' => $data['total'],
+                'type_facture' => $typeFacture
+            ]);
+
             $this->json([
                 'success' => true,
                 'numero_facture' => $invoiceNum,
@@ -120,11 +139,7 @@ class SaleController extends Controller
 
     public function delete($id)
     {
-
-        if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
-            $this->status(403)->json(['error' => 'Accès refusé']);
-            return;
-        }
+        if (!$this->requireAdmin()) return;
 
         if (!$id) {
             $this->status(400)->json(['error' => 'ID de vente manquant']);
@@ -132,7 +147,8 @@ class SaleController extends Controller
         }
 
         $saleModel   = new Sale();
-        # $detailModel = new SaleDetail();
+        $productModel = new Product();
+        $detailModel = new SaleDetail();
 
         try {
             $db = \App\Core\Database::getInstance()->getConnection();
@@ -146,20 +162,49 @@ class SaleController extends Controller
                 return;
             }
 
-            // Supprimer la vente
+            // Vérifier que la vente appartient à la boutique (sauf super_admin)
+            if (!$this->isSuperAdmin() && $sale['shop_id'] != $this->getShopId()) {
+                $db->rollBack();
+                $this->status(403)->json(['error' => 'Cette vente ne fait pas partie de votre boutique']);
+                return;
+            }
+
+            // Restaurer le stock avant suppression
+            $details = $detailModel->getBySaleId($id);
+            foreach ($details as $detail) {
+                // stock - (-quantite) = stock + quantite → restauration
+                $productModel->updateStock($detail['produit_id'], -$detail['quantite']);
+            }
+
+            // Supprimer la vente (les détails sont supprimés en cascade)
             $db->prepare("DELETE FROM ventes WHERE id = ?")->execute([$id]);
 
             $db->commit();
-            $this->json(['success' => true, 'message' => 'Vente supprimée avec succès']);
+
+            $this->logAudit('delete', 'vente', $id, [
+                'numero_facture' => $sale['numero_facture'],
+                'total' => $sale['total']
+            ]);
+
+            // Notification action suspecte
+            $this->notifySuperAdmins(
+                'suspicious_action',
+                'Suppression de vente',
+                "La vente #{$sale['numero_facture']} (total: {$sale['total']}) a été supprimée par " . ($_SESSION['nom_complet'] ?? 'inconnu'),
+                '/historique'
+            );
+
+            $this->json(['success' => true, 'message' => 'Vente supprimée avec succès (stock restauré)']);
         } catch (\Exception $e) {
             $db->rollBack();
-            http_response_code(500);
             $this->status(500)->json(['error' => 'Erreur lors de la suppression: ' . $e->getMessage()]);
         }
     }
 
     public function details($params)
     {
+        if (!$this->requireAuth()) return;
+
         $id = $params['id'] ?? null;
 
         if (!$id) {
@@ -186,6 +231,8 @@ class SaleController extends Controller
 
     public function nextInvoice()
     {
+        if (!$this->requireAuth()) return;
+
         $saleModel = new Sale();
         $invoiceNum = $saleModel->generateInvoiceNumber();
         $this->json(['invoice_number' => $invoiceNum]);

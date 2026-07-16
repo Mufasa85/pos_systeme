@@ -50,7 +50,8 @@
                             'username' => $_SESSION['nom_utilisateur'] ?? '',
                             'fullName' => $_SESSION['nom_complet'] ?? '',
                             'role' => $_SESSION['role'] ?? 'vendeur',
-                            'agentCode' => $_SESSION['agent_code'] ?? ''
+                            'agentCode' => $_SESSION['agent_code'] ?? '',
+                            'shopId' => $_SESSION['shop_id'] ?? null
                           ]) ?>;
   </script>
   <script src="./assets/js/service-bill-fetcher.js"></script>
@@ -70,7 +71,18 @@
         </svg>
       </button>
       <h1 id="mobile-store-name"><?= htmlspecialchars($storeName ?? 'Mon Magasin') ?></h1>
-      <div id="mobile-user-info" class="mobile-user-info"><?= htmlspecialchars($_SESSION['full_name'] ?? '') ?></div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <a href="#" id="mobile-notif-bell" style="position:relative;color:inherit;text-decoration:none" title="Notifications">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+          </svg>
+          <?php if (!empty($unreadNotifications) && $unreadNotifications > 0): ?>
+            <span class="notif-badge"><?= $unreadNotifications ?></span>
+          <?php endif; ?>
+        </a>
+        <div id="mobile-user-info" class="mobile-user-info"><?= htmlspecialchars($_SESSION['full_name'] ?? '') ?></div>
+      </div>
     </header>
 
     <!-- Sidebar -->
@@ -138,7 +150,7 @@
           <span>Analytics</span>
         </a>
 
-        <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin'): ?>
+        <?php if (isset($_SESSION['role']) && in_array($_SESSION['role'], ['admin', 'super_admin'])): ?>
           <a href="/utilisateurs" class="nav-item <?= $currentPage == 'utilisateurs' ? 'active' : '' ?>">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
@@ -158,7 +170,7 @@
           <span>Historique</span>
         </a>
 
-        <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin'): ?>
+        <?php if (isset($_SESSION['role']) && in_array($_SESSION['role'], ['admin', 'super_admin'])): ?>
           <a href="/categories" class="nav-item <?= $currentPage == 'categories' ? 'active' : '' ?>">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M4 6h16M4 10h16M4 14h7M4 18h10"></path>
@@ -188,7 +200,10 @@
           <div class="user-avatar" id="user-avatar"><?= substr(htmlspecialchars($_SESSION['full_name'] ?? 'U'), 0, 1) ?></div>
           <div class="user-details">
             <span class="user-name" id="user-name"><?= htmlspecialchars($_SESSION['full_name'] ?? '') ?></span>
-            <span class="user-role" id="user-role"><?= ($_SESSION['role'] ?? '') === 'admin' ? 'Administrateur' : 'Vendeur' ?></span>
+            <span class="user-role" id="user-role"><?php
+              $r = $_SESSION['role'] ?? '';
+              echo $r === 'super_admin' ? 'Super Admin' : ($r === 'admin' ? 'Administrateur' : 'Vendeur');
+            ?></span>
           </div>
         </div>
         <a href="/logout" class="btn btn-logout" style="text-decoration: none; display: flex; align-items: center;">
@@ -213,5 +228,20 @@
           display: flex;
           align-items: center;
           gap: 4px;
+        }
+        .notif-badge {
+          position: absolute;
+          top: -6px;
+          right: -6px;
+          background: #e53e3e;
+          color: #fff;
+          font-size: .65rem;
+          font-weight: 700;
+          min-width: 16px;
+          height: 16px;
+          line-height: 16px;
+          text-align: center;
+          border-radius: 50%;
+          padding: 0 4px;
         }
       </style>

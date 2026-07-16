@@ -5,8 +5,9 @@ namespace App\Controllers;
 use App\Models\Client;
 use App\Models\TypeClient;
 use App\Core\Database;
+use App\controllers\Controller;
 
-class ClientController
+class ClientController extends Controller
 {
     private $clientModel;
     private $typeClientModel;
@@ -26,7 +27,8 @@ class ClientController
         header('Content-Type: application/json');
 
         try {
-            $clients = $this->clientModel->getAll();
+            $shopId = $this->isSuperAdmin() ? null : $this->getShopId();
+            $clients = $this->clientModel->getAll($shopId);
             echo json_encode($clients);
         } catch (\Exception $e) {
             echo json_encode([
@@ -110,7 +112,8 @@ class ClientController
                 'numero' => $numero,
                 'type_client_id' => $typeClientId,
                 'nif' => $nif,
-                'adresse' => $adresse
+                'adresse' => $adresse,
+                'shop_id' => $this->getShopId()
             ]);
 
             // Récupérer le client créé

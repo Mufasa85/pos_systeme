@@ -17,13 +17,20 @@ class Client
     /**
      * Récupérer tous les clients
      */
-    public function getAll()
+    public function getAll($shopId = null)
     {
+        $where = '';
+        $params = [];
+        if ($shopId) {
+            $where = 'WHERE c.shop_id = ?';
+            $params[] = $shopId;
+        }
         $sql = "SELECT c.*, tc.code as type_code, tc.description as type_description 
                 FROM {$this->table} c
                 LEFT JOIN type_client tc ON c.type_client_id = tc.id
+                $where
                 ORDER BY c.nom_client ASC";
-        return $this->db->query($sql);
+        return $this->db->query($sql, $params);
     }
 
     /**
@@ -63,8 +70,8 @@ class Client
         $code_client = 'CLI-' . str_pad($nextNum, 3, '0', STR_PAD_LEFT);
 
         $sql = "INSERT INTO {$this->table} 
-                (nom_client, numero, code_client, type_client_id, nif, adresse) 
-                VALUES (?, ?, ?, ?, ?, ?)";
+                (nom_client, numero, code_client, type_client_id, nif, adresse, shop_id) 
+                VALUES (?, ?, ?, ?, ?, ?, ?)";
 
         $this->db->execute($sql, [
             $data['nom_client'],
@@ -72,7 +79,8 @@ class Client
             $code_client,
             $data['type_client_id'] ?? 1,
             $data['nif'] ?? '',
-            $data['adresse'] ?? ''
+            $data['adresse'] ?? '',
+            $data['shop_id'] ?? null
         ]);
 
         return $this->db->lastInsertId();

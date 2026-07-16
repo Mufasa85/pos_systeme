@@ -1915,48 +1915,54 @@ function openAddUserModal() {
     document.getElementById('user-password').value = '';
     document.getElementById('user-password').required = true;
     document.getElementById('user-agent-code').value = 'AG001';
-    document.getElementById('user-role').value = 'vendeur';
+    const roleSelect = document.getElementById('user-role1');
+    if (roleSelect) roleSelect.value = 'vendeur';
     document.getElementById('user-actif').value = '1';
+    const emailEl = document.getElementById('user-email');
+    const telEl = document.getElementById('user-telephone');
+    const tfaEl = document.getElementById('user-2fa');
+    if (emailEl) emailEl.value = '';
+    if (telEl) telEl.value = '';
+    if (tfaEl) tfaEl.checked = false;
+    const shopEl = document.getElementById('user-shop');
+    if (shopEl) shopEl.selectedIndex = 0;
     document.getElementById('password-hint').style.display = 'none';
     document.getElementById('user-modal').style.display = 'flex';
 }
 
-function openEditUserModal(id, username, fullname, role, actif, agentCode) {
-    // Get elements
+function openEditUserModal(id, username, fullname, role, actif, agentCode, email, telephone, twoFactor, shopId) {
     const modal = document.getElementById('user-modal');
-    const roleSelect = document.getElementById('user-role');
+    const roleSelect = document.getElementById('user-role1');
     const actifSelect = document.getElementById('user-actif');
 
-    // Set values first while modal is still hidden
     document.getElementById('user-modal-title').innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 8px; vertical-align: middle;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>Modifier l\'utilisateur';
     document.getElementById('user-id').value = id;
     document.getElementById('user-username').value = username;
     document.getElementById('user-fullname').value = fullname;
-    // Pre-fill agent code with default 'AG001' if empty
     document.getElementById('user-agent-code').value = agentCode || 'AG001';
     document.getElementById('user-password').value = '';
     document.getElementById('user-password').required = false;
     document.getElementById('password-hint').style.display = 'inline';
 
-    // Set select values using selectedIndex
-    if (role === 'admin') {
-        roleSelect.selectedIndex = 1; // Admin is second option
-    } else {
-        roleSelect.selectedIndex = 0; // Vendeur is first option
-    }
+    // New fields
+    const emailEl = document.getElementById('user-email');
+    const telEl = document.getElementById('user-telephone');
+    const tfaEl = document.getElementById('user-2fa');
+    const shopEl = document.getElementById('user-shop');
+    if (emailEl) emailEl.value = email || '';
+    if (telEl) telEl.value = telephone || '';
+    if (tfaEl) tfaEl.checked = !!twoFactor;
+    if (shopEl && shopId) shopEl.value = shopId;
+
+    // Role select
+    if (roleSelect) roleSelect.value = role;
 
     if (actif == 1) {
-        actifSelect.selectedIndex = 0; // Actif is first option
+        actifSelect.selectedIndex = 0;
     } else {
-        actifSelect.selectedIndex = 1; // Inactif is second option
+        actifSelect.selectedIndex = 1;
     }
 
-    // Debug
-    console.log('openEditUserModal - role parameter:', role);
-    console.log('openEditUserModal - roleSelect.selectedIndex:', roleSelect.selectedIndex);
-    console.log('openEditUserModal - roleSelect.value:', roleSelect.value);
-
-    // Now show modal
     modal.style.display = 'flex';
 }
 
@@ -1981,6 +1987,12 @@ function saveUser(event) {
 
     const url = userId ? APP_URL + '/api/update/user' : APP_URL + '/api/create/user';
 
+    const email = document.getElementById('user-email') ? document.getElementById('user-email').value : '';
+    const telephone = document.getElementById('user-telephone') ? document.getElementById('user-telephone').value : '';
+    const twoFactor = document.getElementById('user-2fa') ? (document.getElementById('user-2fa').checked ? '1' : '0') : '0';
+    const shopSelect = document.getElementById('user-shop');
+    const shopId = shopSelect ? shopSelect.value : '';
+
     if (userId) {
         formData.append('id', userId);
         formData.append('nom_utilisateur', username);
@@ -1988,6 +2000,10 @@ function saveUser(event) {
         formData.append('role', role);
         formData.append('actif', actif);
         formData.append('agent_code', agentCode);
+        formData.append('email', email);
+        formData.append('telephone', telephone);
+        formData.append('two_factor_enabled', twoFactor);
+        if (shopId) formData.append('shop_id', shopId);
         if (password) {
             formData.append('mot_de_passe', password);
         }
@@ -1998,6 +2014,9 @@ function saveUser(event) {
         formData.append('role', role);
         formData.append('actif', actif);
         formData.append('agent_code', agentCode);
+        formData.append('email', email);
+        formData.append('telephone', telephone);
+        if (shopId) formData.append('shop_id', shopId);
     }
 
     fetch(url, {

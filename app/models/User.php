@@ -23,8 +23,11 @@ class User
         return false;
     }
 
-    public function all()
+    public function all($shopId = null)
     {
+        if ($shopId) {
+            return $this->db->fetchAll("SELECT * FROM utilisateurs WHERE shop_id = ?", [$shopId]);
+        }
         return $this->db->fetchAll("SELECT * FROM utilisateurs");
     }
 
@@ -39,21 +42,24 @@ class User
     }
 
     // 🔹 Création d'un utilisateur
-    public function create($username, $password, $fullname, $role = 'vendeur', $actif = 1, $agentCode = null)
+    public function create($username, $password, $fullname, $role = 'vendeur', $actif = 1, $agentCode = null, $shopId = null, $email = null, $telephone = null)
     {
         $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
 
         $sql = "INSERT INTO utilisateurs 
-                (nom_utilisateur, mot_de_passe, nom_complet, role, actif, agent_code) 
-                VALUES (:username, :password, :fullname, :role, :actif, :agent_code)";
+                (nom_utilisateur, mot_de_passe, nom_complet, role, shop_id, actif, agent_code, email, telephone) 
+                VALUES (:username, :password, :fullname, :role, :shop_id, :actif, :agent_code, :email, :telephone)";
 
         return $this->db->query($sql, [
-            ':username' => $username,
-            ':password' => $hashedPassword,
-            ':fullname' => $fullname,
-            ':role'     => $role,
-            ':actif'    => $actif,
-            ':agent_code' => $agentCode
+            ':username'   => $username,
+            ':password'   => $hashedPassword,
+            ':fullname'   => $fullname,
+            ':role'       => $role,
+            ':shop_id'    => $shopId,
+            ':actif'      => $actif,
+            ':agent_code' => $agentCode,
+            ':email'      => $email,
+            ':telephone'  => $telephone
         ]);
     }
 
@@ -87,6 +93,22 @@ class User
             $fields[] = "agent_code = :agent_code";
             $params[':agent_code'] = $data['agent_code'];
         }
+        if (isset($data['shop_id'])) {
+            $fields[] = "shop_id = :shop_id";
+            $params[':shop_id'] = $data['shop_id'];
+        }
+        if (isset($data['email'])) {
+            $fields[] = "email = :email";
+            $params[':email'] = $data['email'];
+        }
+        if (isset($data['telephone'])) {
+            $fields[] = "telephone = :telephone";
+            $params[':telephone'] = $data['telephone'];
+        }
+        if (isset($data['two_factor_enabled'])) {
+            $fields[] = "two_factor_enabled = :two_factor_enabled";
+            $params[':two_factor_enabled'] = $data['two_factor_enabled'];
+        }
 
         if (empty($fields)) {
             error_log("User model update - no fields to update for id: $id");
@@ -105,5 +127,21 @@ class User
             error_log("User model update - error: " . $e->getMessage());
             return false;
         }
+    }
+
+    public function findByEmail($email)
+    {
+        return $this->db->fetch("SELECT * FROM utilisateurs WHERE email = ? AND actif = 1", [$email]);
+    }
+
+    public function findByPhone($phone)
+    {
+        return $this->db->fetch("SELECT * FROM utilisateurs WHERE telephone = ? AND actif = 1", [$phone]);
+    }
+
+    public function updatePassword($id, $newPassword)
+    {
+        $hashed = password_hash($newPassword, PASSWORD_BCRYPT);
+        return $this->db->execute("UPDATE utilisateurs SET mot_de_passe = ? WHERE id = ?", [$hashed, $id]);
     }
 }

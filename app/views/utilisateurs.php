@@ -34,10 +34,10 @@
                       </div>
                     </div>
                   </td>
-                  <td style="padding:0.75rem;"><span class="badge <?= $u['role'] === 'admin' ? 'badge-primary' : 'badge-success' ?>"><?= $u['role'] === 'admin' ? 'Admin' : 'Vendeur' ?></span></td>
+                  <td style="padding:0.75rem;"><span class="badge <?= $u['role'] === 'super_admin' ? 'badge-warning' : ($u['role'] === 'admin' ? 'badge-primary' : 'badge-success') ?>"><?= $u['role'] === 'super_admin' ? 'Super Admin' : ($u['role'] === 'admin' ? 'Admin' : 'Vendeur') ?></span></td>
                   <td style="padding:0.75rem;"><span class="badge <?= $u['actif'] ? 'badge-success' : 'badge-danger' ?>"><?= $u['actif'] ? 'Actif' : 'Inactif' ?></span></td>
                   <td style="padding:0.75rem;">
-                    <button class="btn btn-ghost btn-small" onclick="openEditUserModal(<?= $u['id'] ?>, '<?= htmlspecialchars($u['nom_utilisateur'], ENT_QUOTES) ?>', '<?= htmlspecialchars($u['nom_complet'], ENT_QUOTES) ?>', '<?= $u['role'] ?>', <?= $u['actif'] ?>, '<?= htmlspecialchars($u['agent_code'] ?? '', ENT_QUOTES) ?>')" title="Modifier">
+                    <button class="btn btn-ghost btn-small" onclick="openEditUserModal(<?= $u['id'] ?>, '<?= htmlspecialchars($u['nom_utilisateur'], ENT_QUOTES) ?>', '<?= htmlspecialchars($u['nom_complet'], ENT_QUOTES) ?>', '<?= $u['role'] ?>', <?= $u['actif'] ?>, '<?= htmlspecialchars($u['agent_code'] ?? '', ENT_QUOTES) ?>', '<?= htmlspecialchars($u['email'] ?? '', ENT_QUOTES) ?>', '<?= htmlspecialchars($u['telephone'] ?? '', ENT_QUOTES) ?>', <?= (int)($u['two_factor_enabled'] ?? 0) ?>, <?= (int)($u['shop_id'] ?? 0) ?>)" title="Modifier">
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <polygon points="16 3 21 8 8 21 3 21 3 16 16 3"></polygon>
                       </svg>
@@ -85,6 +85,16 @@
                 <input type="text" id="user-fullname" name="fullname" required class="client-number-input" style="width: 100%;">
               </div>
             </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 1rem;">
+              <div>
+                <label for="user-email" style="font-size: 0.75rem; font-weight: 600; color: var(--muted); display: block; margin-bottom: 4px;">Email</label>
+                <input type="email" id="user-email" name="email" class="client-number-input" style="width: 100%;" placeholder="email@exemple.com">
+              </div>
+              <div>
+                <label for="user-telephone" style="font-size: 0.75rem; font-weight: 600; color: var(--muted); display: block; margin-bottom: 4px;">Téléphone</label>
+                <input type="text" id="user-telephone" name="telephone" class="client-number-input" style="width: 100%;" placeholder="0800000000">
+              </div>
+            </div>
             <div style="margin-bottom: 1rem;">
               <label for="user-password" style="font-size: 0.75rem; font-weight: 600; color: var(--muted); display: block; margin-bottom: 4px;">Mot de passe <span id="password-hint" style="font-weight: normal; font-size: 0.7rem;">(laisser vide pour ne pas changer)</span></label>
               <input type="password" id="user-password" name="password" class="client-number-input" style="width: 100%;">
@@ -94,7 +104,9 @@
                 <label for="user-role1" style="font-size: 0.75rem; font-weight: 600; color: var(--muted); display: block; margin-bottom: 4px;">Rôle</label>
                 <select id="user-role1" name="role" class="client-number-input" style="width: 100%;">
                   <option value="vendeur">Vendeur</option>
-                  <option value="admin">Admin</option>
+                  <?php if (($_SESSION['role'] ?? '') === 'super_admin'): ?>
+                    <option value="admin">Admin</option>
+                  <?php endif; ?>
                 </select>
               </div>
               <div>
@@ -105,6 +117,22 @@
                 </select>
               </div>
             </div>
+            <div style="margin-bottom: 1rem;">
+              <label style="font-size: 0.75rem; font-weight: 600; color: var(--muted); display: flex; align-items: center; gap: 8px;">
+                <input type="checkbox" id="user-2fa" name="two_factor_enabled" value="1">
+                Activer la vérification en deux étapes (2FA)
+              </label>
+            </div>
+            <?php if (($_SESSION['role'] ?? '') === 'super_admin' && !empty($shops)): ?>
+            <div style="margin-bottom: 1rem;">
+              <label for="user-shop" style="font-size: 0.75rem; font-weight: 600; color: var(--muted); display: block; margin-bottom: 4px;">Boutique</label>
+              <select id="user-shop" name="shop_id" class="client-number-input" style="width: 100%;">
+                <?php foreach ($shops as $shop): ?>
+                  <option value="<?= $shop['id'] ?>"><?= htmlspecialchars($shop['nom']) ?> (<?= htmlspecialchars($shop['code']) ?>)</option>
+                <?php endforeach; ?>
+              </select>
+            </div>
+            <?php endif; ?>
             <div style="display: flex; gap: 0.75rem; margin-top: 1.5rem;">
               <button type="button" onclick="closeUserModal()" class="btn btn-secondary" style="flex: 1;">Annuler</button>
               <button type="submit" class="btn btn-primary" style="flex: 2;">Enregistrer</button>
