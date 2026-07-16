@@ -555,6 +555,19 @@ class PageController extends Controller
         $this->render('categories', ['categories' => $categories]);
     }
 
+    public function shops()
+    {
+        if (!$this->isSuperAdmin()) {
+            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";
+            $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+            header('Location: ' . $protocol . '://' . $host . '/dashboard');
+            exit;
+        }
+        $shopModel = new \App\Models\Shop();
+        $shops = $shopModel->getAll();
+        $this->render('shops', ['shops' => $shops]);
+    }
+
     public function scanner()
     {
         // Vérifier la session
