@@ -11,21 +11,28 @@
           </button>
         </div>
         <div class="table-container">
+          <?php $currentRole = $_SESSION['role'] ?? ''; ?>
           <table class="data-table" style="width:100%; border-collapse:collapse;">
             <thead>
               <tr>
                 <th>Utilisateur</th>
-                <th>Role</th>
+                <th>Boutique</th>
+                <th>Rôle</th>
                 <th>Statut</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               <?php foreach ($utilisateurs as $u): ?>
+                <?php
+                  $isTargetSuperAdmin = ($u['role'] === 'super_admin');
+                  $canEdit = ($currentRole === 'super_admin') || (!$isTargetSuperAdmin && $currentRole === 'admin');
+                  $canDelete = $canEdit && !$isTargetSuperAdmin && ($u['id'] != ($_SESSION['user_id'] ?? 0));
+                ?>
                 <tr style="border-bottom:1px solid #eee;" data-user-id="<?= $u['id'] ?>">
                   <td style="padding:0.75rem;">
                     <div style="display: flex; align-items: center; gap: 0.75rem;">
-                      <div class="user-avatar" style="width: 36px; height: 36px; font-size: 0.875rem; background: var(--primary);">
+                      <div class="user-avatar" style="width: 36px; height: 36px; font-size: 0.875rem; background: <?= $isTargetSuperAdmin ? '#f59e0b' : 'var(--primary)' ?>;">
                         <?= substr(htmlspecialchars($u['nom_complet']), 0, 1) ?>
                       </div>
                       <div>
@@ -34,20 +41,28 @@
                       </div>
                     </div>
                   </td>
+                  <td style="padding:0.75rem;font-size:.85rem;color:var(--text-secondary,#475569)"><?= htmlspecialchars($u['shop_name'] ?? '-') ?></td>
                   <td style="padding:0.75rem;"><span class="badge <?= $u['role'] === 'super_admin' ? 'badge-warning' : ($u['role'] === 'admin' ? 'badge-primary' : 'badge-success') ?>"><?= $u['role'] === 'super_admin' ? 'Super Admin' : ($u['role'] === 'admin' ? 'Admin' : 'Vendeur') ?></span></td>
                   <td style="padding:0.75rem;"><span class="badge <?= $u['actif'] ? 'badge-success' : 'badge-danger' ?>"><?= $u['actif'] ? 'Actif' : 'Inactif' ?></span></td>
                   <td style="padding:0.75rem;">
+                    <?php if ($canEdit): ?>
                     <button class="btn btn-ghost btn-small" onclick="openEditUserModal(<?= $u['id'] ?>, '<?= htmlspecialchars($u['nom_utilisateur'], ENT_QUOTES) ?>', '<?= htmlspecialchars($u['nom_complet'], ENT_QUOTES) ?>', '<?= $u['role'] ?>', <?= $u['actif'] ?>, '<?= htmlspecialchars($u['agent_code'] ?? '', ENT_QUOTES) ?>', '<?= htmlspecialchars($u['email'] ?? '', ENT_QUOTES) ?>', '<?= htmlspecialchars($u['telephone'] ?? '', ENT_QUOTES) ?>', <?= (int)($u['two_factor_enabled'] ?? 0) ?>, <?= (int)($u['shop_id'] ?? 0) ?>)" title="Modifier">
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <polygon points="16 3 21 8 8 21 3 21 3 16 16 3"></polygon>
                       </svg>
                     </button>
+                    <?php endif; ?>
+                    <?php if ($canDelete): ?>
                     <button class="btn btn-ghost btn-small" style="color:red;" onclick="deleteUser(<?= $u['id'] ?>)" title="Supprimer">
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <polyline points="3 6 5 6 21 6"></polyline>
                         <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
                       </svg>
                     </button>
+                    <?php endif; ?>
+                    <?php if (!$canEdit && !$canDelete): ?>
+                    <span style="font-size:.75rem;color:var(--muted,#94a3b8)">—</span>
+                    <?php endif; ?>
                   </td>
                 </tr>
               <?php endforeach; ?>

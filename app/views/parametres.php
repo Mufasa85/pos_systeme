@@ -9,6 +9,17 @@
             Paramètres
           </h2>
         </div>
+        <?php if (($_SESSION['role'] ?? '') === 'super_admin' && !empty($shops)): ?>
+        <div style="margin-bottom:1rem;padding:0 1.5rem">
+          <label style="font-size:.85rem;font-weight:600;margin-right:.5rem">Boutique :</label>
+          <select id="settings-shop-filter" onchange="window.location.href='/parametres?shop_id='+this.value" style="padding:.4rem .8rem;border-radius:var(--radius,8px);border:1px solid var(--border,#e2e8f0)">
+            <option value="">Paramètres globaux</option>
+            <?php foreach ($shops as $sh): ?>
+              <option value="<?= $sh['id'] ?>" <?= (isset($_GET['shop_id']) && $_GET['shop_id'] == $sh['id']) ? 'selected' : '' ?>><?= htmlspecialchars($sh['nom']) ?> (<?= htmlspecialchars($sh['code']) ?>)</option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <?php endif; ?>
         <div class="settings-grid">
           <!-- Informations Magasin -->
           <div class="card" style="padding: 1.5rem;">

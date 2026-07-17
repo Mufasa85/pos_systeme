@@ -237,4 +237,118 @@ class SaleController extends Controller
         $invoiceNum = $saleModel->generateInvoiceNumber();
         $this->json(['invoice_number' => $invoiceNum]);
     }
+
+    // ── Archives ─────────────────────────────────────────────────
+
+    public function archives()
+    {
+        if (!$this->requireAdmin()) return;
+
+        $shopId = $this->isSuperAdmin() ? ($_GET['shop_id'] ?? null) : $this->getShopId();
+        $saleModel = new Sale();
+        $archives = $saleModel->searchArchive($shopId, 100, 0);
+
+        $this->json(['data' => $archives]);
+    }
+
+    // ── Rapport de clôture ──────────────────────────────────────
+
+    public function cloture()
+    {
+        if (!$this->requireAdmin()) return;
+
+        $date = $_GET['date'] ?? date('Y-m-d');
+        $shopId = $this->isSuperAdmin() ? ($_GET['shop_id'] ?? null) : $this->getShopId();
+
+        $db = \App\Core\Database::getInstance();
+
+        $where = "WHERE DATE(v.date) = ?";
+        $params = [$date];
+        if ($shopId) {
+            $where .= " AND v.shop_id = ?";
+            $params[] = $shopId;
+        }
+
+        // Total ventes du jour
+        $sql = "SELECT COUNT(*) as nb_ventes, COALESCE(SUM(v.total),0) as total_ventes,
+                       COALESCE(SUM(v.tva),0) as total_tva, COALESCE(SUM(v.sous_total_ht),0) as total_ht
+                FROM ventes v $where";
+        $totals = $db->fetch($sql, $params);
+
+        // Ventes par vendeur
+        $sql = "SELECT u.nom_complet, COUNT(*) as nb, COALESCE(SUM(v.total),0) as total
+                FROM ventes v LEFT JOIN utilisateurs u ON v.vendeur_id = u.id
+                $where GROUP BY v.vendeur_id ORDER BY total DESC";
+        $byVendeur = $db->fetchAll($sql, $params);
+
+        // Ventes par méthode de paiement
+        $sql = "SELECT v.payments, COUNT(*) as nb, COALESCE(SUM(v.total),0) as total
+                FROM ventes v $where GROUP BY v.payments";
+        $byPayment = $db->fetchAll($sql, $params);
+
+        // Top 5 produits vendus
+        $sql = "SELECT p.nom, SUM(dv.quantite) as qty, SUM(dv.prix * dv.quantite) as revenue
+                FROM details_vente dv
+                INNER JOIN ventes v ON dv.vente_id = v.id
+                LEFT JOIN produits p ON dv.produit_id = p.id
+                $where GROUP BY dv.produit_id ORDER BY qty DESC LIMIT 5";
+        $topProducts = $db->fetchAll($sql, $params);
+
+        $this->json([
+            'date' => $date,
+            'shop_id' => $shopId,
+            'totals' => $totals,
+            'by_vendeur' => $byVendeur,
+            'by_payment' => $byPayment,
+            'top_products' => $topProducts
+        ]);
+    }
+
+    // ── Export CSV des ventes ────────────────────────────────────
+
+    public function exportCsv()
+    {
+        if (!$this->requireAdmin()) return;
+
+        $from = $_GET['from'] ?? date('Y-m-01');
+        $to = $_GET['to'] ?? date('Y-m-d');
+        $shopId = $this->isSuperAdmin() ? ($_GET['shop_id'] ?? null) : $this->getShopId();
+
+        $where = "WHERE DATE(v.date) BETWEEN ? AND ?";
+        $params = [$from, $to];
+        if ($shopId) {
+            $where .= " AND v.shop_id = ?";
+            $params[] = $shopId;
+        }
+
+        $db = \App\Core\Database::getInstance();
+        $sql = "SELECT v.numero_facture, v.date, u.nom_complet as vendeur,
+                       c.nom_client as client, v.sous_total_ht, v.tva, v.total, v.payments
+                FROM ventes v
+                LEFT JOIN utilisateurs u ON v.vendeur_id = u.id
+                LEFT JOIN clients c ON v.client_id = c.id
+                $where ORDER BY v.date ASC";
+        $rows = $db->fetchAll($sql, $params);
+
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename="ventes_' . $from . '_' . $to . '.csv"');
+
+        $out = fopen('php://output', 'w');
+        fprintf($out, chr(0xEF) . chr(0xBB) . chr(0xBF)); // BOM UTF-8
+        fputcsv($out, ['N° Facture', 'Date', 'Vendeur', 'Client', 'Sous-total HT', 'TVA', 'Total', 'Paiement'], ';');
+        foreach ($rows as $r) {
+            fputcsv($out, [
+                $r['numero_facture'],
+                $r['date'],
+                $r['vendeur'] ?? '',
+                $r['client'] ?? 'Anonyme',
+                number_format($r['sous_total_ht'], 2, ',', ''),
+                number_format($r['tva'], 2, ',', ''),
+                number_format($r['total'], 2, ',', ''),
+                $r['payments'] ?? 'cash'
+            ], ';');
+        }
+        fclose($out);
+        exit;
+    }
 }

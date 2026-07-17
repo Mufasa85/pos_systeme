@@ -120,6 +120,38 @@ class PageController extends Controller
             $chart_values[] = round($data['total'], 2);
         }
 
+        // Multi-boutique stats pour super_admin
+        $shopStats = [];
+        if ($this->isSuperAdmin()) {
+            $shopModel = new \App\Models\Shop();
+            $allShops = $shopModel->getAll();
+            $db = \App\Core\Database::getInstance();
+            foreach ($allShops as $shop) {
+                $sid = $shop['id'];
+                $row = $db->fetch(
+                    "SELECT COUNT(*) as nb, COALESCE(SUM(total),0) as total FROM ventes WHERE shop_id = ? AND DATE(date) = ?",
+                    [$sid, $today]
+                );
+                $rowMonth = $db->fetch(
+                    "SELECT COALESCE(SUM(total),0) as total FROM ventes WHERE shop_id = ? AND date BETWEEN ? AND ?",
+                    [$sid, $mois_start, $mois_end]
+                );
+                $prodCount = $db->fetch(
+                    "SELECT COUNT(*) as c FROM produits WHERE shop_id = ?",
+                    [$sid]
+                );
+                $shopStats[] = [
+                    'id' => $sid,
+                    'nom' => $shop['nom'],
+                    'code' => $shop['code'],
+                    'ventes_jour' => $row['total'] ?? 0,
+                    'nb_ventes_jour' => $row['nb'] ?? 0,
+                    'ventes_mois' => $rowMonth['total'] ?? 0,
+                    'produits' => $prodCount['c'] ?? 0,
+                ];
+            }
+        }
+
         $this->render('dashboard', [
             'ventes' => $ventes,
             'produits_compte' => count($produits),
@@ -133,7 +165,9 @@ class PageController extends Controller
             'chart_values' => json_encode($chart_values),
             'stock_faible' => array_filter($produits, function ($p) {
                 return $p['stock'] <= $p['stock_minimum'];
-            })
+            }),
+            'shopStats' => $shopStats,
+            'isSuperAdmin' => $this->isSuperAdmin()
         ]);
     }
 
@@ -194,8 +228,9 @@ class PageController extends Controller
             exit;
         }
         $userModel = new User();
+        $callerRole = $_SESSION['role'] ?? 'vendeur';
         $shopId = $this->isSuperAdmin() ? null : $this->getShopId();
-        $utilisateurs = $userModel->all($shopId);
+        $utilisateurs = $userModel->all($shopId, $callerRole);
 
         // Charger les boutiques pour le super_admin
         $shops = [];
@@ -482,6 +517,7 @@ class PageController extends Controller
             'customerRate' => $customerRate,
             'stockAlerts' => $stockAlerts,
             'stockOut' => $stockOut,
+            'shops' => $this->isSuperAdmin() ? (new \App\Models\Shop())->getAll() : [],
         ]);
     }
 
@@ -493,7 +529,11 @@ class PageController extends Controller
             header('Location: ' . $protocol . '://' . $host . '/dashboard');
             exit;
         }
-        $this->render('parametres');
+        $data = [];
+        if ($this->isSuperAdmin()) {
+            $data['shops'] = (new \App\Models\Shop())->getAll();
+        }
+        $this->render('parametres', $data);
     }
 
     public function taxes()

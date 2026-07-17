@@ -17,16 +17,16 @@ class OtpCode
         $this->invalidateAll($userId, $type);
 
         $code = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
-        $expiresAt = date('Y-m-d H:i:s', strtotime("+{$expiresMinutes} minutes"));
+        $expiresMinutes = (int)$expiresMinutes;
 
+        // Utiliser NOW() de MySQL pour éviter un décalage de timezone PHP vs MySQL
         $sql = "INSERT INTO otp_codes (user_id, code, type, channel, expires_at)
-                VALUES (:user_id, :code, :type, :channel, :expires_at)";
+                VALUES (:user_id, :code, :type, :channel, DATE_ADD(NOW(), INTERVAL {$expiresMinutes} MINUTE))";
         $this->db->query($sql, [
-            ':user_id'    => $userId,
-            ':code'       => $code,
-            ':type'       => $type,
-            ':channel'    => $channel,
-            ':expires_at' => $expiresAt
+            ':user_id'  => $userId,
+            ':code'     => $code,
+            ':type'     => $type,
+            ':channel'  => $channel
         ]);
 
         return $code;

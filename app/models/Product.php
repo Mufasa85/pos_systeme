@@ -19,10 +19,11 @@ class Product
             $where = 'WHERE p.shop_id = ?';
             $params[] = $shopId;
         }
-        return $this->db->fetchAll("SELECT p.*, c.category AS categorie, t.taux AS tax_rate, t.etiquette AS tax_etiquette 
+        return $this->db->fetchAll("SELECT p.*, c.category AS categorie, t.taux AS tax_rate, t.etiquette AS tax_etiquette, s.nom AS shop_name 
             FROM produits p 
             INNER JOIN categories c ON p.category_id = c.id 
             LEFT JOIN taxes t ON p.taxe_id = t.id 
+            LEFT JOIN shops s ON p.shop_id = s.id 
             $where
             ORDER BY p.nom ASC", $params);
     }

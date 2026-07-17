@@ -112,8 +112,9 @@ class UserController extends Controller
         if (!$this->requireAuth()) return;
 
         $userModel = new \App\Models\User();
+        $callerRole = $_SESSION['role'] ?? 'vendeur';
         $shopId = $this->isSuperAdmin() ? null : $this->getShopId();
-        $users = $userModel->all($shopId);
+        $users = $userModel->all($shopId, $callerRole);
         $this->json($users);
     }
 
@@ -147,6 +148,54 @@ class UserController extends Controller
         $userModel->delete($id);
         $this->logAudit('delete', 'utilisateur', $id, ['username' => $target['nom_utilisateur']]);
         $this->json(['success' => true, 'message' => 'Utilisateur supprimé avec succès']);
+    }
+
+    public function updateProfile()
+    {
+        if (!$this->requireAuth()) return;
+
+        $input = json_decode(file_get_contents('php://input'), true);
+        $userId = $_SESSION['user_id'];
+
+        $data = [];
+        if (isset($input['nom_complet']) && trim($input['nom_complet']) !== '') {
+            $data['nom_complet'] = $this->sanitaze(trim($input['nom_complet']));
+        }
+        if (isset($input['email'])) {
+            $data['email'] = $this->sanitaze(trim($input['email']));
+        }
+        if (isset($input['telephone'])) {
+            $data['telephone'] = $this->sanitaze(trim($input['telephone']));
+        }
+        if (isset($input['agent_code'])) {
+            $data['agent_code'] = $this->sanitaze(trim($input['agent_code']));
+        }
+
+        if (empty($data)) {
+            $this->status(400)->json(['success' => false, 'message' => 'Aucune donnée à mettre à jour']);
+            return;
+        }
+
+        $userModel = new \App\Models\User();
+        $userModel->update($userId, $data);
+
+        // Mettre à jour la session
+        if (isset($data['nom_complet'])) {
+            $_SESSION['full_name'] = $data['nom_complet'];
+            $_SESSION['nom_complet'] = $data['nom_complet'];
+        }
+        if (isset($data['email'])) {
+            $_SESSION['email'] = $data['email'];
+        }
+        if (isset($data['telephone'])) {
+            $_SESSION['telephone'] = $data['telephone'];
+        }
+        if (isset($data['agent_code'])) {
+            $_SESSION['agent_code'] = $data['agent_code'];
+        }
+
+        $this->logAudit('update_profile', 'utilisateur', $userId);
+        $this->json(['success' => true, 'message' => 'Profil mis à jour avec succès']);
     }
 
     public function changePassword()

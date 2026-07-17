@@ -170,12 +170,18 @@ class AuthController extends Controller
             return;
         }
 
+        error_log("[OTP-VERIFY] userId=$userId code=$code");
+
         if ($otpModel->verify($userId, $code, 'login')) {
             $userData = $_SESSION['otp_user_data'];
             unset($_SESSION['otp_user_id'], $_SESSION['otp_user_data']);
             $this->completeLogin($userData);
             $this->json(['success' => true]);
         } else {
+            // Debug : lister les codes en base pour cet utilisateur
+            $db = \App\Core\Database::getInstance();
+            $rows = $db->fetchAll("SELECT id, code, type, used, expires_at, NOW() as now_mysql FROM otp_codes WHERE user_id = ? ORDER BY id DESC LIMIT 3", [$userId]);
+            error_log("[OTP-VERIFY-FAIL] userId=$userId code=$code rows=" . json_encode($rows));
             $this->json(['success' => false, 'message' => 'Code OTP invalide ou expiré']);
         }
     }
@@ -319,10 +325,13 @@ class AuthController extends Controller
     {
         $_SESSION['user_id'] = $user['id'];
         $_SESSION['nom_utilisateur'] = $user['nom_utilisateur'];
+        $_SESSION['full_name'] = $user['nom_complet'];
         $_SESSION['nom_complet'] = $user['nom_complet'];
         $_SESSION['role'] = $user['role'];
         $_SESSION['shop_id'] = $user['shop_id'] ?? null;
         $_SESSION['agent_code'] = $user['agent_code'] ?? '';
+        $_SESSION['email'] = $user['email'] ?? '';
+        $_SESSION['telephone'] = $user['telephone'] ?? '';
         $_SESSION['last_activity'] = time();
 
         $this->logAudit('login', 'utilisateur', $user['id']);
@@ -407,9 +416,35 @@ class AuthController extends Controller
         if (!$phone) return;
 
         try {
-            // TODO: Configurer API SMS (OSAT-Energie)
-            // Pour le développement, on log le code
-            error_log("[OTP-SMS] To: $phone | Code: $code");
+            // Formater le numéro : 0xxx → 243xxx
+            $phone = trim($phone);
+            if (strpos($phone, '0') === 0) {
+                $phone = '243' . substr($phone, 1);
+            }
+
+            $settingsModel = new \App\Models\Settings();
+            $token = trim((string)$settingsModel->get('token'));
+
+            if (empty($token)) {
+                error_log("[OTP-SMS] Token non configuré — fallback log. To: $phone | Code: $code");
+                return;
+            }
+
+            $message = "Votre code de vérification : $code (expire dans 5 min)";
+            $smsUrl = 'https://osat-energie.com/dgi/sms/index.php?numero=' . urlencode($phone)
+                . '&msg=' . urlencode($message)
+                . '&token=' . urlencode($token);
+
+            $ch = curl_init($smsUrl);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 15);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+
+            error_log("[OTP-SMS] Sent to: $phone | HTTP: $httpCode");
         } catch (\Exception $e) {
             error_log("OTP SMS error: " . $e->getMessage());
         }

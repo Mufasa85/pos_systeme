@@ -392,7 +392,7 @@ ALTER TABLE utilisateurs
 > - `telephone` : numéro de téléphone pour recevoir les OTP par SMS
 > - `two_factor_enabled` : activer/désactiver la 2FA (activé par défaut, désactivable par super_admin)
 
-### `categories`
+### `categories` 
 
 ```sql
 ALTER TABLE categories 
@@ -587,128 +587,128 @@ Tables d'archive :                                      │
 
 ### Phase 1 — Préparation
 
-- [ ] Sauvegarder la BDD actuelle (dump complet)
+- [x] Sauvegarder la BDD actuelle (dump complet)
 - [ ] Tester la restauration du dump sur une BDD de test
-- [ ] Lire et valider ce plan d'évolution
+- [x] Lire et valider ce plan d'évolution
 
 ### Phase 2 — Migration SQL
 
-- [ ] Créer le fichier `migrations/multi_shop_evolution.sql`
-- [ ] Créer la table `shops`
-- [ ] Créer la table `audit_logs`
-- [ ] Créer la table `login_attempts`
-- [ ] Créer la table `otp_codes`
-- [ ] Créer la table `password_resets`
-- [ ] Créer la table `notifications`
-- [ ] Modifier `utilisateurs` : ajout ENUM `super_admin` + colonnes `shop_id`, `email`, `telephone`, `two_factor_enabled`
-- [ ] Modifier `categories` : ajout colonne `shop_id`
-- [ ] Modifier `produits` : ajout colonne `shop_id`
-- [ ] Modifier `ventes` : ajout colonne `shop_id`
-- [ ] Modifier `clients` : ajout colonne `shop_id`
-- [ ] Modifier `settings` : ajout colonne `shop_id` + nouvelle contrainte UNIQUE
-- [ ] Créer la table `ventes_archive`
-- [ ] Créer la table `details_vente_archive`
-- [ ] Insérer une boutique par défaut et rattacher les données existantes
-- [ ] Promouvoir un utilisateur existant en `super_admin`
-- [ ] Exécuter la migration sur la BDD de test
+- [x] Créer le fichier `migrations/multi_shop_evolution.sql`
+- [x] Créer la table `shops`
+- [x] Créer la table `audit_logs`
+- [x] Créer la table `login_attempts`
+- [x] Créer la table `otp_codes`
+- [x] Créer la table `password_resets`
+- [x] Créer la table `notifications`
+- [x] Modifier `utilisateurs` : ajout ENUM `super_admin` + colonnes `shop_id`, `email`, `telephone`, `two_factor_enabled`
+- [x] Modifier `categories` : ajout colonne `shop_id`
+- [x] Modifier `produits` : ajout colonne `shop_id`
+- [x] Modifier `ventes` : ajout colonne `shop_id`
+- [x] Modifier `clients` : ajout colonne `shop_id`
+- [x] Modifier `settings` : ajout colonne `shop_id` + nouvelle contrainte UNIQUE
+- [x] Créer la table `ventes_archive`
+- [x] Créer la table `details_vente_archive`
+- [x] Insérer une boutique par défaut et rattacher les données existantes
+- [x] Promouvoir un utilisateur existant en `super_admin`
+- [x] Exécuter la migration sur la BDD de test
 - [ ] Vérifier l'intégrité des données après migration
 
 ### Phase 3 — Nouveaux modèles
 
-- [ ] Créer `app/models/Shop.php` (CRUD boutiques)
-- [ ] Créer `app/models/AuditLog.php` (insertion + lecture logs)
-- [ ] Créer `app/models/OtpCode.php` (génération, vérification, envoi OTP)
-- [ ] Créer `app/models/PasswordReset.php` (token, vérification, reset)
-- [ ] Créer `app/models/Notification.php` (CRUD, marquage lu, comptage non-lus)
-- [ ] Créer `app/controllers/NotificationController.php` (list, read, count)
-- [ ] Créer `archive_data.php` (script d'archivage mensuel)
+- [x] Créer `app/models/Shop.php` (CRUD boutiques)
+- [x] Créer `app/models/AuditLog.php` (insertion + lecture logs)
+- [x] Créer `app/models/OtpCode.php` (génération, vérification, envoi OTP)
+- [x] Créer `app/models/PasswordReset.php` (token, vérification, reset)
+- [x] Créer `app/models/Notification.php` (CRUD, marquage lu, comptage non-lus)
+- [x] Créer `app/controllers/NotificationController.php` (list, read, count)
+- [x] Créer `archive_data.php` (script d'archivage mensuel) → `scripts/archive_data.php`
 
 ### Phase 4 — Modifier les modèles existants
 
-- [ ] `Product.php` : ajouter paramètre `$shopId` dans `getAll()`, `create()`, `update()`
-- [ ] `Category.php` : ajouter paramètre `$shopId` dans `all()`, `add()`
-- [ ] `Sale.php` : ajouter paramètre `$shopId` dans `getAllSales()`, `create()` + méthode `searchArchive()`
-- [ ] `Client.php` : ajouter paramètre `$shopId` dans `getAll()`, `create()`
-- [ ] `Settings.php` : `get($key, $shopId = null)` — priorité boutique > global
-- [ ] `User.php` : ajouter paramètre `$shopId` dans `all()`, `create()`
+- [x] `Product.php` : ajouter paramètre `$shopId` dans `getAll()`, `create()`, `update()`
+- [x] `Category.php` : ajouter paramètre `$shopId` dans `all()`, `add()`
+- [x] `Sale.php` : ajouter paramètre `$shopId` dans `getAllSales()`, `create()` + méthode `searchArchive()`
+- [x] `Client.php` : ajouter paramètre `$shopId` dans `getAll()`, `create()`
+- [x] `Settings.php` : `get($key, $shopId = null)` — priorité boutique > global
+- [x] `User.php` : ajouter paramètre `$shopId` dans `all()`, `create()`
 - [ ] Tester chaque modèle individuellement
 
 ### Phase 5 — Modifier les contrôleurs (RBAC + sécurité)
 
-- [ ] `Controller.php` : ajouter helpers `getShopId()`, `isSuperAdmin()`, `isAdmin()`, `logAudit()`
-- [ ] `AuthController.php` : stocker `shop_id` en session, rate limiting, audit login/logout
-- [ ] `AuthController.php` : ajouter méthode `verifyOtp()` (vérification code OTP après login)
-- [ ] `AuthController.php` : ajouter méthode `forgotPassword()` (demande de récupération)
-- [ ] `AuthController.php` : ajouter méthode `verifyResetCode()` (vérification code de reset)
-- [ ] `AuthController.php` : ajouter méthode `resetPassword()` (changement effectif du mot de passe)
-- [ ] `AuthController.php` : ajouter méthode `resendOtp()` (renvoi du code OTP)
-- [ ] `ProductController.php` : RBAC 3 niveaux + `shop_id` dans toutes les opérations
-- [ ] `CategoryController.php` : sécuriser `delete()` + `shop_id`
-- [ ] `SaleController.php` : `shop_id` + restauration stock dans `delete()`
-- [ ] `ClientController.php` : `shop_id`
-- [ ] `UserController.php` : sécuriser `all()` et `delete()` + RBAC super_admin/admin
-- [ ] `SettingsController.php` : paramètres par boutique
-- [ ] `PageController.php` : filtrer données par `shop_id` + dashboard multi-boutique
-- [ ] `InvoiceController.php` : infos magasin par boutique
-- [ ] `BillPaymentController.php` : `shop_id`
-- [ ] `TaxController.php` : vérifier auth (déjà OK, pas de `shop_id`)
-- [ ] Créer `ShopController.php` : CRUD boutiques (super_admin only)
-- [ ] `Controller.php` : ajouter helper `notify($userId, $shopId, $type, $title, $message)`
-- [ ] `SaleController.php` : déclencher notification `stock_low` après vente si stock < minimum
-- [ ] `SaleController.php` : déclencher notification `suspicious_action` à suppression de vente
-- [ ] `ProductController.php` : déclencher notification `suspicious_action` à modification de prix
-- [ ] `AuthController.php` : déclencher notification `suspicious_action` après 5 tentatives échouées
-- [ ] Ajouter route `/api/user/change-password`
-- [ ] Ajouter expiration de session (timeout 8h)
-- [ ] Configurer PHPMailer pour l'envoi d'emails OTP
-- [ ] Configurer l'envoi SMS via API OSAT-Energie pour OTP
+- [x] `Controller.php` : ajouter helpers `getShopId()`, `isSuperAdmin()`, `isAdmin()`, `logAudit()`
+- [x] `AuthController.php` : stocker `shop_id` en session, rate limiting, audit login/logout
+- [x] `AuthController.php` : ajouter méthode `verifyOtp()` (vérification code OTP après login)
+- [x] `AuthController.php` : ajouter méthode `forgotPassword()` (demande de récupération)
+- [x] `AuthController.php` : ajouter méthode `verifyResetCode()` (vérification code de reset)
+- [x] `AuthController.php` : ajouter méthode `resetPassword()` (changement effectif du mot de passe)
+- [x] `AuthController.php` : ajouter méthode `resendOtp()` (renvoi du code OTP)
+- [x] `ProductController.php` : RBAC 3 niveaux + `shop_id` dans toutes les opérations
+- [x] `CategoryController.php` : sécuriser `delete()` + `shop_id`
+- [x] `SaleController.php` : `shop_id` + restauration stock dans `delete()`
+- [x] `ClientController.php` : `shop_id`
+- [x] `UserController.php` : sécuriser `all()` et `delete()` + RBAC super_admin/admin
+- [x] `SettingsController.php` : paramètres par boutique
+- [x] `PageController.php` : filtrer données par `shop_id` + dashboard multi-boutique
+- [x] `InvoiceController.php` : infos magasin par boutique
+- [x] `BillPaymentController.php` : `shop_id`
+- [x] `TaxController.php` : vérifier auth (déjà OK, pas de `shop_id`)
+- [x] Créer `ShopController.php` : CRUD boutiques (super_admin only)
+- [x] `Controller.php` : ajouter helper `notify($userId, $shopId, $type, $title, $message)`
+- [x] `SaleController.php` : déclencher notification `stock_low` après vente si stock < minimum
+- [x] `SaleController.php` : déclencher notification `suspicious_action` à suppression de vente
+- [x] `ProductController.php` : déclencher notification `suspicious_action` à modification de prix
+- [x] `AuthController.php` : déclencher notification `suspicious_action` après 5 tentatives échouées
+- [x] Ajouter route `/api/user/change-password`
+- [x] Ajouter expiration de session (timeout 8h)
+- [x] Configurer PHPMailer pour l'envoi d'emails OTP
+- [x] Configurer l'envoi SMS via API OSAT-Energie pour OTP
 
 ### Phase 6 — Modifier les routes
 
-- [ ] `routes/api.php` : ajouter routes boutiques `/api/shops`, `/api/shops/[i:id]`
-- [ ] `routes/api.php` : sécuriser `/api/users` (exiger auth)
-- [ ] `routes/api.php` : sécuriser `/api/delete/user` (exiger admin+)
-- [ ] `routes/api.php` : sécuriser `/api/delete/category` (exiger admin+)
-- [ ] `routes/api.php` : sécuriser `/api/vente/[id]/details` (exiger auth)
-- [ ] `routes/api.php` : ajouter route `/api/user/change-password`
-- [ ] `routes/api.php` : ajouter route `POST /api/auth/verify-otp`
-- [ ] `routes/api.php` : ajouter route `POST /api/auth/resend-otp`
-- [ ] `routes/api.php` : ajouter route `POST /api/auth/forgot-password`
-- [ ] `routes/api.php` : ajouter route `POST /api/auth/verify-reset`
-- [ ] `routes/api.php` : ajouter route `POST /api/auth/reset-password`
-- [ ] `routes/web.php` : ajouter route `GET /forgot-password`
-- [ ] `routes/web.php` : ajouter route `GET /reset-password`
-- [ ] `routes/web.php` : ajouter route `GET /verify-otp`
-- [ ] `routes/api.php` : ajouter route `GET /api/notifications` (liste paginée)
-- [ ] `routes/api.php` : ajouter route `GET /api/notifications/unread-count` (nombre non-lus)
-- [ ] `routes/api.php` : ajouter route `POST /api/notifications/[i:id]/read` (marquer comme lu)
-- [ ] `routes/api.php` : ajouter route `POST /api/notifications/read-all` (tout marquer lu)
-- [ ] `routes/api.php` : ajouter route `/api/cloture` (rapport de clôture)
-- [ ] `routes/api.php` : ajouter route `/api/export/ventes` (export CSV)
-- [ ] `routes/web.php` : ajouter route `/shops` (page boutiques)
-- [ ] `routes/web.php` : ajouter route catch-all pour page 404
+- [x] `routes/api.php` : ajouter routes boutiques `/api/shops`, `/api/shops/[i:id]`
+- [x] `routes/api.php` : sécuriser `/api/users` (exiger auth) → `requireAuth()` dans `UserController::all()`
+- [x] `routes/api.php` : sécuriser `/api/delete/user` (exiger admin+) → `requireAdmin()` dans `UserController::delete()`
+- [x] `routes/api.php` : sécuriser `/api/delete/category` (exiger admin+) → `requireAdmin()` dans `CategoryController::delete()`
+- [x] `routes/api.php` : sécuriser `/api/vente/[id]/details` (exiger auth) → via `SaleController::details()`
+- [x] `routes/api.php` : ajouter route `/api/user/change-password`
+- [x] `routes/api.php` : ajouter route `POST /api/auth/verify-otp`
+- [x] `routes/api.php` : ajouter route `POST /api/auth/resend-otp`
+- [x] `routes/api.php` : ajouter route `POST /api/auth/forgot-password`
+- [x] `routes/api.php` : ajouter route `POST /api/auth/verify-reset`
+- [x] `routes/api.php` : ajouter route `POST /api/auth/reset-password`
+- [x] `routes/web.php` : ajouter route `GET /forgot-password`
+- [x] `routes/web.php` : ajouter route `GET /reset-password`
+- [x] `routes/web.php` : ajouter route `GET /verify-otp`
+- [x] `routes/api.php` : ajouter route `GET /api/notifications` (liste paginée)
+- [x] `routes/api.php` : ajouter route `GET /api/notifications/unread-count` (nombre non-lus)
+- [x] `routes/api.php` : ajouter route `POST /api/notifications/[i:id]/read` (marquer comme lu)
+- [x] `routes/api.php` : ajouter route `POST /api/notifications/read-all` (tout marquer lu)
+- [x] `routes/api.php` : ajouter route `/api/cloture` (rapport de clôture)
+- [x] `routes/api.php` : ajouter route `/api/export/ventes` (export CSV)
+- [x] `routes/web.php` : ajouter route `/shops` (page boutiques)
+- [x] `routes/web.php` : ajouter route catch-all pour page 404 → `Router::respondNotFound()`
 
 ### Phase 7 — Modifier les vues et le frontend
 
-- [ ] `header.php` : menu "Boutiques" pour super_admin + sélecteur de boutique
-- [ ] `dashboard.php` : stats multi-boutique pour super_admin
-- [ ] `historique.php` : onglet "Archives" pour ventes > 3 mois
-- [ ] `login.php` : message de rate limiting + lien "Mot de passe oublié ?"
-- [ ] `shops.php` : nouvelle page de gestion des boutiques
-- [ ] `otp-verify.php` : page de saisie du code OTP après login
-- [ ] `forgot-password.php` : page de saisie email ou téléphone
-- [ ] `reset-password.php` : page de saisie du nouveau mot de passe
-- [ ] Ajouter page/modale "Changer mon mot de passe"
-- [ ] Ajouter page/modale "Rapport de clôture"
-- [ ] Ajouter bouton "Exporter CSV" dans historique et analytics
-- [ ] Ajouter page 404 (`404.php`)
-- [ ] `produits.php` : afficher le nom de la boutique si super_admin
-- [ ] `utilisateurs.php` : afficher le nom de la boutique si super_admin
-- [ ] `analytics.php` : sélecteur de boutique pour super_admin
-- [ ] `parametres.php` : sélecteur de boutique pour super_admin
-- [ ] `header.php` : ajouter icône cloche 🔔 avec badge compteur de notifications non-lues
-- [ ] `header.php` : dropdown des dernières notifications au clic sur la cloche
-- [ ] JavaScript : polling `/api/notifications/unread-count` toutes les 30 secondes
+- [x] `header.php` : menu "Boutiques" pour super_admin + sélecteur de boutique
+- [x] `dashboard.php` : stats multi-boutique pour super_admin
+- [x] `historique.php` : onglet "Archives" pour ventes > 3 mois
+- [x] `login.php` : message de rate limiting + lien "Mot de passe oublié ?"
+- [x] `shops.php` : nouvelle page de gestion des boutiques
+- [x] `otp-verify.php` : page de saisie du code OTP après login
+- [x] `forgot-password.php` : page de saisie email ou téléphone
+- [x] `reset-password.php` : page de saisie du nouveau mot de passe
+- [x] Ajouter page/modale "Changer mon mot de passe"
+- [x] Ajouter page/modale "Rapport de clôture"
+- [x] Ajouter bouton "Exporter CSV" dans historique et analytics
+- [x] Ajouter page 404 (`404.php`)
+- [x] `produits.php` : afficher le nom de la boutique si super_admin
+- [x] `utilisateurs.php` : afficher le nom de la boutique si super_admin
+- [x] `analytics.php` : sélecteur de boutique pour super_admin
+- [x] `parametres.php` : sélecteur de boutique pour super_admin
+- [x] `header.php` : ajouter icône cloche 🔔 avec badge compteur de notifications non-lues
+- [x] `header.php` : dropdown des dernières notifications au clic sur la cloche
+- [x] JavaScript : polling `/api/notifications/unread-count` toutes les 30 secondes
 
 ### Phase 8 — Tests et validation
 

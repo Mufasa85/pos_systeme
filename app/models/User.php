@@ -23,12 +23,18 @@ class User
         return false;
     }
 
-    public function all($shopId = null)
+    public function all($shopId = null, $callerRole = null)
     {
-        if ($shopId) {
-            return $this->db->fetchAll("SELECT * FROM utilisateurs WHERE shop_id = ?", [$shopId]);
+        if ($callerRole === 'admin') {
+            // Admin voit tout le monde sauf les super_admin
+            return $this->db->fetchAll("SELECT u.*, s.nom AS shop_name FROM utilisateurs u LEFT JOIN shops s ON u.shop_id = s.id WHERE u.role != 'super_admin' ORDER BY u.nom_complet ASC");
         }
-        return $this->db->fetchAll("SELECT * FROM utilisateurs");
+        if ($callerRole === 'super_admin' || !$shopId) {
+            // Super admin voit tout le monde
+            return $this->db->fetchAll("SELECT u.*, s.nom AS shop_name FROM utilisateurs u LEFT JOIN shops s ON u.shop_id = s.id ORDER BY u.nom_complet ASC");
+        }
+        // Fallback : filtrer par shop_id
+        return $this->db->fetchAll("SELECT u.*, s.nom AS shop_name FROM utilisateurs u LEFT JOIN shops s ON u.shop_id = s.id WHERE u.shop_id = ? ORDER BY u.nom_complet ASC", [$shopId]);
     }
 
     public function delete($id)

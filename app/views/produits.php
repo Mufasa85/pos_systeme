@@ -31,6 +31,7 @@
                 <th>Categorie</th>
                 <th>Stock</th>
                 <th>Prix</th>
+                <?php if (($_SESSION['role'] ?? '') === 'super_admin'): ?><th>Boutique</th><?php endif; ?>
                 <th class="admin-only">Actions</th>
               </tr>
             </thead>
@@ -49,6 +50,9 @@
                     </span>
                   </td>
                   <td style="padding:0.75rem;"><strong><?= number_format($p['prix'], 2) ?> Fc</strong></td>
+                  <?php if (($_SESSION['role'] ?? '') === 'super_admin'): ?>
+                    <td style="padding:0.75rem;"><span class="badge badge-info"><?= htmlspecialchars($p['shop_name'] ?? 'N/A') ?></span></td>
+                  <?php endif; ?>
                   <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin'): ?>
                     <td style="padding:0.75rem;">
                       <button class="btn btn-ghost btn-small" onclick="editProduct(<?= htmlspecialchars(json_encode($p)) ?>)" title="Modifier">

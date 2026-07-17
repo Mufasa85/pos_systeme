@@ -17,6 +17,7 @@
     .container {
       text-align: center;
       padding: 2rem;
+      background: url("/assets/img/pattern_h.png") center / cover no-repeat;
     }
     .error-code {
       font-size: 8rem;

@@ -38,6 +38,7 @@ Router::post("/api/notifications/delete/[i:id]", [NotificationController::class,
 
 // ── Users extra ──────────────────────────────────────────────
 Router::post("/api/user/change-password", [UserController::class, 'changePassword']);
+Router::post("/api/user/update-profile", [UserController::class, 'updateProfile']);
 
 Router::get("/api/produits", [ProductController::class, 'index']);
 Router::get("/api/produit", [ProductController::class, 'find']);
@@ -62,6 +63,9 @@ Router::post("/api/delete/vente", [SaleController::class, 'delete']);
 Router::post("/api/vente", [SaleController::class, 'create']);
 Router::get("/api/vente/[i:id]/details", [SaleController::class, 'details']);
 Router::get("/api/vente/next-invoice", [SaleController::class, 'nextInvoice']);
+Router::get("/api/ventes/archives", [SaleController::class, 'archives']);
+Router::get("/api/cloture", [SaleController::class, 'cloture']);
+Router::get("/api/export/ventes", [SaleController::class, 'exportCsv']);
 
 // Paramètres du système
 // Routes pour les clients

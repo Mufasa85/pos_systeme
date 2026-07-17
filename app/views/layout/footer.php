@@ -616,6 +616,418 @@
       </div>
     </div>
 
+    <!-- Modal : Mon Profil -->
+    <div id="profile-modal" class="modal">
+      <div class="modal-content" style="max-width:480px">
+        <div class="modal-header">
+          <h3>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:8px;vertical-align:middle">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+              <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+            Mon Profil
+          </h3>
+          <button class="close-modal" onclick="document.getElementById('profile-modal').classList.remove('active')">&times;</button>
+        </div>
+        <div style="padding:0 1.25rem 1.25rem">
+          <!-- Avatar + nom + rôle (non modifiable) -->
+          <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;padding:1rem;background:var(--background,#f8fafc);border-radius:var(--radius,8px)">
+            <div id="profile-avatar" style="width:56px;height:56px;border-radius:50%;background:var(--primary,#0B5E88);color:#fff;display:flex;align-items:center;justify-content:center;font-size:1.5rem;font-weight:700;flex-shrink:0">
+              <?= substr(htmlspecialchars($_SESSION['full_name'] ?? 'U'), 0, 1) ?>
+            </div>
+            <div>
+              <div id="profile-display-name" style="font-weight:700;font-size:1.1rem"><?= htmlspecialchars($_SESSION['full_name'] ?? $_SESSION['nom_complet'] ?? '') ?></div>
+              <div style="color:var(--muted,#64748b);font-size:.85rem"><?php
+                $r = $_SESSION['role'] ?? '';
+                echo $r === 'super_admin' ? 'Super Admin' : ($r === 'admin' ? 'Administrateur' : 'Vendeur');
+              ?></div>
+              <div style="font-size:.75rem;color:var(--muted,#94a3b8);margin-top:2px">@<?= htmlspecialchars($_SESSION['nom_utilisateur'] ?? '') ?></div>
+            </div>
+          </div>
+
+          <!-- Mode consultation -->
+          <div id="profile-view-mode">
+            <div style="display:grid;gap:.75rem;margin-bottom:1.5rem">
+              <div style="display:flex;align-items:center;gap:.75rem;padding:.6rem .8rem;background:var(--background,#f8fafc);border-radius:var(--radius,8px)">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--muted,#64748b)" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                <div>
+                  <div style="font-size:.7rem;color:var(--muted,#94a3b8);text-transform:uppercase;letter-spacing:.05em">Nom complet</div>
+                  <div id="pv-fullname" style="font-weight:500;font-size:.9rem"><?= htmlspecialchars($_SESSION['full_name'] ?? '-') ?></div>
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;gap:.75rem;padding:.6rem .8rem;background:var(--background,#f8fafc);border-radius:var(--radius,8px)">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--muted,#64748b)" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+                <div>
+                  <div style="font-size:.7rem;color:var(--muted,#94a3b8);text-transform:uppercase;letter-spacing:.05em">Email</div>
+                  <div id="pv-email" style="font-weight:500;font-size:.9rem"><?= htmlspecialchars($_SESSION['email'] ?? '-') ?: '-' ?></div>
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;gap:.75rem;padding:.6rem .8rem;background:var(--background,#f8fafc);border-radius:var(--radius,8px)">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--muted,#64748b)" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+                <div>
+                  <div style="font-size:.7rem;color:var(--muted,#94a3b8);text-transform:uppercase;letter-spacing:.05em">Téléphone</div>
+                  <div id="pv-phone" style="font-weight:500;font-size:.9rem"><?= htmlspecialchars($_SESSION['telephone'] ?? '-') ?: '-' ?></div>
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;gap:.75rem;padding:.6rem .8rem;background:var(--background,#f8fafc);border-radius:var(--radius,8px)">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--muted,#64748b)" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>
+                <div>
+                  <div style="font-size:.7rem;color:var(--muted,#94a3b8);text-transform:uppercase;letter-spacing:.05em">Code Agent</div>
+                  <div id="pv-agent" style="font-weight:500;font-size:.9rem"><?= htmlspecialchars($_SESSION['agent_code'] ?? '-') ?: '-' ?></div>
+                </div>
+              </div>
+            </div>
+
+            <button class="btn btn-primary" onclick="toggleProfileEdit(true)" style="width:100%;justify-content:center;gap:.5rem;margin-bottom:.5rem">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="16 3 21 8 8 21 3 21 3 16 16 3"></polygon></svg>
+              Modifier mon profil
+            </button>
+
+            <div style="display:flex;flex-direction:column;gap:.5rem">
+              <button class="btn btn-secondary" onclick="document.getElementById('profile-modal').classList.remove('active');openChangePasswordModal()" style="width:100%;justify-content:flex-start;gap:.5rem">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                Changer mon mot de passe
+              </button>
+              <?php if (isset($_SESSION['role']) && in_array($_SESSION['role'], ['admin', 'super_admin'])): ?>
+              <button class="btn btn-secondary" onclick="document.getElementById('profile-modal').classList.remove('active');openClotureModal()" style="width:100%;justify-content:flex-start;gap:.5rem">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+                Rapport de clôture
+              </button>
+              <?php endif; ?>
+            </div>
+          </div>
+
+          <!-- Mode édition -->
+          <div id="profile-edit-mode" style="display:none">
+            <form id="profile-edit-form" onsubmit="submitProfileEdit(event)">
+              <div class="form-group" style="margin-bottom:.75rem">
+                <label style="font-size:.8rem;font-weight:600">Nom complet</label>
+                <input type="text" id="pe-fullname" value="<?= htmlspecialchars($_SESSION['full_name'] ?? '') ?>" required placeholder="Votre nom complet">
+              </div>
+              <div class="form-group" style="margin-bottom:.75rem">
+                <label style="font-size:.8rem;font-weight:600">Email</label>
+                <input type="email" id="pe-email" value="<?= htmlspecialchars($_SESSION['email'] ?? '') ?>" placeholder="votre@email.com">
+              </div>
+              <div class="form-group" style="margin-bottom:.75rem">
+                <label style="font-size:.8rem;font-weight:600">Téléphone</label>
+                <input type="text" id="pe-phone" value="<?= htmlspecialchars($_SESSION['telephone'] ?? '') ?>" placeholder="Ex: 0812345678">
+              </div>
+              <div class="form-group" style="margin-bottom:1rem">
+                <label style="font-size:.8rem;font-weight:600">Code Agent</label>
+                <input type="text" id="pe-agent" value="<?= htmlspecialchars($_SESSION['agent_code'] ?? '') ?>" placeholder="Code agent">
+              </div>
+              <div id="pe-error" style="color:#e53e3e;font-size:.85rem;margin-bottom:.5rem;display:none"></div>
+              <div id="pe-success" style="color:#38a169;font-size:.85rem;margin-bottom:.5rem;display:none"></div>
+              <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" onclick="toggleProfileEdit(false)">Annuler</button>
+                <button type="submit" class="btn btn-primary" id="pe-submit-btn">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                  Enregistrer
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script>
+      function openProfileModal() {
+        toggleProfileEdit(false);
+        document.getElementById('profile-modal').classList.add('active');
+      }
+      function toggleProfileEdit(edit) {
+        document.getElementById('profile-view-mode').style.display = edit ? 'none' : 'block';
+        document.getElementById('profile-edit-mode').style.display = edit ? 'block' : 'none';
+        document.getElementById('pe-error').style.display = 'none';
+        document.getElementById('pe-success').style.display = 'none';
+      }
+      async function submitProfileEdit(e) {
+        e.preventDefault();
+        const errEl = document.getElementById('pe-error');
+        const okEl = document.getElementById('pe-success');
+        errEl.style.display = 'none';
+        okEl.style.display = 'none';
+        const btn = document.getElementById('pe-submit-btn');
+        btn.disabled = true;
+        const body = {
+          nom_complet: document.getElementById('pe-fullname').value.trim(),
+          email: document.getElementById('pe-email').value.trim(),
+          telephone: document.getElementById('pe-phone').value.trim(),
+          agent_code: document.getElementById('pe-agent').value.trim()
+        };
+        if (!body.nom_complet) { errEl.textContent = 'Le nom complet est requis.'; errEl.style.display = 'block'; btn.disabled = false; return; }
+        try {
+          const res = await fetch(APP_URL + '/api/user/update-profile', {
+            method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)
+          });
+          const data = await res.json();
+          if (data.success) {
+            okEl.textContent = data.message || 'Profil mis à jour !';
+            okEl.style.display = 'block';
+            // Mettre à jour l'affichage en mode consultation
+            document.getElementById('pv-fullname').textContent = body.nom_complet;
+            document.getElementById('pv-email').textContent = body.email || '-';
+            document.getElementById('pv-phone').textContent = body.telephone || '-';
+            document.getElementById('pv-agent').textContent = body.agent_code || '-';
+            document.getElementById('profile-display-name').textContent = body.nom_complet;
+            document.getElementById('profile-avatar').textContent = body.nom_complet.charAt(0).toUpperCase();
+            // Sidebar
+            const sidebarName = document.getElementById('user-name');
+            const sidebarAvatar = document.getElementById('user-avatar');
+            if (sidebarName) sidebarName.textContent = body.nom_complet;
+            if (sidebarAvatar) sidebarAvatar.textContent = body.nom_complet.charAt(0).toUpperCase();
+            setTimeout(() => toggleProfileEdit(false), 1200);
+          } else {
+            errEl.textContent = data.message || data.error || 'Erreur';
+            errEl.style.display = 'block';
+          }
+        } catch(ex) { errEl.textContent = 'Erreur réseau'; errEl.style.display = 'block'; }
+        btn.disabled = false;
+      }
+    </script>
+
+    <!-- Modal : Changer mon mot de passe -->
+    <div id="change-password-modal" class="modal">
+      <div class="modal-content" style="max-width:440px">
+        <div class="modal-header">
+          <h3>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:8px;vertical-align:middle">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            </svg>
+            Changer mon mot de passe
+          </h3>
+          <button class="close-modal" onclick="document.getElementById('change-password-modal').classList.remove('active')">&times;</button>
+        </div>
+        <form id="change-password-form" onsubmit="submitChangePassword(event)">
+          <div class="form-group" style="margin-bottom:1rem">
+            <label>Mot de passe actuel</label>
+            <input type="password" id="cp-current" required placeholder="Mot de passe actuel" autocomplete="current-password">
+          </div>
+          <div class="form-group" style="margin-bottom:1rem">
+            <label>Nouveau mot de passe</label>
+            <input type="password" id="cp-new" required placeholder="Min. 6 caractères" minlength="6" autocomplete="new-password">
+          </div>
+          <div class="form-group" style="margin-bottom:1rem">
+            <label>Confirmer le nouveau mot de passe</label>
+            <input type="password" id="cp-confirm" required placeholder="Confirmer" autocomplete="new-password">
+          </div>
+          <div id="cp-error" style="color:#e53e3e;font-size:.85rem;margin-bottom:.5rem;display:none"></div>
+          <div id="cp-success" style="color:#38a169;font-size:.85rem;margin-bottom:.5rem;display:none"></div>
+          <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" onclick="document.getElementById('change-password-modal').classList.remove('active')">Annuler</button>
+            <button type="submit" class="btn btn-primary" id="cp-submit-btn">Changer</button>
+          </div>
+        </form>
+      </div>
+    </div>
+    <script>
+      async function submitChangePassword(e) {
+        e.preventDefault();
+        const errEl = document.getElementById('cp-error');
+        const okEl = document.getElementById('cp-success');
+        errEl.style.display = 'none';
+        okEl.style.display = 'none';
+        const current = document.getElementById('cp-current').value;
+        const newPw = document.getElementById('cp-new').value;
+        const confirm = document.getElementById('cp-confirm').value;
+        if (newPw !== confirm) { errEl.textContent = 'Les mots de passe ne correspondent pas.'; errEl.style.display = 'block'; return; }
+        if (newPw.length < 6) { errEl.textContent = 'Le mot de passe doit contenir au moins 6 caractères.'; errEl.style.display = 'block'; return; }
+        const btn = document.getElementById('cp-submit-btn');
+        btn.disabled = true; btn.textContent = 'En cours...';
+        try {
+          const res = await fetch(APP_URL + '/api/user/change-password', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ current_password: current, new_password: newPw })
+          });
+          const data = await res.json();
+          if (data.success) { okEl.textContent = 'Mot de passe modifié avec succès.'; okEl.style.display = 'block'; document.getElementById('change-password-form').reset(); }
+          else { errEl.textContent = data.message || data.error || 'Erreur'; errEl.style.display = 'block'; }
+        } catch(ex) { errEl.textContent = 'Erreur réseau'; errEl.style.display = 'block'; }
+        btn.disabled = false; btn.textContent = 'Changer';
+      }
+    </script>
+
+    <!-- Modal : Rapport de clôture -->
+    <style>
+      .cloture-kpi-grid { display:grid; grid-template-columns:1fr 1fr; gap:.75rem; margin-bottom:1.25rem }
+      .cloture-kpi { background:var(--background,#f8fafc); border:1px solid var(--border,#e2e8f0); border-radius:var(--radius,8px); padding:.85rem 1rem; text-align:center }
+      .cloture-kpi.main { grid-column:1/-1; background:var(--primary,#0B5E88); color:#fff; border-color:transparent }
+      .cloture-kpi-label { font-size:.7rem; text-transform:uppercase; letter-spacing:.04em; opacity:.7; margin-bottom:.25rem }
+      .cloture-kpi-value { font-size:1.35rem; font-weight:800; line-height:1.2 }
+      .cloture-kpi.main .cloture-kpi-value { font-size:1.6rem }
+      .cloture-kpi-sub { font-size:.75rem; opacity:.65; margin-top:2px }
+      .cloture-section { margin-bottom:1rem }
+      .cloture-section-title { font-size:.75rem; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--muted,#94a3b8); margin-bottom:.5rem; display:flex; align-items:center; gap:.4rem }
+      .cloture-table { width:100%; border-collapse:collapse; font-size:.85rem }
+      .cloture-table th { text-align:left; font-size:.7rem; text-transform:uppercase; letter-spacing:.04em; color:var(--muted,#94a3b8); font-weight:600; padding:.4rem .6rem; border-bottom:2px solid var(--border,#e2e8f0) }
+      .cloture-table td { padding:.5rem .6rem; border-bottom:1px solid var(--border,#f1f5f9) }
+      .cloture-table tr:last-child td { border-bottom:none }
+      .cloture-table td:last-child { text-align:right; font-weight:600; font-family:'JetBrains Mono',monospace; font-size:.8rem }
+      .cloture-table th:last-child { text-align:right }
+      .cloture-table th:nth-child(2), .cloture-table td:nth-child(2) { text-align:center; width:50px }
+      .cloture-empty { text-align:center; padding:2.5rem 1rem; color:var(--muted,#94a3b8) }
+      .cloture-empty svg { margin-bottom:.75rem; opacity:.4 }
+      @media print { .cloture-no-print { display:none!important } }
+    </style>
+    <div id="cloture-modal" class="modal">
+      <div class="modal-content" style="max-width:600px">
+        <div class="modal-header">
+          <h3>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:8px;vertical-align:middle">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="16" y1="13" x2="8" y2="13"></line>
+              <line x1="16" y1="17" x2="8" y2="17"></line>
+            </svg>
+            Rapport de clôture
+          </h3>
+          <button class="close-modal" onclick="document.getElementById('cloture-modal').classList.remove('active')">&times;</button>
+        </div>
+        <div style="padding:.25rem 1.25rem 1.25rem">
+          <div class="cloture-no-print" style="display:flex;gap:.5rem;align-items:center;margin-bottom:1rem">
+            <input type="date" id="cloture-date" value="<?= date('Y-m-d') ?>" style="flex:1;padding:.5rem .75rem">
+            <button class="btn btn-primary btn-small" onclick="loadCloture()" style="padding:.5rem 1rem;white-space:nowrap">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px;vertical-align:middle"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+              Charger
+            </button>
+            <button class="btn btn-secondary btn-small" onclick="printCloture()" id="cloture-print-btn" style="padding:.5rem;display:none" title="Imprimer">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+            </button>
+          </div>
+          <div id="cloture-content">
+            <div class="cloture-empty">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+              </svg>
+              <p style="font-size:.9rem;margin-bottom:.25rem">Sélectionnez une date</p>
+              <p style="font-size:.8rem">et cliquez <strong>Charger</strong> pour générer le rapport</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script>
+      function fmtMoney(v) { return parseFloat(v||0).toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2})+' Fc'; }
+      async function loadCloture() {
+        const date = document.getElementById('cloture-date').value;
+        const el = document.getElementById('cloture-content');
+        el.innerHTML = '<div style="text-align:center;padding:2rem"><div style="width:28px;height:28px;border:3px solid var(--border,#e2e8f0);border-top-color:var(--primary,#0B5E88);border-radius:50%;animation:spin .6s linear infinite;margin:0 auto 1rem"></div>Chargement du rapport...</div>';
+        try {
+          const res = await fetch(APP_URL + '/api/cloture?date=' + date);
+          const d = await res.json();
+          const t = d.totals || {};
+          const dateFormatted = new Date(date).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+
+          let html = `<div style="text-align:center;margin-bottom:1rem;font-size:.8rem;color:var(--muted,#94a3b8)">${dateFormatted}</div>`;
+
+          // KPI cards
+          html += `<div class="cloture-kpi-grid">
+            <div class="cloture-kpi main">
+              <div class="cloture-kpi-label">Chiffre d'affaires</div>
+              <div class="cloture-kpi-value">${fmtMoney(t.total_ventes)}</div>
+              <div class="cloture-kpi-sub">${t.nb_ventes||0} transaction${(t.nb_ventes||0)>1?'s':''}</div>
+            </div>
+            <div class="cloture-kpi">
+              <div class="cloture-kpi-label">Total HT</div>
+              <div class="cloture-kpi-value">${fmtMoney(t.total_ht)}</div>
+            </div>
+            <div class="cloture-kpi">
+              <div class="cloture-kpi-label">Total TVA</div>
+              <div class="cloture-kpi-value">${fmtMoney(t.total_tva)}</div>
+            </div>
+          </div>`;
+
+          // Par vendeur
+          if (d.by_vendeur && d.by_vendeur.length) {
+            html += `<div class="cloture-section">
+              <div class="cloture-section-title">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+                Ventes par vendeur
+              </div>
+              <table class="cloture-table"><thead><tr><th>Vendeur</th><th>Nb</th><th>Montant</th></tr></thead><tbody>`;
+            d.by_vendeur.forEach(v => { html += `<tr><td>${v.nom_complet||'-'}</td><td>${v.nb}</td><td>${fmtMoney(v.total)}</td></tr>`; });
+            html += '</tbody></table></div>';
+          }
+
+          // Par mode de paiement
+          if (d.by_payment && d.by_payment.length) {
+            html += `<div class="cloture-section">
+              <div class="cloture-section-title">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+                Par mode de paiement
+              </div>
+              <table class="cloture-table"><thead><tr><th>Mode</th><th>Nb</th><th>Montant</th></tr></thead><tbody>`;
+            d.by_payment.forEach(p => {
+              const label = (p.payments||'cash').charAt(0).toUpperCase() + (p.payments||'cash').slice(1);
+              html += `<tr><td>${label}</td><td>${p.nb}</td><td>${fmtMoney(p.total)}</td></tr>`;
+            });
+            html += '</tbody></table></div>';
+          }
+
+          // Top produits
+          if (d.top_products && d.top_products.length) {
+            html += `<div class="cloture-section">
+              <div class="cloture-section-title">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+                Top ${d.top_products.length} produits
+              </div>
+              <table class="cloture-table"><thead><tr><th>Produit</th><th>Qté</th><th>Revenu</th></tr></thead><tbody>`;
+            d.top_products.forEach((p,i) => {
+              const medal = i===0?'🥇 ':i===1?'🥈 ':i===2?'🥉 ':'';
+              html += `<tr><td>${medal}${p.nom||'-'}</td><td>${p.qty}</td><td>${fmtMoney(p.revenue)}</td></tr>`;
+            });
+            html += '</tbody></table></div>';
+          }
+
+          // Aucune vente
+          if (!t.nb_ventes || t.nb_ventes == 0) {
+            html = `<div class="cloture-empty">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+              <p style="font-size:.9rem;margin-bottom:.25rem">Aucune vente</p>
+              <p style="font-size:.8rem">pour le ${dateFormatted}</p>
+            </div>`;
+          }
+
+          el.innerHTML = html;
+          document.getElementById('cloture-print-btn').style.display = (t.nb_ventes && t.nb_ventes > 0) ? 'flex' : 'none';
+        } catch(e) {
+          el.innerHTML = '<div class="cloture-empty" style="color:#e53e3e"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom:.5rem"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><p>Erreur lors du chargement du rapport</p></div>';
+        }
+      }
+      function printCloture() {
+        const content = document.getElementById('cloture-content').innerHTML;
+        const w = window.open('','_blank','width=600,height=800');
+        w.document.write(`<html><head><title>Rapport de clôture</title><style>
+          body{font-family:system-ui,-apple-system,sans-serif;padding:2rem;color:#1e293b;max-width:550px;margin:0 auto}
+          .cloture-kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:1.5rem}
+          .cloture-kpi{border:1px solid #e2e8f0;border-radius:8px;padding:.85rem 1rem;text-align:center}
+          .cloture-kpi.main{grid-column:1/-1;background:#0B5E88;color:#fff;border-color:transparent}
+          .cloture-kpi-label{font-size:.65rem;text-transform:uppercase;letter-spacing:.04em;opacity:.7;margin-bottom:.25rem}
+          .cloture-kpi-value{font-size:1.3rem;font-weight:800}
+          .cloture-kpi.main .cloture-kpi-value{font-size:1.5rem}
+          .cloture-kpi-sub{font-size:.7rem;opacity:.6;margin-top:2px}
+          .cloture-section{margin-bottom:1rem}
+          .cloture-section-title{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#94a3b8;margin-bottom:.4rem;display:flex;align-items:center;gap:.3rem}
+          .cloture-table{width:100%;border-collapse:collapse;font-size:.82rem}
+          .cloture-table th{text-align:left;font-size:.65rem;text-transform:uppercase;color:#94a3b8;font-weight:600;padding:.35rem .5rem;border-bottom:2px solid #e2e8f0}
+          .cloture-table td{padding:.4rem .5rem;border-bottom:1px solid #f1f5f9}
+          .cloture-table td:last-child,.cloture-table th:last-child{text-align:right}
+          .cloture-table th:nth-child(2),.cloture-table td:nth-child(2){text-align:center}
+        </style></head><body>${content}</body></html>`);
+        w.document.close();
+        w.focus();
+        setTimeout(()=>w.print(),300);
+      }
+      function openClotureModal() {
+        document.getElementById('cloture-modal').classList.add('active');
+      }
+      function openChangePasswordModal() {
+        document.getElementById('change-password-modal').classList.add('active');
+      }
+    </script>
+
     <!-- Modal : choix du format d'impression (57mm, 80mm, A4, A5, Letter, Legal) -->
     <?php include __DIR__ . '/print-format-modal.php'; ?>
 
