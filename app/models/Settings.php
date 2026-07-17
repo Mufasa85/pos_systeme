@@ -44,9 +44,26 @@ class Settings
 
     public function set($key, $value, $shopId = null)
     {
-        $sql = "INSERT INTO settings (setting_key, shop_id, value) VALUES (?, ?, ?)
-                ON DUPLICATE KEY UPDATE value = VALUES(value)";
-        $this->db->query($sql, [$key, $shopId, $value]);
+        if ($shopId) {
+            // With shop_id: ON DUPLICATE KEY works fine (UNIQUE on setting_key + shop_id)
+            $sql = "INSERT INTO settings (setting_key, shop_id, value) VALUES (?, ?, ?)
+                    ON DUPLICATE KEY UPDATE value = VALUES(value)";
+            $this->db->query($sql, [$key, $shopId, $value]);
+        } else {
+            // With NULL shop_id: ON DUPLICATE KEY doesn't work (NULL != NULL in UNIQUE)
+            $existing = $this->db->fetch(
+                "SELECT id FROM settings WHERE setting_key = ? AND shop_id IS NULL", [$key]
+            );
+            if ($existing) {
+                $this->db->query(
+                    "UPDATE settings SET value = ? WHERE id = ?", [$value, $existing['id']]
+                );
+            } else {
+                $this->db->query(
+                    "INSERT INTO settings (setting_key, shop_id, value) VALUES (?, NULL, ?)", [$key, $value]
+                );
+            }
+        }
     }
 
     public function setMultiple($data)

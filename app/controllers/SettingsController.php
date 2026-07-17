@@ -107,7 +107,7 @@ class SettingsController extends Controller
         }
     }
 
-    // POST /api/settings/theme - Sauvegarder le thème (Admin only)
+    // POST /api/settings/theme - Sauvegarder le thème (Admin/Super_admin)
     public function saveTheme()
     {
         if (!$this->requireAdmin()) return;
@@ -119,7 +119,8 @@ class SettingsController extends Controller
             return;
         }
 
-        $shopId = $this->getShopId();
+        // Super_admin sauvegarde en global (shopId=null), admin pour sa boutique
+        $shopId = $this->isSuperAdmin() ? null : $this->getShopId();
         try {
             $this->settingsModel->set('theme', $theme, $shopId);
             $this->json(['success' => true, 'message' => 'Thème sauvegardé']);
