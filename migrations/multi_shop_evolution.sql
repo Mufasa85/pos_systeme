@@ -15,7 +15,54 @@ SET FOREIGN_KEY_CHECKS = 0;
 -- ============================================================================
 
 -- ----------------------------------------------------------------------------
--- 1.1 Table `shops` (boutiques)
+-- 1.1 Table `service_types` (types de service)
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `service_types` (
+  `id`          INT NOT NULL AUTO_INCREMENT,
+  `name`        VARCHAR(50) NOT NULL,
+  `created_at`  DATETIME DEFAULT CURRENT_TIMESTAMP,
+  `updated_at`  DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_service_name` (`name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Insert default service types
+INSERT INTO `service_types` (`name`) VALUES
+  ('Caisse'),
+  ('Quincaillerie'),
+  ('Restaurant'),
+  ('Reparation'),
+  ('Livraison'),
+  ('Bijouterie'),
+  ('Coiffure');
+
+-- ----------------------------------------------------------------------------
+-- 1.2 Table `company_info` (informations entreprise)
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `company_info` (
+  `id`          INT NOT NULL AUTO_INCREMENT,
+  `name`        VARCHAR(100) DEFAULT NULL,
+  `address`     VARCHAR(255) DEFAULT NULL,
+  `email`       VARCHAR(100) DEFAULT NULL,
+  `pdv`         VARCHAR(50) DEFAULT NULL,
+  `phone`       VARCHAR(30) DEFAULT NULL,
+  `ice`         VARCHAR(50) DEFAULT NULL,
+  `rccm`        VARCHAR(50) DEFAULT NULL,
+  `isf`         VARCHAR(50) DEFAULT NULL,
+  `nid`         VARCHAR(100) DEFAULT NULL,
+  `token`       VARCHAR(255) DEFAULT NULL,
+  `port`        VARCHAR(10) DEFAULT NULL,
+  `created_at`  DATETIME DEFAULT CURRENT_TIMESTAMP,
+  `updated_at`  DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Insert default company info row
+INSERT INTO `company_info` (name, address, email, pdv, phone, ice, rccm, isf, nid, token, port)
+VALUES (NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+
+-- ----------------------------------------------------------------------------
+-- 1.3 Table `shops` (boutiques)
 -- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `shops` (
   `id`          INT NOT NULL AUTO_INCREMENT,
@@ -27,15 +74,18 @@ CREATE TABLE IF NOT EXISTS `shops` (
   `ice`         VARCHAR(50) DEFAULT NULL,
   `rccm`        VARCHAR(50) DEFAULT NULL,
   `isf`         VARCHAR(50) DEFAULT NULL,
+  `service_type_id` INT DEFAULT NULL,
   `actif`       TINYINT(1) NOT NULL DEFAULT 1,
   `created_at`  DATETIME DEFAULT CURRENT_TIMESTAMP,
   `updated_at`  DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uq_shop_code` (`code`)
+  UNIQUE KEY `uq_shop_code` (`code`),
+  KEY `idx_shop_service_type` (`service_type_id`),
+  CONSTRAINT `fk_shop_service_type` FOREIGN KEY (`service_type_id`) REFERENCES `service_types`(`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- ----------------------------------------------------------------------------
--- 1.2 Table `audit_logs` (journal d'activité)
+-- 1.4 Table `audit_logs` (journal d'activité)
 -- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `audit_logs` (
   `id`          INT NOT NULL AUTO_INCREMENT,
@@ -55,7 +105,7 @@ CREATE TABLE IF NOT EXISTS `audit_logs` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- ----------------------------------------------------------------------------
--- 1.3 Table `login_attempts` (rate limiting)
+-- 1.5 Table `login_attempts` (rate limiting)
 -- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `login_attempts` (
   `id`           INT NOT NULL AUTO_INCREMENT,
@@ -69,7 +119,7 @@ CREATE TABLE IF NOT EXISTS `login_attempts` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- ----------------------------------------------------------------------------
--- 1.4 Table `otp_codes` (double authentification OTP)
+-- 1.6 Table `otp_codes` (double authentification OTP)
 -- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `otp_codes` (
   `id`          INT NOT NULL AUTO_INCREMENT,
@@ -88,7 +138,7 @@ CREATE TABLE IF NOT EXISTS `otp_codes` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- ----------------------------------------------------------------------------
--- 1.5 Table `password_resets` (récupération mot de passe)
+-- 1.7 Table `password_resets` (récupération mot de passe)
 -- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `password_resets` (
   `id`          INT NOT NULL AUTO_INCREMENT,
@@ -106,7 +156,7 @@ CREATE TABLE IF NOT EXISTS `password_resets` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- ----------------------------------------------------------------------------
--- 1.6 Table `notifications` (alertes internes)
+-- 1.8 Table `notifications` (alertes internes)
 -- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `notifications` (
   `id`          INT NOT NULL AUTO_INCREMENT,

@@ -38,15 +38,16 @@ class ShopController extends Controller
         }
 
         $id = $shopModel->create([
-            'nom'       => $nom,
-            'code'      => strtoupper($code),
-            'adresse'   => $this->sanitaze($input['adresse'] ?? ''),
-            'telephone' => $this->sanitaze($input['telephone'] ?? ''),
-            'email'     => $this->sanitaze($input['email'] ?? ''),
-            'ice'       => $this->sanitaze($input['ice'] ?? ''),
-            'rccm'      => $this->sanitaze($input['rccm'] ?? ''),
-            'isf'       => $this->sanitaze($input['isf'] ?? ''),
-            'actif'     => (int)($input['actif'] ?? 1)
+            'nom'             => $nom,
+            'code'            => strtoupper($code),
+            'adresse'         => $this->sanitaze($input['adresse'] ?? ''),
+            'telephone'       => $this->sanitaze($input['telephone'] ?? ''),
+            'email'           => $this->sanitaze($input['email'] ?? ''),
+            'ice'             => $this->sanitaze($input['ice'] ?? ''),
+            'rccm'            => $this->sanitaze($input['rccm'] ?? ''),
+            'isf'             => $this->sanitaze($input['isf'] ?? ''),
+            'service_type_id' => isset($input['service_type_id']) ? (int)$input['service_type_id'] : null,
+            'actif'           => (int)($input['actif'] ?? 1)
         ]);
 
         $this->logAudit('create', 'shop', $id, ['nom' => $nom, 'code' => $code]);
@@ -75,10 +76,10 @@ class ShopController extends Controller
         }
 
         $data = [];
-        $allowed = ['nom', 'code', 'adresse', 'telephone', 'email', 'ice', 'rccm', 'isf', 'actif'];
+        $allowed = ['nom', 'code', 'adresse', 'telephone', 'email', 'ice', 'rccm', 'isf', 'service_type_id', 'actif'];
         foreach ($allowed as $field) {
             if (isset($input[$field])) {
-                $data[$field] = $this->sanitaze($input[$field]);
+                $data[$field] = $field === 'service_type_id' ? (int)$input[$field] : $this->sanitaze($input[$field]);
             }
         }
 

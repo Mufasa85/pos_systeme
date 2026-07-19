@@ -33,18 +33,19 @@ class Shop
 
     public function create($data)
     {
-        $sql = "INSERT INTO shops (nom, code, adresse, telephone, email, ice, rccm, isf, actif)
-                VALUES (:nom, :code, :adresse, :telephone, :email, :ice, :rccm, :isf, :actif)";
+        $sql = "INSERT INTO shops (nom, code, adresse, telephone, email, ice, rccm, isf, service_type_id, actif)
+                VALUES (:nom, :code, :adresse, :telephone, :email, :ice, :rccm, :isf, :service_type_id, :actif)";
         $this->db->query($sql, [
-            ':nom'       => $data['nom'],
-            ':code'      => $data['code'],
-            ':adresse'   => $data['adresse'] ?? null,
-            ':telephone' => $data['telephone'] ?? null,
-            ':email'     => $data['email'] ?? null,
-            ':ice'       => $data['ice'] ?? null,
-            ':rccm'      => $data['rccm'] ?? null,
-            ':isf'       => $data['isf'] ?? null,
-            ':actif'     => $data['actif'] ?? 1
+            ':nom'             => $data['nom'],
+            ':code'            => $data['code'],
+            ':adresse'         => $data['adresse'] ?? null,
+            ':telephone'       => $data['telephone'] ?? null,
+            ':email'           => $data['email'] ?? null,
+            ':ice'             => $data['ice'] ?? null,
+            ':rccm'            => $data['rccm'] ?? null,
+            ':isf'             => $data['isf'] ?? null,
+            ':service_type_id' => $data['service_type_id'] ?? null,
+            ':actif'           => $data['actif'] ?? 1
         ]);
         return $this->db->lastInsertId();
     }
@@ -54,7 +55,7 @@ class Shop
         $fields = [];
         $params = [':id' => $id];
 
-        $allowed = ['nom', 'code', 'adresse', 'telephone', 'email', 'ice', 'rccm', 'isf', 'actif'];
+        $allowed = ['nom', 'code', 'adresse', 'telephone', 'email', 'ice', 'rccm', 'isf', 'service_type_id', 'actif'];
         foreach ($allowed as $field) {
             if (isset($data[$field])) {
                 $fields[] = "$field = :$field";

@@ -21,12 +21,26 @@ if (empty($_SESSION['reset_verified'])) {
     #splash-loader {
       position: fixed; inset: 0; z-index: 9999;
       display: flex; flex-direction: column; align-items: center; justify-content: center;
-      background: linear-gradient(270deg, #0D0552, #1a0a6e, #00e5ff, #30E9FE, #0D0552);
-      background-size: 400% 400%; animation: gradientMove 8s ease infinite;
+      background: #0D0552;
       transition: opacity .6s ease, visibility .6s ease;
+      overflow: hidden;
+    }
+    #splash-loader::before, #splash-loader::after {
+      content: ''; position: absolute; border-radius: 50%; filter: blur(60px);
+      animation: orbPulse 4s ease-in-out infinite;
+    }
+    #splash-loader::before {
+      width: 500px; height: 500px; top: -100px; left: -100px;
+      background: radial-gradient(circle, rgba(48,233,254,0.6) 0%, rgba(0,229,255,0.2) 50%, transparent 70%);
+    }
+    #splash-loader::after {
+      width: 450px; height: 450px; bottom: -80px; right: -80px;
+      background: radial-gradient(circle, rgba(0,229,255,0.5) 0%, rgba(48,233,254,0.15) 50%, transparent 70%);
+      animation-delay: 3s;
     }
     #splash-loader.hidden { opacity: 0; visibility: hidden; }
     .splash-icon {
+      position: relative; z-index: 1;
       width: 80px; height: 80px; border-radius: 20px;
       background: rgba(255,255,255,0.1); backdrop-filter: blur(10px);
       display: flex; align-items: center; justify-content: center;
@@ -34,9 +48,10 @@ if (empty($_SESSION['reset_verified'])) {
       border: 2px solid rgba(255,255,255,0.2);
     }
     .splash-icon svg { stroke: #fff; }
-    .splash-title { font-family:'Inter',sans-serif; font-size:1.5rem; font-weight:700; color:#fff; margin-bottom:.5rem; }
-    .splash-subtitle { font-family:'Inter',sans-serif; font-size:.875rem; color:rgba(255,255,255,0.6); margin-bottom:2rem; }
+    .splash-title { position: relative; z-index: 1; font-family:'Inter',sans-serif; font-size:1.5rem; font-weight:700; color:#fff; margin-bottom:.5rem; }
+    .splash-subtitle { position: relative; z-index: 1; font-family:'Inter',sans-serif; font-size:.875rem; color:rgba(255,255,255,0.6); margin-bottom:2rem; }
     .splash-spinner {
+      position: relative; z-index: 1;
       width: 40px; height: 40px; border: 3px solid rgba(255,255,255,0.15);
       border-top-color: #30E9FE; border-radius: 50%; animation: spin .8s linear infinite;
     }
@@ -45,34 +60,62 @@ if (empty($_SESSION['reset_verified'])) {
       0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(48,233,254,0.4); }
       50% { transform: scale(1.05); box-shadow: 0 0 30px 10px rgba(48,233,254,0.2); }
     }
-    @keyframes gradientMove {
-      0% { background-position: 0% 50%; }
-      50% { background-position: 100% 50%; }
-      100% { background-position: 0% 50%; }
+    @keyframes orbPulse {
+      0% { opacity: 0.5; transform: scale(1) translate(0, 0); }
+      25% { opacity: 0.8; transform: scale(1.1) translate(30px, 20px); }
+      50% { opacity: 1; transform: scale(1.2) translate(-20px, 40px); }
+      75% { opacity: 0.7; transform: scale(1.05) translate(-30px, -10px); }
+      100% { opacity: 0.5; transform: scale(1) translate(0, 0); }
     }
-    .login-page { position: relative; overflow: hidden; }
+    .login-page { position: relative; overflow: hidden; background: #0D0552; }
     .login-page::before {
-      content: ''; position: absolute; inset: 0;
-      background: linear-gradient(270deg, #0D0552cc, #1a0a6eaa, #00e5ff88, #30E9FEaa, #0D0552cc);
-      background-size: 400% 400%; animation: gradientMove 10s ease infinite; z-index: 0;
+      content: ''; position: absolute;
+      width: 600px; height: 600px; top: -150px; right: -150px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(48,233,254,0.5) 0%, rgba(0,229,255,0.15) 50%, transparent 70%);
+      filter: blur(50px); animation: orbFloat1 5s ease-in-out infinite; z-index: 0;
     }
     .login-page::after {
-      content: ''; position: absolute; inset: 0;
+      content: ''; position: absolute;
+      width: 550px; height: 550px; bottom: -150px; left: -150px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(26,10,110,0.9) 0%, rgba(0,229,255,0.3) 50%, transparent 70%);
+      filter: blur(50px); animation: orbFloat2 6s ease-in-out infinite; z-index: 0;
+    }
+    .login-page .bg-pattern {
+      position: absolute; inset: 0;
       background: url("/assets/img/pattern_h.png") center / cover no-repeat;
-      opacity: 0.45; z-index: 1;
+      opacity: 0.35; z-index: 1;
+    }
+    @keyframes orbFloat1 {
+      0% { opacity: 0.7; transform: scale(1) translate(0, 0); }
+      25% { opacity: 0.9; transform: scale(1.05) translate(-40px, 30px); }
+      50% { opacity: 1; transform: scale(1.15) translate(-60px, 60px); }
+      75% { opacity: 0.8; transform: scale(1.1) translate(-20px, 40px); }
+      100% { opacity: 0.7; transform: scale(1) translate(0, 0); }
+    }
+    @keyframes orbFloat2 {
+      0% { opacity: 0.6; transform: scale(1) translate(0, 0); }
+      25% { opacity: 0.8; transform: scale(1.1) translate(40px, -20px); }
+      50% { opacity: 1; transform: scale(1.2) translate(60px, -50px); }
+      75% { opacity: 0.9; transform: scale(1.05) translate(30px, -30px); }
+      100% { opacity: 0.6; transform: scale(1) translate(0, 0); }
     }
     .login-card {
       position: relative; z-index: 2;
       background: rgba(255,255,255,0.95) !important;
-      box-shadow: 0 20px 50px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.04) !important;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.15), 0 0 0 1px rgba(255,255,255,0.1) !important;
       border-radius: 16px !important;
     }
     .login-page .btn-primary {
-      background: linear-gradient(135deg, #0D0552, #00e5ff, #30E9FE) !important;
-      background-size: 200% 200% !important; animation: gradientMove 4s ease infinite !important;
-      border: none !important; color: #fff !important; transition: transform .2s;
+      background: linear-gradient(135deg, #0D0552, #0891B2, #30E9FE) !important;
+      border: none !important; color: #fff !important;
+      transition: transform .2s, box-shadow .2s;
     }
-    .login-page .btn-primary:hover { transform: translateY(-1px); }
+    .login-page .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 25px rgba(48,233,254,0.3);
+    }
   </style>
 </head>
 <body>
@@ -89,6 +132,7 @@ if (empty($_SESSION['reset_verified'])) {
   </div>
 
   <div class="login-page" style="opacity:0;transition:opacity .4s ease .2s">
+    <div class="bg-pattern"></div>
     <div class="login-card">
       <div class="login-header">
         <div class="login-logo">

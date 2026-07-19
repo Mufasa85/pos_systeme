@@ -7,6 +7,8 @@ use App\Models\User;
 use App\Models\Product;
 use App\Models\Sale;
 use App\Models\Settings;
+use App\Models\Shop;
+use App\Models\ServiceType;
 use App\Models\Notification;
 use App\controllers\Controller;
 
@@ -32,9 +34,27 @@ class PageController extends Controller
         $page = $view;
         // Charger le nom du magasin et le type de service pour toutes les pages
         $settingsModel = new Settings();
+        $shopModel = new Shop();
+        $serviceTypeModel = new ServiceType();
         $shopId = $this->getShopId();
-        $data['storeName'] = $settingsModel->get('store_name', $shopId) ?? 'Mon Magasin';
-        $data['serviceType'] = $settingsModel->get('service_type', $shopId) ?? 'Caisse';
+        
+        // Get shop name from shops table instead of settings
+        $storeName = 'Mon Magasin'; // default
+        $serviceType = 'Caisse'; // default
+        if ($shopId) {
+            $shop = $shopModel->findById($shopId);
+            if ($shop) {
+                $storeName = $shop['nom'] ?? 'Mon Magasin';
+                if (!empty($shop['service_type_id'])) {
+                    $serviceTypeData = $serviceTypeModel->findById($shop['service_type_id']);
+                    if ($serviceTypeData) {
+                        $serviceType = $serviceTypeData['name'];
+                    }
+                }
+            }
+        }
+        $data['storeName'] = $storeName;
+        $data['serviceType'] = $serviceType;
         $data['currentRole'] = $_SESSION['role'] ?? '';
         $data['currentShopId'] = $shopId;
 

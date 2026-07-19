@@ -10,6 +10,8 @@ use App\Controllers\SettingsController;
 use App\Controllers\ClientController;
 use App\Controllers\TaxController;
 use App\Controllers\ShopController;
+use App\Controllers\ServiceTypeController;
+use App\Controllers\CompanyInfoController;
 use App\Controllers\NotificationController;
 use App\Controllers\AuthController;
 use App\Core\Router;
@@ -25,9 +27,20 @@ Router::post("/api/auth/reset-password", [AuthController::class, 'resetPassword'
 // ── Shops (super_admin only) ─────────────────────────────────
 Router::get("/api/shops", [ShopController::class, 'index']);
 Router::post("/api/shops", [ShopController::class, 'create']);
+Router::put("/api/shops/[i:id]", [ShopController::class, 'update']);
 Router::post("/api/shops/update/[i:id]", [ShopController::class, 'update']);
 Router::post("/api/shops/delete/[i:id]", [ShopController::class, 'delete']);
 Router::get("/api/shops/stats/[i:id]", [ShopController::class, 'stats']);
+
+// ── Service Types (super_admin/admin) ─────────────────────────
+Router::get("/api/service-types", [ServiceTypeController::class, 'index']);
+Router::post("/api/service-types", [ServiceTypeController::class, 'create']);
+Router::post("/api/service-types/update/[i:id]", [ServiceTypeController::class, 'update']);
+Router::post("/api/service-types/delete/[i:id]", [ServiceTypeController::class, 'delete']);
+
+// ── Company Info (super_admin only) ───────────────────────────
+Router::get("/api/company-info", [CompanyInfoController::class, 'index']);
+Router::post("/api/company-info", [CompanyInfoController::class, 'update']);
 
 // ── Notifications ────────────────────────────────────────────
 Router::get("/api/notifications", [NotificationController::class, 'index']);

@@ -283,3 +283,22 @@ Ce projet est libre d’utilisation pour des besoins éducatifs ou commerciaux.
 │
 └── /config
     └── config.php
+
+
+
+    j'ai 4 probleme :
+1 ) j'aimerais que chaque magasin puissent avoir son type de service  exemple: magasin 1 type service Caisse qui s'affiche au sidebar ,magasin 2 type service Quincaillerie qui s'affiche au sidebar ,magasin 3 type service  Restaurant qui s'affiche au sidebar ,magasin 4 type service Reparation  qui s'affiche au sidebar  ,magasin 5 type service   qui s'affiche au sidebar, y'avait une simulation je veux qu'ils soit dynamique 
+                    <option value="Caisse">Caisse</option>
+                    <option value="Quincaillerie">Quincaillerie</option>
+                    <option value="Restaurant">Restaurant</option>
+                    <option value="Reparation">Reparation</option>
+                    <option value="Livraison">Livraison</option>
+                    <option value="Bijouterie">Bijouterie</option>
+                    <option value="Coiffure">Coiffure</option> 
+
+2 ) tout les type de service sont ajouter, enregistrer,modifier par le super admin ou l'admin et le super admin ou l'admin choisissent simplement pour chaque boutique un service bien defini 
+
+3 ) et dans  Gestion des utilisateurs chaque admin voit seulement les vendeurs de sa boutique pas les vendeur des autres boutique mais le super admin voit tout le monde
+
+4 ) j'ai remarqué dans Gestion des Boutiques le super admin peut pas modifier les informations des boutiques c'est pas bien, il doit modifiers les informatiosn de chaque boutique en cas de demenagement etc, et dans le modale nouvelle boutique (qui ajoute les boutique)  il doit avoir type de service 
+

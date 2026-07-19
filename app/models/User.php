@@ -25,9 +25,9 @@ class User
 
     public function all($shopId = null, $callerRole = null)
     {
-        if ($callerRole === 'admin') {
-            // Admin voit tout le monde sauf les super_admin
-            return $this->db->fetchAll("SELECT u.*, s.nom AS shop_name FROM utilisateurs u LEFT JOIN shops s ON u.shop_id = s.id WHERE u.role != 'super_admin' ORDER BY u.nom_complet ASC");
+        if ($callerRole === 'admin' && $shopId) {
+            // Admin voit uniquement les utilisateurs de sa boutique (sauf super_admin)
+            return $this->db->fetchAll("SELECT u.*, s.nom AS shop_name FROM utilisateurs u LEFT JOIN shops s ON u.shop_id = s.id WHERE u.shop_id = ? AND u.role != 'super_admin' ORDER BY u.nom_complet ASC", [$shopId]);
         }
         if ($callerRole === 'super_admin' || !$shopId) {
             // Super admin voit tout le monde

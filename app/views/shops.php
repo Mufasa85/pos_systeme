@@ -148,20 +148,29 @@
           </div>
         </div>
 
+        <!-- Section : Type de service -->
+        <div style="font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted,#94a3b8);margin-bottom:.5rem;margin-top:1rem">Type de service</div>
+        <div class="form-group" style="margin-bottom:.75rem">
+          <label style="font-size:.8rem;font-weight:600">Type de service</label>
+          <select id="shop-service-type" style="width:100%">
+            <option value="">-- Sélectionner un type --</option>
+          </select>
+        </div>
+
         <!-- Section : Infos légales -->
         <div style="font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted,#94a3b8);margin-bottom:.5rem;margin-top:1rem">Informations légales</div>
-        <div style="display:flex;gap:.75rem;margin-bottom:.75rem">
-          <div class="form-group" style="flex:1;margin:0">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.75rem">
+          <div class="form-group" style="margin:0">
             <label style="font-size:.8rem;font-weight:600">ICE</label>
-            <input type="text" id="shop-ice" placeholder="Numéro ICE">
+            <input type="text" id="shop-ice" placeholder="Numéro ICE" style="width:100%;box-sizing:border-box">
           </div>
-          <div class="form-group" style="flex:1;margin:0">
+          <div class="form-group" style="margin:0">
             <label style="font-size:.8rem;font-weight:600">RCCM</label>
-            <input type="text" id="shop-rccm" placeholder="Numéro RCCM">
+            <input type="text" id="shop-rccm" placeholder="Numéro RCCM" style="width:100%;box-sizing:border-box">
           </div>
-          <div class="form-group" style="flex:1;margin:0">
+          <div class="form-group" style="margin:0">
             <label style="font-size:.8rem;font-weight:600">ISF</label>
-            <input type="text" id="shop-isf" placeholder="Numéro ISF">
+            <input type="text" id="shop-isf" placeholder="Numéro ISF" style="width:100%;box-sizing:border-box">
           </div>
         </div>
 
@@ -189,6 +198,26 @@
 
 <script>
 const SHOPS_API = window.location.origin + '/api/shops';
+const SERVICE_TYPES_API = window.location.origin + '/api/service-types';
+
+let serviceTypes = [];
+
+async function loadServiceTypes() {
+  try {
+    const res = await fetch(SERVICE_TYPES_API);
+    serviceTypes = await res.json();
+    const select = document.getElementById('shop-service-type');
+    select.innerHTML = '<option value="">-- Sélectionner un type --</option>';
+    serviceTypes.forEach(st => {
+      const opt = document.createElement('option');
+      opt.value = st.id;
+      opt.textContent = st.name;
+      select.appendChild(opt);
+    });
+  } catch (err) {
+    console.error('Erreur chargement types de service:', err);
+  }
+}
 
 function openAddShopModal() {
   document.getElementById('shop-modal-title').innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:8px;vertical-align:middle"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>Nouvelle boutique';
@@ -209,6 +238,7 @@ function openEditShopModal(shop) {
   document.getElementById('shop-ice').value = shop.ice || '';
   document.getElementById('shop-rccm').value = shop.rccm || '';
   document.getElementById('shop-isf').value = shop.isf || '';
+  document.getElementById('shop-service-type').value = shop.service_type_id || '';
   document.getElementById('shop-actif').value = shop.actif ?? '1';
   document.getElementById('shop-error').style.display = 'none';
   document.getElementById('shop-modal').classList.add('active');
@@ -235,6 +265,7 @@ async function saveShop(e) {
     ice: document.getElementById('shop-ice').value.trim(),
     rccm: document.getElementById('shop-rccm').value.trim(),
     isf: document.getElementById('shop-isf').value.trim(),
+    service_type_id: document.getElementById('shop-service-type').value || null,
     actif: parseInt(document.getElementById('shop-actif').value)
   };
 
@@ -259,6 +290,8 @@ async function saveShop(e) {
   }
   btn.disabled = false;
 }
+
+loadServiceTypes();
 
 async function deleteShop(id) {
   if (!confirm('Supprimer cette boutique ? Cette action est irréversible.')) return;
