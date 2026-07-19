@@ -58,14 +58,37 @@ class InvoiceController extends Controller
 
         $details = $detailModel->getBySaleId($saleId);
 
-        // Charger les informations du magasin
+        // Charger les informations du shop + fallback entreprise
+        $companyInfo = (new \App\Models\CompanyInfo())->get();
+
+        $company = [
+            'name' => $companyInfo['name'] ?? 'Mon Magasin',
+            'address' => $companyInfo['address'] ?? '',
+            'phone' => $companyInfo['phone'] ?? '',
+            'email' => $companyInfo['email'] ?? '',
+            'pdv' => $companyInfo['pdv'] ?? '',
+            'ice' => $companyInfo['ice'] ?? '',
+            'rccm' => $companyInfo['rccm'] ?? '',
+            'isf' => $companyInfo['isf'] ?? ''
+        ];
+
         $storeInfo = [
-            'name' => $settingsModel->get('store_name', $shopId) ?? 'Mon Magasin',
-            'address' => $settingsModel->get('store_address', $shopId) ?? '',
-            'phone' => $settingsModel->get('store_phone', $shopId) ?? '',
-            'ice' => $settingsModel->get('store_ice', $shopId) ?? '',
-            'rccm' => $settingsModel->get('store_rccm', $shopId) ?? '',
-            'isf' => $settingsModel->get('store_isf', $shopId) ?? ''
+            // Nom
+            'name' => $settingsModel->get('store_name', $shopId) ?? $company['name'],
+            // Adresse
+            'address' => $settingsModel->get('store_address', $shopId) ?? $company['address'],
+            // Tel
+            'phone' => $settingsModel->get('store_phone', $shopId) ?? $company['phone'],
+            // Email
+            'email' => $settingsModel->get('store_email', $shopId) ?? $company['email'],
+            // PDV
+            'pdv' => $settingsModel->get('store_pdv', $shopId) ?? $company['pdv'],
+            // ID Nat (ICE)
+            'ice' => $settingsModel->get('store_ice', $shopId) ?? $company['ice'],
+            // RCCM
+            'rccm' => $settingsModel->get('store_rccm', $shopId) ?? $company['rccm'],
+            // Numero impot (ISF)
+            'isf' => $settingsModel->get('store_isf', $shopId) ?? $company['isf']
         ];
 
         // URL de base pour les liens

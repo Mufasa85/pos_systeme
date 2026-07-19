@@ -22,11 +22,16 @@
                 <?= htmlspecialchars($storeInfo['name'] ?? 'SuperMarche Express') ?>
             </div>
             <div class="store-info">
-                <div><?= htmlspecialchars($storeInfo['address'] ?? '') ?></div>
-                <div>Tel: <?= htmlspecialchars($storeInfo['phone'] ?? '') ?></div>
-                <div>ID Nat: <?= htmlspecialchars($storeInfo['ice'] ?? '') ?></div>
+                <div><strong>Adresse:</strong> <?= htmlspecialchars($storeInfo['address'] ?? '') ?></div>
+                <div><strong>Tel:</strong> <?= htmlspecialchars($storeInfo['phone'] ?? '') ?></div>
+                <div><strong>Email:</strong> <?= htmlspecialchars($storeInfo['email'] ?? '') ?></div>
+                <div><strong>Point de vente :</strong> <?= htmlspecialchars($storeInfo['pdv'] ?? '') ?></div>
+                <div><strong>ID Nat:</strong> <?= htmlspecialchars($storeInfo['ice'] ?? '') ?></div>
                 <?php if (!empty($storeInfo['isf'])): ?>
-                    <div>Numero Impot: <?= htmlspecialchars($storeInfo['isf']) ?></div>
+                    <div><strong>Numero impot:</strong> <?= htmlspecialchars($storeInfo['isf']) ?></div>
+                <?php endif; ?>
+                <?php if (!empty($storeInfo['rccm'])): ?>
+                    <div><strong>RCCM:</strong> <?= htmlspecialchars($storeInfo['rccm']) ?></div>
                 <?php endif; ?>
             </div>
 
@@ -139,7 +144,7 @@
                     <?php if (!empty($sale['dateDGI'])): ?>
                         <br> DEF Heure : <?= htmlspecialchars($sale['dateDGI']) ?>
                     <?php endif; ?>
-                    <br> ISF : <?= htmlspecialchars($storeInfo['isf'] ?? '0') ?>
+                    <br> Numero impot : <?= htmlspecialchars($storeInfo['isf'] ?? '0') ?>
                 </div>
             </div>
         <?php endif; ?>
