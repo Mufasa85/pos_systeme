@@ -78,6 +78,7 @@ class PageController extends Controller
         $data['currentShopId'] = $shopId;
 
         // Notifications non lues
+        
         try {
             $notifModel = new Notification();
             $data['unreadNotifications'] = $notifModel->getUnreadCount($_SESSION['user_id']);
