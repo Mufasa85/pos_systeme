@@ -1,9 +1,10 @@
 <?php
 
-use App\Models\Settings;
+use App\Models\CompanyInfo;
 
-$settingsModel = new Settings();
-$storeName = $settingsModel->get('store_name') ?? 'Mon Magasin';
+$companyInfoModel = new CompanyInfo();
+$companyInfo = $companyInfoModel->get();
+$companyName = $companyInfo['name'] ?? 'Mon Entreprise';
 ?>
 <!DOCTYPE html>
 <html lang="fr">
@@ -11,7 +12,7 @@ $storeName = $settingsModel->get('store_name') ?? 'Mon Magasin';
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Connexion - <?= htmlspecialchars($storeName) ?></title>
+  <title>Connexion - <?= htmlspecialchars($companyName) ?></title>
   <link rel="stylesheet" href="/assets/css/styles.css">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
@@ -187,7 +188,8 @@ $storeName = $settingsModel->get('store_name') ?? 'Mon Magasin';
         <line x1="12" y1="17" x2="12" y2="21"></line>
       </svg>
     </div>
-    <div class="splash-title"><?= htmlspecialchars($storeName) ?></div>
+    <div class="splash-title"><?= htmlspecialchars($companyName) ?></div>
+
     <div class="splash-subtitle">Chargement du système de caisse...</div>
     <div class="splash-spinner"></div>
   </div>
@@ -203,7 +205,8 @@ $storeName = $settingsModel->get('store_name') ?? 'Mon Magasin';
             <line x1="12" y1="17" x2="12" y2="21"></line>
           </svg>
         </div>
-        <h1><?= htmlspecialchars($storeName) ?></h1>
+        <h1><?= htmlspecialchars($companyName) ?></h1>
+
         <p>Connectez-vous pour accéder à la caisse</p>
       </div>
       <form id="login-form" class="login-form" action="/login" method="POST">

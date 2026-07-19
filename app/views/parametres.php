@@ -104,6 +104,8 @@
           </div>
           <?php endif; ?>
 
+<?php if (($_SESSION['role'] ?? '') !== 'super_admin'): ?>
+
           <!-- Informations Magasin -->
           <div class="card" style="padding: 1.5rem;">
             <div class="card-header" style="margin-bottom: 1.5rem; padding: 0;">
@@ -291,6 +293,8 @@
             </div>
           </div>
 
+          <?php endif; ?>
+
           <!-- Format d'impression (papier) -->
           <div class="card" style="padding: 1.5rem;">
             <div class="card-header" style="margin-bottom: 1.5rem; padding: 0;">
@@ -333,8 +337,8 @@
             </div>
           </div>
 
-          <!-- Gestion des types de service (super_admin/admin) -->
-          <?php if (($_SESSION['role'] ?? '') === 'super_admin' || ($_SESSION['role'] ?? '') === 'admin'): ?>
+          <!-- Gestion des types de service (super_admin only) -->
+          <?php if (($_SESSION['role'] ?? '') === 'super_admin'): ?>
           <div class="card" style="padding: 1.5rem;">
             <div class="card-header" style="margin-bottom: 1.5rem; padding: 0; display: flex; justify-content: space-between; align-items: center;">
               <div>

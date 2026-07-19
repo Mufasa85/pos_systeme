@@ -53,8 +53,27 @@ class PageController extends Controller
                 }
             }
         }
+        // Company info (super_admin) pour l'affichage du nom entreprise dans le layout
+        if ($this->isSuperAdmin()) {
+            try {
+                $companyInfoModel = new \App\Models\CompanyInfo();
+                $companyInfo = $companyInfoModel->get();
+                $data['companyInfo'] = $companyInfo;
+                $data['companyName'] = $companyInfo['name'] ?? 'Mon Entreprise';
+            } catch (\Exception $e) {
+                $data['companyInfo'] = ['name' => 'Mon Entreprise'];
+                $data['companyName'] = 'Mon Entreprise';
+            }
+        } else {
+            // éviter les undefined variables dans le layout
+            $data['companyInfo'] = ['name' => null];
+            $data['companyName'] = null;
+        }
+
         $data['storeName'] = $storeName;
-        $data['serviceType'] = $serviceType;
+        // Pour le super_admin, forcer le type de service affiché à 'Caisse' (brut)
+        $data['serviceType'] = $this->isSuperAdmin() ? 'Caisse' : $serviceType;
+
         $data['currentRole'] = $_SESSION['role'] ?? '';
         $data['currentShopId'] = $shopId;
 
@@ -286,7 +305,13 @@ class PageController extends Controller
         $categoryModel = new \App\Models\Category();
         $clientModel = new \App\Models\Client();
 
-        $shopId = $this->isSuperAdmin() ? null : $this->getShopId();
+        // Gestion du filtre shop_id (super_admin)
+        $filteredShopId = null;
+        if ($this->isSuperAdmin() && isset($_GET['shop_id']) && $_GET['shop_id'] !== '') {
+            $filteredShopId = (int)$_GET['shop_id'];
+        }
+
+        $shopId = $this->isSuperAdmin() ? $filteredShopId : $this->getShopId();
         $ventes = $saleModel->getAllSales($shopId);
         $produits = $productModel->getAll($shopId);
         $categories = $categoryModel->all($shopId);

@@ -4,7 +4,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title id="page-title-base">Caisse - <?= htmlspecialchars($storeName ?? 'Mon Magasin') ?></title>
+  <?php $headerTitleName = ($_SESSION['role'] ?? '') === 'super_admin' ? ($companyName ?? ($companyInfo['name'] ?? ($storeName ?? 'Mon Magasin'))) : ($storeName ?? 'Mon Magasin'); ?>
+  <title id="page-title-base">Caisse - <?= htmlspecialchars($headerTitleName) ?></title>
+
 
   <!-- Favicon & Icons -->
   <link rel="icon" type="image/svg+xml" href="./assets/img/favicon.ico">
@@ -13,9 +15,11 @@
   <link rel="apple-touch-icon" href="./assets/img/apple-touch-icon.png">
 
   <!-- Meta Tags -->
-  <meta name="description" content="Système de caisse POS - <?= htmlspecialchars($storeName ?? 'Mon Magasin') ?> - Gestion des ventes, recharges et factures">
-  <meta name="keywords" content="caisse, POS, vente, facturation, <?= htmlspecialchars($storeName ?? 'magasin') ?>">
-  <meta name="author" content="<?= htmlspecialchars($storeName ?? 'Mon Magasin') ?>">
+  <?php $headerTitleName = ($_SESSION['role'] ?? '') === 'super_admin' ? ($companyName ?? ($companyInfo['name'] ?? ($storeName ?? 'Mon Magasin'))) : ($storeName ?? 'Mon Magasin'); ?>
+  <meta name="description" content="Système de caisse POS - <?= htmlspecialchars($headerTitleName) ?> - Gestion des ventes, recharges et factures">
+  <meta name="keywords" content="caisse, POS, vente, facturation, <?= htmlspecialchars($headerTitleName) ?>">
+  <meta name="author" content="<?= htmlspecialchars($headerTitleName) ?>">
+
   <meta name="robots" content="noindex, nofollow">
 
   <!-- Open Graph / Facebook -->
@@ -70,7 +74,9 @@
           <line x1="3" y1="18" x2="21" y2="18"></line>
         </svg>
       </button>
-      <h1 id="mobile-store-name"><?= htmlspecialchars($storeName ?? 'Mon Magasin') ?></h1>
+      <?php $headerTitleName = ($_SESSION['role'] ?? '') === 'super_admin' ? ($companyName ?? ($companyInfo['name'] ?? ($storeName ?? 'Mon Magasin'))) : ($storeName ?? 'Mon Magasin'); ?>
+      <h1 id="mobile-store-name"><?= htmlspecialchars($headerTitleName) ?></h1>
+
       <div style="display:flex;align-items:center;gap:8px">
         <a href="#" id="mobile-notif-bell" class="notif-bell-trigger" style="position:relative;color:inherit;text-decoration:none" title="Notifications">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -103,7 +109,17 @@
             <line x1="12" y1="17" x2="12" y2="21"></line>
           </svg>
         </div>
-        <span id="sidebar-store-name"><?= htmlspecialchars($storeName ?? 'Mon Magasin') ?></span>
+        <?php
+        $role = $_SESSION['role'] ?? '';
+        if ($role === 'super_admin') {
+          // Utiliser exactement la même requête que dans le header/login (companyName / companyInfo / storeName)
+          $sidebarStoreName = ($companyName ?? ($companyInfo['name'] ?? ($storeName ?? 'Mon Magasin')));
+        } else {
+          $sidebarStoreName = ($storeName ?? 'Mon Magasin');
+        }
+        ?>
+        <span id="sidebar-store-name"><?= htmlspecialchars($sidebarStoreName) ?></span>
+
         <button id="close-sidebar" class="close-sidebar">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="18" y1="6" x2="6" y2="18"></line>

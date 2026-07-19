@@ -17,8 +17,39 @@ class SettingsController extends Controller
     // GET /api/settings - Récupérer tous les paramètres
     public function index()
     {
-        $shopId = $this->isSuperAdmin() ? null : $this->getShopId();
-        $this->json($this->settingsModel->getAll($shopId));
+        // Super admin: paramètres globaux via table settings
+        if ($this->isSuperAdmin()) {
+            $this->json($this->settingsModel->getAll(null));
+            return;
+        }
+
+        // Admin: les infos Magasin/POS doivent venir de la table shops
+        $shopId = $this->getShopId();
+        $shop = (new \App\Models\Shop())->findById($shopId);
+
+        if (!$shop) {
+            $this->status(404)->json(['error' => 'Boutique non trouvée']);
+            return;
+        }
+
+        // On renvoie uniquement les clés attendues par la vue JS
+        $this->json([
+            // Informations magasin
+            'store_name' => $shop['nom'] ?? '',
+            'store_address' => $shop['adresse'] ?? '',
+            'store_phone' => $shop['telephone'] ?? '',
+            'store_email' => $shop['email'] ?? '',
+            'store_ice' => $shop['ice'] ?? '',
+            'store_rccm' => $shop['rccm'] ?? '',
+            'store_isf' => $shop['isf'] ?? '',
+
+            // Informations POS
+            // (ces champs existaient dans settings; ici on garde la compatibilité)
+            'nid' => $this->settingsModel->get('nid', $shopId) ?? '',
+            'token' => $this->settingsModel->get('token', $shopId) ?? '',
+            'port' => $this->settingsModel->get('port', $shopId) ?? '',
+            'service_type' => $shop['service_type_id'] ?? 'Caisse'
+        ]);
     }
 
     // POST /api/settings - Mettre à jour les paramètres
