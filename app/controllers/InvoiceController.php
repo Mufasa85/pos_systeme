@@ -21,7 +21,8 @@ class InvoiceController extends Controller
         $page = $view;
         // Charger le nom du magasin pour toutes les pages
         $settingsModel = new Settings();
-        $data['storeName'] = $settingsModel->get('store_name') ?? 'Mon Magasin';
+        $shopId = $this->getShopId();
+        $data['storeName'] = $settingsModel->get('store_name', $shopId) ?? 'Mon Magasin';
         extract($data);
         require_once dirname(__DIR__) . DIRECTORY_SEPARATOR . 'views/layout/header.php';
         require_once dirname(__DIR__) . DIRECTORY_SEPARATOR . 'views/' . $view . '.php';
@@ -45,6 +46,7 @@ class InvoiceController extends Controller
         $saleModel = new Sale();
         $detailModel = new SaleDetail();
         $settingsModel = new Settings();
+        $shopId = $this->getShopId();
 
         $sale = $saleModel->exist($saleId);
         if (!$sale) {
@@ -56,14 +58,37 @@ class InvoiceController extends Controller
 
         $details = $detailModel->getBySaleId($saleId);
 
-        // Charger les informations du magasin
+        // Charger les informations du shop + fallback entreprise
+        $companyInfo = (new \App\Models\CompanyInfo())->get();
+
+        $company = [
+            'name' => $companyInfo['name'] ?? 'Mon Magasin',
+            'address' => $companyInfo['address'] ?? '',
+            'phone' => $companyInfo['phone'] ?? '',
+            'email' => $companyInfo['email'] ?? '',
+            'pdv' => $companyInfo['pdv'] ?? '',
+            'ice' => $companyInfo['ice'] ?? '',
+            'rccm' => $companyInfo['rccm'] ?? '',
+            'isf' => $companyInfo['isf'] ?? ''
+        ];
+
         $storeInfo = [
-            'name' => $settingsModel->get('store_name') ?? 'Mon Magasin',
-            'address' => $settingsModel->get('store_address') ?? '',
-            'phone' => $settingsModel->get('store_phone') ?? '',
-            'ice' => $settingsModel->get('store_ice') ?? '',
-            'rccm' => $settingsModel->get('store_rccm') ?? '',
-            'isf' => $settingsModel->get('store_isf') ?? ''
+            // Nom
+            'name' => $settingsModel->get('store_name', $shopId) ?? $company['name'],
+            // Adresse
+            'address' => $settingsModel->get('store_address', $shopId) ?? $company['address'],
+            // Tel
+            'phone' => $settingsModel->get('store_phone', $shopId) ?? $company['phone'],
+            // Email
+            'email' => $settingsModel->get('store_email', $shopId) ?? $company['email'],
+            // PDV
+            'pdv' => $settingsModel->get('store_pdv', $shopId) ?? $company['pdv'],
+            // ID Nat (ICE)
+            'ice' => $settingsModel->get('store_ice', $shopId) ?? $company['ice'],
+            // RCCM
+            'rccm' => $settingsModel->get('store_rccm', $shopId) ?? $company['rccm'],
+            // Numero impot (ISF)
+            'isf' => $settingsModel->get('store_isf', $shopId) ?? $company['isf']
         ];
 
         // URL de base pour les liens
@@ -106,6 +131,7 @@ class InvoiceController extends Controller
         $saleModel = new Sale();
         $detailModel = new SaleDetail();
         $settingsModel = new Settings();
+        $shopId = $this->getShopId();
 
         // Rechercher la vente par numéro de facture
         $sale = $saleModel->findByInvoiceNumber($invoiceRef);
@@ -129,12 +155,12 @@ class InvoiceController extends Controller
 
         // Charger les informations du magasin
         $storeInfo = [
-            'name' => $settingsModel->get('store_name') ?? 'Mon Magasin',
-            'address' => $settingsModel->get('store_address') ?? '',
-            'phone' => $settingsModel->get('store_phone') ?? '',
-            'ice' => $settingsModel->get('store_ice') ?? '',
-            'rccm' => $settingsModel->get('store_rccm') ?? '',
-            'isf' => $settingsModel->get('store_isf') ?? ''
+            'name' => $settingsModel->get('store_name', $shopId) ?? 'Mon Magasin',
+            'address' => $settingsModel->get('store_address', $shopId) ?? '',
+            'phone' => $settingsModel->get('store_phone', $shopId) ?? '',
+            'ice' => $settingsModel->get('store_ice', $shopId) ?? '',
+            'rccm' => $settingsModel->get('store_rccm', $shopId) ?? '',
+            'isf' => $settingsModel->get('store_isf', $shopId) ?? ''
         ];
 
         // URL de base pour les liens
@@ -173,6 +199,7 @@ class InvoiceController extends Controller
         $saleModel = new Sale();
         $detailModel = new SaleDetail();
         $settingsModel = new Settings();
+        $shopId = $this->getShopId();
 
         $sale = $saleModel->exist($saleId);
         if (!$sale) {
@@ -194,12 +221,12 @@ class InvoiceController extends Controller
 
         // Charger les informations du magasin
         $storeInfo = [
-            'name' => $settingsModel->get('store_name') ?? 'Mon Magasin',
-            'address' => $settingsModel->get('store_address') ?? '',
-            'phone' => $settingsModel->get('store_phone') ?? '',
-            'ice' => $settingsModel->get('store_ice') ?? '',
-            'rccm' => $settingsModel->get('store_rccm') ?? '',
-            'isf' => $settingsModel->get('store_isf') ?? ''
+            'name' => $settingsModel->get('store_name', $shopId) ?? 'Mon Magasin',
+            'address' => $settingsModel->get('store_address', $shopId) ?? '',
+            'phone' => $settingsModel->get('store_phone', $shopId) ?? '',
+            'ice' => $settingsModel->get('store_ice', $shopId) ?? '',
+            'rccm' => $settingsModel->get('store_rccm', $shopId) ?? '',
+            'isf' => $settingsModel->get('store_isf', $shopId) ?? ''
         ];
 
         // Définir l'URL de la facture publique
@@ -239,6 +266,7 @@ class InvoiceController extends Controller
 
         $saleModel = new Sale();
         $settingsModel = new Settings();
+        $shopId = $this->getShopId();
 
         $sale = $saleModel->exist($saleId);
         if (!$sale) {
@@ -250,7 +278,7 @@ class InvoiceController extends Controller
         $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";
         $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
         $invoiceUrl = $protocol . '://' . $host . '/facture?ref=' . $sale['numero_facture'];
-        $storeName = $settingsModel->get('store_name') ?? 'Mon Magasin';
+        $storeName = $settingsModel->get('store_name', $shopId) ?? 'Mon Magasin';
 
         // Construire le message
         $message = "{$storeName}\n";
@@ -286,6 +314,7 @@ class InvoiceController extends Controller
         $saleModel = new Sale();
         $detailModel = new SaleDetail();
         $settingsModel = new Settings();
+        $shopId = $this->getShopId();
 
         $sale = $saleModel->exist($saleId);
         if (!$sale) {
@@ -297,12 +326,12 @@ class InvoiceController extends Controller
         $details = $detailModel->getBySaleId($saleId);
 
         $storeInfo = [
-            'name' => $settingsModel->get('store_name') ?? 'Mon Magasin',
-            'address' => $settingsModel->get('store_address') ?? '',
-            'phone' => $settingsModel->get('store_phone') ?? '',
-            'ice' => $settingsModel->get('store_ice') ?? '',
-            'rccm' => $settingsModel->get('store_rccm') ?? '',
-            'isf' => $settingsModel->get('store_isf') ?? ''
+            'name' => $settingsModel->get('store_name', $shopId) ?? 'Mon Magasin',
+            'address' => $settingsModel->get('store_address', $shopId) ?? '',
+            'phone' => $settingsModel->get('store_phone', $shopId) ?? '',
+            'ice' => $settingsModel->get('store_ice', $shopId) ?? '',
+            'rccm' => $settingsModel->get('store_rccm', $shopId) ?? '',
+            'isf' => $settingsModel->get('store_isf', $shopId) ?? ''
         ];
 
         // Générer le contenu HTML de la facture

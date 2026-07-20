@@ -15,8 +15,8 @@ class Sale
 
     public function create($data)
     {
-        $sql = "INSERT INTO ventes (numero_facture, client_id, sous_total_ht, tva, total, payments, vendeur_id, date, dateDGI, qrCode, codeDEFDGI, counters, nim, comment, service) 
-                VALUES (:numero_facture, :client_id, :sous_total_ht, :tva, :total, :payments, :vendeur_id, :date, :dateDGI, :qrCode, :codeDEFDGI, :counters, :nim, :comment, :service)";
+        $sql = "INSERT INTO ventes (numero_facture, client_id, sous_total_ht, tva, total, payments, vendeur_id, shop_id, date, dateDGI, qrCode, codeDEFDGI, counters, nim, comment, service) 
+                VALUES (:numero_facture, :client_id, :sous_total_ht, :tva, :total, :payments, :vendeur_id, :shop_id, :date, :dateDGI, :qrCode, :codeDEFDGI, :counters, :nim, :comment, :service)";
         $this->db->query($sql, [
             ':numero_facture' => $data['numero_facture'],
             ':client_id'      => $data['client_id'] ?? null,
@@ -25,6 +25,7 @@ class Sale
             ':total'          => $data['total'],
             ':payments'       => isset($data['payments']) ? json_encode($data['payments']) : null,
             ':vendeur_id'     => $data['vendeur_id'],
+            ':shop_id'        => $data['shop_id'] ?? null,
             ':date'           => $data['date'],
             ':dateDGI'        => $data['dateDGI'] ?? null,
             ':qrCode'         => $data['qrCode'] ?? null,
@@ -37,8 +38,14 @@ class Sale
         return $this->db->getConnection()->lastInsertId();
     }
 
-    public function getAllSales()
+    public function getAllSales($shopId = null)
     {
+        $where = '';
+        $params = [];
+        if ($shopId) {
+            $where = 'WHERE v.shop_id = ?';
+            $params[] = $shopId;
+        }
         $sql = "SELECT v.*, u.nom_complet as nom_vendeur, 
                        c.nom_client, c.code_client, c.numero as client_numero, c.nif as client_nif,
                        tc.code as client_type_code
@@ -46,8 +53,9 @@ class Sale
                  LEFT JOIN utilisateurs u ON v.vendeur_id = u.id 
                  LEFT JOIN clients c ON v.client_id = c.id
                  LEFT JOIN type_client tc ON c.type_client_id = tc.id
+                 $where
                  ORDER BY v.date DESC";
-        return $this->db->fetchAll($sql);
+        return $this->db->fetchAll($sql, $params);
     }
 
     public function generateInvoiceNumber()
@@ -93,5 +101,41 @@ class Sale
                 LEFT JOIN utilisateurs u ON v.vendeur_id = u.id 
                 WHERE v.numero_facture = ?";
         return $this->db->fetch($sql, [$invoiceNumber]);
+    }
+
+    public function searchArchive($shopId = null, $limit = 100, $offset = 0)
+    {
+        $where = '';
+        $params = [];
+        if ($shopId) {
+            $where = 'WHERE va.shop_id = ?';
+            $params[] = $shopId;
+        }
+        $params[] = (int)$limit;
+        $params[] = (int)$offset;
+
+        $sql = "SELECT va.*, u.nom_complet as nom_vendeur,
+                       c.nom_client, c.code_client
+                FROM ventes_archive va
+                LEFT JOIN utilisateurs u ON va.vendeur_id = u.id
+                LEFT JOIN clients c ON va.client_id = c.id
+                $where
+                ORDER BY va.date DESC
+                LIMIT ? OFFSET ?";
+        return $this->db->fetchAll($sql, $params);
+    }
+
+    public function delete($id)
+    {
+        return $this->db->execute("DELETE FROM ventes WHERE id = ?", [$id]);
+    }
+
+    public function getDetailsBySaleId($saleId)
+    {
+        $sql = "SELECT dv.*, p.nom as produit_nom, p.code_barres, p.stock
+                FROM details_vente dv
+                LEFT JOIN produits p ON dv.produit_id = p.id
+                WHERE dv.vente_id = ?";
+        return $this->db->fetchAll($sql, [$saleId]);
     }
 }

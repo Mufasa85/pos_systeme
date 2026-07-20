@@ -17,20 +17,14 @@ class TaxController extends Controller
     // GET /api/taxes - Récupérer toutes les taxes
     public function index()
     {
-        if (!isset($_SESSION['user_id'])) {
-            self::status(401)->json(['error' => 'Non authentifié']);
-            return;
-        }
+        if (!$this->requireAuth()) return;
         $this->json($this->taxModel->getAll());
     }
 
     // POST /api/taxes - Créer une taxe
     public function create()
     {
-        if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
-            self::status(403)->json(['error' => 'Accès réservé aux administrateurs']);
-            return;
-        }
+        if (!$this->requireAdmin()) return;
 
         // Supporte application/x-www-form-urlencoded ($_POST) ou JSON (php://input)
         $raw = file_get_contents('php://input');
@@ -69,10 +63,7 @@ class TaxController extends Controller
     // POST /api/taxes/update - Modifier une taxe
     public function update()
     {
-        if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
-            self::status(403)->json(['error' => 'Accès réservé aux administrateurs']);
-            return;
-        }
+        if (!$this->requireAdmin()) return;
 
         $raw = file_get_contents('php://input');
         $json = $raw !== '' ? json_decode($raw, true) : null;
@@ -123,10 +114,7 @@ class TaxController extends Controller
     // POST /api/taxes/delete - Supprimer une taxe
     public function delete()
     {
-        if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
-            self::status(403)->json(['error' => 'Accès réservé aux administrateurs']);
-            return;
-        }
+        if (!$this->requireAdmin()) return;
 
         $raw = file_get_contents('php://input');
         $json = $raw !== '' ? json_decode($raw, true) : null;

@@ -61,10 +61,13 @@ class Router
     private static function respondNotFound()
     {
         http_response_code(404);
-        // echo json_encode([
-        //   'status' => 404,
-        // 'message' => 'Route introuvable'
-        //]);
+        $uri = $_SERVER['REQUEST_URI'] ?? '';
+        if (str_starts_with($uri, '/api/')) {
+            header('Content-Type: application/json');
+            echo json_encode(['status' => 404, 'message' => 'Route introuvable']);
+        } else {
+            require_once dirname(__DIR__) . '/views/404.php';
+        }
     }
 
 }

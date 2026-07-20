@@ -10,29 +10,29 @@ class CategoryController extends Controller
     public function index()
     {
         $categories = new Category();
-        $this->json($categories->all());
+        $shopId = $this->isSuperAdmin() ? null : $this->getShopId();
+        $this->json($categories->all($shopId));
     }
 
     public function delete()
     {
+        if (!$this->requireAdmin()) return;
+
         $category = new \App\Models\Category();
         $id = $this->sanitaze($_POST['id']);
         if ($category->exist($id)) {
             $category->deleteCategory($id);
-            echo"categorie  supprimer avec success";
+            $this->logAudit('delete', 'categorie', $id);
+            $this->json(['success' => true, 'message' => 'Catégorie supprimée avec succès']);
         } else {
-            echo "categorie inexistant error 404";
+            $this->status(404)->json(['error' => 'Catégorie inexistante']);
         }
     }
 
 
     public function create()
     {
-
-        if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
-            $this->status(403)->json(['error' => 'Accès refusé']);
-            return;
-        }
+        if (!$this->requireAdmin()) return;
 
         $name = $this->sanitaze($_POST['category'] ?? null);
         if (!$name) {
@@ -41,17 +41,14 @@ class CategoryController extends Controller
         }
 
         $categoryModel = new Category();
-        $id = $categoryModel->add($name);
+        $id = $categoryModel->add($name, $this->getShopId());
+        $this->logAudit('create', 'categorie', null, ['nom' => $name]);
         $this->json(['success' => true, 'id' => $id]);
     }
 
     public function update()
     {
-
-        if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
-            $this->status(403)->json(['error' => 'Accès refusé']);
-            return;
-        }
+        if (!$this->requireAdmin()) return;
 
         $id = $this->sanitaze($_POST['id'] ?? null);
         $name = $this->sanitaze($_POST['category'] ?? null);

@@ -98,6 +98,71 @@
         </div>
       </div>
 
+      <!-- Archives Section -->
+      <?php if (isset($_SESSION['role']) && in_array($_SESSION['role'], ['admin', 'super_admin'])): ?>
+      <div class="card" style="margin-top:1.5rem">
+        <div class="card-header" style="display:flex;justify-content:space-between;align-items:center">
+          <h3>Archives (ventes > 3 mois)</h3>
+          <button class="btn btn-small btn-secondary" onclick="loadArchives()" id="btn-load-archives">Charger les archives</button>
+        </div>
+        <div class="card-body">
+          <div id="archives-container" style="display:none">
+            <div class="table-container">
+              <table class="data-table" style="width:100%">
+                <thead>
+                  <tr>
+                    <th>N° Facture</th>
+                    <th>Date</th>
+                    <th>Vendeur</th>
+                    <th>Client</th>
+                    <th>Total</th>
+                  </tr>
+                </thead>
+                <tbody id="archives-tbody">
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div id="archives-empty" class="empty-state">Cliquez sur "Charger les archives" pour voir les ventes archivées.</div>
+        </div>
+      </div>
+      <script>
+        async function loadArchives() {
+          const btn = document.getElementById('btn-load-archives');
+          btn.disabled = true;
+          btn.textContent = 'Chargement...';
+          try {
+            const res = await fetch(APP_URL + '/api/ventes/archives');
+            const json = await res.json();
+            const archives = json.data || [];
+            const tbody = document.getElementById('archives-tbody');
+            if (archives.length === 0) {
+              tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:1rem">Aucune vente archivée</td></tr>';
+            } else {
+              tbody.innerHTML = archives.map(a => `<tr>
+                <td style="padding:.75rem">${a.numero_facture || '-'}</td>
+                <td style="padding:.75rem">${a.date ? new Date(a.date).toLocaleDateString('fr-FR') : '-'}</td>
+                <td style="padding:.75rem">${a.nom_vendeur || '-'}</td>
+                <td style="padding:.75rem">${a.nom_client || 'Anonyme'}</td>
+                <td style="padding:.75rem"><strong>${parseFloat(a.total||0).toFixed(2)} Fc</strong></td>
+              </tr>`).join('');
+            }
+            document.getElementById('archives-container').style.display = 'block';
+            document.getElementById('archives-empty').style.display = 'none';
+          } catch(e) {
+            console.error(e);
+          }
+          btn.disabled = false;
+          btn.textContent = 'Charger les archives';
+        }
+        function exportHistoryCSV() {
+          const from = document.getElementById('date-filter')?.value || '';
+          let url = APP_URL + '/api/export/ventes?from=' + (from || '<?= date("Y-m-01") ?>') + '&to=<?= date("Y-m-d") ?>';
+          window.open(url, '_blank');
+        }
+      </script>
+      <?php endif; ?>
+
       <!-- Sale Details Modal -->
       <div id="sale-details-modal" class="modal">
         <div class="modal-content receipt-modal">
