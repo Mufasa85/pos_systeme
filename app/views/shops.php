@@ -17,6 +17,25 @@
   .shop-legal { display:flex; gap:.75rem; flex-wrap:wrap; padding:0 1.25rem; margin-top:.25rem }
   .shop-legal-item { font-size:.72rem; color:var(--muted,#94a3b8); background:var(--background,#f8fafc); padding:2px 8px; border-radius:4px }
   .shop-legal-item strong { color:var(--text-secondary,#475569); margin-right:3px }
+
+  /* Responsive modal adjustments */
+  #shop-modal .modal-content { width: min(100%, 560px); max-width: 100%; }
+  #shop-modal .modal-content form { padding: 0; }
+  #shop-modal .modal-header, #shop-modal .modal-actions { padding: 1rem 1.25rem; }
+  #shop-modal .modal-actions { flex-wrap: wrap; justify-content: flex-end; gap: 0.75rem; }
+  #shop-modal .modal-actions .btn { min-width: 140px; }
+  #shop-modal .form-group input, #shop-modal .form-group select { width: 100%; }
+  #shop-modal .modal-content > div:last-child { padding-bottom: 1rem; }
+
+  @media (max-width: 680px) {
+    #shop-modal .modal-content { width: calc(100% - 1.5rem); margin: 0 auto; }
+    #shop-modal .modal-content form { padding: 0 1rem 1rem; }
+    #shop-modal .modal-header, #shop-modal .modal-actions { padding: 1rem; }
+    #shop-modal .modal-content > div:first-child { padding-top: 1rem; }
+    #shop-modal .modal-content div[style*="display:flex"] { display: block !important; }
+    #shop-modal .modal-content div[style*="grid-template-columns:1fr 1fr"] { grid-template-columns: 1fr !important; }
+    #shop-modal .modal-content div[style*="display:flex;gap:.75rem"] > .form-group { width: 100%; }
+  }
 </style>
 
 <div class="page-header">
