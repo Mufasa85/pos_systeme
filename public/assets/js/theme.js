@@ -244,14 +244,34 @@ const themes = {
 };
 
 /**
- * Apply a theme by name
- * @param {string} themeName - Name of the theme to apply
+ * Get a cache key unique per user (so different users on the same browser don't share cache)
  */
-function applyTheme(themeName) {
+function getThemeCacheKey() {
+  const userId = (typeof CURRENT_USER !== 'undefined' && CURRENT_USER.id) ? CURRENT_USER.id : 'anon';
+  return 'theme_cache_' + userId;
+}
+
+/**
+ * Check if current user has admin/super_admin role
+ */
+function isThemeAdmin() {
+  if (typeof CURRENT_USER === 'undefined') return false;
+  return CURRENT_USER.role === 'admin' || CURRENT_USER.role === 'super_admin';
+}
+
+/**
+ * Apply a theme visually (CSS variables only, no save)
+ * @param {string} themeName - Name of the theme to apply
+ * @param {boolean} userAction - true if user clicked a theme button (triggers save)
+ */
+function applyTheme(themeName, userAction) {
+  // Default: if called from onclick (no 2nd arg), it's a user action
+  if (typeof userAction === 'undefined') userAction = true;
+
   const theme = themes[themeName];
   if (!theme) {
     console.warn(`Theme '${themeName}' not found, applying default 'blue'`);
-    return applyTheme('blue');
+    return applyTheme('blue', userAction);
   }
 
   const root = document.documentElement;
@@ -271,22 +291,24 @@ function applyTheme(themeName) {
   // Update active button visual state
   updateThemeButtons(themeName);
 
-  // Save to localStorage
-  saveTheme(themeName);
+  // Only save when it's a deliberate user action (clicking a theme button)
+  if (userAction) {
+    saveTheme(themeName);
+  }
 }
 
 /**
  * Theme cache configuration
  */
-const THEME_CACHE_DURATION = 5 * 1000; // 15 minutes in milliseconds
+const THEME_CACHE_DURATION = 5 * 1000;
 
 /**
- * Get cached theme data from localStorage
+ * Get cached theme data from localStorage (per user)
  * @returns {object|null} Cached theme data or null
  */
 function getCachedThemeData() {
   try {
-    const cached = localStorage.getItem('theme_cache');
+    const cached = localStorage.getItem(getThemeCacheKey());
     return cached ? JSON.parse(cached) : null;
   } catch (e) {
     return null;
@@ -294,7 +316,7 @@ function getCachedThemeData() {
 }
 
 /**
- * Save theme data to localStorage with timestamp
+ * Save theme data to localStorage with timestamp (per user)
  * @param {string} themeName - Theme name to cache
  */
 function cacheThemeData(themeName) {
@@ -303,31 +325,27 @@ function cacheThemeData(themeName) {
       theme: themeName,
       timestamp: Date.now()
     };
-    localStorage.setItem('theme_cache', JSON.stringify(cacheData));
+    localStorage.setItem(getThemeCacheKey(), JSON.stringify(cacheData));
   } catch (e) {
     console.warn('Could not cache theme data');
   }
 }
 
 /**
- * Load theme from server (for all users to have same theme)
- * Only fetches if cache is expired (> 15 minutes)
+ * Load theme from server
+ * Only fetches if cache is expired
  */
 async function loadThemeFromServer() {
-  // Check localStorage cache first
+  // Check localStorage cache first (per user)
   const cached = getCachedThemeData();
 
   if (cached && cached.theme) {
-    // Check if cache is still valid
     const now = Date.now();
     const cacheAge = now - cached.timestamp;
 
     if (cacheAge < THEME_CACHE_DURATION) {
-      console.log('[THEME] Using cached theme:', cached.theme, '(age:', Math.round(cacheAge / 1000), 's)');
       return cached.theme;
     }
-
-    console.log('[THEME] Cache expired, fetching from server...');
   }
 
   try {
@@ -335,27 +353,27 @@ async function loadThemeFromServer() {
     const data = await response.json();
     const themeName = data.theme || 'blue';
 
-    // Cache the result with timestamp
+    // Cache the result per user
     cacheThemeData(themeName);
 
     return themeName;
   } catch (e) {
-    console.warn('Could not load theme from server, using cached/localStorage');
+    console.warn('Could not load theme from server, using cache');
 
-    // Fallback to cached theme even if expired
     if (cached && cached.theme) {
       return cached.theme;
     }
 
-    // Last fallback
-    return localStorage.getItem('theme') || 'blue';
+    return 'blue';
   }
 }
 
 /**
- * Save theme to server (Admin only)
+ * Save theme to server (Admin/Super_admin only)
  */
 async function saveThemeToServer(themeName) {
+  if (!isThemeAdmin()) return false;
+
   try {
     const formData = new FormData();
     formData.append('theme', themeName);
@@ -372,20 +390,19 @@ async function saveThemeToServer(themeName) {
 }
 
 /**
- * Load theme - first from server, fallback to localStorage
+ * Load theme from server and apply (no save back)
  */
 async function loadTheme() {
   const savedTheme = await loadThemeFromServer();
-  applyTheme(savedTheme);
+  applyTheme(savedTheme, false); // false = don't re-save
   return savedTheme;
 }
 
 /**
- * Save theme to localStorage AND server
+ * Save theme to local cache AND server (admin only)
  */
 function saveTheme(themeName) {
-  localStorage.setItem('theme', themeName);
-  // Save to server if admin
+  cacheThemeData(themeName);
   saveThemeToServer(themeName);
 }
 
@@ -394,7 +411,8 @@ function saveTheme(themeName) {
  * @returns {string} Current theme name
  */
 function getCurrentTheme() {
-  return localStorage.getItem('theme') || 'blue';
+  const cached = getCachedThemeData();
+  return (cached && cached.theme) ? cached.theme : 'blue';
 }
 
 /**

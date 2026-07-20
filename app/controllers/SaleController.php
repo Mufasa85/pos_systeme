@@ -12,10 +12,7 @@ class SaleController extends Controller
 {
     public function create()
     {
-        if (!isset($_SESSION['user_id'])) {
-            $this->status(403)->json(['error' => 'Non authentifié']);
-            return;
-        }
+        if (!$this->requireAuth()) return;
 
         $data = json_decode(file_get_contents('php://input'), true);
         if (empty($data) || empty($data['articles'])) {
@@ -55,6 +52,7 @@ class SaleController extends Controller
                 'total'          => $data['total'],
                 'payments'       => $data['payments'] ?? null,
                 'vendeur_id'     => $_SESSION['user_id'],
+                'shop_id'        => $this->getShopId(),
                 'date'           => date('Y-m-d H:i:s'),
                 'dateDGI'        => $dgiData['dateDGI'] ?? null,
                 'qrCode'         => $dgiData['qrCode'] ?? null,
@@ -90,6 +88,20 @@ class SaleController extends Controller
                     // si négatif on incrémente (retour/annulation)
                     $productModel->updateStock($produitId, $quantite);
 
+                    // Vérifier si le stock passe sous le minimum → notification
+                    if ($quantite > 0) {
+                        $updatedProduct = $productModel->findById($produitId);
+                        if ($updatedProduct && $updatedProduct['stock'] <= ($updatedProduct['stock_minimum'] ?? 0)) {
+                            $this->notifyShopAdmins(
+                                $this->getShopId(),
+                                'stock_low',
+                                'Stock faible : ' . $updatedProduct['nom'],
+                                "Le produit \"{$updatedProduct['nom']}\" n'a plus que {$updatedProduct['stock']} unités (minimum: {$updatedProduct['stock_minimum']})",
+                                '/produits'
+                            );
+                        }
+                    }
+
                     // Créer le détail avec la quantité (négative ou positive selon le type)
                     $detailModel->create([
                         'vente_id'   => $saleId,
@@ -105,6 +117,13 @@ class SaleController extends Controller
             }
 
             $db->commit();
+
+            $this->logAudit('create', 'vente', $saleId, [
+                'numero_facture' => $invoiceNum,
+                'total' => $data['total'],
+                'type_facture' => $typeFacture
+            ]);
+
             $this->json([
                 'success' => true,
                 'numero_facture' => $invoiceNum,
@@ -120,11 +139,7 @@ class SaleController extends Controller
 
     public function delete($id)
     {
-
-        if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
-            $this->status(403)->json(['error' => 'Accès refusé']);
-            return;
-        }
+        if (!$this->requireAdmin()) return;
 
         if (!$id) {
             $this->status(400)->json(['error' => 'ID de vente manquant']);
@@ -132,7 +147,8 @@ class SaleController extends Controller
         }
 
         $saleModel   = new Sale();
-        # $detailModel = new SaleDetail();
+        $productModel = new Product();
+        $detailModel = new SaleDetail();
 
         try {
             $db = \App\Core\Database::getInstance()->getConnection();
@@ -146,20 +162,49 @@ class SaleController extends Controller
                 return;
             }
 
-            // Supprimer la vente
+            // Vérifier que la vente appartient à la boutique (sauf super_admin)
+            if (!$this->isSuperAdmin() && $sale['shop_id'] != $this->getShopId()) {
+                $db->rollBack();
+                $this->status(403)->json(['error' => 'Cette vente ne fait pas partie de votre boutique']);
+                return;
+            }
+
+            // Restaurer le stock avant suppression
+            $details = $detailModel->getBySaleId($id);
+            foreach ($details as $detail) {
+                // stock - (-quantite) = stock + quantite → restauration
+                $productModel->updateStock($detail['produit_id'], -$detail['quantite']);
+            }
+
+            // Supprimer la vente (les détails sont supprimés en cascade)
             $db->prepare("DELETE FROM ventes WHERE id = ?")->execute([$id]);
 
             $db->commit();
-            $this->json(['success' => true, 'message' => 'Vente supprimée avec succès']);
+
+            $this->logAudit('delete', 'vente', $id, [
+                'numero_facture' => $sale['numero_facture'],
+                'total' => $sale['total']
+            ]);
+
+            // Notification action suspecte
+            $this->notifySuperAdmins(
+                'suspicious_action',
+                'Suppression de vente',
+                "La vente #{$sale['numero_facture']} (total: {$sale['total']}) a été supprimée par " . ($_SESSION['nom_complet'] ?? 'inconnu'),
+                '/historique'
+            );
+
+            $this->json(['success' => true, 'message' => 'Vente supprimée avec succès (stock restauré)']);
         } catch (\Exception $e) {
             $db->rollBack();
-            http_response_code(500);
             $this->status(500)->json(['error' => 'Erreur lors de la suppression: ' . $e->getMessage()]);
         }
     }
 
     public function details($params)
     {
+        if (!$this->requireAuth()) return;
+
         $id = $params['id'] ?? null;
 
         if (!$id) {
@@ -186,8 +231,124 @@ class SaleController extends Controller
 
     public function nextInvoice()
     {
+        if (!$this->requireAuth()) return;
+
         $saleModel = new Sale();
         $invoiceNum = $saleModel->generateInvoiceNumber();
         $this->json(['invoice_number' => $invoiceNum]);
+    }
+
+    // ── Archives ─────────────────────────────────────────────────
+
+    public function archives()
+    {
+        if (!$this->requireAdmin()) return;
+
+        $shopId = $this->isSuperAdmin() ? ($_GET['shop_id'] ?? null) : $this->getShopId();
+        $saleModel = new Sale();
+        $archives = $saleModel->searchArchive($shopId, 100, 0);
+
+        $this->json(['data' => $archives]);
+    }
+
+    // ── Rapport de clôture ──────────────────────────────────────
+
+    public function cloture()
+    {
+        if (!$this->requireAdmin()) return;
+
+        $date = $_GET['date'] ?? date('Y-m-d');
+        $shopId = $this->isSuperAdmin() ? ($_GET['shop_id'] ?? null) : $this->getShopId();
+
+        $db = \App\Core\Database::getInstance();
+
+        $where = "WHERE DATE(v.date) = ?";
+        $params = [$date];
+        if ($shopId) {
+            $where .= " AND v.shop_id = ?";
+            $params[] = $shopId;
+        }
+
+        // Total ventes du jour
+        $sql = "SELECT COUNT(*) as nb_ventes, COALESCE(SUM(v.total),0) as total_ventes,
+                       COALESCE(SUM(v.tva),0) as total_tva, COALESCE(SUM(v.sous_total_ht),0) as total_ht
+                FROM ventes v $where";
+        $totals = $db->fetch($sql, $params);
+
+        // Ventes par vendeur
+        $sql = "SELECT u.nom_complet, COUNT(*) as nb, COALESCE(SUM(v.total),0) as total
+                FROM ventes v LEFT JOIN utilisateurs u ON v.vendeur_id = u.id
+                $where GROUP BY v.vendeur_id ORDER BY total DESC";
+        $byVendeur = $db->fetchAll($sql, $params);
+
+        // Ventes par méthode de paiement
+        $sql = "SELECT v.payments, COUNT(*) as nb, COALESCE(SUM(v.total),0) as total
+                FROM ventes v $where GROUP BY v.payments";
+        $byPayment = $db->fetchAll($sql, $params);
+
+        // Top 5 produits vendus
+        $sql = "SELECT p.nom, SUM(dv.quantite) as qty, SUM(dv.prix * dv.quantite) as revenue
+                FROM details_vente dv
+                INNER JOIN ventes v ON dv.vente_id = v.id
+                LEFT JOIN produits p ON dv.produit_id = p.id
+                $where GROUP BY dv.produit_id ORDER BY qty DESC LIMIT 5";
+        $topProducts = $db->fetchAll($sql, $params);
+
+        $this->json([
+            'date' => $date,
+            'shop_id' => $shopId,
+            'totals' => $totals,
+            'by_vendeur' => $byVendeur,
+            'by_payment' => $byPayment,
+            'top_products' => $topProducts
+        ]);
+    }
+
+    // ── Export CSV des ventes ────────────────────────────────────
+
+    public function exportCsv()
+    {
+        if (!$this->requireAdmin()) return;
+
+        $from = $_GET['from'] ?? date('Y-m-01');
+        $to = $_GET['to'] ?? date('Y-m-d');
+        $shopId = $this->isSuperAdmin() ? ($_GET['shop_id'] ?? null) : $this->getShopId();
+
+        $where = "WHERE DATE(v.date) BETWEEN ? AND ?";
+        $params = [$from, $to];
+        if ($shopId) {
+            $where .= " AND v.shop_id = ?";
+            $params[] = $shopId;
+        }
+
+        $db = \App\Core\Database::getInstance();
+        $sql = "SELECT v.numero_facture, v.date, u.nom_complet as vendeur,
+                       c.nom_client as client, v.sous_total_ht, v.tva, v.total, v.payments
+                FROM ventes v
+                LEFT JOIN utilisateurs u ON v.vendeur_id = u.id
+                LEFT JOIN clients c ON v.client_id = c.id
+                $where ORDER BY v.date ASC";
+        $rows = $db->fetchAll($sql, $params);
+
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename="ventes_' . $from . '_' . $to . '.csv"');
+
+        $out = fopen('php://output', 'w');
+        fprintf($out, chr(0xEF) . chr(0xBB) . chr(0xBF)); // BOM UTF-8
+        fputcsv($out, ['N° Facture', 'Date', 'Vendeur', 'Client', 'Sous-total HT', 'TVA', 'Total', 'Paiement'], ';');
+        foreach ($rows as $r) {
+            fputcsv($out, [
+                $r['numero_facture'],
+                $r['date'],
+                $r['vendeur'] ?? '',
+                $r['client'] ?? 'Anonyme',
+                number_format($r['sous_total_ht'], 2, ',', ''),
+                number_format($r['tva'], 2, ',', ''),
+                number_format($r['total'], 2, ',', ''),
+                $r['payments'] ?? 'cash'
+            ], ';');
+        }
+        fclose($out);
+        exit;
     }
 }

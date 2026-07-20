@@ -7,8 +7,12 @@ use App\Models\User;
 use App\Models\Product;
 use App\Models\Sale;
 use App\Models\Settings;
+use App\Models\Shop;
+use App\Models\ServiceType;
+use App\Models\Notification;
+use App\controllers\Controller;
 
-class PageController
+class PageController extends Controller
 {
     public function __construct()
     {
@@ -30,8 +34,67 @@ class PageController
         $page = $view;
         // Charger le nom du magasin et le type de service pour toutes les pages
         $settingsModel = new Settings();
-        $data['storeName'] = $settingsModel->get('store_name') ?? 'Mon Magasin';
-        $data['serviceType'] = $settingsModel->get('service_type') ?? 'Caisse';
+        $shopModel = new Shop();
+        $serviceTypeModel = new ServiceType();
+        $shopId = $this->getShopId();
+        
+        // Get shop name from shops table instead of settings
+        $storeName = 'Mon Magasin'; // default
+        $serviceType = 'Caisse'; // default
+        if ($shopId) {
+            $shop = $shopModel->findById($shopId);
+            if ($shop) {
+                $storeName = $shop['nom'] ?? 'Mon Magasin';
+                if (!empty($shop['service_type_id'])) {
+                    $serviceTypeData = $serviceTypeModel->findById($shop['service_type_id']);
+                    if ($serviceTypeData) {
+                        $serviceType = $serviceTypeData['name'];
+                    }
+                }
+            }
+        }
+        // Company info (super_admin) pour l'affichage du nom entreprise dans le layout
+        if ($this->isSuperAdmin()) {
+            try {
+                $companyInfoModel = new \App\Models\CompanyInfo();
+                $companyInfo = $companyInfoModel->get();
+                $data['companyInfo'] = $companyInfo;
+                $data['companyName'] = $companyInfo['name'] ?? 'Mon Entreprise';
+            } catch (\Exception $e) {
+                $data['companyInfo'] = ['name' => 'Mon Entreprise'];
+                $data['companyName'] = 'Mon Entreprise';
+            }
+        } else {
+            // éviter les undefined variables dans le layout
+            $data['companyInfo'] = ['name' => null];
+            $data['companyName'] = null;
+        }
+
+        $data['storeName'] = $storeName;
+        // Pour le super_admin, forcer le type de service affiché à 'Caisse' (brut)
+        $data['serviceType'] = $this->isSuperAdmin() ? 'Caisse' : $serviceType;
+
+        $data['currentRole'] = $_SESSION['role'] ?? '';
+        $data['currentShopId'] = $shopId;
+
+        // Current user profile image
+        $data['currentUserProfileImage'] = null;
+        if (isset($_SESSION['user_id'])) {
+            $userModel = new User();
+            $currentUser = $userModel->exist($_SESSION['user_id']);
+            if ($currentUser && !empty($currentUser['profile_image'])) {
+                $data['currentUserProfileImage'] = $currentUser['profile_image'];
+            }
+        }
+
+        // Notifications non lues
+        
+        try {
+            $notifModel = new Notification();
+            $data['unreadNotifications'] = $notifModel->getUnreadCount($_SESSION['user_id']);
+        } catch (\Exception $e) {
+            $data['unreadNotifications'] = 0;
+        }
         extract($data);
         require_once dirname(__DIR__) . DIRECTORY_SEPARATOR . 'views/layout/header.php';
         require_once dirname(__DIR__) . DIRECTORY_SEPARATOR . 'views/' . $view . '.php';
@@ -42,8 +105,9 @@ class PageController
     {
         $saleModel = new Sale();
         $productModel = new Product();
-        $ventes = $saleModel->getAllSales();
-        $produits = $productModel->getAll();
+        $shopId = $this->isSuperAdmin() ? null : $this->getShopId();
+        $ventes = $saleModel->getAllSales($shopId);
+        $produits = $productModel->getAll($shopId);
 
         $today = date('Y-m-d');
         $today_start = date('Y-m-d 00:00:00');
@@ -106,6 +170,38 @@ class PageController
             $chart_values[] = round($data['total'], 2);
         }
 
+        // Multi-boutique stats pour super_admin
+        $shopStats = [];
+        if ($this->isSuperAdmin()) {
+            $shopModel = new \App\Models\Shop();
+            $allShops = $shopModel->getAll();
+            $db = \App\Core\Database::getInstance();
+            foreach ($allShops as $shop) {
+                $sid = $shop['id'];
+                $row = $db->fetch(
+                    "SELECT COUNT(*) as nb, COALESCE(SUM(total),0) as total FROM ventes WHERE shop_id = ? AND DATE(date) = ?",
+                    [$sid, $today]
+                );
+                $rowMonth = $db->fetch(
+                    "SELECT COALESCE(SUM(total),0) as total FROM ventes WHERE shop_id = ? AND date BETWEEN ? AND ?",
+                    [$sid, $mois_start, $mois_end]
+                );
+                $prodCount = $db->fetch(
+                    "SELECT COUNT(*) as c FROM produits WHERE shop_id = ?",
+                    [$sid]
+                );
+                $shopStats[] = [
+                    'id' => $sid,
+                    'nom' => $shop['nom'],
+                    'code' => $shop['code'],
+                    'ventes_jour' => $row['total'] ?? 0,
+                    'nb_ventes_jour' => $row['nb'] ?? 0,
+                    'ventes_mois' => $rowMonth['total'] ?? 0,
+                    'produits' => $prodCount['c'] ?? 0,
+                ];
+            }
+        }
+
         $this->render('dashboard', [
             'ventes' => $ventes,
             'produits_compte' => count($produits),
@@ -119,14 +215,17 @@ class PageController
             'chart_values' => json_encode($chart_values),
             'stock_faible' => array_filter($produits, function ($p) {
                 return $p['stock'] <= $p['stock_minimum'];
-            })
+            }),
+            'shopStats' => $shopStats,
+            'isSuperAdmin' => $this->isSuperAdmin()
         ]);
     }
 
     public function caisse()
     {
         $categoryModel = new \App\Models\Category();
-        $categories = $categoryModel->all();
+        $shopId = $this->isSuperAdmin() ? null : $this->getShopId();
+        $categories = $categoryModel->all($shopId);
 
         // Charger les types de clients pour le select
         $typeClientModel = new \App\Models\TypeClient();
@@ -141,7 +240,8 @@ class PageController
     public function recharges()
     {
         $categoryModel = new \App\Models\Category();
-        $categories = $categoryModel->all();
+        $shopId = $this->isSuperAdmin() ? null : $this->getShopId();
+        $categories = $categoryModel->all($shopId);
         $typeClientModel = new \App\Models\TypeClient();
         $clientTypes = $typeClientModel->getAll();
 
@@ -157,8 +257,9 @@ class PageController
         $categoryModel = new \App\Models\Category();
         $taxModel = new \App\Models\Tax();
 
-        $produits = $productModel->getAll();
-        $categories = $categoryModel->all();
+        $shopId = $this->isSuperAdmin() ? null : $this->getShopId();
+        $produits = $productModel->getAll($shopId);
+        $categories = $categoryModel->all($shopId);
         $taxes = $taxModel->getAll();
 
         $this->render('produits', [
@@ -170,27 +271,62 @@ class PageController
 
     public function utilisateurs()
     {
-        if ($_SESSION['role'] !== 'admin') {
+        if (!$this->isAdmin() && !$this->isSuperAdmin()) {
             $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";
             $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
             header('Location: ' . $protocol . '://' . $host . '/dashboard');
             exit;
         }
         $userModel = new User();
-        $utilisateurs = $userModel->all();
-        $this->render('utilisateurs', ['utilisateurs' => $utilisateurs]);
+        $callerRole = $_SESSION['role'] ?? 'vendeur';
+        $shopId = $this->isSuperAdmin() ? null : $this->getShopId();
+        $utilisateurs = $userModel->all($shopId, $callerRole);
+
+        // Charger les boutiques pour le super_admin
+        $shops = [];
+        if ($this->isSuperAdmin()) {
+            $shopModel = new \App\Models\Shop();
+            $shops = $shopModel->getAll();
+        }
+
+        $this->render('utilisateurs', ['utilisateurs' => $utilisateurs, 'shops' => $shops]);
+    }
+
+    public function otpCodes()
+    {
+        if (!$this->isSuperAdmin()) {
+            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";
+            $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+            header('Location: ' . $protocol . '://' . $host . '/dashboard');
+            exit;
+        }
+        $this->render('otp-codes');
+    }
+
+    public function monProfil()
+    {
+        if (!isset($_SESSION['user_id'])) {
+            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";
+            $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+            header('Location: ' . $protocol . '://' . $host . '/');
+            exit;
+        }
+        $userModel = new User();
+        $currentUser = $userModel->exist($_SESSION['user_id']);
+        $this->render('mon-profil', ['currentUser' => $currentUser]);
     }
 
     public function historique()
     {
         $saleModel = new Sale();
-        $ventes = $saleModel->getAllSales();
+        $shopId = $this->isSuperAdmin() ? null : $this->getShopId();
+        $ventes = $saleModel->getAllSales($shopId);
         $this->render('historique', ['ventes' => $ventes]);
     }
 
     public function analytics()
     {
-        if ($_SESSION['role'] !== 'admin') {
+        if (!$this->isAdmin() && !$this->isSuperAdmin()) {
             $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";
             $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
             header('Location: ' . $protocol . '://' . $host . '/dashboard');
@@ -204,11 +340,18 @@ class PageController
         $categoryModel = new \App\Models\Category();
         $clientModel = new \App\Models\Client();
 
-        $ventes = $saleModel->getAllSales();
-        $produits = $productModel->getAll();
-        $categories = $categoryModel->all();
-        $users = $userModel->all();
-        $clients = $clientModel->getAll();
+        // Gestion du filtre shop_id (super_admin)
+        $filteredShopId = null;
+        if ($this->isSuperAdmin() && isset($_GET['shop_id']) && $_GET['shop_id'] !== '') {
+            $filteredShopId = (int)$_GET['shop_id'];
+        }
+
+        $shopId = $this->isSuperAdmin() ? $filteredShopId : $this->getShopId();
+        $ventes = $saleModel->getAllSales($shopId);
+        $produits = $productModel->getAll($shopId);
+        $categories = $categoryModel->all($shopId);
+        $users = $userModel->all($shopId);
+        $clients = $clientModel->getAll($shopId);
 
         // Périodes
         $today = date('Y-m-d');
@@ -454,23 +597,28 @@ class PageController
             'customerRate' => $customerRate,
             'stockAlerts' => $stockAlerts,
             'stockOut' => $stockOut,
+            'shops' => $this->isSuperAdmin() ? (new \App\Models\Shop())->getAll() : [],
         ]);
     }
 
     public function parametres()
     {
-        if ($_SESSION['role'] !== 'admin') {
+        if (!$this->isAdmin() && !$this->isSuperAdmin()) {
             $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";
             $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
             header('Location: ' . $protocol . '://' . $host . '/dashboard');
             exit;
         }
-        $this->render('parametres');
+        $data = [];
+        if ($this->isSuperAdmin()) {
+            $data['shops'] = (new \App\Models\Shop())->getAll();
+        }
+        $this->render('parametres', $data);
     }
 
     public function taxes()
     {
-        if ($_SESSION['role'] !== 'admin') {
+        if (!$this->isAdmin() && !$this->isSuperAdmin()) {
             $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";
             $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
             header('Location: ' . $protocol . '://' . $host . '/dashboard');
@@ -483,7 +631,7 @@ class PageController
 
     public function categories()
     {
-        if ($_SESSION['role'] !== 'admin') {
+        if (!$this->isAdmin() && !$this->isSuperAdmin()) {
             $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";
             $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
             header('Location: ' . $protocol . '://' . $host . '/dashboard');
@@ -492,11 +640,13 @@ class PageController
         $productModel = new Product();
         $categoryModel = new \App\Models\Category();
 
+        $shopId = $this->isSuperAdmin() ? null : $this->getShopId();
+
         // Get all categories from database
-        $dbCategories = $categoryModel->all();
+        $dbCategories = $categoryModel->all($shopId);
 
         // Get all products to count by category
-        $produits = $productModel->getAll();
+        $produits = $productModel->getAll($shopId);
         $categoryCounts = [];
 
         foreach ($produits as $p) {
@@ -523,6 +673,19 @@ class PageController
         }
 
         $this->render('categories', ['categories' => $categories]);
+    }
+
+    public function shops()
+    {
+        if (!$this->isSuperAdmin()) {
+            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";
+            $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+            header('Location: ' . $protocol . '://' . $host . '/dashboard');
+            exit;
+        }
+        $shopModel = new \App\Models\Shop();
+        $shops = $shopModel->getAll();
+        $this->render('shops', ['shops' => $shops]);
     }
 
     public function scanner()

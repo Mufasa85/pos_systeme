@@ -12,8 +12,11 @@ class Category
     }
 
     // Récupérer toutes les catégories
-    public function all()
+    public function all($shopId = null)
     {
+        if ($shopId) {
+            return $this->db->fetchAll("SELECT * FROM categories WHERE shop_id = ?", [$shopId]);
+        }
         return $this->db->fetchAll("SELECT * FROM categories");
     }
 
@@ -30,10 +33,10 @@ class Category
     }
 
     // Ajouter une nouvelle catégorie
-    public function add($name)
+    public function add($name, $shopId = null)
     {
-        $sql = "INSERT INTO categories (category) VALUES (:name)";
-        return $this->db->query($sql, [':name' => $name]);
+        $sql = "INSERT INTO categories (category, shop_id) VALUES (:name, :shop_id)";
+        return $this->db->query($sql, [':name' => $name, ':shop_id' => $shopId]);
     }
 
     // Mettre à jour une catégorie existante

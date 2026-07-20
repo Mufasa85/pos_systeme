@@ -269,7 +269,8 @@ body {
 }
 
 .btn-full {
-  width: 92%;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .btn-small {

@@ -10,7 +10,8 @@ class ProductController extends Controller
     public function index()
     {
         $productModel = new Product();
-        $this->json($productModel->getAll());
+        $shopId = $this->isSuperAdmin() ? null : $this->getShopId();
+        $this->json($productModel->getAll($shopId));
     }
 
     public function find()
@@ -32,10 +33,7 @@ class ProductController extends Controller
 
     public function create()
     {
-        if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
-            self::status(403)->json(['error' => 'Accès refusé']);
-            return;
-        }
+        if (!$this->requireAdmin()) return;
 
         $data = [
             'code_barres' => $this->sanitaze($_POST['code_barres']),
@@ -98,17 +96,18 @@ class ProductController extends Controller
             }
         }
 
+        $data['shop_id'] = $this->getShopId();
+
         $productModel = new Product();
         $id = $productModel->create($data);
+
+        $this->logAudit('create', 'produit', $id, ['nom' => $data['nom']]);
         $this->json(['success' => true, 'id' => $id]);
     }
 
     public function update()
     {
-        if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
-            $this->status(403)->json(['error' => 'Accès refusé']);
-            return;
-        }
+        if (!$this->requireAdmin()) return;
 
         $id = $this->sanitaze($_POST['id'] ?? null);
         if (!$id) {
@@ -183,16 +182,27 @@ class ProductController extends Controller
             }
         }
 
+        $data['shop_id'] = $this->getShopId();
+
+        // Notification si le prix a changé
+        if ($oldProduct && (float)$oldProduct['prix'] !== (float)$data['prix']) {
+            $this->notifySuperAdmins(
+                'suspicious_action',
+                'Modification de prix',
+                "Le prix du produit \"{$data['nom']}\" a été modifié de {$oldProduct['prix']} à {$data['prix']} par " . ($_SESSION['nom_complet'] ?? 'inconnu'),
+                '/produits'
+            );
+        }
+
         $success = $productModel->update($id, $data);
+
+        $this->logAudit('update', 'produit', $id, ['nom' => $data['nom']]);
         $this->json(['success' => $success]);
     }
 
     public function delete()
     {
-        if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
-            $this->status(403)->json(['error' => 'Accès refusé']);
-            return;
-        }
+        if (!$this->requireAdmin()) return;
 
         $id = $this->sanitaze((int)$_POST['id']);
 

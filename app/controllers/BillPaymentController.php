@@ -98,12 +98,15 @@ class BillPaymentController
             // Générer numéro facture
             $numeroFacture = $this->generateNumeroFacture();
 
+            // shop_id depuis la session
+            $shopId = $_SESSION['shop_id'] ?? null;
+
             // Insert vente (type bill_payment)
             $stmt = $this->db->prepare("
                 INSERT INTO ventes 
                 (numero_facture, type_vente, provider_id, numero_compteur, client_reference, client_nom, 
-                 client_id, vendeur_id, methode_paiement, sous_total_ht, tva, total, api_response)
-                VALUES (?, 'bill_payment', ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
+                 client_id, vendeur_id, shop_id, methode_paiement, sous_total_ht, tva, total, api_response)
+                VALUES (?, 'bill_payment', ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
             ");
             $stmt->execute([
                 $numeroFacture,
@@ -113,6 +116,7 @@ class BillPaymentController
                 $clientNom,
                 $clientId,
                 $vendeurId,
+                $shopId,
                 $methodePaiement,
                 $totalMontant,
                 $totalMontant,
@@ -165,15 +169,22 @@ class BillPaymentController
     public function getBillPayments()
     {
         try {
+            $shopId = $_SESSION['shop_id'] ?? null;
+            $where = "WHERE v.type_vente = 'bill_payment'";
+            $params = [];
+            if ($shopId && ($_SESSION['role'] ?? '') !== 'super_admin') {
+                $where .= " AND v.shop_id = ?";
+                $params[] = $shopId;
+            }
             $stmt = $this->db->prepare("
                 SELECT v.*, sp.nom as provider_nom, sp.code as provider_code
                 FROM ventes v
                 LEFT JOIN service_providers sp ON v.provider_id = sp.id
-                WHERE v.type_vente = 'bill_payment'
+                {$where}
                 ORDER BY v.id DESC
                 LIMIT 50
             ");
-            $stmt->execute();
+            $stmt->execute($params);
             $payments = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
             return [

@@ -9,8 +9,51 @@ use App\Controllers\UserController;
 use App\Controllers\SettingsController;
 use App\Controllers\ClientController;
 use App\Controllers\TaxController;
+use App\Controllers\ShopController;
+use App\Controllers\ServiceTypeController;
+use App\Controllers\CompanyInfoController;
+use App\Controllers\NotificationController;
+use App\Controllers\AuthController;
 use App\Core\Router;
 use App\Models\Settings;
+
+// ── Auth API (OTP, forgot password, reset) ──────────────────
+Router::get("/api/auth/verify-otp", [AuthController::class, 'verifyOtp']);
+Router::get("/api/auth/resend-otp", [AuthController::class, 'resendOtp']);
+Router::get("/api/auth/forgot-password", [AuthController::class, 'forgotPassword']);
+Router::post("/api/auth/verify-reset-code", [AuthController::class, 'verifyResetCode']);
+Router::post("/api/auth/reset-password", [AuthController::class, 'resetPassword']);
+Router::get("/api/auth/otp-codes", [AuthController::class, 'getOtpCodes']);
+
+// ── Shops (super_admin only) ─────────────────────────────────
+Router::get("/api/shops", [ShopController::class, 'index']);
+Router::post("/api/shops", [ShopController::class, 'create']);
+Router::put("/api/shops/[i:id]", [ShopController::class, 'update']);
+Router::post("/api/shops/update/[i:id]", [ShopController::class, 'update']);
+Router::post("/api/shops/delete/[i:id]", [ShopController::class, 'delete']);
+Router::get("/api/shops/stats/[i:id]", [ShopController::class, 'stats']);
+
+// ── Service Types (super_admin/admin) ─────────────────────────
+Router::get("/api/service-types", [ServiceTypeController::class, 'index']);
+Router::post("/api/service-types", [ServiceTypeController::class, 'create']);
+Router::post("/api/service-types/update/[i:id]", [ServiceTypeController::class, 'update']);
+Router::post("/api/service-types/delete/[i:id]", [ServiceTypeController::class, 'delete']);
+
+// ── Company Info (super_admin only) ───────────────────────────
+Router::get("/api/company-info", [CompanyInfoController::class, 'index']);
+Router::post("/api/company-info", [CompanyInfoController::class, 'update']);
+
+// ── Notifications ────────────────────────────────────────────
+Router::get("/api/notifications", [NotificationController::class, 'index']);
+Router::get("/api/notifications/unread", [NotificationController::class, 'unreadCount']);
+Router::post("/api/notifications/read/[i:id]", [NotificationController::class, 'markRead']);
+Router::post("/api/notifications/read-all", [NotificationController::class, 'markAllRead']);
+Router::post("/api/notifications/delete/[i:id]", [NotificationController::class, 'delete']);
+
+// ── Users extra ──────────────────────────────────────────────
+Router::post("/api/user/change-password", [UserController::class, 'changePassword']);
+Router::post("/api/user/update-profile", [UserController::class, 'updateProfile']);
+Router::post("/api/user/upload-profile-image", [UserController::class, 'uploadProfileImage']);
 
 Router::get("/api/produits", [ProductController::class, 'index']);
 Router::get("/api/produit", [ProductController::class, 'find']);
@@ -22,6 +65,7 @@ Router::get('/api/categories', [CategoryController::class, 'index']);
 Router::post('/api/categories', [CategoryController::class, 'create']);
 Router::post('/api/categories/update', [CategoryController::class, 'update']);
 
+Router::get('/api/users', [UserController::class, 'all']);
 Router::post('/api/create/user', [UserController::class, 'create']);
 Router::post('/api/update/user', [UserController::class, 'update']);
 Router::post("/api/delete/user", [UserController::class, 'delete']);
@@ -34,6 +78,9 @@ Router::post("/api/delete/vente", [SaleController::class, 'delete']);
 Router::post("/api/vente", [SaleController::class, 'create']);
 Router::get("/api/vente/[i:id]/details", [SaleController::class, 'details']);
 Router::get("/api/vente/next-invoice", [SaleController::class, 'nextInvoice']);
+Router::get("/api/ventes/archives", [SaleController::class, 'archives']);
+Router::get("/api/cloture", [SaleController::class, 'cloture']);
+Router::get("/api/export/ventes", [SaleController::class, 'exportCsv']);
 
 // Paramètres du système
 // Routes pour les clients

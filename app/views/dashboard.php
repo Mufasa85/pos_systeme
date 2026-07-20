@@ -101,6 +101,42 @@
             </div>
           </div>
 
+        <?php if (!empty($isSuperAdmin) && !empty($shopStats)): ?>
+          <div class="card" style="margin-top:1.5rem">
+            <div class="card-header">
+              <h3>Performance par boutique</h3>
+            </div>
+            <div class="card-body">
+              <div style="overflow-x:auto">
+                <table class="data-table" style="width:100%">
+                  <thead>
+                    <tr>
+                      <th>Boutique</th>
+                      <th>Code</th>
+                      <th>Ventes aujourd'hui</th>
+                      <th>Nb transactions</th>
+                      <th>Ventes ce mois</th>
+                      <th>Produits</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <?php foreach ($shopStats as $ss): ?>
+                      <tr>
+                        <td><strong><?= htmlspecialchars($ss['nom']) ?></strong></td>
+                        <td><?= htmlspecialchars($ss['code']) ?></td>
+                        <td><?= number_format($ss['ventes_jour'], 2) ?> Fc</td>
+                        <td><?= $ss['nb_ventes_jour'] ?></td>
+                        <td><?= number_format($ss['ventes_mois'], 2) ?> Fc</td>
+                        <td><?= $ss['produits'] ?></td>
+                      </tr>
+                    <?php endforeach; ?>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        <?php endif; ?>
+
           
        
       </div>
