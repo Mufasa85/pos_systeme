@@ -18,9 +18,9 @@ use App\Core\Router;
 use App\Models\Settings;
 
 // ── Auth API (OTP, forgot password, reset) ──────────────────
-Router::post("/api/auth/verify-otp", [AuthController::class, 'verifyOtp']);
-Router::post("/api/auth/resend-otp", [AuthController::class, 'resendOtp']);
-Router::post("/api/auth/forgot-password", [AuthController::class, 'forgotPassword']);
+Router::get("/api/auth/verify-otp", [AuthController::class, 'verifyOtp']);
+Router::get("/api/auth/resend-otp", [AuthController::class, 'resendOtp']);
+Router::get("/api/auth/forgot-password", [AuthController::class, 'forgotPassword']);
 Router::post("/api/auth/verify-reset-code", [AuthController::class, 'verifyResetCode']);
 Router::post("/api/auth/reset-password", [AuthController::class, 'resetPassword']);
 Router::get("/api/auth/otp-codes", [AuthController::class, 'getOtpCodes']);

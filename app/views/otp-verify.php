@@ -136,7 +136,7 @@ $storeName = $settingsModel->get('store_name') ?? 'Mon Magasin';
           </svg>
         </div>
         <h1>Vérification en deux étapes</h1>
-        <p>Un code à 6 chiffres a été envoyé à votre email/téléphone</p>
+        <p>Un code à 6 chiffres a été envoyé par SMS</p>
       </div>
       <form id="otp-form" class="login-form">
         <div class="form-group">
@@ -175,10 +175,15 @@ $storeName = $settingsModel->get('store_name') ?? 'Mon Magasin';
       const errEl = document.getElementById('otp-error');
 
       try {
-        const res = await fetch(APP_URL + '/api/auth/verify-otp', {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({ code })
+        const params = new URLSearchParams();
+        params.set('code', code);
+        const contact = new URLSearchParams(window.location.search).get('contact') || '';
+        if (contact) {
+          params.set('contact', contact);
+        }
+
+        const res = await fetch(APP_URL + '/api/auth/verify-otp?' + params.toString(), {
+          method: 'GET'
         });
         const data = await res.json();
         if (data.success) {
@@ -197,9 +202,14 @@ $storeName = $settingsModel->get('store_name') ?? 'Mon Magasin';
       btn.textContent = 'Envoi en cours...';
 
       try {
-        const res = await fetch(APP_URL + '/api/auth/resend-otp', {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'}
+        const params = new URLSearchParams();
+        const contact = new URLSearchParams(window.location.search).get('contact') || '';
+        if (contact) {
+          params.set('contact', contact);
+        }
+
+        const res = await fetch(APP_URL + '/api/auth/resend-otp?' + params.toString(), {
+          method: 'GET'
         });
         const data = await res.json();
         btn.textContent = data.success ? 'Code renvoyé ✓' : data.message;

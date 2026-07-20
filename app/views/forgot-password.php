@@ -136,14 +136,14 @@ $storeName = $settingsModel->get('store_name') ?? 'Mon Magasin';
           </svg>
         </div>
         <h1>Mot de passe oublié</h1>
-        <p>Entrez votre email ou numéro de téléphone</p>
+        <p>Entrez votre numéro de téléphone</p>
       </div>
 
       <!-- Étape 1 : Saisir le contact -->
       <form id="forgot-form" class="login-form">
         <div class="form-group">
-          <label for="contact">Email ou Téléphone</label>
-          <input type="text" id="contact" name="contact" placeholder="email@exemple.com ou 0800000000" required autofocus>
+          <label for="contact">Numéro de téléphone</label>
+          <input type="text" id="contact" name="contact" placeholder="0800000000" required autofocus>
         </div>
         <div id="forgot-error" class="login-error"></div>
         <div id="forgot-success" style="color:green;font-size:.875rem;margin-bottom:.5rem;display:none"></div>
@@ -188,12 +188,12 @@ $storeName = $settingsModel->get('store_name') ?? 'Mon Magasin';
       successEl.style.display = 'none';
 
       try {
-        const res = await fetch(APP_URL + '/api/auth/forgot-password', {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({ contact })
+        const query = new URLSearchParams({ contact });
+        const res = await fetch(APP_URL + '/api/auth/forgot-password?' + query.toString(), {
+          method: 'GET'
         });
         const data = await res.json();
+        console.log('Forgot password response:', data);
         if (data.success) {
           successEl.textContent = data.message;
           successEl.style.display = 'block';
