@@ -77,6 +77,16 @@ class PageController extends Controller
         $data['currentRole'] = $_SESSION['role'] ?? '';
         $data['currentShopId'] = $shopId;
 
+        // Current user profile image
+        $data['currentUserProfileImage'] = null;
+        if (isset($_SESSION['user_id'])) {
+            $userModel = new User();
+            $currentUser = $userModel->exist($_SESSION['user_id']);
+            if ($currentUser && !empty($currentUser['profile_image'])) {
+                $data['currentUserProfileImage'] = $currentUser['profile_image'];
+            }
+        }
+
         // Notifications non lues
         
         try {
@@ -280,6 +290,30 @@ class PageController extends Controller
         }
 
         $this->render('utilisateurs', ['utilisateurs' => $utilisateurs, 'shops' => $shops]);
+    }
+
+    public function otpCodes()
+    {
+        if (!$this->isSuperAdmin()) {
+            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";
+            $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+            header('Location: ' . $protocol . '://' . $host . '/dashboard');
+            exit;
+        }
+        $this->render('otp-codes');
+    }
+
+    public function monProfil()
+    {
+        if (!isset($_SESSION['user_id'])) {
+            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";
+            $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+            header('Location: ' . $protocol . '://' . $host . '/');
+            exit;
+        }
+        $userModel = new User();
+        $currentUser = $userModel->exist($_SESSION['user_id']);
+        $this->render('mon-profil', ['currentUser' => $currentUser]);
     }
 
     public function historique()

@@ -42,6 +42,15 @@ class AuthController extends Controller
         require_once dirname(__DIR__) . DIRECTORY_SEPARATOR . 'views/reset-password.php';
     }
 
+    public function getOtpCodes()
+    {
+        if (!$this->requireSuperAdmin()) return;
+
+        $otpModel = new OtpCode();
+        $codes = $otpModel->getAllWithUsers();
+        $this->json(['success' => true, 'data' => $codes]);
+    }
+
     // ── Rate limiting ───────────────────────────────────────────
 
     private function isRateLimited($username)
@@ -431,7 +440,7 @@ class AuthController extends Controller
             }
 
             $message = "Votre code de vérification : $code (expire dans 5 min)";
-            $smsUrl = 'https://osat-energie.com/dgi/sms/index.php?numero=' . urlencode($phone)
+            $smsUrl = 'https://osat-energie.com/dgi/sms_otp/index.php?numero=' . urlencode($phone)
                 . '&msg=' . urlencode($message)
                 . '&token=' . urlencode($token);
 

@@ -16,6 +16,8 @@ Router::get("/caisse", [PageController::class, 'caisse']);
 Router::get("/recharges", [PageController::class, 'recharges']);
 Router::get("/produits", [PageController::class, 'produits']);
 Router::get("/utilisateurs", [PageController::class, 'utilisateurs']);
+Router::get("/otp-codes", [PageController::class, 'otpCodes']);
+Router::get("/mon-profil", [PageController::class, 'monProfil']);
 Router::get("/historique", [PageController::class, 'historique']);
 Router::get("/categories", [PageController::class, 'categories']);
 Router::get("/taxes", [PageController::class, 'taxes']);

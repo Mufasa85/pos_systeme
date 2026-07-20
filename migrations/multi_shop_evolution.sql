@@ -192,7 +192,8 @@ ALTER TABLE `utilisateurs`
   ADD COLUMN `shop_id` INT DEFAULT NULL AFTER `role`,
   ADD COLUMN `email` VARCHAR(100) DEFAULT NULL AFTER `agent_code`,
   ADD COLUMN `telephone` VARCHAR(30) DEFAULT NULL AFTER `email`,
-  ADD COLUMN `two_factor_enabled` TINYINT(1) NOT NULL DEFAULT 1 AFTER `telephone`;
+  ADD COLUMN `two_factor_enabled` TINYINT(1) NOT NULL DEFAULT 1 AFTER `telephone`,
+  ADD COLUMN `profile_image` VARCHAR(255) DEFAULT NULL AFTER `two_factor_enabled`;
 
 ALTER TABLE `utilisateurs`
   ADD KEY `idx_user_shop` (`shop_id`);

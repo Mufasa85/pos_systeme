@@ -66,4 +66,13 @@ class OtpCode
     {
         return $this->db->execute("DELETE FROM otp_codes WHERE expires_at < NOW() AND used = 1");
     }
+
+    public function getAllWithUsers()
+    {
+        $sql = "SELECT o.*, u.nom_complet, u.nom_utilisateur, u.email, u.telephone 
+                FROM otp_codes o 
+                LEFT JOIN utilisateurs u ON o.user_id = u.id 
+                ORDER BY o.created_at DESC";
+        return $this->db->fetchAll($sql);
+    }
 }

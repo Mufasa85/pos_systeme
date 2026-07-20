@@ -32,9 +32,13 @@
                 <tr style="border-bottom:1px solid #eee;" data-user-id="<?= $u['id'] ?>">
                   <td style="padding:0.75rem;">
                     <div style="display: flex; align-items: center; gap: 0.75rem;">
-                      <div class="user-avatar" style="width: 36px; height: 36px; font-size: 0.875rem; background: <?= $isTargetSuperAdmin ? '#f59e0b' : 'var(--primary)' ?>;">
-                        <?= substr(htmlspecialchars($u['nom_complet']), 0, 1) ?>
-                      </div>
+                      <?php if (!empty($u['profile_image'])): ?>
+                        <img src="<?= htmlspecialchars($u['profile_image']) ?>" alt="Profile" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 2px solid var(--border);">
+                      <?php else: ?>
+                        <div class="user-avatar" style="width: 36px; height: 36px; font-size: 0.875rem; background: <?= $isTargetSuperAdmin ? '#f59e0b' : 'var(--primary)' ?>;">
+                          <?= substr(htmlspecialchars($u['nom_complet']), 0, 1) ?>
+                        </div>
+                      <?php endif; ?>
                       <div>
                         <div style="font-weight: 500;"><?= htmlspecialchars($u['nom_complet']) ?></div>
                         <div style="font-size: 0.75rem; color: var(--muted);">@<?= htmlspecialchars($u['nom_utilisateur']) ?></div>
@@ -137,6 +141,11 @@
                 <input type="checkbox" id="user-2fa" name="two_factor_enabled" value="1">
                 Activer la vérification en deux étapes (2FA)
               </label>
+            </div>
+            <div style="margin-bottom: 1rem;">
+              <label for="user-profile-image" style="font-size: 0.75rem; font-weight: 600; color: var(--muted); display: block; margin-bottom: 4px;">Photo de profil</label>
+              <input type="file" id="user-profile-image" name="profile_image" accept="image/jpeg,image/png,image/gif" class="client-number-input" style="width: 100%;">
+              <div style="font-size: 0.7rem; color: var(--muted); margin-top: 4px;">Formats acceptés: JPG, PNG, GIF (max 2MB)</div>
             </div>
             <?php if (($_SESSION['role'] ?? '') === 'super_admin' && !empty($shops)): ?>
             <div style="margin-bottom: 1rem;">

@@ -95,7 +95,6 @@
             <div class="notif-empty">Aucune notification</div>
           </div>
         </div>
-        <div id="mobile-user-info" class="mobile-user-info"><?= htmlspecialchars($_SESSION['full_name'] ?? '') ?></div>
       </div>
     </header>
 
@@ -186,6 +185,16 @@
           </a>
         <?php endif; ?>
 
+        <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'super_admin'): ?>
+          <a href="/otp-codes" class="nav-item <?= $currentPage == 'otp-codes' ? 'active' : '' ?>">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            </svg>
+            <span>Codes OTP</span>
+          </a>
+        <?php endif; ?>
+
         <a href="/historique" class="nav-item <?= $currentPage == 'historique' ? 'active' : '' ?>">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="10"></circle>
@@ -230,10 +239,14 @@
       </nav>
 
       <div class="sidebar-footer">
-        <a href="#" onclick="openProfileModal();return false" class="user-info" style="text-decoration:none;color:inherit;cursor:pointer" title="Mon profil">
-          <div class="user-avatar" id="user-avatar"><?= substr(htmlspecialchars($_SESSION['full_name'] ?? 'U'), 0, 1) ?></div>
+        <a href="/mon-profil" class="user-info" style="text-decoration:none;color:inherit;cursor:pointer" title="Mon profil">
+          <?php if (!empty($currentUserProfileImage)): ?>
+            <img src="<?= htmlspecialchars($currentUserProfileImage) ?>" alt="Profile" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid var(--border);">
+          <?php else: ?>
+            <div class="user-avatar" id="user-avatar"><?= substr(htmlspecialchars($_SESSION['nom_complet'] ?? 'U'), 0, 1) ?></div>
+          <?php endif; ?>
           <div class="user-details">
-            <span class="user-name" id="user-name"><?= htmlspecialchars($_SESSION['full_name'] ?? '') ?></span>
+            <span class="user-name" id="user-name"><?= htmlspecialchars($_SESSION['nom_complet'] ?? '') ?></span>
             <span class="user-role" id="user-role"><?php
               $r = $_SESSION['role'] ?? '';
               echo $r === 'super_admin' ? 'Super Admin' : ($r === 'admin' ? 'Administrateur' : 'Vendeur');

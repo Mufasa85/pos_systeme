@@ -57,6 +57,7 @@ class UserController extends Controller
 
         // Debug: log received data
         error_log("User update - ID: $id, POST data: " . print_r($_POST, true));
+        error_log("User update - FILES: " . print_r($_FILES, true));
 
         $data = [];
         if (isset($_POST['nom_utilisateur'])) {
@@ -88,6 +89,31 @@ class UserController extends Controller
         }
         if (isset($_POST['shop_id']) && $this->isSuperAdmin()) {
             $data['shop_id']         = (int)$_POST['shop_id'];
+        }
+        if (isset($_POST['profile_image'])) {
+            $data['profile_image']   = $this->sanitaze($_POST['profile_image']);
+        }
+
+        // Handle profile image file upload
+        if (isset($_FILES['profile_image']) && $_FILES['profile_image']['error'] === UPLOAD_ERR_OK) {
+            $file = $_FILES['profile_image'];
+            $allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/gif'];
+            $maxSize = 2 * 1024 * 1024; // 2MB
+
+            if (in_array($file['type'], $allowedTypes) && $file['size'] <= $maxSize) {
+                $uploadDir = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'profiles';
+                if (!is_dir($uploadDir)) {
+                    mkdir($uploadDir, 0755, true);
+                }
+
+                $extension = pathinfo($file['name'], PATHINFO_EXTENSION);
+                $filename = uniqid('profile_', true) . '.' . $extension;
+                $filepath = $uploadDir . DIRECTORY_SEPARATOR . $filename;
+
+                if (move_uploaded_file($file['tmp_name'], $filepath)) {
+                    $data['profile_image'] = '/uploads/profiles/' . $filename;
+                }
+            }
         }
 
         error_log("User update - data to update: " . print_r($data, true));
@@ -233,5 +259,54 @@ class UserController extends Controller
         $userModel->updatePassword($_SESSION['user_id'], $newPassword);
         $this->logAudit('change_password', 'utilisateur', $_SESSION['user_id']);
         $this->json(['success' => true, 'message' => 'Mot de passe mis à jour avec succès']);
+    }
+
+    public function uploadProfileImage()
+    {
+        if (!$this->requireAuth()) return;
+
+        if (!isset($_FILES['profile_image']) || $_FILES['profile_image']['error'] !== UPLOAD_ERR_OK) {
+            $this->status(400)->json(['success' => false, 'message' => 'Erreur lors du téléchargement de l\'image']);
+            return;
+        }
+
+        $file = $_FILES['profile_image'];
+        $allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/gif'];
+        $maxSize = 2 * 1024 * 1024; // 2MB
+
+        if (!in_array($file['type'], $allowedTypes)) {
+            $this->status(400)->json(['success' => false, 'message' => 'Type de fichier non autorisé. Utilisez JPG, PNG ou GIF']);
+            return;
+        }
+
+        if ($file['size'] > $maxSize) {
+            $this->status(400)->json(['success' => false, 'message' => 'L\'image ne doit pas dépasser 2MB']);
+            return;
+        }
+
+        // Create uploads directory if it doesn't exist
+        $uploadDir = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'profiles';
+        if (!is_dir($uploadDir)) {
+            mkdir($uploadDir, 0755, true);
+        }
+
+        // Generate unique filename
+        $extension = pathinfo($file['name'], PATHINFO_EXTENSION);
+        $filename = uniqid('profile_', true) . '.' . $extension;
+        $filepath = $uploadDir . DIRECTORY_SEPARATOR . $filename;
+
+        if (!move_uploaded_file($file['tmp_name'], $filepath)) {
+            $this->status(500)->json(['success' => false, 'message' => 'Erreur lors de la sauvegarde de l\'image']);
+            return;
+        }
+
+        // Update user profile_image in database
+        $userId = $_SESSION['user_id'];
+        $imageUrl = '/uploads/profiles/' . $filename;
+        $userModel = new \App\Models\User();
+        $userModel->update($userId, ['profile_image' => $imageUrl]);
+
+        $this->logAudit('upload_profile_image', 'utilisateur', $userId, ['image' => $filename]);
+        $this->json(['success' => true, 'image_url' => $imageUrl, 'message' => 'Image de profil mise à jour']);
     }
 }

@@ -23,6 +23,7 @@ Router::post("/api/auth/resend-otp", [AuthController::class, 'resendOtp']);
 Router::post("/api/auth/forgot-password", [AuthController::class, 'forgotPassword']);
 Router::post("/api/auth/verify-reset-code", [AuthController::class, 'verifyResetCode']);
 Router::post("/api/auth/reset-password", [AuthController::class, 'resetPassword']);
+Router::get("/api/auth/otp-codes", [AuthController::class, 'getOtpCodes']);
 
 // ── Shops (super_admin only) ─────────────────────────────────
 Router::get("/api/shops", [ShopController::class, 'index']);
@@ -52,6 +53,7 @@ Router::post("/api/notifications/delete/[i:id]", [NotificationController::class,
 // ── Users extra ──────────────────────────────────────────────
 Router::post("/api/user/change-password", [UserController::class, 'changePassword']);
 Router::post("/api/user/update-profile", [UserController::class, 'updateProfile']);
+Router::post("/api/user/upload-profile-image", [UserController::class, 'uploadProfileImage']);
 
 Router::get("/api/produits", [ProductController::class, 'index']);
 Router::get("/api/produit", [ProductController::class, 'find']);

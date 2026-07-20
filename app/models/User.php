@@ -115,6 +115,10 @@ class User
             $fields[] = "two_factor_enabled = :two_factor_enabled";
             $params[':two_factor_enabled'] = $data['two_factor_enabled'];
         }
+        if (isset($data['profile_image'])) {
+            $fields[] = "profile_image = :profile_image";
+            $params[':profile_image'] = $data['profile_image'];
+        }
 
         if (empty($fields)) {
             error_log("User model update - no fields to update for id: $id");

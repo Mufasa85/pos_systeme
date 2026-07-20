@@ -2007,6 +2007,11 @@ function saveUser(event) {
         if (password) {
             formData.append('mot_de_passe', password);
         }
+        // Handle profile image upload
+        const profileImageInput = document.getElementById('user-profile-image');
+        if (profileImageInput && profileImageInput.files.length > 0) {
+            formData.append('profile_image', profileImageInput.files[0]);
+        }
     } else {
         formData.append('username', username);
         formData.append('fullname', fullname);
