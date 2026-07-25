@@ -30,6 +30,7 @@
                 <th>Code-barres</th>
                 <th>Categorie</th>
                 <th>Stock</th>
+                <th>Péremption</th>
                 <th>Prix</th>
                 <?php if (($_SESSION['role'] ?? '') === 'super_admin'): ?><th>Boutique</th><?php endif; ?>
                 <th class="admin-only">Actions</th>
@@ -45,9 +46,24 @@
                   <td style="padding:0.75rem;"><code class="barcode-code"><?= htmlspecialchars($p['code_barres']) ?></code></td>
                   <td style="padding:0.75rem;"><span class="badge badge-primary"><?= htmlspecialchars($p['categorie']) ?></span></td>
                   <td style="padding:0.75rem;">
-                    <span style="color: <?= $p['stock'] <= $p['stock_minimum'] ? 'red' : 'green' ?>">
-                      <?= $p['stock'] ?>
+                    <?php $totalStock = $p['total_stock'] ?? $p['stock']; ?>
+                    <span style="color: <?= $totalStock <= $p['stock_minimum'] ? 'red' : 'green' ?>">
+                      <?= number_format($totalStock, 2) ?>
                     </span>
+                  </td>
+                  <td style="padding:0.75rem;">
+                    <?php if (!empty($p['nearest_expiration_date'])): ?>
+                      <?php
+                        $days = (strtotime($p['nearest_expiration_date']) - strtotime(date('Y-m-d'))) / 86400;
+                        $color = $days < 0 ? 'red' : ($days <= 7 ? 'orange' : 'green');
+                      ?>
+                      <span style="color: <?= $color ?>; font-size: 0.85rem;">
+                        <?= date('d/m/Y', strtotime($p['nearest_expiration_date'])) ?>
+                        <?= $days < 0 ? '(périmé)' : '(' . floor($days) . 'j)' ?>
+                      </span>
+                    <?php else: ?>
+                      <span style="color: #999; font-size: 0.85rem;">—</span>
+                    <?php endif; ?>
                   </td>
                   <td style="padding:0.75rem;"><strong><?= number_format($p['prix'], 2) ?> Fc</strong></td>
                   <?php if (($_SESSION['role'] ?? '') === 'super_admin'): ?>
