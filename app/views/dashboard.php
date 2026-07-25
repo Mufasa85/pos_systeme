@@ -89,13 +89,40 @@
               <div id="stock-alerts" class="alert-list">
                 <?php if (!empty($stock_faible)): ?>
                   <?php foreach ($stock_faible as $sf): ?>
-                    <div class="alert-item <?= $sf['stock'] == 0 ? 'critical' : '' ?>">
+                    <?php $sfStock = $sf['total_stock'] ?? $sf['stock']; ?>
+                    <div class="alert-item <?= $sfStock == 0 ? 'critical' : '' ?>">
                       <span><?= htmlspecialchars($sf['nom']) ?></span>
-                      <span><strong><?= $sf['stock'] ?></strong> / <?= $sf['stock_minimum'] ?></span>
+                      <span><strong><?= number_format($sfStock, 2) ?></strong> / <?= $sf['stock_minimum'] ?></span>
                     </div>
                   <?php endforeach; ?>
                 <?php else: ?>
                   <div class="empty-state">Aucune alerte de stock</div>
+                <?php endif; ?>
+              </div>
+            </div>
+          </div>
+
+          <div class="card" style="margin-top:1.5rem">
+            <div class="card-header">
+              <h3>Alertes de péremption</h3>
+            </div>
+            <div class="card-body">
+              <div id="expiration-alerts" class="alert-list">
+                <?php if (!empty($expired_alerts) || !empty($expiration_alerts)): ?>
+                  <?php foreach ($expired_alerts as $ea): ?>
+                    <div class="alert-item critical">
+                      <span><?= htmlspecialchars($ea['product_name']) ?> <?= !empty($ea['batch_number']) ? '(' . htmlspecialchars($ea['batch_number']) . ')' : '' ?></span>
+                      <span><strong>Périmé</strong> <?= date('d/m/Y', strtotime($ea['date_expiration'])) ?></span>
+                    </div>
+                  <?php endforeach; ?>
+                  <?php foreach ($expiration_alerts as $ea): ?>
+                    <div class="alert-item">
+                      <span><?= htmlspecialchars($ea['product_name']) ?> <?= !empty($ea['batch_number']) ? '(' . htmlspecialchars($ea['batch_number']) . ')' : '' ?></span>
+                      <span><strong><?= floor((strtotime($ea['date_expiration']) - strtotime(date('Y-m-d'))) / 86400) ?>j</strong> <?= date('d/m/Y', strtotime($ea['date_expiration'])) ?></span>
+                    </div>
+                  <?php endforeach; ?>
+                <?php else: ?>
+                  <div class="empty-state">Aucune alerte de péremption</div>
                 <?php endif; ?>
               </div>
             </div>
