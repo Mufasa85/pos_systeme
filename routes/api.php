@@ -4,6 +4,7 @@
 
 use App\Controllers\CategoryController;
 use App\Controllers\ProductController;
+use App\Controllers\ProductBatchController;
 use App\Controllers\SaleController;
 use App\Controllers\UserController;
 use App\Controllers\SettingsController;
@@ -60,6 +61,12 @@ Router::get("/api/produit", [ProductController::class, 'find']);
 Router::post("/api/produit", [ProductController::class, 'create']);
 Router::post("/api/produit/update", [ProductController::class, 'update']);
 Router::post("/api/produit/delete", [ProductController::class, 'delete']);
+
+Router::get("/api/product-batches", [ProductBatchController::class, 'index']);
+Router::post("/api/product-batches", [ProductBatchController::class, 'create']);
+Router::post("/api/product-batches/update", [ProductBatchController::class, 'update']);
+Router::post("/api/product-batches/delete", [ProductBatchController::class, 'delete']);
+Router::get("/api/product-batches/alerts", [ProductBatchController::class, 'alerts']);
 
 Router::get('/api/categories', [CategoryController::class, 'index']);
 Router::post('/api/categories', [CategoryController::class, 'create']);
