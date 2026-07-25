@@ -5,6 +5,7 @@ namespace App\Controllers;
 //use App\Models\Category;
 use App\Models\User;
 use App\Models\Product;
+use App\Models\ProductBatch;
 use App\Models\Sale;
 use App\Models\Settings;
 use App\Models\Shop;
@@ -202,6 +203,10 @@ class PageController extends Controller
             }
         }
 
+        $batchModel = new ProductBatch();
+        $expirationAlerts = $batchModel->getExpiringSoon(7, $shopId);
+        $expiredAlerts = $batchModel->getExpired($shopId);
+
         $this->render('dashboard', [
             'ventes' => $ventes,
             'produits_compte' => count($produits),
@@ -214,8 +219,11 @@ class PageController extends Controller
             'chart_labels' => json_encode($chart_labels),
             'chart_values' => json_encode($chart_values),
             'stock_faible' => array_filter($produits, function ($p) {
-                return $p['stock'] <= $p['stock_minimum'];
+                $totalStock = $p['total_stock'] ?? $p['stock'];
+                return $totalStock <= $p['stock_minimum'];
             }),
+            'expiration_alerts' => $expirationAlerts,
+            'expired_alerts' => $expiredAlerts,
             'shopStats' => $shopStats,
             'isSuperAdmin' => $this->isSuperAdmin()
         ]);
