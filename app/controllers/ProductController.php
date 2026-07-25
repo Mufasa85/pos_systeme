@@ -3,6 +3,7 @@
 namespace App\Controllers;
 
 use App\Models\Product;
+use App\Models\ProductBatch;
 use App\controllers\Controller;
 
 class ProductController extends Controller
@@ -48,7 +49,8 @@ class ProductController extends Controller
             'remise_type' => in_array($this->sanitaze($_POST['remise_type']), ['%', 'CDF']) ? $this->sanitaze($_POST['remise_type']) : '%',
             'remise_value' => (float)$this->sanitaze($_POST['remise_value']) ?: 0,
             'taxe_specifique_type' => in_array($this->sanitaze($_POST['taxe_specifique_type'] ?? '%'), ['%', 'CDF']) ? $this->sanitaze($_POST['taxe_specifique_type'] ?? '%') : '%',
-            'taxe_specifique_value' => (float)$this->sanitaze($_POST['taxe_specifique_value'] ?? 0) ?: 0
+            'taxe_specifique_value' => (float)$this->sanitaze($_POST['taxe_specifique_value'] ?? 0) ?: 0,
+            'date_expiration' => !empty($_POST['date_expiration']) ? $this->sanitaze($_POST['date_expiration']) : null
         ];
 
         // Vérifier si le code-barres existe déjà
@@ -101,6 +103,18 @@ class ProductController extends Controller
         $productModel = new Product();
         $id = $productModel->create($data);
 
+        // Creer un lot initial si un stock est fourni
+        if ($id && (float)$data['stock'] > 0) {
+            $batchModel = new ProductBatch();
+            $batchModel->create([
+                'product_id' => $id,
+                'batch_number' => null,
+                'stock' => (float)$data['stock'],
+                'date_expiration' => $data['date_expiration'] ?? null,
+                'date_reception' => date('Y-m-d')
+            ]);
+        }
+
         $this->logAudit('create', 'produit', $id, ['nom' => $data['nom']]);
         $this->json(['success' => true, 'id' => $id]);
     }
@@ -142,7 +156,8 @@ class ProductController extends Controller
             'remise_value' => (float)$this->sanitaze($_POST['remise_value']) ?: 0,
             'taxe_specifique_type' => in_array($this->sanitaze($_POST['taxe_specifique_type'] ?? '%'), ['%', 'CDF']) ? $this->sanitaze($_POST['taxe_specifique_type'] ?? '%') : '%',
             'taxe_specifique_value' => (float)$this->sanitaze($_POST['taxe_specifique_value'] ?? 0) ?: 0,
-            'image' => $oldImage
+            'image' => $oldImage,
+            'date_expiration' => !empty($_POST['date_expiration']) ? $this->sanitaze($_POST['date_expiration']) : null
         ];
 
         // Image upload - seulement si une nouvelle image est uploadée
