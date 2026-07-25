@@ -141,6 +141,21 @@
                 <input type="text" id="product-name" required placeholder="Ex: Coca-Cola 1.5L">
               </div>
             </div>
+            <div class="form-row" style="margin-top: 1rem;">
+              <div class="form-group" style="flex: 1; min-width: 100%;">
+                <label>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                  </svg>
+                  Date d'expiration par defaut
+                </label>
+                <input type="date" id="product-expiration-date">
+                <small style="color: var(--muted);">Utilisee lors de la creation du stock initial. Laisser vide si non perissable.</small>
+              </div>
+            </div>
           </div>
 
           <!-- Prix et Catégorie -->
@@ -308,9 +323,9 @@
                     <line x1="3" y1="6" x2="21" y2="6"></line>
                     <path d="M16 10a4 4 0 0 1-8 0"></path>
                   </svg>
-                  Stock actuel
+                  Stock
                 </label>
-                <input type="number" id="product-stock" min="0" required placeholder="0" style="text-align: center;">
+                <input type="number" id="product-stock" min="0" placeholder="Stock initial" style="text-align: center;" title="En creation, c'est le stock initial. En modification, le stock est calcule automatiquement depuis les lots.">
               </div>
               <div class="form-group">
                 <label>
@@ -323,6 +338,40 @@
                 </label>
                 <input type="number" id="product-min-stock" min="0" required placeholder="0" style="text-align: center;">
                 <small style="color: var(--muted);">Alerte quand le stock atteint ce niveau</small>
+              </div>
+            </div>
+          </div>
+
+          <!-- Gestion des lots -->
+          <div id="batch-management-section" style="background: var(--background); border-radius: var(--radius); padding: 1rem; margin-bottom: 1rem; display: none;">
+            <h4 style="font-size: 0.85rem; font-weight: 600; color: var(--muted); margin-bottom: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;">
+                <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+                <line x1="3" y1="6" x2="21" y2="6"></line>
+                <path d="M16 10a4 4 0 0 1-8 0"></path>
+              </svg>
+              Lots / Arrivages
+            </h4>
+            <div id="batch-list" style="margin-bottom: 1rem;">
+              <p style="color: var(--muted); font-size: 0.85rem;">Aucun lot enregistre.</p>
+            </div>
+            <div class="form-row" style="align-items: flex-end;">
+              <div class="form-group" style="flex: 1;">
+                <label>Quantite recue</label>
+                <input type="number" id="batch-new-stock" min="0.01" step="0.01" placeholder="0" style="text-align: center;">
+              </div>
+              <div class="form-group" style="flex: 1;">
+                <label>Date d'expiration</label>
+                <input type="date" id="batch-new-expiration">
+              </div>
+              <div class="form-group" style="flex: 1;">
+                <label>N° de lot (optionnel)</label>
+                <input type="text" id="batch-new-number" placeholder="Ex: LOT-001">
+              </div>
+              <div class="form-group" style="flex: 0;">
+                <button type="button" class="btn btn-secondary" onclick="addProductBatch()" style="white-space: nowrap;">
+                  Ajouter le lot
+                </button>
               </div>
             </div>
           </div>
