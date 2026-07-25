@@ -3,6 +3,7 @@
 namespace App\Controllers;
 
 use App\Models\Product;
+use App\Models\ProductBatch;
 use App\Models\Sale;
 use App\Models\SaleDetail;
 use App\Models\Client;
@@ -73,9 +74,10 @@ class SaleController extends Controller
 
                     // Vérifier le stock uniquement pour les ventes positives
                     // (pour les avoirs/annulations avec quantité négative, on ne vérifie pas)
+                    $batchModel = new ProductBatch();
                     if ($quantite > 0) {
                         $product = $productModel->findById($produitId);
-                        if (!$product || $product['stock'] < $quantite) {
+                        if (!$product || !$batchModel->hasEnoughStock($produitId, $quantite)) {
                             $db->rollBack();
                             $this->status(400)->json([
                                 'error' => 'Stock insuffisant pour le produit: ' . ($product['nom'] ?? $item['produit_id'])
@@ -84,9 +86,20 @@ class SaleController extends Controller
                         }
                     }
 
-                    // Mettre à jour le stock: si quantite est positif on décrémente,
-                    // si négatif on incrémente (retour/annulation)
-                    $productModel->updateStock($produitId, $quantite);
+                    // Mettre à jour le stock par lots (FIFO) pour les ventes positives,
+                    // restaurer le stock pour les avoirs/annulations (quantité négative)
+                    if ($quantite > 0) {
+                        $deductSuccess = $batchModel->deductStock($produitId, $quantite);
+                        if (!$deductSuccess) {
+                            $db->rollBack();
+                            $this->status(400)->json([
+                                'error' => 'Erreur lors de la deduction du stock pour: ' . ($product['nom'] ?? $item['produit_id'])
+                            ]);
+                            return;
+                        }
+                    } else {
+                        $batchModel->restoreStock($produitId, -$quantite);
+                    }
 
                     // Vérifier si le stock passe sous le minimum → notification
                     if ($quantite > 0) {
@@ -169,11 +182,11 @@ class SaleController extends Controller
                 return;
             }
 
-            // Restaurer le stock avant suppression
+            // Restaurer le stock avant suppression (via lots FIFO)
+            $batchModel = new ProductBatch();
             $details = $detailModel->getBySaleId($id);
             foreach ($details as $detail) {
-                // stock - (-quantite) = stock + quantite → restauration
-                $productModel->updateStock($detail['produit_id'], -$detail['quantite']);
+                $batchModel->restoreStock($detail['produit_id'], $detail['quantite']);
             }
 
             // Supprimer la vente (les détails sont supprimés en cascade)
