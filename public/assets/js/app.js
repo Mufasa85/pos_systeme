@@ -1781,6 +1781,7 @@ const posCart = {
         formData.append('remise_value', $('#product-remise-value').value || 0);
         formData.append('taxe_specifique_type', $('#product-taxe-specifique-type').value || '%');
         formData.append('taxe_specifique_value', $('#product-taxe-specifique-value').value || 0);
+        formData.append('date_expiration', $('#product-expiration-date').value || '');
         if ($('#product-image').files[0]) {
             formData.append('image', $('#product-image').files[0]);
         }
@@ -1821,9 +1822,19 @@ function setProductForm(product) {
     $('#product-barcode').value = product.code_barres;
     $('#product-name').value = product.nom;
     $('#product-price').value = product.prix;
-    $('#product-stock').value = product.stock;
+    const stockInput = $('#product-stock');
+    stockInput.value = product.total_stock !== undefined ? product.total_stock : product.stock;
+    stockInput.setAttribute('readonly', 'readonly');
+    stockInput.placeholder = 'Stock total';
+    stockInput.title = 'Le stock est calcule automatiquement depuis les lots.';
+
     $('#product-min-stock').value = product.stock_minimum;
+    $('#product-expiration-date').value = product.date_expiration || '';
     $('#product-image').value = '';
+
+    // Afficher la section de gestion des lots et charger les lots existants
+    $('#batch-management-section').style.display = 'block';
+    loadProductBatches(product.id);
 
     // Afficher l'image existante si elle existe
     const preview = $('#product-image-preview');
@@ -2793,6 +2804,142 @@ function closeProductModal() {
     $('#product-form').reset();
     $('#product-id').value = '';
     $('#product-modal-title').textContent = 'Ajouter un produit';
+    $('#batch-management-section').style.display = 'none';
+    $('#batch-list').innerHTML = '<p style="color: var(--muted); font-size: 0.85rem;">Aucun lot enregistre.</p>';
+    $('#batch-new-stock').value = '';
+    $('#batch-new-expiration').value = '';
+    $('#batch-new-number').value = '';
+
+    const stockInput = $('#product-stock');
+    stockInput.removeAttribute('readonly');
+    stockInput.placeholder = 'Stock initial';
+    stockInput.title = "En creation, c'est le stock initial. En modification, le stock est calcule automatiquement depuis les lots.";
+}
+
+async function loadProductBatches(productId) {
+    try {
+        const res = await fetch(APP_URL + '/api/product-batches?product_id=' + encodeURIComponent(productId));
+        const data = await res.json();
+        if (data.success) {
+            renderProductBatches(data.data);
+        }
+    } catch (e) {
+        console.error('Erreur chargement lots:', e);
+    }
+}
+
+function renderProductBatches(batches) {
+    const container = $('#batch-list');
+    if (!batches || batches.length === 0) {
+        container.innerHTML = '<p style="color: var(--muted); font-size: 0.85rem;">Aucun lot enregistre.</p>';
+        return;
+    }
+
+    let html = '<table style="width:100%; border-collapse:collapse; font-size:0.85rem;"><thead><tr>';
+    html += '<th style="text-align:left; padding:0.5rem; border-bottom:1px solid var(--border);">Lot</th>';
+    html += '<th style="text-align:center; padding:0.5rem; border-bottom:1px solid var(--border);">Stock</th>';
+    html += '<th style="text-align:left; padding:0.5rem; border-bottom:1px solid var(--border);">Expiration</th>';
+    html += '<th style="text-align:center; padding:0.5rem; border-bottom:1px solid var(--border);">Action</th>';
+    html += '</tr></thead><tbody>';
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    batches.forEach(batch => {
+        let expColor = '';
+        let expText = '—';
+        if (batch.date_expiration) {
+            const expDate = new Date(batch.date_expiration);
+            const diffDays = Math.floor((expDate - today) / (1000 * 60 * 60 * 24));
+            expColor = diffDays < 0 ? 'red' : (diffDays <= 7 ? 'orange' : 'green');
+            expText = new Date(batch.date_expiration).toLocaleDateString('fr-FR') + (diffDays < 0 ? ' (p&eacute;rim&eacute;)' : ' (' + diffDays + 'j)');
+        }
+        html += '<tr>';
+        html += '<td style="padding:0.5rem; border-bottom:1px solid #eee;">' + (batch.batch_number || '—') + '</td>';
+        html += '<td style="text-align:center; padding:0.5rem; border-bottom:1px solid #eee;">' + parseFloat(batch.stock).toFixed(2) + '</td>';
+        html += '<td style="padding:0.5rem; border-bottom:1px solid #eee; color:' + expColor + '">' + expText + '</td>';
+        html += '<td style="text-align:center; padding:0.5rem; border-bottom:1px solid #eee;">';
+        html += '<button type="button" class="btn btn-ghost btn-small" style="color:red;" onclick="deleteProductBatch(' + batch.id + ')" title="Supprimer le lot">Supprimer</button>';
+        html += '</td>';
+        html += '</tr>';
+    });
+
+    html += '</tbody></table>';
+    container.innerHTML = html;
+}
+
+async function addProductBatch() {
+    const productId = $('#product-id').value;
+    if (!productId) {
+        alert('Veuillez d\'abord enregistrer le produit.');
+        return;
+    }
+
+    const stock = parseFloat($('#batch-new-stock').value);
+    if (!Number.isFinite(stock) || stock <= 0) {
+        alert('La quantite du lot doit etre superieure a 0.');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('product_id', productId);
+    formData.append('stock', stock);
+    formData.append('date_expiration', $('#batch-new-expiration').value || '');
+    formData.append('batch_number', $('#batch-new-number').value || '');
+
+    try {
+        const res = await fetch(APP_URL + '/api/product-batches', {
+            method: 'POST',
+            body: formData
+        });
+        const data = await res.json();
+        if (data.success) {
+            $('#batch-new-stock').value = '';
+            $('#batch-new-expiration').value = '';
+            $('#batch-new-number').value = '';
+            await loadProductBatches(productId);
+            // Rafraichir le stock affiche
+            const productRes = await fetch(APP_URL + '/api/produit?code_barres=' + encodeURIComponent($('#product-barcode').value));
+            const product = await productRes.json();
+            if (product && product.id) {
+                $('#product-stock').value = product.total_stock !== undefined ? product.total_stock : product.stock;
+            }
+        } else {
+            alert(data.error || 'Erreur lors de l\'ajout du lot');
+        }
+    } catch (e) {
+        alert('Erreur reseau');
+    }
+}
+
+async function deleteProductBatch(batchId) {
+    if (!confirm('Supprimer ce lot ? Le stock total sera recalcule.')) {
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('id', batchId);
+
+    try {
+        const res = await fetch(APP_URL + '/api/product-batches/delete', {
+            method: 'POST',
+            body: formData
+        });
+        const data = await res.json();
+        if (data.success) {
+            const productId = $('#product-id').value;
+            await loadProductBatches(productId);
+            const productRes = await fetch(APP_URL + '/api/produit?code_barres=' + encodeURIComponent($('#product-barcode').value));
+            const product = await productRes.json();
+            if (product && product.id) {
+                $('#product-stock').value = product.total_stock !== undefined ? product.total_stock : product.stock;
+            }
+        } else {
+            alert(data.error || 'Erreur lors de la suppression du lot');
+        }
+    } catch (e) {
+        alert('Erreur reseau');
+    }
 }
 
 function closeReceiptModal() {
@@ -2827,6 +2974,12 @@ function generateBarcode() {
 }
 
 function openProductModal() {
+    // Mode création : le stock est saisissable (stock initial)
+    const stockInput = $('#product-stock');
+    stockInput.removeAttribute('readonly');
+    stockInput.placeholder = 'Stock initial';
+    stockInput.value = '';
+
     // Charger les catégories si nécessaire avant d'afficher le modal
     if (categoriesCache.length === 0) {
         loadCategories().then(() => {
