@@ -1,4 +1,134 @@
 <!-- Caisse Page -->
+<style>
+  .products-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin: 0.75rem 0;
+    flex-wrap: wrap;
+  }
+  .view-toggle {
+    display: flex;
+    border: 1px solid var(--border, #e2e8f0);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .view-btn {
+    background: #fff;
+    border: none;
+    padding: 0.5rem 0.75rem;
+    cursor: pointer;
+    color: var(--muted, #64748b);
+    transition: all 0.2s;
+  }
+  .view-btn.active {
+    background: var(--primary, #0B5E88);
+    color: #fff;
+  }
+  .view-btn:hover:not(.active) {
+    background: #f1f5f9;
+  }
+  .products-count {
+    font-size: 0.85rem;
+    color: var(--muted, #64748b);
+  }
+  .products-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    margin: 1rem 0;
+    flex-wrap: wrap;
+  }
+  .page-btn {
+    min-width: 32px;
+    height: 32px;
+    padding: 0 0.5rem;
+    border: 1px solid var(--border, #e2e8f0);
+    border-radius: 6px;
+    background: #fff;
+    color: var(--text, #1a1a2e);
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: all 0.2s;
+  }
+  .page-btn.active {
+    background: var(--primary, #0B5E88);
+    border-color: var(--primary, #0B5E88);
+    color: #fff;
+  }
+  .page-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+  .products-grid.list-view {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .product-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.75rem 1rem;
+    background: var(--surface, #fff);
+    border: 1px solid var(--border, #e2e8f0);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background 0.2s, box-shadow 0.2s;
+  }
+  .product-row:hover {
+    background: #f8fafc;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+  }
+  .product-row-main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+  .product-row-name {
+    font-weight: 600;
+    color: var(--text, #1a1a2e);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .product-row-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    font-size: 0.75rem;
+    color: var(--muted, #64748b);
+  }
+  .product-row-barcode {
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .product-row-category {
+    background: #f1f5f9;
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: var(--primary, #0B5E88);
+  }
+  .product-row-price {
+    font-weight: 700;
+    color: var(--primary, #0B5E88);
+    white-space: nowrap;
+  }
+  @media (max-width: 480px) {
+    .product-row {
+      padding: 0.6rem;
+      gap: 0.5rem;
+    }
+    .product-row-price {
+      font-size: 0.9rem;
+    }
+  }
+</style>
 <div id="page-caisse" class="page <?= $page == 'caisse' ? 'active' : '' ?>">
   <!-- Overlay pour le panier mobile -->
   <div class="cart-sidebar-overlay" id="cart-sidebar-overlay" onclick="toggleCartSidebar()"></div>
@@ -53,7 +183,28 @@
         <!-- Loader pour le chargement des produits -->
 
       </div>
+      <div class="products-toolbar">
+        <div class="view-toggle" id="view-toggle">
+          <button type="button" class="view-btn active" data-mode="cards" title="Vue cartes">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="7" height="7" rx="1"></rect>
+              <rect x="14" y="3" width="7" height="7" rx="1"></rect>
+              <rect x="3" y="14" width="7" height="7" rx="1"></rect>
+              <rect x="14" y="14" width="7" height="7" rx="1"></rect>
+            </svg>
+          </button>
+          <button type="button" class="view-btn" data-mode="rows" title="Vue lignes">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="3" y1="6" x2="21" y2="6"></line>
+              <line x1="3" y1="12" x2="21" y2="12"></line>
+              <line x1="3" y1="18" x2="21" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+        <div class="products-count" id="products-count"></div>
+      </div>
       <div id="products-grid" class="products-grid"></div>
+      <div class="products-pagination" id="products-pagination"></div>
     </div>
 
     <!-- Cart Section (Sidebar sur mobile) -->
