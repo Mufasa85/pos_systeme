@@ -215,6 +215,10 @@ const posCart = {
     dgiResponse: null,
     allProducts: [],
     currentCategory: 'all',
+    viewMode: 'cards',
+    currentPage: 1,
+    itemsPerPage: 20,
+    filteredProducts: [],
 
     init() {
         if ($('#category-filter')) {
@@ -230,6 +234,18 @@ const posCart = {
             if ($('#products-grid')) {
                 this.loadProducts();
             }
+        }
+
+        // Gestion du toggle vue cartes / lignes
+        const viewToggle = $('#view-toggle');
+        if (viewToggle) {
+            viewToggle.addEventListener('click', (e) => {
+                const btn = e.target.closest('.view-btn');
+                if (!btn) return;
+                e.preventDefault();
+                this.setViewMode(btn.dataset.mode);
+            });
+            this.setViewMode(this.viewMode);
         }
 
         if ($('#client-number')) {
@@ -251,6 +267,8 @@ const posCart = {
             const res = await fetch(APP_URL + '/api/produits');
             const data = await res.json();
             this.allProducts = Array.isArray(data) ? data : (data.products || []);
+            this.currentPage = 1;
+            this.filteredProducts = this.allProducts;
             this.renderProducts(this.allProducts);
         } catch (e) {
             console.error('Failed fetching products:', e);
@@ -266,10 +284,134 @@ const posCart = {
             const matchCat = this.currentCategory === 'all' || p.categorie === this.currentCategory;
             return matchQuery && matchCat;
         });
+        this.currentPage = 1;
+        this.filteredProducts = filtered;
         this.renderProducts(filtered);
     },
 
     renderProducts(list) {
+        const grid = $('#products-grid');
+        const countEl = $('#products-count');
+        if (!grid) return;
+
+        this.filteredProducts = list;
+        const total = list.length;
+        if (countEl) countEl.textContent = `${total} produit${total > 1 ? 's' : ''}`;
+
+        const start = (this.currentPage - 1) * this.itemsPerPage;
+        const pageItems = list.slice(start, start + this.itemsPerPage);
+
+        let html = this.buildProductList(pageItems);
+        grid.innerHTML = html || '<div class="empty-state">Aucun produit trouvé</div>';
+        this.renderPagination(total);
+    },
+
+    buildProductList(list) {
+        const isCardView = this.viewMode === 'cards';
+        const isMobile = window.matchMedia('(max-width: 767px)').matches;
+        let html = '';
+
+        if (isCardView) {
+            html = list.map(p => this.productCardHtml(p)).join('');
+            if (!isMobile && list.length < this.itemsPerPage) {
+                for (let i = list.length; i < this.itemsPerPage; i++) {
+                    html += `<div class="product-card placeholder-card hide-on-mobile" style="opacity: 0.2; cursor: default; min-height: 130px; background: #e8e8e8; border: 2px dashed #bbb; display: flex; align-items: center; justify-content: center; border-radius: 8px;" title="Emplacement réservé"><span style="color: #999; font-size: 11px;">Vide</span></div>`;
+                }
+            }
+        } else {
+            html = list.map(p => this.productRowHtml(p)).join('');
+        }
+        return html;
+    },
+
+    productCardHtml(p) {
+        const name = p.nom || 'Sans nom';
+        const price = parseFloat(p.prix) || 0;
+        const barcode = p.code_barres || 'N/A';
+        const stock = parseInt(p.stock) || 0;
+        const image = p.image || '';
+        const isOutOfStock = stock === 0;
+
+        return `
+        <div class="product-card ${isOutOfStock ? 'out-of-stock' : ''}"
+             onclick="${isOutOfStock ? 'event.stopPropagation()' : 'posCart.addToCart(' + p.id + ')'}">
+          <div class="product-image">
+            ${image ? `<img src="${image}" alt="${name}" loading="lazy">` : '<svg width="40" height="50" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>'}
+          </div>
+          <div class="product-info">
+            <div class="name">${name}</div>
+            <div class="price">${formatCurrency(price)}</div>
+            <div class="barcode-display">${barcode}</div>
+            ${isOutOfStock ? '<div class="stock-badge out-of-stock-badge">Rupture de stock</div>' : ''}
+          </div>
+        </div>
+        `;
+    },
+
+    productRowHtml(p) {
+        const name = p.nom || 'Sans nom';
+        const price = parseFloat(p.prix) || 0;
+        const barcode = p.code_barres || 'N/A';
+        const stock = parseInt(p.stock) || 0;
+        const category = p.categorie || '';
+        const isOutOfStock = stock === 0;
+
+        return `
+        <div class="product-row ${isOutOfStock ? 'out-of-stock' : ''}"
+             onclick="${isOutOfStock ? 'event.stopPropagation()' : 'posCart.addToCart(' + p.id + ')'}">
+          <div class="product-row-main">
+            <div class="product-row-name">${name}</div>
+            <div class="product-row-meta">
+              <span class="product-row-barcode">${barcode}</span>
+              ${category ? `<span class="product-row-category">${category}</span>` : ''}
+              ${isOutOfStock ? '<span class="stock-badge out-of-stock-badge">Rupture</span>' : ''}
+            </div>
+          </div>
+          <div class="product-row-price">${formatCurrency(price)}</div>
+        </div>
+        `;
+    },
+
+    setViewMode(mode) {
+        this.viewMode = mode === 'rows' ? 'rows' : 'cards';
+        const grid = $('#products-grid');
+        if (grid) {
+            grid.classList.toggle('list-view', this.viewMode === 'rows');
+            grid.classList.toggle('grid-view', this.viewMode === 'cards');
+        }
+        document.querySelectorAll('#view-toggle .view-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.mode === this.viewMode);
+        });
+        this.currentPage = 1;
+        const list = this.filteredProducts.length ? this.filteredProducts : this.allProducts;
+        this.renderProducts(list);
+    },
+
+    goToPage(page) {
+        const totalPages = Math.ceil(this.filteredProducts.length / this.itemsPerPage) || 1;
+        if (page < 1 || page > totalPages) return;
+        this.currentPage = page;
+        this.renderProducts(this.filteredProducts);
+    },
+
+    renderPagination(total) {
+        const pagEl = $('#products-pagination');
+        if (!pagEl) return;
+        const totalPages = Math.ceil(total / this.itemsPerPage) || 1;
+        if (totalPages <= 1) {
+            pagEl.innerHTML = '';
+            return;
+        }
+
+        let html = '<button type="button" class="page-btn" onclick="posCart.goToPage(' + (this.currentPage - 1) + ')"' + (this.currentPage === 1 ? ' disabled' : '') + '>&laquo;</button>';
+        for (let i = 1; i <= totalPages; i++) {
+            html += '<button type="button" class="page-btn' + (i === this.currentPage ? ' active' : '') + '" onclick="posCart.goToPage(' + i + ')">' + i + '</button>';
+        }
+        html += '<button type="button" class="page-btn" onclick="posCart.goToPage(' + (this.currentPage + 1) + ')"' + (this.currentPage === totalPages ? ' disabled' : '') + '>&raquo;</button>';
+        pagEl.innerHTML = html;
+    },
+
+    __oldRenderProducts(list) {
         const grid = $('#products-grid');
         if (!grid) return;
 

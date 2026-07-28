@@ -43,11 +43,11 @@ class SettingsController extends Controller
             'store_rccm' => $shop['rccm'] ?? '',
             'store_isf' => $shop['isf'] ?? '',
 
-            // Informations POS
-            // (ces champs existaient dans settings; ici on garde la compatibilité)
-            'nid' => $this->settingsModel->get('nid', $shopId) ?? '',
-            'token' => $this->settingsModel->get('token', $shopId) ?? '',
-            'port' => $this->settingsModel->get('port', $shopId) ?? '',
+            // Informations POS (depuis la table shops)
+            'pdv' => $shop['pdv'] ?? '',
+            'nid' => $shop['nid'] ?? '',
+            'token' => $shop['token'] ?? '',
+            'port' => $shop['port'] ?? '',
             'service_type' => $shop['service_type_id'] ?? 'Caisse'
         ]);
     }
@@ -68,10 +68,46 @@ class SettingsController extends Controller
         }
 
         $shopId = $this->getShopId();
-        try {
-            foreach ($input as $key => $value) {
-                $this->settingsModel->set($key, $value, $shopId);
+
+        // Champs du magasin à enregistrer dans la table shops
+        $shopFields = [
+            'store_name'    => 'nom',
+            'store_address' => 'adresse',
+            'store_phone'   => 'telephone',
+            'store_email'   => 'email',
+            'store_ice'     => 'ice',
+            'store_rccm'    => 'rccm',
+            'store_isf'     => 'isf',
+            'pdv'           => 'pdv',
+            'nid'           => 'nid',
+            'token'         => 'token',
+            'port'          => 'port'
+        ];
+
+        $shopData = [];
+        foreach ($shopFields as $inputKey => $dbCol) {
+            if (array_key_exists($inputKey, $input)) {
+                $shopData[$dbCol] = is_string($input[$inputKey]) ? $this->sanitaze($input[$inputKey]) : $input[$inputKey];
             }
+        }
+
+        // service_type envoyé sous forme d'ID
+        if (array_key_exists('service_type', $input) && is_numeric($input['service_type'])) {
+            $shopData['service_type_id'] = (int)$input['service_type'];
+        }
+
+        try {
+            if (!empty($shopData) && $shopId) {
+                $shopModel = new \App\Models\Shop();
+                $shopModel->update($shopId, $shopData);
+            }
+
+            // Les autres clés restent dans settings (theme, paper_type, tax_rate, etc.)
+            $settingsKeys = array_diff(array_keys($input), array_keys($shopFields), ['service_type']);
+            foreach ($settingsKeys as $key) {
+                $this->settingsModel->set($key, $input[$key], $shopId);
+            }
+
             $this->logAudit('update', 'settings', null, ['keys' => array_keys($input)]);
             $this->json(['success' => true, 'message' => 'Paramètres mis à jour avec succès']);
         } catch (\Exception $e) {
