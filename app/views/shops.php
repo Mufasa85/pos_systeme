@@ -19,7 +19,12 @@
   .shop-legal-item strong { color:var(--text-secondary,#475569); margin-right:3px }
 
   /* Responsive modal adjustments */
-  #shop-modal .modal-content { width: min(100%, 560px); max-width: 100%; }
+  #shop-modal .modal-content {
+    width: min(100%, 560px);
+    max-width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
   #shop-modal .modal-content form { padding: 0; }
   #shop-modal .modal-header, #shop-modal .modal-actions { padding: 1rem 1.25rem; }
   #shop-modal .modal-actions { flex-wrap: wrap; justify-content: flex-end; gap: 0.75rem; }
@@ -99,11 +104,15 @@
       </div>
       <?php endif; ?>
     </div>
-    <?php if (!empty($shop['ice']) || !empty($shop['rccm']) || !empty($shop['isf'])): ?>
+    <?php if (!empty($shop['ice']) || !empty($shop['rccm']) || !empty($shop['isf']) || !empty($shop['pdv']) || !empty($shop['nid']) || !empty($shop['token']) || !empty($shop['port'])): ?>
     <div class="shop-legal">
       <?php if (!empty($shop['ice'])): ?><span class="shop-legal-item"><strong>ICE</strong><?= htmlspecialchars($shop['ice']) ?></span><?php endif; ?>
       <?php if (!empty($shop['rccm'])): ?><span class="shop-legal-item"><strong>RCCM</strong><?= htmlspecialchars($shop['rccm']) ?></span><?php endif; ?>
       <?php if (!empty($shop['isf'])): ?><span class="shop-legal-item"><strong>ISF</strong><?= htmlspecialchars($shop['isf']) ?></span><?php endif; ?>
+      <?php if (!empty($shop['pdv'])): ?><span class="shop-legal-item"><strong>PDV</strong><?= htmlspecialchars($shop['pdv']) ?></span><?php endif; ?>
+      <?php if (!empty($shop['nid'])): ?><span class="shop-legal-item"><strong>NID</strong><?= htmlspecialchars($shop['nid']) ?></span><?php endif; ?>
+      <?php if (!empty($shop['token'])): ?><span class="shop-legal-item"><strong>TOKEN</strong><?= htmlspecialchars($shop['token']) ?></span><?php endif; ?>
+      <?php if (!empty($shop['port'])): ?><span class="shop-legal-item"><strong>PORT</strong><?= htmlspecialchars($shop['port']) ?></span><?php endif; ?>
     </div>
     <?php endif; ?>
     <div class="shop-card-footer">
@@ -191,6 +200,22 @@
             <label style="font-size:.8rem;font-weight:600">ISF</label>
             <input type="text" id="shop-isf" placeholder="Numéro ISF" style="width:100%;box-sizing:border-box">
           </div>
+          <div class="form-group" style="margin:0">
+            <label style="font-size:.8rem;font-weight:600">Point de vente (PDV)</label>
+            <input type="text" id="shop-pdv" placeholder="Ex: Kinshasa Centre" style="width:100%;box-sizing:border-box">
+          </div>
+          <div class="form-group" style="margin:0">
+            <label style="font-size:.8rem;font-weight:600">NID</label>
+            <input type="text" id="shop-nid" placeholder="Numéro NID" style="width:100%;box-sizing:border-box">
+          </div>
+          <div class="form-group" style="margin:0">
+            <label style="font-size:.8rem;font-weight:600">TOKEN</label>
+            <input type="text" id="shop-token" placeholder="Clé API ou token" style="width:100%;box-sizing:border-box">
+          </div>
+          <div class="form-group" style="margin:0">
+            <label style="font-size:.8rem;font-weight:600">PORT</label>
+            <input type="text" id="shop-port" placeholder="Ex: 8080" style="width:100%;box-sizing:border-box">
+          </div>
         </div>
 
         <!-- Statut -->
@@ -257,6 +282,10 @@ function openEditShopModal(shop) {
   document.getElementById('shop-ice').value = shop.ice || '';
   document.getElementById('shop-rccm').value = shop.rccm || '';
   document.getElementById('shop-isf').value = shop.isf || '';
+  document.getElementById('shop-pdv').value = shop.pdv || '';
+  document.getElementById('shop-nid').value = shop.nid || '';
+  document.getElementById('shop-token').value = shop.token || '';
+  document.getElementById('shop-port').value = shop.port || '';
   document.getElementById('shop-service-type').value = shop.service_type_id || '';
   document.getElementById('shop-actif').value = shop.actif ?? '1';
   document.getElementById('shop-error').style.display = 'none';
@@ -284,12 +313,16 @@ async function saveShop(e) {
     ice: document.getElementById('shop-ice').value.trim(),
     rccm: document.getElementById('shop-rccm').value.trim(),
     isf: document.getElementById('shop-isf').value.trim(),
+    pdv: document.getElementById('shop-pdv').value.trim(),
+    nid: document.getElementById('shop-nid').value.trim(),
+    token: document.getElementById('shop-token').value.trim(),
+    port: document.getElementById('shop-port').value.trim(),
     service_type_id: document.getElementById('shop-service-type').value || null,
     actif: parseInt(document.getElementById('shop-actif').value)
   };
 
-  const url = id ? `${SHOPS_API}/${id}` : SHOPS_API;
-  const method = id ? 'PUT' : 'POST';
+  const url = id ? `${SHOPS_API}/update/${id}` : SHOPS_API;
+  const method = 'POST';
 
   try {
     const res = await fetch(url, {

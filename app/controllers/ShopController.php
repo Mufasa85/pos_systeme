@@ -46,6 +46,10 @@ class ShopController extends Controller
             'ice'             => $this->sanitaze($input['ice'] ?? ''),
             'rccm'            => $this->sanitaze($input['rccm'] ?? ''),
             'isf'             => $this->sanitaze($input['isf'] ?? ''),
+            'pdv'             => $this->sanitaze($input['pdv'] ?? ''),
+            'nid'             => $this->sanitaze($input['nid'] ?? ''),
+            'token'           => $this->sanitaze($input['token'] ?? ''),
+            'port'            => $this->sanitaze($input['port'] ?? ''),
             'service_type_id' => isset($input['service_type_id']) ? (int)$input['service_type_id'] : null,
             'actif'           => (int)($input['actif'] ?? 1)
         ]);
@@ -76,7 +80,7 @@ class ShopController extends Controller
         }
 
         $data = [];
-        $allowed = ['nom', 'code', 'adresse', 'telephone', 'email', 'ice', 'rccm', 'isf', 'service_type_id', 'actif'];
+        $allowed = ['nom', 'code', 'adresse', 'telephone', 'email', 'ice', 'rccm', 'isf', 'pdv', 'nid', 'token', 'port', 'service_type_id', 'actif'];
         foreach ($allowed as $field) {
             if (isset($input[$field])) {
                 $data[$field] = $field === 'service_type_id' ? (int)$input[$field] : $this->sanitaze($input[$field]);

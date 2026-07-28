@@ -33,8 +33,8 @@ class Shop
 
     public function create($data)
     {
-        $sql = "INSERT INTO shops (nom, code, adresse, telephone, email, ice, rccm, isf, service_type_id, actif)
-                VALUES (:nom, :code, :adresse, :telephone, :email, :ice, :rccm, :isf, :service_type_id, :actif)";
+        $sql = "INSERT INTO shops (nom, code, adresse, telephone, email, ice, rccm, isf, pdv, nid, token, port, service_type_id, actif)
+                VALUES (:nom, :code, :adresse, :telephone, :email, :ice, :rccm, :isf, :pdv, :nid, :token, :port, :service_type_id, :actif)";
         $this->db->query($sql, [
             ':nom'             => $data['nom'],
             ':code'            => $data['code'],
@@ -44,6 +44,10 @@ class Shop
             ':ice'             => $data['ice'] ?? null,
             ':rccm'            => $data['rccm'] ?? null,
             ':isf'             => $data['isf'] ?? null,
+            ':pdv'             => $data['pdv'] ?? null,
+            ':nid'             => $data['nid'] ?? null,
+            ':token'           => $data['token'] ?? null,
+            ':port'            => $data['port'] ?? null,
             ':service_type_id' => $data['service_type_id'] ?? null,
             ':actif'           => $data['actif'] ?? 1
         ]);
@@ -55,7 +59,7 @@ class Shop
         $fields = [];
         $params = [':id' => $id];
 
-        $allowed = ['nom', 'code', 'adresse', 'telephone', 'email', 'ice', 'rccm', 'isf', 'service_type_id', 'actif'];
+        $allowed = ['nom', 'code', 'adresse', 'telephone', 'email', 'ice', 'rccm', 'isf', 'pdv', 'nid', 'token', 'port', 'service_type_id', 'actif'];
         foreach ($allowed as $field) {
             if (isset($data[$field])) {
                 $fields[] = "$field = :$field";
