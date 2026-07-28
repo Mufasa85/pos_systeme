@@ -348,17 +348,43 @@ class SaleController extends Controller
 
         $out = fopen('php://output', 'w');
         fprintf($out, chr(0xEF) . chr(0xBB) . chr(0xBF)); // BOM UTF-8
+        fputs($out, "sep=;\n"); // Indiquer à Excel d'utiliser le point-virgule comme séparateur
+
         fputcsv($out, ['N° Facture', 'Date', 'Vendeur', 'Client', 'Sous-total HT', 'TVA', 'Total', 'Paiement'], ';');
+
+        $labels = [
+            'ESPECES' => 'Espèces',
+            'MOBILEMONEY' => 'Mobile Money',
+            'CARTEBANCAIRE' => 'Carte Bancaire',
+            'VIREMENT' => 'Virement',
+            'CREDIT' => 'Crédit',
+            'CHEQUES' => 'Chèques',
+            'AUTRE' => 'Autres',
+        ];
+
         foreach ($rows as $r) {
+            $payments = json_decode($r['payments'] ?? '[]', true);
+            if (!is_array($payments) || empty($payments)) {
+                $paymentText = 'Espèces';
+            } else {
+                $parts = [];
+                foreach ($payments as $p) {
+                    $type = $p['type'] ?? ($p['mode'] ?? 'ESPECES');
+                    $amount = floatval($p['amount'] ?? 0);
+                    $parts[] = ($labels[$type] ?? $type) . ' : ' . number_format($amount, 2, ',', ' ');
+                }
+                $paymentText = implode(' | ', $parts);
+            }
+
             fputcsv($out, [
                 $r['numero_facture'],
-                $r['date'],
+                date('d/m/Y H:i', strtotime($r['date'])),
                 $r['vendeur'] ?? '',
                 $r['client'] ?? 'Anonyme',
-                number_format($r['sous_total_ht'], 2, ',', ''),
-                number_format($r['tva'], 2, ',', ''),
-                number_format($r['total'], 2, ',', ''),
-                $r['payments'] ?? 'cash'
+                number_format($r['sous_total_ht'], 2, ',', ' '),
+                number_format($r['tva'], 2, ',', ' '),
+                number_format($r['total'], 2, ',', ' '),
+                $paymentText
             ], ';');
         }
         fclose($out);
