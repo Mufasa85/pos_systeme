@@ -14,6 +14,13 @@ use App\Controllers\ServiceTypeController;
 use App\Controllers\CompanyInfoController;
 use App\Controllers\NotificationController;
 use App\Controllers\AuthController;
+use App\Controllers\PayrollEmployeeController;
+use App\Controllers\PayrollController;
+use App\Controllers\PayrollAttendanceController;
+use App\Controllers\PayrollPayslipController;
+use App\Controllers\PayrollPaymentController;
+use App\Controllers\PayrollTimeClockController;
+use App\Controllers\PayrollReportController;
 use App\Core\Router;
 use App\Models\Settings;
 
@@ -81,6 +88,90 @@ Router::get("/api/vente/next-invoice", [SaleController::class, 'nextInvoice']);
 Router::get("/api/ventes/archives", [SaleController::class, 'archives']);
 Router::get("/api/cloture", [SaleController::class, 'cloture']);
 Router::get("/api/export/ventes", [SaleController::class, 'exportCsv']);
+
+// ── Payroll (employés / vendeurs) ───────────────────────────
+Router::get("/api/payroll/employees", [PayrollEmployeeController::class, 'index']);
+Router::get("/api/payroll/employees/vendors", [PayrollEmployeeController::class, 'vendors']);
+Router::get("/api/payroll/employees/[i:id]", [PayrollEmployeeController::class, 'show']);
+Router::post("/api/payroll/employees", [PayrollEmployeeController::class, 'create']);
+Router::post("/api/payroll/employees/update/[i:id]", [PayrollEmployeeController::class, 'update']);
+Router::post("/api/payroll/employees/delete/[i:id]", [PayrollEmployeeController::class, 'delete']);
+
+// ── Payroll périodes & paramètres ───────────────────────────
+Router::get("/api/payroll/periods", [PayrollController::class, 'periods']);
+Router::post("/api/payroll/periods", [PayrollController::class, 'createPeriod']);
+Router::post("/api/payroll/periods/update/[i:id]", [PayrollController::class, 'updatePeriod']);
+Router::post("/api/payroll/periods/delete/[i:id]", [PayrollController::class, 'deletePeriod']);
+Router::post("/api/payroll/periods/calculate/[i:id]", [PayrollController::class, 'calculate']);
+Router::post("/api/payroll/periods/validate/[i:id]", [PayrollController::class, 'validatePeriod']);
+Router::post("/api/payroll/periods/close/[i:id]", [PayrollController::class, 'closePeriod']);
+Router::get("/api/payroll/parameters", [PayrollController::class, 'parameters']);
+Router::get("/api/payroll/payment-methods", [PayrollController::class, 'paymentMethods']);
+Router::post("/api/payroll/payment-methods", [PayrollController::class, 'createPaymentMethod']);
+Router::post("/api/payroll/payment-methods/update/[i:id]", [PayrollController::class, 'updatePaymentMethod']);
+Router::post("/api/payroll/payment-methods/delete/[i:id]", [PayrollController::class, 'deletePaymentMethod']);
+
+// ── Payroll paramètres (avantages, retenues, cotisations, barème)
+Router::get("/api/payroll/allowances", [PayrollController::class, 'allowances']);
+Router::post("/api/payroll/allowances", [PayrollController::class, 'createAllowance']);
+Router::post("/api/payroll/allowances/update/[i:id]", [PayrollController::class, 'updateAllowance']);
+Router::post("/api/payroll/allowances/delete/[i:id]", [PayrollController::class, 'deleteAllowance']);
+
+Router::get("/api/payroll/deductions", [PayrollController::class, 'deductions']);
+Router::post("/api/payroll/deductions", [PayrollController::class, 'createDeduction']);
+Router::post("/api/payroll/deductions/update/[i:id]", [PayrollController::class, 'updateDeduction']);
+Router::post("/api/payroll/deductions/delete/[i:id]", [PayrollController::class, 'deleteDeduction']);
+
+Router::get("/api/payroll/contributions", [PayrollController::class, 'contributions']);
+Router::post("/api/payroll/contributions", [PayrollController::class, 'createContribution']);
+Router::post("/api/payroll/contributions/update/[i:id]", [PayrollController::class, 'updateContribution']);
+Router::post("/api/payroll/contributions/delete/[i:id]", [PayrollController::class, 'deleteContribution']);
+
+Router::get("/api/payroll/seniority", [PayrollController::class, 'seniority']);
+Router::post("/api/payroll/seniority", [PayrollController::class, 'createSeniority']);
+Router::post("/api/payroll/seniority/update/[i:id]", [PayrollController::class, 'updateSeniority']);
+Router::post("/api/payroll/seniority/delete/[i:id]", [PayrollController::class, 'deleteSeniority']);
+
+// ── Payroll présences / absences / heures supp ─────────────
+Router::get("/api/payroll/attendance/period/[i:id]", [PayrollAttendanceController::class, 'forPeriod']);
+Router::post("/api/payroll/attendance", [PayrollAttendanceController::class, 'save']);
+Router::post("/api/payroll/attendance/bulk", [PayrollAttendanceController::class, 'bulkSave']);
+Router::post("/api/payroll/absence", [PayrollAttendanceController::class, 'saveAbsence']);
+Router::post("/api/payroll/absence/update/[i:id]", [PayrollAttendanceController::class, 'updateAbsence']);
+Router::post("/api/payroll/absence/delete/[i:id]", [PayrollAttendanceController::class, 'deleteAbsence']);
+Router::post("/api/payroll/overtime", [PayrollAttendanceController::class, 'saveOvertime']);
+Router::post("/api/payroll/overtime/update/[i:id]", [PayrollAttendanceController::class, 'updateOvertime']);
+Router::post("/api/payroll/overtime/delete/[i:id]", [PayrollAttendanceController::class, 'deleteOvertime']);
+
+// ── Payroll bulletins ───────────────────────────────────────
+Router::get("/api/payroll/payslips/period/[i:id]", [PayrollPayslipController::class, 'forPeriod']);
+Router::get("/api/payroll/payslips/my", [PayrollPayslipController::class, 'myPayslips']);
+Router::get("/api/payroll/payslips/[i:id]", [PayrollPayslipController::class, 'show']);
+Router::post("/api/payroll/payslips/calculate", [PayrollPayslipController::class, 'calculateOne']);
+Router::post("/api/payroll/payslips/period/calculate/[i:id]", [PayrollPayslipController::class, 'calculatePeriod']);
+Router::post("/api/payroll/payslips/validate/[i:id]", [PayrollPayslipController::class, 'validate']);
+Router::get("/api/payroll/payslips/pdf/[i:id]", [PayrollPayslipController::class, 'streamPdf']);
+Router::post("/api/payroll/payslips/pdf/[i:id]", [PayrollPayslipController::class, 'generatePdf']);
+
+// ── Payroll paiements ───────────────────────────────────────
+Router::get("/api/payroll/payments/payslip/[i:id]", [PayrollPaymentController::class, 'forPayslip']);
+Router::post("/api/payroll/payments", [PayrollPaymentController::class, 'create']);
+Router::post("/api/payroll/payments/update/[i:id]", [PayrollPaymentController::class, 'update']);
+Router::post("/api/payroll/payments/delete/[i:id]", [PayrollPaymentController::class, 'delete']);
+
+// ── Payroll pointage / import ───────────────────────────────
+Router::get("/api/payroll/timeclock/period/[i:id]", [PayrollTimeClockController::class, 'forPeriod']);
+Router::post("/api/payroll/timeclock", [PayrollTimeClockController::class, 'create']);
+Router::post("/api/payroll/timeclock/update/[i:id]", [PayrollTimeClockController::class, 'update']);
+Router::post("/api/payroll/timeclock/delete/[i:id]", [PayrollTimeClockController::class, 'delete']);
+Router::post("/api/payroll/timeclock/import", [PayrollTimeClockController::class, 'import']);
+
+// ── Payroll rapports ────────────────────────────────────────
+Router::get("/api/payroll/reports/period/[i:id]", [PayrollReportController::class, 'periodSummary']);
+Router::get("/api/payroll/reports/csv/[i:id]", [PayrollReportController::class, 'periodCsv']);
+Router::get("/api/payroll/reports/payments/[i:id]", [PayrollReportController::class, 'payments']);
+Router::get("/api/payroll/reports/contributions/[i:id]", [PayrollReportController::class, 'contributions']);
+Router::get("/api/payroll/reports/headcount", [PayrollReportController::class, 'headcount']);
 
 // Paramètres du système
 // Routes pour les clients

@@ -40,8 +40,13 @@ class UserController extends Controller
 
         $userModel = new \App\Models\User();
         $userModel->create($username, $password, $fullname, $role, $actif, $agentCode, $shopId, $email, $telephone);
+        $userId = \App\Core\Database::getInstance()->lastInsertId();
 
-        $this->logAudit('create', 'utilisateur', null, ['username' => $username, 'role' => $role]);
+        if ($role === 'vendeur' && $shopId && $userId) {
+            (new \App\Models\PayrollEmployee())->createForVendor($userId, $shopId, $agentCode);
+        }
+
+        $this->logAudit('create', 'utilisateur', $userId, ['username' => $username, 'role' => $role]);
         $this->json(['success' => true, 'message' => 'Utilisateur créé !']);
     }
 

@@ -722,6 +722,30 @@ class PageController extends Controller
         require_once dirname(__DIR__) . DIRECTORY_SEPARATOR . 'views/new-scanner.php';
     }
 
+    public function payroll($params)
+    {
+        if (!isset($_SESSION['user_id'])) {
+            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";
+            $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+            header('Location: ' . $protocol . '://' . $host . '/');
+            exit;
+        }
+
+        $isAdmin = $this->isAdmin() || $this->isSuperAdmin();
+        $view = $params['view'] ?? 'index';
+
+        if ($isAdmin) {
+            $allowed = ['index','employees','employee_form','periods','attendance','payslips','payslip_detail','payslip_pdf','payments','timeclock','reports','settings'];
+            if (!in_array($view, $allowed)) $view = 'index';
+        } else {
+            $allowed = ['mypayslips'];
+            if (!in_array($view, $allowed)) $view = 'mypayslips';
+        }
+
+        $data = ['page' => 'payroll'];
+        $this->render('payroll/' . $view, $data);
+    }
+
     private function getBaseUrl()
     {
         $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";
