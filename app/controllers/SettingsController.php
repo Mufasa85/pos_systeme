@@ -248,4 +248,73 @@ class SettingsController extends Controller
         $paperType = $this->settingsModel->get('paper_type', $shopId) ?? '80mm';
         $this->json(['paper_type' => $paperType]);
     }
+
+    // POST /api/settings/receipt-padding - Mettre à jour le padding des articles (57mm / 80mm)
+    // Payload attendu : { paper_type: '57mm'|'80mm', padding_h: number, padding_v: number } (en mm)
+    public function updateReceiptPadding()
+    {
+        if (!$this->requireAdmin()) return;
+
+        $allowedFormats = ['57mm', '80mm'];
+
+        $raw = file_get_contents('php://input');
+        $json = $raw !== '' ? json_decode($raw, true) : null;
+        $input = (!empty($_POST)) ? $_POST : (is_array($json) ? $json : []);
+
+        $paperType = $input['paper_type'] ?? null;
+        $paddingH = $input['padding_h'] ?? null;
+        $paddingV = $input['padding_v'] ?? null;
+
+        if (!in_array($paperType, $allowedFormats, true)) {
+            $this->status(400)->json([
+                'error' => 'Format de papier invalide. Formats acceptés : ' . implode(', ', $allowedFormats)
+            ]);
+            return;
+        }
+
+        if (!is_numeric($paddingH) || !is_numeric($paddingV)) {
+            $this->status(400)->json(['error' => 'Les valeurs de padding doivent être numériques']);
+            return;
+        }
+
+        $paddingH = max(0, min(10, (float)$paddingH));
+        $paddingV = max(0, min(10, (float)$paddingV));
+
+        $shopId = $this->getShopId();
+        try {
+            $key = 'receipt_padding_' . $paperType;
+            $this->settingsModel->set($key, json_encode(['h' => $paddingH, 'v' => $paddingV]), $shopId);
+            $this->json([
+                'success' => true,
+                'message' => 'Padding du ticket mis à jour',
+                'paper_type' => $paperType,
+                'padding_h' => $paddingH,
+                'padding_v' => $paddingV
+            ]);
+        } catch (\Exception $e) {
+            $this->status(500)->json(['error' => 'Erreur: ' . $e->getMessage()]);
+        }
+    }
+
+    // GET /api/settings/receipt-padding - Récupérer le padding configuré pour 57mm et 80mm
+    public function getReceiptPadding()
+    {
+        $shopId = $this->isSuperAdmin() ? null : $this->getShopId();
+
+        $defaults = [
+            '57mm' => ['h' => 0, 'v' => 1],
+            '80mm' => ['h' => 0, 'v' => 1]
+        ];
+
+        $result = [];
+        foreach (['57mm', '80mm'] as $format) {
+            $raw = $this->settingsModel->get('receipt_padding_' . $format, $shopId);
+            $decoded = $raw ? json_decode($raw, true) : null;
+            $result[$format] = (is_array($decoded) && isset($decoded['h'], $decoded['v']))
+                ? ['h' => (float)$decoded['h'], 'v' => (float)$decoded['v']]
+                : $defaults[$format];
+        }
+
+        $this->json($result);
+    }
 }
