@@ -241,8 +241,60 @@
     min-width: 120px;
 }
 
+/* Attendance grid */
+#page-payroll .attendance-form {
+    display: block;
+}
+
+#page-payroll .attendance-form .form-actions {
+    margin-top: 1rem;
+    text-align: right;
+}
+
+#page-payroll .attendance-table-wrap {
+    border-radius: 0.375rem;
+}
+
+#page-payroll .attendance-table {
+    table-layout: auto;
+    min-width: 720px;
+}
+
+#page-payroll .attendance-table th,
+#page-payroll .attendance-table td {
+    white-space: nowrap;
+}
+
+#page-payroll .attendance-table th:nth-child(1),
+#page-payroll .attendance-table td:nth-child(1) {
+    min-width: 160px;
+}
+
+#page-payroll .attendance-table td.employee-name {
+    font-weight: 500;
+    min-width: 160px;
+}
+
+#page-payroll .attendance-table td input[type="number"] {
+    max-width: 110px;
+    text-align: right;
+}
+
+#page-payroll .attendance-table td input[type="text"] {
+    min-width: 220px;
+    width: 100%;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
+    #page-payroll .attendance-form .form-actions {
+        text-align: left;
+    }
+
+    #page-payroll .attendance-table td input[type="text"] {
+        min-width: 160px;
+    }
+
     #page-payroll .page-header h2 {
         font-size: 1.25rem;
     }

@@ -49,10 +49,15 @@ class PayrollPayslip
 
     public function findById($id, $shopId = null)
     {
-        $sql = "SELECT * FROM payroll_payslips WHERE id = ?";
+        $sql = "SELECT pp.*, u.nom_complet, pe.matricule, p.month, p.year
+                FROM payroll_payslips pp
+                JOIN payroll_employees pe ON pp.employee_id = pe.id
+                JOIN utilisateurs u ON pe.user_id = u.id
+                JOIN payroll_periods p ON pp.payroll_period_id = p.id
+                WHERE pp.id = ?";
         $params = [$id];
         if ($shopId) {
-            $sql .= " AND shop_id = ?";
+            $sql .= " AND pp.shop_id = ?";
             $params[] = $shopId;
         }
         return $this->db->fetch($sql, $params);

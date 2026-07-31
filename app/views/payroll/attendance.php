@@ -16,9 +16,9 @@
     <div class="card" style="margin-bottom: 1.5rem;">
         <div class="card-header"><h3>Grille de présence</h3></div>
         <div class="card-body">
-            <form id="attendanceForm">
+            <form id="attendanceForm" class="attendance-form">
                 <div id="attendanceGrid"><em>Sélectionnez une période</em></div>
-                <button type="submit" class="btn btn-primary" style="margin-top:1rem" id="saveAttendance" hidden>Enregistrer les présences</button>
+                <div class="form-actions"><button type="submit" class="btn btn-primary" id="saveAttendance" hidden>Enregistrer les présences</button></div>
             </form>
         </div>
     </div>
@@ -87,15 +87,15 @@
             return;
         }
 
-        let html = '<div style="overflow-x:auto"><table class="data-table" style="width:100%"><thead><tr><th>Employé</th><th>Jours travaillés</th><th>Heures</th><th>Jours payés</th><th>Jours attendus</th><th>Notes</th></tr></thead><tbody>';
+        let html = '<div class="attendance-table-wrap" style="overflow-x:auto"><table class="data-table attendance-table" style="width:100%"><thead><tr><th>Employé</th><th>Jours travaillés</th><th>Heures</th><th>Jours payés</th><th>Jours attendus</th><th>Notes</th></tr></thead><tbody>';
         employees.forEach(e => {
             const a = data.attendance.find(x => x.employee_id == e.id) || {};
             html += `<tr>
-                <td>${e.nom_complet}</td>
-                <td><input type="number" step="0.01" name="worked_days[${e.id}]" value="${a.worked_days || ''}" class="form-control" /></td>
-                <td><input type="number" step="0.01" name="worked_hours[${e.id}]" value="${a.worked_hours || ''}" class="form-control" /></td>
-                <td><input type="number" step="0.01" name="paid_days[${e.id}]" value="${a.paid_days || ''}" class="form-control" /></td>
-                <td><input type="number" step="0.01" name="expected[${e.id}]" value="${a.expected_working_days || ''}" class="form-control" /></td>
+                <td class="employee-name">${e.nom_complet}</td>
+                <td><input type="number" step="0.01" name="worked_days[${e.id}]" value="${a.worked_days || ''}" class="form-control right" /></td>
+                <td><input type="number" step="0.01" name="worked_hours[${e.id}]" value="${a.worked_hours || ''}" class="form-control right" /></td>
+                <td><input type="number" step="0.01" name="paid_days[${e.id}]" value="${a.paid_days || ''}" class="form-control right" /></td>
+                <td><input type="number" step="0.01" name="expected[${e.id}]" value="${a.expected_working_days || ''}" class="form-control right" /></td>
                 <td><input type="text" name="notes[${e.id}]" value="${a.notes || ''}" class="form-control" /></td>
             </tr>`;
         });
