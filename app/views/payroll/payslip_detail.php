@@ -29,26 +29,29 @@
         const employer = lines.filter(l => l.type === 'employer');
 
         function section(title, rows) {
-            let h = `<h4 style="margin-top:1.5rem">${title}</h4><table class="data-table" style="width:100%"><thead><tr><th>Libellé</th><th class="right">Montant</th></tr></thead><tbody>`;
+            let h = `<h4 style="margin-top:1.5rem">${title}</h4>`;
+            h += `<div class="table-wrap"><table class="data-table" style="width:100%"><thead><tr><th>Libellé</th><th class="right">Montant</th></tr></thead><tbody>`;
             rows.forEach(l => {
                 h += `<tr><td>${l.label}</td><td class="right">${parseFloat(l.amount).toLocaleString('fr-FR', {minimumFractionDigits:2})}</td></tr>`;
             });
-            h += '</tbody></table>';
+            h += '</tbody></table></div>';
             return h;
         }
 
-        let html = `<p><strong>Matricule :</strong> ${p.matricule}</p>`;
-        html += `<p><strong>Brut :</strong> ${parseFloat(p.gross_amount).toLocaleString('fr-FR', {minimumFractionDigits:2})}</p>`;
-        html += `<p><strong>Retenues :</strong> ${parseFloat(p.total_deductions).toLocaleString('fr-FR', {minimumFractionDigits:2})}</p>`;
-        html += `<p><strong>Net :</strong> ${parseFloat(p.net_amount).toLocaleString('fr-FR', {minimumFractionDigits:2})}</p>`;
-        html += `<p><strong>Coût employeur :</strong> ${parseFloat(p.employer_cost).toLocaleString('fr-FR', {minimumFractionDigits:2})}</p>`;
-        html += `<p><strong>Statut :</strong> ${p.status}</p>`;
+        let html = `<div class="payslip-summary">
+            <p><strong>Matricule :</strong> ${p.matricule}</p>
+            <p><strong>Brut :</strong> ${parseFloat(p.gross_amount).toLocaleString('fr-FR', {minimumFractionDigits:2})}</p>
+            <p><strong>Retenues :</strong> ${parseFloat(p.total_deductions).toLocaleString('fr-FR', {minimumFractionDigits:2})}</p>
+            <p><strong>Net :</strong> ${parseFloat(p.net_amount).toLocaleString('fr-FR', {minimumFractionDigits:2})}</p>
+            <p><strong>Coût employeur :</strong> ${parseFloat(p.employer_cost).toLocaleString('fr-FR', {minimumFractionDigits:2})}</p>
+            <p><strong>Statut :</strong> ${p.status}</p>
+        </div>`;
 
         html += section('Gains', earnings);
         html += section('Retenues', deductions);
         html += section('Charges employeur', employer);
 
-        html += `<div style="margin-top:1.5rem">
+        html += `<div class="payslip-actions">
             <a href="/api/payroll/payslips/pdf/${id}" target="_blank" class="btn btn-info">Voir PDF</a>
             ${p.status === 'calculated' ? `<button onclick="validatePayslip(${id})" class="btn btn-success">Valider</button>` : ''}
         </div>`;

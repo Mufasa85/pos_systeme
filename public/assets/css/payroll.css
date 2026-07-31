@@ -322,6 +322,29 @@
     }
 }
 
+/* Payslip detail */
+#page-payroll .payslip-summary p {
+    margin: 0.4rem 0;
+}
+
+#page-payroll .payslip-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 1.5rem;
+}
+
+#page-payroll .payslip-actions .btn {
+    flex: 1 1 200px;
+    min-width: 140px;
+}
+
+#page-payroll .table-wrap {
+    overflow-x: auto;
+    border-radius: 0.375rem;
+    margin-top: 0.5rem;
+}
+
 @media (max-width: 480px) {
     #page-payroll .stats-grid {
         grid-template-columns: 1fr;
@@ -335,5 +358,244 @@
     #page-payroll .data-table th,
     #page-payroll .data-table td {
         white-space: nowrap;
+    }
+
+    #page-payroll .payslip-actions .btn {
+        flex: 1 1 100%;
+    }
+
+    /* Attendance grid as cards on mobile */
+    #page-payroll .attendance-table thead {
+        display: none;
+    }
+
+    #page-payroll .attendance-table,
+    #page-payroll .attendance-table tbody,
+    #page-payroll .attendance-table tr,
+    #page-payroll .attendance-table td {
+        display: block;
+        width: 100%;
+    }
+
+    #page-payroll .attendance-table tr {
+        margin-bottom: 1rem;
+        border: 1px solid #e2e8f0;
+        border-radius: 0.375rem;
+        padding: 0.75rem;
+    }
+
+    #page-payroll .attendance-table td.employee-name {
+        font-weight: 600;
+        font-size: 1rem;
+        margin-bottom: 0.75rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    #page-payroll .attendance-table td:not(.employee-name) {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.4rem 0;
+        white-space: normal;
+    }
+
+    #page-payroll .attendance-table td:not(.employee-name)::before {
+        content: attr(data-label);
+        font-weight: 500;
+        color: #64748b;
+        flex: 1 1 auto;
+    }
+
+    #page-payroll .attendance-table td input[type="number"],
+    #page-payroll .attendance-table td input[type="text"] {
+        width: 120px;
+        max-width: 50%;
+        min-width: 90px;
+        flex: 0 0 auto;
+    }
+
+    #page-payroll .attendance-table-wrap {
+        overflow-x: visible;
+    }
+
+    /* Payslips list on mobile */
+    #page-payroll .payslip-table thead {
+        display: none;
+    }
+
+    #page-payroll .payslip-table,
+    #page-payroll .payslip-table tbody,
+    #page-payroll .payslip-table tr,
+    #page-payroll .payslip-table td {
+        display: block;
+        width: 100%;
+    }
+
+    #page-payroll .payslip-table tr {
+        margin-bottom: 1rem;
+        border: 1px solid #e2e8f0;
+        border-radius: 0.375rem;
+        padding: 0.75rem;
+    }
+
+    #page-payroll .payslip-table td.employee-name {
+        font-weight: 600;
+        font-size: 1rem;
+        margin-bottom: 0.75rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid #e2e8f0;
+        display: block;
+    }
+
+    #page-payroll .payslip-table td.employee-name::before {
+        content: none;
+    }
+
+    #page-payroll .payslip-table td:not(.employee-name) {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.4rem 0;
+        white-space: normal;
+    }
+
+    #page-payroll .payslip-table td:not(.employee-name)::before {
+        content: attr(data-label);
+        font-weight: 500;
+        color: #64748b;
+        flex: 1 1 auto;
+    }
+
+    #page-payroll .payslip-table td.payslip-actions::before {
+        content: none;
+    }
+
+    #page-payroll .payslip-table td.payslip-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        margin-top: 0.5rem;
+    }
+
+    #page-payroll .payslip-table td.payslip-actions .btn {
+        width: 100%;
+        text-align: center;
+    }
+
+    /* Reports tables on mobile */
+    #page-payroll .report-table thead {
+        display: none;
+    }
+
+    #page-payroll .report-table,
+    #page-payroll .report-table tbody,
+    #page-payroll .report-table tr,
+    #page-payroll .report-table td {
+        display: block;
+        width: 100%;
+    }
+
+    #page-payroll .report-table tr {
+        margin-bottom: 1rem;
+        border: 1px solid #e2e8f0;
+        border-radius: 0.375rem;
+        padding: 0.75rem;
+    }
+
+    #page-payroll .report-table td.report-title {
+        font-weight: 600;
+        font-size: 1rem;
+        margin-bottom: 0.75rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid #e2e8f0;
+        display: block;
+    }
+
+    #page-payroll .report-table td.report-title::before {
+        content: none;
+    }
+
+    #page-payroll .report-table td:not(.report-title) {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.4rem 0;
+        white-space: normal;
+    }
+
+    #page-payroll .report-table td:not(.report-title)::before {
+        content: attr(data-label);
+        font-weight: 500;
+        color: #64748b;
+        flex: 1 1 auto;
+    }
+
+    /* Periods table on mobile */
+    #page-payroll .period-table thead {
+        display: none;
+    }
+
+    #page-payroll .period-table,
+    #page-payroll .period-table tbody,
+    #page-payroll .period-table tr,
+    #page-payroll .period-table td {
+        display: block;
+        width: 100%;
+    }
+
+    #page-payroll .period-table tr {
+        margin-bottom: 1rem;
+        border: 1px solid #e2e8f0;
+        border-radius: 0.375rem;
+        padding: 0.75rem;
+    }
+
+    #page-payroll .period-table td.period-title {
+        font-weight: 600;
+        font-size: 1rem;
+        margin-bottom: 0.75rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid #e2e8f0;
+        display: block;
+    }
+
+    #page-payroll .period-table td.period-title::before {
+        content: none;
+    }
+
+    #page-payroll .period-table td:not(.period-title) {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.4rem 0;
+        white-space: normal;
+    }
+
+    #page-payroll .period-table td:not(.period-title)::before {
+        content: attr(data-label);
+        font-weight: 500;
+        color: #64748b;
+        flex: 1 1 auto;
+    }
+
+    #page-payroll .period-table td.period-actions::before {
+        content: none;
+    }
+
+    #page-payroll .period-table td.period-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        margin-top: 0.5rem;
+    }
+
+    #page-payroll .period-table td.period-actions .btn {
+        width: 100%;
+        text-align: center;
     }
 }

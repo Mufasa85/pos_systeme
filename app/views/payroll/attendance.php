@@ -91,12 +91,12 @@
         employees.forEach(e => {
             const a = data.attendance.find(x => x.employee_id == e.id) || {};
             html += `<tr>
-                <td class="employee-name">${e.nom_complet}</td>
-                <td><input type="number" step="0.01" name="worked_days[${e.id}]" value="${a.worked_days || ''}" class="form-control right" /></td>
-                <td><input type="number" step="0.01" name="worked_hours[${e.id}]" value="${a.worked_hours || ''}" class="form-control right" /></td>
-                <td><input type="number" step="0.01" name="paid_days[${e.id}]" value="${a.paid_days || ''}" class="form-control right" /></td>
-                <td><input type="number" step="0.01" name="expected[${e.id}]" value="${a.expected_working_days || ''}" class="form-control right" /></td>
-                <td><input type="text" name="notes[${e.id}]" value="${a.notes || ''}" class="form-control" /></td>
+                <td class="employee-name" data-label="Employé">${e.nom_complet}</td>
+                <td data-label="Jours travaillés"><input type="number" step="0.01" name="worked_days[${e.id}]" value="${a.worked_days || ''}" class="form-control right" /></td>
+                <td data-label="Heures"><input type="number" step="0.01" name="worked_hours[${e.id}]" value="${a.worked_hours || ''}" class="form-control right" /></td>
+                <td data-label="Jours payés"><input type="number" step="0.01" name="paid_days[${e.id}]" value="${a.paid_days || ''}" class="form-control right" /></td>
+                <td data-label="Jours attendus"><input type="number" step="0.01" name="expected[${e.id}]" value="${a.expected_working_days || ''}" class="form-control right" /></td>
+                <td data-label="Notes"><input type="text" name="notes[${e.id}]" value="${a.notes || ''}" class="form-control" /></td>
             </tr>`;
         });
         html += '</tbody></table></div>';

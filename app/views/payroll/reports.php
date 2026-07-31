@@ -79,9 +79,9 @@
             payTable.innerHTML = '<div class="empty-state">Aucun paiement</div>';
             document.getElementById('paymentsSummary').textContent = 'Total payé : 0,00';
         } else {
-            let html = '<div style="overflow-x:auto"><table class="data-table" style="width:100%"><thead><tr><th>Nom</th><th>Date</th><th>Référence</th><th>Montant</th></tr></thead><tbody>';
+            let html = '<div style="overflow-x:auto"><table class="data-table report-table" style="width:100%"><thead><tr><th>Nom</th><th>Date</th><th>Référence</th><th>Montant</th></tr></thead><tbody>';
             payData.payments.forEach(p => {
-                html += `<tr><td>${p.nom_complet ?? '-'}</td><td>${p.paid_at ?? '-'}</td><td>${p.reference ?? '-'}</td><td class="right">${parseFloat(p.amount).toLocaleString('fr-FR', {minimumFractionDigits:2})}</td></tr>`;
+                html += `<tr><td class="report-title" data-label="Nom">${p.nom_complet ?? '-'}</td><td data-label="Date">${p.paid_at ?? '-'}</td><td data-label="Référence">${p.reference ?? '-'}</td><td data-label="Montant" class="right">${parseFloat(p.amount).toLocaleString('fr-FR', {minimumFractionDigits:2})}</td></tr>`;
             });
             html += '</tbody></table></div>';
             payTable.innerHTML = html;
@@ -95,9 +95,9 @@
             cotTable.innerHTML = '<div class="empty-state">Aucune cotisation</div>';
             document.getElementById('contributionsSummary').textContent = 'Total cotisations : 0,00';
         } else {
-            let html = '<div style="overflow-x:auto"><table class="data-table" style="width:100%"><thead><tr><th>Code</th><th>Libellé</th><th>Montant</th></tr></thead><tbody>';
+            let html = '<div style="overflow-x:auto"><table class="data-table report-table" style="width:100%"><thead><tr><th>Code</th><th>Libellé</th><th>Montant</th></tr></thead><tbody>';
             cotData.contributions.forEach(c => {
-                html += `<tr><td>${c.code}</td><td>${c.label}</td><td class="right">${parseFloat(c.total).toLocaleString('fr-FR', {minimumFractionDigits:2})}</td></tr>`;
+                html += `<tr><td class="report-title" data-label="Code">${c.code}</td><td data-label="Libellé">${c.label}</td><td data-label="Montant" class="right">${parseFloat(c.total).toLocaleString('fr-FR', {minimumFractionDigits:2})}</td></tr>`;
             });
             html += '</tbody></table></div>';
             cotTable.innerHTML = html;

@@ -50,17 +50,17 @@
             return;
         }
 
-        let html = '<div style="overflow-x:auto"><table class="data-table" style="width:100%">';
-        html += '<thead><tr><th>Nom</th><th>Matricule</th><th>Brut</th><th>Retenues</th><th>Net</th><th>Statut</th><th>Actions</th></tr></thead><tbody>';
+        let html = '<div style="overflow-x:auto"><table class="data-table payslip-table" style="width:100%">';
+        html += '<thead><tr><th>Employé</th><th>Matricule</th><th>Brut</th><th>Retenues</th><th>Net</th><th>Statut</th><th>Actions</th></tr></thead><tbody>';
         payslips.forEach(p => {
             html += `<tr>
-                <td>${p.nom_complet}</td>
-                <td>${p.matricule}</td>
-                <td>${parseFloat(p.gross_amount).toLocaleString('fr-FR', {minimumFractionDigits:2})}</td>
-                <td>${parseFloat(p.total_deductions).toLocaleString('fr-FR', {minimumFractionDigits:2})}</td>
-                <td>${parseFloat(p.net_amount).toLocaleString('fr-FR', {minimumFractionDigits:2})}</td>
-                <td>${p.status}</td>
-                <td>
+                <td class="employee-name" data-label="Employé">${p.nom_complet}</td>
+                <td data-label="Matricule">${p.matricule}</td>
+                <td data-label="Brut">${parseFloat(p.gross_amount).toLocaleString('fr-FR', {minimumFractionDigits:2})}</td>
+                <td data-label="Retenues">${parseFloat(p.total_deductions).toLocaleString('fr-FR', {minimumFractionDigits:2})}</td>
+                <td data-label="Net">${parseFloat(p.net_amount).toLocaleString('fr-FR', {minimumFractionDigits:2})}</td>
+                <td data-label="Statut">${p.status}</td>
+                <td data-label="Actions" class="payslip-actions">
                     <a href="/payroll/payslip_detail?id=${p.id}" class="btn btn-sm btn-secondary">Détail</a>
                     <a href="/api/payroll/payslips/pdf/${p.id}" target="_blank" class="btn btn-sm btn-info">PDF</a>
                     ${p.status === 'calculated' ? `<button onclick="validate(${p.id})" class="btn btn-sm btn-success">Valider</button>` : ''}

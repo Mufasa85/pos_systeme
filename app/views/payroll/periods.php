@@ -25,6 +25,8 @@
 </div>
 
 <script>
+    const monthNames = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+
     async function load() {
         const periods = await fetch('/api/payroll/periods').then(r => r.json());
         const list = document.getElementById('periodList');
@@ -33,15 +35,15 @@
             return;
         }
 
-        let html = '<div style="overflow-x:auto"><table class="data-table" style="width:100%">';
+        let html = '<div style="overflow-x:auto"><table class="data-table period-table" style="width:100%">';
         html += '<thead><tr><th>Mois</th><th>Année</th><th>Jours</th><th>Statut</th><th>Actions</th></tr></thead><tbody>';
         periods.forEach(p => {
             html += `<tr>
-                <td>${String(p.month).padStart(2,'0')}</td>
-                <td>${p.year}</td>
-                <td>${p.working_days}</td>
-                <td><span class="badge badge-${p.status}">${p.status}</span></td>
-                <td>
+                <td class="period-title" data-label="Mois">${String(p.month).padStart(2,'0')} — ${monthNames[p.month - 1]}</td>
+                <td data-label="Année">${p.year}</td>
+                <td data-label="Jours">${p.working_days}</td>
+                <td data-label="Statut"><span class="badge badge-${p.status}">${p.status}</span></td>
+                <td data-label="Actions" class="period-actions">
                     <button onclick="calculate(${p.id})" class="btn btn-sm btn-primary">Calculer</button>
                     <a href="/payroll/attendance?period=${p.id}" class="btn btn-sm btn-secondary">Présences</a>
                     <a href="/payroll/payslips?period=${p.id}" class="btn btn-sm btn-info">Bulletins</a>
