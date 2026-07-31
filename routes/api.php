@@ -23,7 +23,7 @@ use App\Controllers\PayrollPaymentController;
 use App\Controllers\PayrollTimeClockController;
 use App\Controllers\PayrollReportController;
 use App\Core\Router;
-use App\Models\Settings;
+use App\Models\Shop;
 
 // ── Auth API (OTP, forgot password, reset) ──────────────────
 Router::get("/api/auth/verify-otp", [AuthController::class, 'verifyOtp']);
@@ -198,6 +198,9 @@ Router::get("/api/settings/theme", [SettingsController::class, 'getTheme']);
 // Format d'impression (papier)
 Router::post("/api/settings/paper-type", [SettingsController::class, 'updatePaperType']);
 Router::get("/api/settings/paper-type", [SettingsController::class, 'getPaperType']);
+// Padding d'affichage des articles sur le ticket (57mm / 80mm)
+Router::post("/api/settings/receipt-padding", [SettingsController::class, 'updateReceiptPadding']);
+Router::get("/api/settings/receipt-padding", [SettingsController::class, 'getReceiptPadding']);
 
 // Routes pour la gestion des taxes
 Router::get("/api/taxes", [TaxController::class, 'index']);
@@ -320,12 +323,13 @@ Router::post("/api/dgi", function () {
         return;
     }
 
-    $settings = new Settings();
-    $token = trim((string)$settings->get('token'));
+    $shopId = $_SESSION['shop_id'] ?? null;
+    $shop = $shopId ? (new Shop())->findById($shopId) : null;
+    $token = trim((string)($shop['token'] ?? ''));
 
     if ($token === '') {
         http_response_code(500);
-        echo json_encode(['success' => false, 'message' => 'Token DGI non configuré dans settings avec la clé token']);
+        echo json_encode(['success' => false, 'message' => 'Token DGI non configuré pour cette boutique']);
         return;
     }
 
@@ -393,12 +397,13 @@ $smsHandler = function () {
             return;
         }
 
-        $settings = new Settings();
-        $token = trim((string)$settings->get('token'));
+        $shopId = $_SESSION['shop_id'] ?? null;
+        $shop = $shopId ? (new Shop())->findById($shopId) : null;
+        $token = trim((string)($shop['token'] ?? ''));
 
         if ($token === '') {
             http_response_code(500);
-            echo json_encode(['success' => false, 'message' => 'Token DGI non configuré dans settings avec la clé token']);
+            echo json_encode(['success' => false, 'message' => 'Token DGI non configuré pour cette boutique']);
             return;
         }
 
@@ -485,12 +490,13 @@ $serviceBillHandler = function () {
         return;
     }
 
-    $settings = new Settings();
-    $token = trim((string)$settings->get('token'));
+    $shopId = $_SESSION['shop_id'] ?? null;
+    $shop = $shopId ? (new Shop())->findById($shopId) : null;
+    $token = trim((string)($shop['token'] ?? ''));
 
     if ($token === '') {
         http_response_code(500);
-        echo json_encode(['success' => false, 'message' => 'Token DGI non configuré dans settings avec la clé token']);
+        echo json_encode(['success' => false, 'message' => 'Token DGI non configuré pour cette boutique']);
         return;
     }
 
