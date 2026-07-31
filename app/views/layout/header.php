@@ -9,10 +9,10 @@
 
 
   <!-- Favicon & Icons -->
-  <link rel="icon" type="image/svg+xml" href="./assets/img/favicon.ico">
-  <link rel="icon" type="image/png" sizes="32x32" href="./assets/img/favicon-32x32.png">
-  <link rel="icon" type="image/png" sizes="16x16" href="./assets/img/favicon-16x16.png">
-  <link rel="apple-touch-icon" href="./assets/img/apple-touch-icon.png">
+  <link rel="icon" type="image/svg+xml" href="/assets/img/favicon.ico">
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/img/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/assets/img/favicon-16x16.png">
+  <link rel="apple-touch-icon" href="/assets/img/apple-touch-icon.png">
 
   <!-- Meta Tags -->
   <?php $headerTitleName = ($_SESSION['role'] ?? '') === 'super_admin' ? ($companyName ?? ($companyInfo['name'] ?? ($storeName ?? 'Mon Magasin'))) : ($storeName ?? 'Mon Magasin'); ?>
@@ -27,7 +27,7 @@
   <meta property="og:url" content="<?= (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . $_SERVER['REQUEST_URI'] ?>">
   <meta property="og:title" content="Caisse - <?= htmlspecialchars($storeName ?? 'Mon Magasin') ?>">
   <meta property="og:description" content="Système de caisse POS - Gestion des ventes, recharges Electricité/Eau et factures">
-  <meta property="og:image" content="./assets/img/og-image.png">
+  <meta property="og:image" content="/assets/img/og-image.png">
   <meta property="og:locale" content="fr_CD">
   <meta property="og:site_name" content="<?= htmlspecialchars($storeName ?? 'POS System') ?>">
 
@@ -35,15 +35,18 @@
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Caisse - <?= htmlspecialchars($storeName ?? 'Mon Magasin') ?>">
   <meta name="twitter:description" content="Système de caisse POS - Gestion des ventes et factures">
-  <meta name="twitter:image" content="./assets/img/og-image.png">
+  <meta name="twitter:image" content="/assets/img/og-image.png">
 
   <!-- Theme Color -->
   <meta name="theme-color" content="#0B5E88">
   <meta name="msapplication-TileColor" content="#0B5E88">
-  <meta name="msapplication-config" content="./assets/img/browserconfig.xml">
+  <meta name="msapplication-config" content="/assets/img/browserconfig.xml">
 
-  <link rel="stylesheet" href="./assets/css/styles.css?v=208999999999999">
-  <link rel="stylesheet" href="./assets/css/mobile-caisse.css?v=999999999999999999999999999">
+  <link rel="stylesheet" href="/assets/css/styles.css?v=208999999999999">
+  <link rel="stylesheet" href="/assets/css/mobile-caisse.css?v=999999999999999999999999999">
+  <?php if (($page ?? '') === 'payroll'): ?>
+    <link rel="stylesheet" href="/assets/css/payroll.css?v=1">
+  <?php endif; ?>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -58,7 +61,7 @@
                             'shopId' => $_SESSION['shop_id'] ?? null
                           ]) ?>;
   </script>
-  <script src="./assets/js/service-bill-fetcher.js"></script>
+  <script src="/assets/js/service-bill-fetcher.js"></script>
   <script src="/assets/js/theme.js?v=1"></script>
 </head>
 
@@ -203,6 +206,19 @@
           <span>Historique</span>
         </a>
 
+        <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'vendeur'): ?>
+          <a href="/payroll/mypayslips" class="nav-item <?= $currentPage == 'payroll' ? 'active' : '' ?>">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="16" y1="13" x2="8" y2="13"></line>
+              <line x1="16" y1="17" x2="8" y2="17"></line>
+              <polyline points="10 9 9 9 8 9"></polyline>
+            </svg>
+            <span>Mes bulletins</span>
+          </a>
+        <?php endif; ?>
+
         <?php if (isset($_SESSION['role']) && in_array($_SESSION['role'], ['admin', 'super_admin'])): ?>
           <a href="/categories" class="nav-item <?= $currentPage == 'categories' ? 'active' : '' ?>">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -217,6 +233,20 @@
               <circle cx="17.5" cy="17.5" r="2.5"></circle>
             </svg>
             <span>Taxes</span>
+          </a>
+          <a href="/payroll" class="nav-item <?= $currentPage == 'payroll' ? 'active' : '' ?>">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+              <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+            </svg>
+            <span>Paie</span>
+          </a>
+          <a href="/payroll/settings" class="nav-item <?= $currentPage == 'payroll' ? 'active' : '' ?>">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            </svg>
+            <span>Parametres paie</span>
           </a>
           <a href="/parametres" class="nav-item <?= $currentPage == 'parametres' ? 'active' : '' ?>">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

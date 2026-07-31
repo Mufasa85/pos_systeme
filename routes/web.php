@@ -24,6 +24,8 @@ Router::get("/taxes", [PageController::class, 'taxes']);
 Router::get("/parametres", [PageController::class, 'parametres']);
 Router::get("/analytics", [PageController::class, 'analytics']);
 Router::get("/shops", [PageController::class, 'shops']);
+Router::get("/payroll", [PageController::class, 'payroll']);
+Router::get("/payroll/[:view]", [PageController::class, 'payroll']);
 Router::get("/scanner", [PageController::class, 'scanner']);
 Router::get("/new-scanner", [PageController::class, 'newScanner']);
 Router::get("/facture/[i:id]", [\App\Controllers\InvoiceController::class, 'show']);

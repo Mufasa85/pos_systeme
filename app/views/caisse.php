@@ -36,7 +36,7 @@
   .products-pagination {
     display: flex;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
     gap: 0.4rem;
     margin: 1rem 0;
     flex-wrap: wrap;
@@ -61,6 +61,12 @@
   .page-btn:disabled {
     opacity: 0.4;
     cursor: not-allowed;
+  }
+  .page-ellipsis {
+    padding: 0 0.35rem;
+    color: var(--muted, #64748b);
+    font-size: 0.85rem;
+    align-self: center;
   }
   .products-grid.list-view {
     display: flex;
