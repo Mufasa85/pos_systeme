@@ -16,6 +16,31 @@
     // Cache du format d'impression (chargé depuis /api/settings/paper-type)
     let currentPaperType = '80mm';
 
+    // Cache du padding des articles par format (chargé depuis /api/settings/receipt-padding)
+    // h/v en mm. Valeurs par défaut = comportement actuel (4px ~ 1mm).
+    let receiptPadding = {
+        '57mm': { h: 0, v: 1 },
+        '80mm': { h: 0, v: 1 }
+    };
+
+    function loadReceiptPadding(cb) {
+        try {
+            fetch(APP_URL + '/api/settings/receipt-padding', { credentials: 'same-origin' })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    if (data && data['57mm'] && data['80mm']) {
+                        receiptPadding = data;
+                    }
+                    if (typeof cb === 'function') cb(receiptPadding);
+                })
+                .catch(function () {
+                    if (typeof cb === 'function') cb(receiptPadding);
+                });
+        } catch (e) {
+            if (typeof cb === 'function') cb(receiptPadding);
+        }
+    }
+
     // Formats considérés comme "large" (facture classique horizontale)
     const LARGE_FORMATS = ['A4', 'A5', 'Letter', 'Legal'];
 
@@ -659,6 +684,11 @@
             default: sizeRule = '80mm auto'; maxWidth = '76mm'; wrapperWidth = '80mm'; bodyFontSize = '14px';
         }
 
+        // Padding configurable des articles (mm -> px, 1mm ≈ 3.78px)
+        var pad = receiptPadding[pt] || { h: 0, v: 1 };
+        var padH = Math.round((pad.h || 0) * 3.78);
+        var padV = Math.round((pad.v || 1) * 3.78);
+
         return '\n<style>\n' +
             '@page { margin: 5mm; size: ' + sizeRule + '; }\n' +
             '* { box-sizing: border-box; margin: 0; padding: 0; }\n' +
@@ -670,15 +700,15 @@
             '.receipt-header .store-info { font-size: 13px; line-height: 1.6; color: #222; }\n' +
             '.receipt-meta { display: flex; justify-content: space-between; font-size: 13px; font-weight: 600; padding: 8px 0; margin-bottom: 10px; border-bottom: 2px solid #000; }\n' +
             '.receipt-items { margin-bottom: 10px; }\n' +
-            '.receipt-item { display: grid; grid-template-columns: 1fr auto; grid-template-rows: auto auto; column-gap: 4px; row-gap: 0; padding: 4px 0; border-bottom: 1px dashed #ccc; font-size: 13px; width: 100%; }\n' +
+            '.receipt-item { display: grid; grid-template-columns: 1fr auto; grid-template-rows: auto auto; column-gap: 4px; row-gap: 0; padding: ' + padV + 'px ' + padH + 'px; border-bottom: 1px dashed #ccc; font-size: 13px; width: 100%; }\n' +
             '.receipt-item .item-name { grid-column: 1 / -1; grid-row: 1; white-space: normal; overflow-wrap: break-word; word-break: break-word; }\n' +
             '.receipt-item .item-qty { grid-column: 1; grid-row: 2; font-size: 11px; color: #555; font-style: italic; white-space: normal; word-break: break-word; overflow-wrap: anywhere; }\n' +
             '.receipt-item .item-price { grid-column: 2; grid-row: 2; text-align: right; font-weight: 700; white-space: normal; word-break: break-all; overflow-wrap: anywhere; min-width: 0; }\n' +
             '.receipt-table { width: 100%; border-collapse: collapse; }\n' +
-            '.receipt-table th { text-align: left; padding: 4px 4px; border-bottom: 1px solid #000; font-size: 12px; }\n' +
+            '.receipt-table th { text-align: left; padding: ' + padV + 'px ' + padH + 'px; border-bottom: 1px solid #000; font-size: 12px; }\n' +
             '.receipt-table th:last-child { text-align: right; }\n' +
-            '.receipt-table .item-name-row td { padding: 4px 4px 1px; border-bottom: none; font-size: 12px; vertical-align: top; }\n' +
-            '.receipt-table .item-detail-row td { padding: 1px 4px 5px; border-bottom: 1px dashed #ccc; font-size: 11px; color: #555; font-style: italic; vertical-align: top; word-break: break-word; overflow-wrap: anywhere; }\n' +
+            '.receipt-table .item-name-row td { padding: ' + padV + 'px ' + padH + 'px 1px; border-bottom: none; font-size: 12px; vertical-align: top; }\n' +
+            '.receipt-table .item-detail-row td { padding: 1px ' + padH + 'px ' + (padV + 4) + 'px; border-bottom: 1px dashed #ccc; font-size: 11px; color: #555; font-style: italic; vertical-align: top; word-break: break-word; overflow-wrap: anywhere; }\n' +
             '.receipt-table .item-detail-row .item-total { text-align: right; font-weight: 700; color: #000; word-break: break-all; overflow-wrap: anywhere; }\n' +
             '.item-tax-badge { display: inline-block; font-size: 9px; border: 1px solid #999; border-radius: 2px; padding: 0 3px; margin-left: 3px; }\n' +
             '.receipt-totals { margin-bottom: 8px; }\n' +
@@ -763,14 +793,18 @@
     window._printReceiptContent = function (content) {
         loadPaperType(function (paperType) {
             currentPaperType = paperType;
-            _runPrint(content, paperType);
+            loadReceiptPadding(function () {
+                _runPrint(content, paperType);
+            });
         });
     };
 
     // Impression avec un format choisi à la volée (modal de sélection)
     window._printReceiptContentWithFormat = function (content, paperType) {
         var pt = paperType || currentPaperType || '80mm';
-        _runPrint(content, pt);
+        loadReceiptPadding(function () {
+            _runPrint(content, pt);
+        });
     };
 
     // Récupérer le format actuel
