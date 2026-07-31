@@ -317,6 +317,32 @@
                   Le format sera appliqué lors de l'impression des tickets et factures.
                 </p>
               </div>
+
+              <div id="receipt-padding-section" style="margin-top: 1.25rem; padding-top: 1.25rem; border-top: 1px solid var(--border); display: none;">
+                <label style="margin-bottom: 0.5rem; display: block;">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;">
+                    <path d="M21 3H3v18h18V3z"></path>
+                    <path d="M9 3v18M15 3v18M3 9h18M3 15h18"></path>
+                  </svg>
+                  Espacement des articles (<span id="receipt-padding-format-label">80mm</span>)
+                </label>
+                <p style="font-size: 0.75rem; color: var(--muted); margin-bottom: 0.75rem;">
+                  Ajustez l'espacement autour des lignes d'articles pour vous adapter à votre imprimante.
+                </p>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+                  <div class="form-group" style="margin: 0;">
+                    <label style="font-size: 0.8rem;">Espacement horizontal (mm)</label>
+                    <input type="number" id="receipt-padding-h" min="0" max="10" step="0.5" style="width: 100%; padding: 0.5rem 0.65rem; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text);">
+                  </div>
+                  <div class="form-group" style="margin: 0;">
+                    <label style="font-size: 0.8rem;">Espacement vertical (mm)</label>
+                    <input type="number" id="receipt-padding-v" min="0" max="10" step="0.5" style="width: 100%; padding: 0.5rem 0.65rem; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text);">
+                  </div>
+                </div>
+                <p style="font-size: 0.7rem; color: var(--muted); margin-top: 0.5rem;">
+                  Ce réglage est enregistré séparément pour 57mm et 80mm et sera appliqué au prochain enregistrement.
+                </p>
+              </div>
             </div>
           </div>
 
@@ -625,6 +651,71 @@
           } catch (e) {
             console.error('Erreur chargement paper_type:', e);
           }
+          toggleReceiptPaddingSection();
+        }
+
+        // Cache des paddings chargés depuis le serveur (par format)
+        let receiptPaddingCache = {
+          '57mm': { h: 0, v: 1 },
+          '80mm': { h: 0, v: 1 }
+        };
+
+        // Afficher/masquer la section padding selon le format sélectionné,
+        // et pré-remplir les champs avec la valeur du format courant.
+        function toggleReceiptPaddingSection() {
+          const sel = document.getElementById('paper-type');
+          const section = document.getElementById('receipt-padding-section');
+          const label = document.getElementById('receipt-padding-format-label');
+          if (!sel || !section) return;
+
+          const isTicket = sel.value === '57mm' || sel.value === '80mm';
+          section.style.display = isTicket ? 'block' : 'none';
+          if (!isTicket) return;
+
+          if (label) label.textContent = sel.value;
+          const pad = receiptPaddingCache[sel.value] || { h: 0, v: 1 };
+          const hInput = document.getElementById('receipt-padding-h');
+          const vInput = document.getElementById('receipt-padding-v');
+          if (hInput) hInput.value = pad.h;
+          if (vInput) vInput.value = pad.v;
+        }
+
+        // Charger les paddings configurés pour 57mm et 80mm
+        async function loadReceiptPaddingSettings() {
+          try {
+            const res = await fetch(APP_URL + '/api/settings/receipt-padding');
+            const data = await res.json();
+            if (data && data['57mm'] && data['80mm']) {
+              receiptPaddingCache = data;
+            }
+          } catch (e) {
+            console.error('Erreur chargement receipt-padding:', e);
+          }
+          toggleReceiptPaddingSection();
+        }
+
+        // Sauvegarder le padding du format actuellement sélectionné
+        async function saveReceiptPaddingIfNeeded() {
+          const sel = document.getElementById('paper-type');
+          if (!sel) return { success: true };
+          if (sel.value !== '57mm' && sel.value !== '80mm') return { success: true };
+
+          const hInput = document.getElementById('receipt-padding-h');
+          const vInput = document.getElementById('receipt-padding-v');
+          const paddingH = hInput ? parseFloat(hInput.value) || 0 : 0;
+          const paddingV = vInput ? parseFloat(vInput.value) || 0 : 0;
+
+          try {
+            const res = await fetch(APP_URL + '/api/settings/receipt-padding', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ paper_type: sel.value, padding_h: paddingH, padding_v: paddingV })
+            });
+            return await res.json();
+          } catch (e) {
+            console.error('Erreur sauvegarde receipt-padding:', e);
+            return { success: false, error: 'Erreur réseau' };
+          }
         }
 
         // Sauvegarder le format d'impression
@@ -706,7 +797,12 @@
             });
             const paperData = await paperRes.json();
 
-            if (data.success && paperData.success) {
+            const paddingData = await saveReceiptPaddingIfNeeded();
+            if (paddingData && paddingData.success && paddingData.paper_type) {
+              receiptPaddingCache[paddingData.paper_type] = { h: paddingData.padding_h, v: paddingData.padding_v };
+            }
+
+            if (data.success && paperData.success && paddingData.success) {
               if (status) {
                 status.textContent = '✓ Enregistré';
                 status.style.color = '#16A34A';
@@ -745,6 +841,9 @@
         document.addEventListener('DOMContentLoaded', () => {
           const storePosBtn = document.getElementById('btn-save-store-pos');
           if (storePosBtn) storePosBtn.addEventListener('click', saveStoreAndPosSettings);
+
+          const paperSel = document.getElementById('paper-type');
+          if (paperSel) paperSel.addEventListener('change', toggleReceiptPaddingSection);
         });
 
         // Recharger l'abonnement - redirection vers Mobile Money
@@ -755,7 +854,7 @@
 
         // Charger au démarrage
         loadSettings();
-        loadPaperType();
+        loadReceiptPaddingSettings().then(loadPaperType);
       </script>
 
 <!-- Modal Type de service -->

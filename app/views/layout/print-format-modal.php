@@ -480,6 +480,7 @@
                         alert('SMS envoyé avec succès.');
                     } else {
                         alert('Erreur lors de l\'envoi du SMS : ' + (data && data.message ? data.message : 'réponse invalide'));
+                        
                     }
                 })
                 .catch(function(err) {
