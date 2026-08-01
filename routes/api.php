@@ -25,6 +25,18 @@ use App\Controllers\PayrollReportController;
 use App\Core\Router;
 use App\Models\Shop;
 
+// Garde d'authentification simple pour les endpoints proxy (évite l'abus par
+// des visiteurs non connectés qui utiliseraient le serveur comme relais).
+function requireAuthenticatedSession()
+{
+    if (!isset($_SESSION['user_id'])) {
+        http_response_code(401);
+        echo json_encode(['success' => false, 'message' => 'Authentification requise']);
+        return false;
+    }
+    return true;
+}
+
 // ── Auth API (OTP, forgot password, reset) ──────────────────
 Router::get("/api/auth/verify-otp", [AuthController::class, 'verifyOtp']);
 Router::get("/api/auth/resend-otp", [AuthController::class, 'resendOtp']);
@@ -221,6 +233,8 @@ Router::post("/api/bill-payment", function () {
         exit;
     }
 
+    if (!requireAuthenticatedSession()) return;
+
     $input = json_decode(file_get_contents('php://input'), true);
 
     $compteur = trim($input['compteur'] ?? '');
@@ -289,6 +303,8 @@ Router::get("/api/dgi", function () {
     header('Access-Control-Allow-Origin: *');
     header('Content-Type: application/json');
 
+    if (!requireAuthenticatedSession()) return;
+
     $dgiUrl = 'https://osat-energie.com/dgi/';
     $response = @file_get_contents($dgiUrl);
 
@@ -314,6 +330,8 @@ Router::post("/api/dgi", function () {
         http_response_code(200);
         exit;
     }
+
+    if (!requireAuthenticatedSession()) return;
 
     $input = json_decode(file_get_contents('php://input'), true);
 
@@ -380,6 +398,8 @@ $smsHandler = function () {
         http_response_code(200);
         exit;
     }
+
+    if (!requireAuthenticatedSession()) return;
 
     try {
         $numeroTelephone = $_GET['numero_telephone'] ?? '';
@@ -465,6 +485,8 @@ $serviceBillHandler = function () {
         exit;
     }
 
+    if (!requireAuthenticatedSession()) return;
+
     $method = $_SERVER['REQUEST_METHOD'];
 
     // Accepte GET (query string) ou POST (JSON body)
@@ -546,6 +568,8 @@ Router::post("/api/service-bill", $serviceBillHandler);
 Router::get("/api/currency", function () {
     header('Access-Control-Allow-Origin: *');
     header('Content-Type: application/json');
+
+    if (!requireAuthenticatedSession()) return;
 
     $currencyUrl = 'https://osat-energie.com/dgi/currency/index.php';
     $response = @file_get_contents($currencyUrl);
