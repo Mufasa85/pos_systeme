@@ -80,6 +80,14 @@ class AuthController extends Controller
 
     public function login()
     {
+        $csrfToken = $_POST['csrf_token'] ?? '';
+        if (empty($_SESSION['csrf']) || !hash_equals($_SESSION['csrf'], $csrfToken)) {
+            $this->status(403)->json(['success' => false, 'message' => 'Session invalide, veuillez rafraîchir la page']);
+            return;
+        }
+        // Token à usage unique : on le régénère pour empêcher le rejeu
+        unset($_SESSION['csrf']);
+
         $username = $this->sanitaze(trim($_POST['username'] ?? ''));
         $password = $this->sanitaze(trim($_POST['password'] ?? ''));
 
