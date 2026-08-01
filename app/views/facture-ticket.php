@@ -208,14 +208,13 @@ $localQrData  = $sale['qrCode'] ?? '';
         var invoiceNumber = container.getAttribute('data-invoice-number') || '';
         var storeIsf = container.getAttribute('data-store-isf') || '';
         var localQrData = <?= json_encode($localQrData) ?>;
-        var fallbackHtml = container.innerHTML;
 
         if (!isDgiRegistered && !isService) {
             // Pas de DGI, on garde le rendu serveur (deja affiche)
             return;
         }
         if (!invoiceNumber || !storeIsf) {
-            console.warn('[TICKET] Numero ou ISF manquant, fallback sur contenu serveur.');
+            alert('Numero de facture ou ISF manquant, impossible de charger le ticket DGI.');
             return;
         }
 
@@ -563,7 +562,7 @@ $localQrData  = $sale['qrCode'] ?? '';
         // ==================== Render proforma ====================
         function renderProforma(info) {
             var articles = [];
-            console.log(info)
+           
             try {
                 if (info.articles) {
                     if (typeof info.articles === 'string') articles = JSON.parse(info.articles);
@@ -786,12 +785,12 @@ $localQrData  = $sale['qrCode'] ?? '';
                             generateQr(info.qrCode, 'ticket-qrcode-dgi');
                         }, 100);
                     }
-                    console.log('[TICKET] duplicata DGI generee avec succes.');
+                   
                 } else {
-                    console.warn('[TICKET] API DGI sans succes, conservation du contenu serveur.');
+                    alert('La facture DGI n\'a pas pu etre recuperee depuis l\'API.');
                 }
             } catch (e) {
-                console.warn('[TICKET] API DGI indisponible, fallback sur contenu serveur:', e);
+                alert('API DGI indisponible : ' + (e && e.message ? e.message : 'erreur inconnue'));
             } finally {
                 if (badge) badge.style.display = 'none';
             }
