@@ -4,11 +4,7 @@ namespace App\Core;
 
 // app/core/Database.php
 
-
-$host = 'localhost';
-$dbname = 'pos_system';
-$user = 'root';
-$pass = '';
+require_once dirname(__DIR__, 2) . '/config/config.php';
 
 class Database
 {
@@ -18,13 +14,13 @@ class Database
     private function __construct()
     {
         try {
-            $dsn = "mysql:host=localhost;port=3306;dbname=pos_system;charset=utf8mb4";
+            $dsn = "mysql:host=" . DB_HOST . ";port=3306;dbname=" . DB_NAME . ";charset=utf8mb4";
             $options = [
                 \PDO::ATTR_ERRMODE            => \PDO::ERRMODE_EXCEPTION,
                 \PDO::ATTR_DEFAULT_FETCH_MODE => \PDO::FETCH_ASSOC,
                 \PDO::ATTR_EMULATE_PREPARES   => false,
             ];
-            $this->pdo = new \PDO($dsn, 'root', '', $options);
+            $this->pdo = new \PDO($dsn, DB_USER, DB_PASS, $options);
         } catch (\PDOException $e) {
             die("Database Connection failed: " . $e->getMessage());
         }
@@ -54,14 +50,8 @@ class Database
     // Retourne true si la requête s'est exécutée sans erreur (indépendamment du nombre de lignes affectées)
     public function execute($sql, $params = [])
     {
-        error_log("Database execute - SQL: $sql");
-        error_log("Database execute - params: " . print_r($params, true));
-
         $stmt = $this->pdo->prepare($sql);
-        $result = $stmt->execute($params);
-
-        $rowCount = $stmt->rowCount();
-        error_log("Database execute - rowCount: $rowCount");
+        $stmt->execute($params);
 
         return true;
     }
