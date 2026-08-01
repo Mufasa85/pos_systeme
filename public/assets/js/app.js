@@ -1,3 +1,14 @@
+// Banner console
+console.log('%cPowered by', 'color: #00bcd4; font-size: 14px; font-weight: bold; font-family: monospace;');
+console.log('%c' + String.raw`
+ ██████   ██████   █████  ████████
+██    ██ ██       ██   ██    ██
+██    ██ ███████  ███████    ██
+██    ██      ██  ██   ██    ██
+ ██████  ███████  ██   ██    ██
+
+`, 'color: #00bcd4; font-size: 16px; font-weight: bold; font-family: monospace;');
+
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => document.querySelectorAll(s);
 
@@ -70,7 +81,6 @@ async function loadCurrencyRate() {
 
             if (rate && rate > 1) {
                 USD_RATE = rate;
-                console.log('[CURRENCY] Taux chargé: 1 USD = ' + rate + ' Fc');
             }
         }
     } catch (e) {
@@ -161,10 +171,6 @@ async function loadStoreInfo() {
             rccm: data.store_rccm || '',
             isf: data.store_isf || ''
         };
-
-        console.log('Informations du magasin chargées:', data);
-
-        console.log('Informations du magasin chargées:', data);
     } catch (e) {
         console.warn('Impossible de charger les paramètres du magasin, utilisation des valeurs par défaut');
     }
@@ -912,9 +918,6 @@ const posCart = {
                 client_address: clientAddress
             };
 
-            // Log du payload DGI (CAISSE)
-            console.log('[DGI CAISSE] Payload envoyé:', JSON.stringify(dgiPayload, null, 2));
-
             // Envoyer les donnees en POST a l'API DGI
             const res = await fetch(DGI_API_URL, {
                 method: 'POST',
@@ -1127,8 +1130,6 @@ const posCart = {
                 tsData = typeof dgiResponse.data.ts === 'string'
                     ? JSON.parse(dgiResponse.data.ts)
                     : dgiResponse.data.ts;
-
-                console.log(tsData)
             }
         } catch (e) {
             console.warn('Error parsing data.ts:', e);
@@ -1355,10 +1356,6 @@ const posCart = {
         // Récupérer le code agent de l'utilisateur connecté
         const agentCode = (typeof CURRENT_USER !== 'undefined' && CURRENT_USER.agentCode) ? CURRENT_USER.agentCode : '';
 
-        // Debug: voir ce que contient CURRENT_USER
-        console.log('[PREVIEW] CURRENT_USER:', JSON.stringify(CURRENT_USER));
-        console.log('[PREVIEW] agentCode:', agentCode);
-
         // Ajouter les infos RCCM et ISF si disponibles (chacun sur sa propre ligne)
         let storeExtraInfo = '';
         if (STORE_INFO.rccm) {
@@ -1378,8 +1375,6 @@ const posCart = {
         const acheteurNumero = $('#client-number')?.value || (this.clientNumber || '');
         const acheteurAddress = $('#client-address')?.value || (this.currentClient?.adresse || '');
         const vendeur = (typeof CURRENT_USER !== 'undefined' && CURRENT_USER.fullName) ? CURRENT_USER.fullName : STORE_INFO.name;
-
-        console.log(acheteurTypeText, " un ", acheteurTypeInitiales, " deux ", acheteurNif)
 
         // Construire les infos en une seule section sans separarer vendeur/acheteur
         let infoSection = `<div style="border-top: 1px dashed #ccc; margin-top: 6px; padding-top: 6px; text-align: left; font-size: 11px; line-height: 1.5;">
@@ -1438,8 +1433,6 @@ const posCart = {
                 </div>
             </div>
         `;
-
-        console.log(getInvoiceTypeLabel(document.getElementById('invoice-type')?.value), ": value " + document.getElementById('invoice-type')?.value + " : second value")
 
         $('#preview-modal').classList.add('active');
 
@@ -1612,7 +1605,6 @@ const posCart = {
                 $('#confirm-sale').innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> Valider la facture';
                 return;
             }
-            console.log(dgiResponse.data.codeDEFDGI)
             if(dgiResponse.data.codeDEFDGI === "Nul" ) {
                 alert("Imposible de valider cette facture de ****, elle a deja ete ...")
               //  $('#receipt-modal').classList.add('active');
@@ -1681,7 +1673,6 @@ const posCart = {
             // Construire le HTML du recap DGI
             let dgiInfoHtml = '<div style="background: #e8f5e9; border: 1px solid #4caf50; border-radius: 8px; padding: 10px; margin: 10px 0; text-align: center;"><div style="color: #2e7d32; font-weight: bold; font-size: 11px;">--- Elements de securite de la facture normalisee ---</div>';
             if (dgiResponse.data) {
-                console.log(dgiResponse)
                 dgiInfoHtml += '<div style="font-size: 12px; color: #555; margin-top: 4px;">';
                 if (dgiResponse.data.codeDEFDGI) dgiInfoHtml += 'CODE DEF/DGI: ' + dgiResponse.data.codeDEFDGI;
                 if (dgiResponse.data.nim) dgiInfoHtml += '<br> DEF NID : ' + dgiResponse.data.nim;
@@ -1747,11 +1738,8 @@ const posCart = {
             // Logique de négation visuelle: si la facture N'est PAS FA ou EA, on
             // affiche les quantités et le total en négatif dans la facture finale
             const ticketTypeFacture = document.getElementById('invoice-type')?.value || 'FV';
-            console.log(ticketTypeFacture)
             const ticketShouldNegate = ticketTypeFacture === 'FA' || ticketTypeFacture === 'EA';
             const ticketSign = ticketShouldNegate ? -1 : 1;
-
-            console.log(ticketSign)
 
 
             // Construire les items du reçu avec les taxes par produit
@@ -1763,7 +1751,6 @@ const posCart = {
                 const itemCalc = this.calculateItemTTC(item, itemQty);
                 const itemTotalHT = itemCalc.lineHT;
 
-                console.log(" item Qty : " + itemQty + " - " + itemTotalHT)
                 const taxLabel = item.tax_etiquette || (item.tax_rate > 0 ? 'TVA ' + item.tax_rate + '%' : 'Exonere');
                 const prodService = item.prod_service ? `<span class="item-prod-service">[${item.prod_service}]</span>` : '';
                 const discountLabel = item.remise_value > 0
@@ -2182,11 +2169,9 @@ function saveUser(event) {
         body: formData
     })
         .then(res => {
-            console.log('HTTP status:', res.status);
             return res.json();
         })
         .then(data => {
-            console.log('Server response:', data);
             if (data.success) {
                 alert(userId ? 'Utilisateur modifie !' : 'Utilisateur cree !');
                 closeUserModal();
@@ -2582,7 +2567,6 @@ function renderServiceBillContent(data, sale) {
             html += '<td class="item-total">' + articleTotal.toFixed(2) + ' Fc</td>';
             html += '</tr>';
         });
-        console.log(articlesList)
     } else {
         html += '<tr><td colspan="2" style="text-align:center; color:#888; padding:8px;">Aucun article</td></tr>';
     }
@@ -2687,98 +2671,7 @@ function renderServiceBillContent(data, sale) {
 
 // ==================== SALE DETAILS ====================
 
-// Fallback: rend une proforma depuis les données locales si l'API DGI est KO
-function renderLocalSaleDetails(sale, details) {
-    let html = '<div class="receipt">';
-    html += '<div class="receipt-header">';
-    html += '<div style="text-align:center; font-weight:800; font-size:24px; color:#000; margin-bottom:10px; border-bottom:2px solid #000; padding-bottom:5px;">DUPLICATA</div>';
-    html += '<div class="store-name">' + STORE_INFO.name + '</div>';
-    html += '<div class="store-info">';
-    html += '<div><strong>Point de vente :</strong> ' + STORE_INFO.pdv + '</div>';
-    
-    html += '<div>Addresse : ' + STORE_INFO.address + '</div>';
-   
-    html += '<div>Tel: ' + STORE_INFO.phone + '</div>';
-    if (STORE_INFO.email) html += '<div>Email: ' + STORE_INFO.email + '</div>';
-    if (STORE_INFO.ice) html += '<div>ID Nat: ' + STORE_INFO.ice + '</div>';
-    if (STORE_INFO.rccm) html += '<div>RCCM: ' + STORE_INFO.rccm + '</div>';
-    if (STORE_INFO.isf) html += '<div>Numero Impot: ' + STORE_INFO.isf + '</div>';
-    html += '</div>';
-    const localAgentNumber = (sale && sale.agent_code) || (typeof CURRENT_USER !== 'undefined' && CURRENT_USER.agentCode) || '';
-    html += '<div style="border-top:1px dashed #ccc; margin-top:6px; padding-top:6px; text-align:left; font-size:15px; line-height:1.5;">';
-    html += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>VENDEUR:</strong></span><span>' + (sale.nom_vendeur || 'N/A') + '</span></div>';
-    if (localAgentNumber) html += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>Numero Agent:</strong></span><span>' + localAgentNumber + '</span></div>';
-    if (sale.nom_client) html += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>CLIENT:</strong></span><span>' + sale.nom_client + '</span></div>';
-    if (sale.client_numero) html += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>NUM:</strong></span><span>' + formatPhoneNumber(sale.client_numero) + '</span></div>';
-    if (sale.client_adresse) html += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>ADRESSE:</strong></span><span>' + sale.client_adresse + '</span></div>';
-    if (sale.client_type_code) html += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>TYPE:</strong></span><span>' + getClientTypeLabel(sale.client_type_code) + '</span></div>';
-    if (sale.client_nif) html += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>NIF:</strong></span><span>' + sale.client_nif + '</span></div>';
-    html += '</div></div>';
-
-    html += '<div class="receipt-meta" style="justify-content:center; font-size:14px; font-weight:555;">' + getInvoiceTypeLabel(sale.type_facture) + '</div>';
-
-    html += '<div class="receipt-items"><table class="receipt-table"><thead><tr><th>Article</th><th style="text-align:right">Total HT</th></tr></thead><tbody>';
-    (details || []).forEach(item => {
-        const itemPrice = parseFloat(item.prix) || 0;
-        const itemQty = parseFloat(item.quantite) || 0;
-        const taxRate = parseFloat(item.tax_rate || 0);
-        const specificTaxType = item.taxe_specifique_type || '%';
-        const specificTaxValue = parseFloat(item.taxe_specifique_value) || 0;
-        const specificTaxUnit = specificTaxType === 'CDF' ? specificTaxValue : (itemPrice * (specificTaxValue / 100));
-        const vatOnSpecificTax = specificTaxUnit * (taxRate / 100);
-        const itemTotalHT = itemPrice * itemQty + specificTaxUnit + vatOnSpecificTax;
-        const taxLabel = item.tax_etiquette || (taxRate > 0 ? 'TVA ' + taxRate + '%' : 'Exonere');
-        const discountLabel = item.remise_value > 0
-            ? (item.remise_type === 'CDF'
-                ? ' - ' + parseFloat(item.remise_value).toFixed(2) + ' remise'
-                : ' - ' + item.remise_value + '% remise')
-            : '';
-        const specificTaxLabel = specificTaxValue > 0
-            ? (specificTaxType === 'CDF'
-                ? ' <span style="color:#b45309;font-weight:700;">[TS]</span> ' + specificTaxValue.toFixed(2) + ' Fc '
-                : ' <span style="color:#b45309;font-weight:700;">[TS]</span> ' + specificTaxValue + '% ')
-            : '';
-        html += '<tr class="item-name-row">';
-        html += '<td colspan="2"><span class="item-name">' + (item.produit_nom || 'Produit') + '<span class="item-tax-badge">' + taxLabel + '</span><small style="color:var(--success);font-weight:600;">' + discountLabel + '</small><small style="color:#b45309;font-weight:600;">' + specificTaxLabel + '</small></span></td>';
-        html += '</tr>';
-        html += '<tr class="item-detail-row">';
-        html += '<td class="item-qty">' + itemQty + ' × ' + itemPrice.toFixed(2) + ' Fc</td>';
-        html += '<td class="item-total">' + itemTotalHT.toFixed(2) + ' Fc</td>';
-        html += '</tr>';
-    });
-    html += '</tbody></table></div>';
-
-    const totalNumber = parseFloat(sale.total) || 0;
-    const tvaNumber = parseFloat(sale.tva || 0);
-    html += '<div class="receipt-totals">';
-    html += '<div class="receipt-total-row"><span>Total TVA:</span><span>' + tvaNumber.toFixed(2) + ' Fc</span></div>';
-    html += '<div class="receipt-total-row grand-total"><span>TOTAL TTC:</span><span>' + totalNumber.toFixed(2) + ' Fc</span></div>';
-    if (sale.remise != null && parseFloat(sale.remise) !== 0) {
-        html += '<div class="receipt-total-row" style="font-size:11px; color:#555;"><span>Remise :</span><span>' + parseFloat(sale.remise).toFixed(2) + ' Fc</span></div>';
-    }
-    html += '</div>';
-
-    if (sale.counters || sale.codeDEFDGI) {
-        html += '<div style="background:#e8f5e9; border:1px solid #4caf50; border-radius:8px; padding:10px; margin:10px 0; text-align:center;">';
-        html += '<div style="color:#2e7d32; font-weight:bold; font-size:11px;">--- Elements de securite ---</div>';
-        html += '<div style="font-size:12px; color:#555; margin-top:4px;">';
-        if (sale.codeDEFDGI) html += 'CODE DEF/DGI: ' + sale.codeDEFDGI;
-        if (sale.nim) html += '<br> DEF NID : ' + sale.nim;
-        if (sale.counters) html += '<br> DEF Compteurs: ' + sale.counters;
-        if (sale.dateDGI) html += '<br> DEF Heure : ' + sale.dateDGI;
-        html += '</div></div>';
-    }
-
-    html += '<div class="receipt-footer">';
-    html += '<div class="thank-you">FACTURE n°' + (sale.numero_facture || '') + '</div>';
-    html += '<div class="thank-you">Merci de votre visite!</div>';
-    html += '<div style="margin-top:5px; font-size:9px; font-style:italic;">---Powered By Osat---</div>';
-    html += '</div></div>';
-
-    return html;
-}
-
-// Affiche le contenu d'un détail de vente (PROFORMA via DGI ou fallback local)
+// Affiche le contenu d'un détail de vente (PROFORMA via DGI uniquement)
 async function viewSaleDetails(saleId) {
     const response = await fetch(APP_URL + '/api/vente/' + saleId + '/details');
     const data = await response.json();
@@ -2800,17 +2693,12 @@ async function viewSaleDetails(saleId) {
 
         const serviceData = await fetchServiceBillData(sale.numero_facture, STORE_INFO.isf);
 
-        console.log('[HISTORIQUE] Donnees DGI recues:', serviceData);
-
         if (serviceData && serviceData.data) {
             document.getElementById('sale-details-content').innerHTML = renderServiceBillContent(serviceData, sale);
-        } else if (isDgiRegistered && !sale.service) {
-            // Fallback: si la facture est enregistrée mais que l'API DGI n'a pas répondu,
-            // on bascule sur l'affichage local (ancienne version)
-            console.warn('[HISTORIQUE] API DGI indisponible, fallback sur les donnees locales');
-            document.getElementById('sale-details-content').innerHTML = '<div style="background:#fff3e0; padding:12px; border-radius:8px; margin:10px 0; font-size:12px;">⚠️ API DGI indisponible. Affichage des donnees locales (proforma deconnectee).</div>' + renderLocalSaleDetails(sale, data.details);
         } else {
-            document.getElementById('sale-details-content').innerHTML = '<div style="background:#ffebee; padding:15px; border-radius:8px; margin:10px 0;"><strong>Erreur:</strong> Impossible de charger les details.</div><button class="btn btn-secondary" onclick="document.getElementById(\'sale-details-modal\').classList.remove(\'active\')">Fermer</button>';
+            alert('API DGI indisponible, impossible de charger la facture duplicata.');
+            document.getElementById('sale-details-modal').classList.remove('active');
+            return;
         }
 
         // Métadonnées pour l'envoi SMS depuis le modal d'impression
@@ -3190,7 +3078,6 @@ function rearmScanner() {
 function openScannerModal() {
     const modal = document.getElementById('scanner-modal');
 
-    console.log(modal)
     if (!modal) return;
 
     modal.classList.add('active');
@@ -3244,7 +3131,6 @@ async function startInlineScanner() {
             onInlineScanSuccess,
             onInlineScanFailure
         );
-        console.log('[SCANNER MODAL] Démarré avec succès');
     } catch (err) {
         console.error('[SCANNER MODAL] Erreur:', err);
         readerEl.innerHTML = '<div style="text-align:center;padding:20px;color:#dc3545;">Erreur caméra: ' + err.message + '</div>';
@@ -3256,8 +3142,6 @@ function onInlineScanSuccess(code) {
 
     scannerLastCode = code;
     scannerProcessing = true;
-
-    console.log('[SCANNER MODAL] Code détecté:', code);
 
     // Feedback sonore et tactile
     if (typeof playScanBeep === 'function') {

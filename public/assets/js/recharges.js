@@ -30,7 +30,7 @@ class BillPayment {
             'ET': "Fac d'acompte à l'exportation",
         };
 
-        console.log('[BillPayment] Initialisé, session:', this.sessionId);
+       
     }
 
     // Obtenir le label complet du type de facture
