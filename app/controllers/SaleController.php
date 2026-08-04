@@ -297,7 +297,33 @@ class SaleController extends Controller
         // Ventes par méthode de paiement
         $sql = "SELECT v.payments, COUNT(*) as nb, COALESCE(SUM(v.total),0) as total
                 FROM ventes v $where GROUP BY v.payments";
-        $byPayment = $db->fetchAll($sql, $params);
+        $byPaymentRaw = $db->fetchAll($sql, $params);
+
+        // payments est stocké en JSON (tableau de {type, amount}) : on agrège par type
+        $byPayment = [];
+        foreach ($byPaymentRaw as $row) {
+            $decoded = json_decode($row['payments'] ?? '[]', true);
+            if (is_array($decoded) && count($decoded)) {
+                foreach ($decoded as $payment) {
+                    $type = strtoupper($payment['type'] ?? $payment['mode'] ?? '');
+                    $amount = (float) ($payment['amount'] ?? 0);
+                    if (!$type) continue;
+                    if (!isset($byPayment[$type])) {
+                        $byPayment[$type] = ['type' => $type, 'nb' => 0, 'total' => 0];
+                    }
+                    $byPayment[$type]['nb'] += 1;
+                    $byPayment[$type]['total'] += $amount;
+                }
+            } else {
+                $type = strtoupper($row['payments'] ?: 'CASH');
+                if (!isset($byPayment[$type])) {
+                    $byPayment[$type] = ['type' => $type, 'nb' => 0, 'total' => 0];
+                }
+                $byPayment[$type]['nb'] += (int)$row['nb'];
+                $byPayment[$type]['total'] += (float)$row['total'];
+            }
+        }
+        usort($byPayment, fn($a, $b) => $b['total'] <=> $a['total']);
 
         // Top 5 produits vendus
         $sql = "SELECT p.nom, SUM(dv.quantite) as qty, SUM(dv.prix * dv.quantite) as revenue

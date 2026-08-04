@@ -69,7 +69,8 @@ class InvoiceController extends Controller
             'pdv' => $companyInfo['pdv'] ?? '',
             'ice' => $companyInfo['ice'] ?? '',
             'rccm' => $companyInfo['rccm'] ?? '',
-            'isf' => $companyInfo['isf'] ?? ''
+            'isf' => $companyInfo['isf'] ?? '',
+            'nid' => $companyInfo['nid'] ?? ''
         ];
 
         $storeInfo = [
@@ -88,8 +89,15 @@ class InvoiceController extends Controller
             // RCCM
             'rccm' => $settingsModel->get('store_rccm', $shopId) ?? $company['rccm'],
             // Numero impot (ISF)
-            'isf' => $settingsModel->get('store_isf', $shopId) ?? $company['isf']
+            'isf' => $settingsModel->get('store_isf', $shopId) ?? $company['isf'],
+            // NID
+            'nid' => $company['nid']
         ];
+
+        // Pour le super admin, forcer l'affichage des informations company_info
+        if ($this->isSuperAdmin()) {
+            $storeInfo = $company;
+        }
 
         // URL de base pour les liens
         $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";

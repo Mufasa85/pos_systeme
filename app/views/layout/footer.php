@@ -1008,8 +1008,10 @@
                 Par mode de paiement
               </div>
               <table class="cloture-table"><thead><tr><th>Mode</th><th>Nb</th><th>Montant</th></tr></thead><tbody>`;
+            const paymentLabels = { ESPECES: 'Espèces', MOBILEMONEY: 'Mobile Money', CARTEBANCAIRE: 'Carte Bancaire', VIREMENT: 'Virement' };
             d.by_payment.forEach(p => {
-              const label = (p.payments||'cash').charAt(0).toUpperCase() + (p.payments||'cash').slice(1);
+              const type = (p.type || p.payments || 'cash').toString().toUpperCase();
+              const label = paymentLabels[type] || (type.charAt(0) + type.slice(1).toLowerCase());
               html += `<tr><td>${label}</td><td>${p.nb}</td><td>${fmtMoney(p.total)}</td></tr>`;
             });
             html += '</tbody></table></div>';

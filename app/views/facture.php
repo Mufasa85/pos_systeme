@@ -48,6 +48,9 @@ $localQrData  = $sale['qrCode'] ?? '';
                 <?php if (!empty($storeInfo['rccm'])): ?>
                     <div><strong>RCCM:</strong> <?= htmlspecialchars($storeInfo['rccm']) ?></div>
                 <?php endif; ?>
+                <?php if (!empty($storeInfo['nid'])): ?>
+                    <div><strong>NID:</strong> <?= htmlspecialchars($storeInfo['nid']) ?></div>
+                <?php endif; ?>
             </div>
 
             <!-- Info Section (Vendeur, Client) -->
