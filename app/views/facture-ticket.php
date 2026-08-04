@@ -65,11 +65,21 @@ $localQrData  = $sale['qrCode'] ?? '';
                 <div style="text-align: center; font-weight: 800; font-size: 24px; color: #000; margin-bottom: 10px; border-bottom: 2px solid #000; padding-bottom: 5px;">DUPLICATA</div>
                 <div class="store-name"><?= htmlspecialchars($storeInfo['name'] ?? 'SuperMarche Express') ?></div>
                 <div class="store-info">
+                    <div><strong>Point de vente :</strong> <?= htmlspecialchars($storeInfo['pdv'] ?? '') ?></div>
                     <div><?= htmlspecialchars($storeInfo['address'] ?? '') ?></div>
                     <div>Tel: <?= htmlspecialchars($storeInfo['phone'] ?? '') ?></div>
+                    <?php if (!empty($storeInfo['email'])): ?>
+                        <div>Email: <?= htmlspecialchars($storeInfo['email']) ?></div>
+                    <?php endif; ?>
                     <div>ID Nat: <?= htmlspecialchars($storeInfo['ice'] ?? '') ?></div>
+                    <?php if (!empty($storeInfo['rccm'])): ?>
+                        <div>RCCM: <?= htmlspecialchars($storeInfo['rccm']) ?></div>
+                    <?php endif; ?>
                     <?php if (!empty($storeInfo['isf'])): ?>
                         <div>Numero Impot: <?= htmlspecialchars($storeInfo['isf']) ?></div>
+                    <?php endif; ?>
+                    <?php if (!empty($storeInfo['nid'])): ?>
+                        <div>NID: <?= htmlspecialchars($storeInfo['nid']) ?></div>
                     <?php endif; ?>
                 </div>
                 <div style="border-top: 1px dashed #ccc; margin-top: 6px; padding-top: 6px; text-align: left; font-size: 15px; line-height: 1.5;">
@@ -588,6 +598,7 @@ $localQrData  = $sale['qrCode'] ?? '';
             if (info.store_ice) html += '<div>ID Nat: ' + esc(info.store_ice) + '</div>';
             if (info.store_rccm) html += '<div>RCCM: ' + esc(info.store_rccm) + '</div>';
             if (info.store_isf) html += '<div>Numero Impot: ' + esc(info.store_isf) + '</div>';
+            if (info.store_nid || (window.STORE_INFO && window.STORE_INFO.nid)) html += '<div>NID: ' + esc(info.store_nid || (window.STORE_INFO && window.STORE_INFO.nid)) + '</div>';
             html += '</div>';
 
             // Vendeur / Client

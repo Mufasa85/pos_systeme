@@ -466,12 +466,14 @@ $localQrData  = $sale['qrCode'] ?? '';
             html += '<div style="text-align:center; font-weight:800; font-size:24px; color:#000; margin-bottom:10px; border-bottom:2px solid #000; padding-bottom:5px;">PROFORMA</div>';
             html += '<div class="store-name">' + esc(info.store_name || (window.STORE_INFO && window.STORE_INFO.name) || '') + '</div>';
             html += '<div class="store-info">';
-            html += '<div><strong>Point de vente :</strong> ' + esc(info.store_address || '') + '</div>';
+            html += '<div><strong>Point de vente :</strong> ' + esc(info.pdv || (window.STORE_INFO && window.STORE_INFO.pdv) || '') + '</div>';
+            html += '<div>Adresse : ' + esc(info.store_address || (window.STORE_INFO && window.STORE_INFO.address) || '') + '</div>';
             html += '<div>Tel: ' + esc(info.store_phone || '') + '</div>';
             if (info.store_email || (window.STORE_INFO && window.STORE_INFO.email)) html += '<div>Email: ' + esc(info.store_email || window.STORE_INFO.email) + '</div>';
             if (info.store_ice) html += '<div>ID Nat: ' + esc(info.store_ice) + '</div>';
             if (info.store_rccm) html += '<div>RCCM: ' + esc(info.store_rccm) + '</div>';
             if (info.store_isf) html += '<div>Numero Agent: ' + esc(info.store_isf) + '</div>';
+            if (info.store_nid || (window.STORE_INFO && window.STORE_INFO.nid)) html += '<div>NID: ' + esc(info.store_nid || (window.STORE_INFO && window.STORE_INFO.nid)) + '</div>';
             html += '</div>';
 
             // Vendeur / Client

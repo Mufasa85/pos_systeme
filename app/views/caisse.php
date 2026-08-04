@@ -63,10 +63,14 @@
     cursor: not-allowed;
   }
   .page-ellipsis {
-    padding: 0 0.35rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 32px;
+    height: 32px;
     color: var(--muted, #64748b);
     font-size: 0.85rem;
-    align-self: center;
+    user-select: none;
   }
   .products-grid.list-view {
     display: flex;

@@ -161,14 +161,18 @@ class InvoiceController extends Controller
 
         $details = $detailModel->getBySaleId($sale['id']);
 
-        // Charger les informations du magasin
+        // Charger les informations du magasin + fallback company_info
+        $companyInfo = (new \App\Models\CompanyInfo())->get();
         $storeInfo = [
-            'name' => $settingsModel->get('store_name', $shopId) ?? 'Mon Magasin',
-            'address' => $settingsModel->get('store_address', $shopId) ?? '',
-            'phone' => $settingsModel->get('store_phone', $shopId) ?? '',
-            'ice' => $settingsModel->get('store_ice', $shopId) ?? '',
-            'rccm' => $settingsModel->get('store_rccm', $shopId) ?? '',
-            'isf' => $settingsModel->get('store_isf', $shopId) ?? ''
+            'name' => $settingsModel->get('store_name', $shopId) ?? $companyInfo['name'] ?? 'Mon Magasin',
+            'address' => $settingsModel->get('store_address', $shopId) ?? $companyInfo['address'] ?? '',
+            'phone' => $settingsModel->get('store_phone', $shopId) ?? $companyInfo['phone'] ?? '',
+            'email' => $settingsModel->get('store_email', $shopId) ?? $companyInfo['email'] ?? '',
+            'pdv' => $settingsModel->get('store_pdv', $shopId) ?? $companyInfo['pdv'] ?? '',
+            'ice' => $settingsModel->get('store_ice', $shopId) ?? $companyInfo['ice'] ?? '',
+            'rccm' => $settingsModel->get('store_rccm', $shopId) ?? $companyInfo['rccm'] ?? '',
+            'isf' => $settingsModel->get('store_isf', $shopId) ?? $companyInfo['isf'] ?? '',
+            'nid' => $companyInfo['nid'] ?? ''
         ];
 
         // URL de base pour les liens
@@ -227,14 +231,18 @@ class InvoiceController extends Controller
 
         $details = $detailModel->getBySaleId($saleId);
 
-        // Charger les informations du magasin
+        // Charger les informations du magasin + fallback company_info
+        $companyInfo = (new \App\Models\CompanyInfo())->get();
         $storeInfo = [
-            'name' => $settingsModel->get('store_name', $shopId) ?? 'Mon Magasin',
-            'address' => $settingsModel->get('store_address', $shopId) ?? '',
-            'phone' => $settingsModel->get('store_phone', $shopId) ?? '',
-            'ice' => $settingsModel->get('store_ice', $shopId) ?? '',
-            'rccm' => $settingsModel->get('store_rccm', $shopId) ?? '',
-            'isf' => $settingsModel->get('store_isf', $shopId) ?? ''
+            'name' => $settingsModel->get('store_name', $shopId) ?? $companyInfo['name'] ?? 'Mon Magasin',
+            'address' => $settingsModel->get('store_address', $shopId) ?? $companyInfo['address'] ?? '',
+            'phone' => $settingsModel->get('store_phone', $shopId) ?? $companyInfo['phone'] ?? '',
+            'email' => $settingsModel->get('store_email', $shopId) ?? $companyInfo['email'] ?? '',
+            'pdv' => $settingsModel->get('store_pdv', $shopId) ?? $companyInfo['pdv'] ?? '',
+            'ice' => $settingsModel->get('store_ice', $shopId) ?? $companyInfo['ice'] ?? '',
+            'rccm' => $settingsModel->get('store_rccm', $shopId) ?? $companyInfo['rccm'] ?? '',
+            'isf' => $settingsModel->get('store_isf', $shopId) ?? $companyInfo['isf'] ?? '',
+            'nid' => $companyInfo['nid'] ?? ''
         ];
 
         // Définir l'URL de la facture publique
@@ -333,13 +341,18 @@ class InvoiceController extends Controller
 
         $details = $detailModel->getBySaleId($saleId);
 
+        // Charger les informations du magasin + fallback company_info
+        $companyInfo = (new \App\Models\CompanyInfo())->get();
         $storeInfo = [
-            'name' => $settingsModel->get('store_name', $shopId) ?? 'Mon Magasin',
-            'address' => $settingsModel->get('store_address', $shopId) ?? '',
-            'phone' => $settingsModel->get('store_phone', $shopId) ?? '',
-            'ice' => $settingsModel->get('store_ice', $shopId) ?? '',
-            'rccm' => $settingsModel->get('store_rccm', $shopId) ?? '',
-            'isf' => $settingsModel->get('store_isf', $shopId) ?? ''
+            'name' => $settingsModel->get('store_name', $shopId) ?? $companyInfo['name'] ?? 'Mon Magasin',
+            'address' => $settingsModel->get('store_address', $shopId) ?? $companyInfo['address'] ?? '',
+            'phone' => $settingsModel->get('store_phone', $shopId) ?? $companyInfo['phone'] ?? '',
+            'email' => $settingsModel->get('store_email', $shopId) ?? $companyInfo['email'] ?? '',
+            'pdv' => $settingsModel->get('store_pdv', $shopId) ?? $companyInfo['pdv'] ?? '',
+            'ice' => $settingsModel->get('store_ice', $shopId) ?? $companyInfo['ice'] ?? '',
+            'rccm' => $settingsModel->get('store_rccm', $shopId) ?? $companyInfo['rccm'] ?? '',
+            'isf' => $settingsModel->get('store_isf', $shopId) ?? $companyInfo['isf'] ?? '',
+            'nid' => $companyInfo['nid'] ?? ''
         ];
 
         // Générer le contenu HTML de la facture
@@ -397,9 +410,14 @@ class InvoiceController extends Controller
     <div class="header">
         <div class="store-name">' . htmlspecialchars($storeInfo['name']) . '</div>
         <div class="store-info">
+            ' . ($storeInfo['pdv'] ? '<strong>Point de vente :</strong> ' . htmlspecialchars($storeInfo['pdv']) . '<br>' : '') . '
             ' . htmlspecialchars($storeInfo['address']) . '<br>
             Tél: ' . htmlspecialchars($storeInfo['phone']) . '<br>
-            ICE: ' . htmlspecialchars($storeInfo['ice']) . '
+            ' . ($storeInfo['email'] ? 'Email: ' . htmlspecialchars($storeInfo['email']) . '<br>' : '') . '
+            ICE: ' . htmlspecialchars($storeInfo['ice']) . '<br>
+            ' . ($storeInfo['rccm'] ? 'RCCM: ' . htmlspecialchars($storeInfo['rccm']) . '<br>' : '') . '
+            ' . ($storeInfo['isf'] ? 'Numero Impot: ' . htmlspecialchars($storeInfo['isf']) . '<br>' : '') . '
+            ' . ($storeInfo['nid'] ? 'NID: ' . htmlspecialchars($storeInfo['nid']) : '') . '
         </div>
     </div>
 

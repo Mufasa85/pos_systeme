@@ -48,6 +48,27 @@ class SettingsController extends Controller
             ]);
         }
 
+        // Pour le super admin, fallback sur company_info si les infos magasin sont vides
+        if ($this->isSuperAdmin()) {
+            $companyInfo = (new \App\Models\CompanyInfo())->get();
+            $fallback = [
+                'store_name'    => $companyInfo['name'] ?? '',
+                'store_address' => $companyInfo['address'] ?? '',
+                'store_phone'   => $companyInfo['phone'] ?? '',
+                'store_email'   => $companyInfo['email'] ?? '',
+                'store_ice'     => $companyInfo['ice'] ?? '',
+                'store_rccm'    => $companyInfo['rccm'] ?? '',
+                'store_isf'     => $companyInfo['isf'] ?? '',
+                'pdv'           => $companyInfo['pdv'] ?? '',
+                'nid'           => $companyInfo['nid'] ?? '',
+            ];
+            foreach ($fallback as $key => $value) {
+                if (!empty($value)) {
+                    $settings[$key] = $value;
+                }
+            }
+        }
+
         $this->json($settings);
     }
 

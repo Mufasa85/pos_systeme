@@ -151,9 +151,12 @@ let STORE_INFO = {
     name: 'SuperMarche Express',
     address: '123 Rue Mohammed V, Casablanca',
     phone: '+212 522 123 456',
+    email: '',
+    pdv: '',
     ice: '001234567890123',
     rccm: '',
-    isf: ''
+    isf: '',
+    nid: ''
 };
 
 // Charger les informations du magasin depuis les paramètres
@@ -169,10 +172,11 @@ async function loadStoreInfo() {
             name: data.store_name || STORE_INFO.name,
             address: data.store_address || STORE_INFO.address,
             phone: data.store_phone || STORE_INFO.phone,
-            email: data.store_email || '',
+            email: data.store_email || STORE_INFO.email || '',
             ice: data.store_ice || STORE_INFO.ice,
-            rccm: data.store_rccm || '',
-            isf: data.store_isf || ''
+            rccm: data.store_rccm || STORE_INFO.rccm || '',
+            isf: data.store_isf || STORE_INFO.isf || '',
+            nid: data.nid || STORE_INFO.nid || ''
         };
     } catch (e) {
         console.warn('Impossible de charger les informations du magasin:', e.message);
@@ -413,9 +417,25 @@ const posCart = {
         }
 
         let html = '<button type="button" class="page-btn" onclick="posCart.goToPage(' + (this.currentPage - 1) + ')"' + (this.currentPage === 1 ? ' disabled' : '') + '>&laquo;</button>';
-        for (let i = 1; i <= totalPages; i++) {
-            html += '<button type="button" class="page-btn' + (i === this.currentPage ? ' active' : '') + '" onclick="posCart.goToPage(' + i + ')">' + i + '</button>';
+
+        // Construire une liste intelligente : 1, ..., voisinage, ..., totalPages
+        const pages = [1, totalPages];
+        const start = Math.max(2, this.currentPage - 1);
+        const end = Math.min(totalPages - 1, this.currentPage + 1);
+        for (let i = start; i <= end; i++) {
+            if (!pages.includes(i)) pages.push(i);
         }
+        pages.sort((a, b) => a - b);
+
+        let lastPage = 0;
+        pages.forEach(i => {
+            if (i - lastPage > 1) {
+                html += '<span class="page-ellipsis">…</span>';
+            }
+            html += '<button type="button" class="page-btn' + (i === this.currentPage ? ' active' : '') + '" onclick="posCart.goToPage(' + i + ')">' + i + '</button>';
+            lastPage = i;
+        });
+
         html += '<button type="button" class="page-btn" onclick="posCart.goToPage(' + (this.currentPage + 1) + ')"' + (this.currentPage === totalPages ? ' disabled' : '') + '>&raquo;</button>';
         pagEl.innerHTML = html;
     },
@@ -1359,13 +1379,16 @@ const posCart = {
         // Récupérer le code agent de l'utilisateur connecté
         const agentCode = (typeof CURRENT_USER !== 'undefined' && CURRENT_USER.agentCode) ? CURRENT_USER.agentCode : '';
 
-        // Ajouter les infos RCCM et ISF si disponibles (chacun sur sa propre ligne)
+        // Ajouter les infos RCCM, ISF et NID si disponibles (chacun sur sa propre ligne)
         let storeExtraInfo = '';
         if (STORE_INFO.rccm) {
             storeExtraInfo += `<div>RCCM: ${STORE_INFO.rccm}</div>`;
         }
         if (agentCode) {
             storeExtraInfo += `<div>Numero impot: ${STORE_INFO.isf}</div>`;
+        }
+        if (STORE_INFO.nid) {
+            storeExtraInfo += `<div>NID: ${STORE_INFO.nid}</div>`;
         }
 
 
@@ -1717,13 +1740,16 @@ const posCart = {
 
             console.warn(acheteurTypeText)
 
-            // Ajouter les infos RCCM et Agent Code si disponibles (chacun sur sa propre ligne)
+            // Ajouter les infos RCCM, Agent Code et NID si disponibles (chacun sur sa propre ligne)
             let storeExtraInfo = '';
             if (STORE_INFO.rccm) {
                 storeExtraInfo += `<div>RCCM: ${STORE_INFO.rccm}</div>`;
             }
             if (agentCode) {
                 storeExtraInfo += `<div>Numero Impot: ${STORE_INFO.isf}</div>`;
+            }
+            if (STORE_INFO.nid) {
+                storeExtraInfo += `<div>NID: ${STORE_INFO.nid}</div>`;
             }
 
 
@@ -2747,6 +2773,7 @@ async function viewSaleDetails(saleId) {
         let storeExtraInfo = '';
         if (STORE_INFO.rccm) storeExtraInfo += '<div>RCCM: ' + STORE_INFO.rccm + '</div>';
         if (STORE_INFO.isf) storeExtraInfo += '<div>Numero Impot: ' + STORE_INFO.isf + '</div>';
+        if (STORE_INFO.nid) storeExtraInfo += '<div>NID: ' + STORE_INFO.nid + '</div>';
 
         // Section vendeur/client (comme /caisse)
         let infoSection = '<div style="border-top: 1px dashed #ccc; margin-top: 6px; padding-top: 6px; text-align: left; font-size: 15px; line-height: 1.5;">' +

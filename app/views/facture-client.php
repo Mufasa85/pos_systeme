@@ -25,11 +25,21 @@
                 <?= htmlspecialchars($storeData['name'] ?? 'SuperMarche Express') ?>
             </div>
             <div class="store-info">
+                <div><strong>Point de vente :</strong> <?= htmlspecialchars($storeData['pdv'] ?? '') ?></div>
                 <div><?= htmlspecialchars($storeData['address'] ?? '') ?></div>
                 <div>Tel: <?= htmlspecialchars($storeData['phone'] ?? '') ?></div>
+                <?php if (!empty($storeData['email'])): ?>
+                    <div>Email: <?= htmlspecialchars($storeData['email']) ?></div>
+                <?php endif; ?>
                 <div>ID Nat: <?= htmlspecialchars($storeData['ice'] ?? '') ?></div>
+                <?php if (!empty($storeData['rccm'])): ?>
+                    <div>RCCM: <?= htmlspecialchars($storeData['rccm']) ?></div>
+                <?php endif; ?>
                 <?php if (!empty($storeData['isf'])): ?>
                     <div>Numero Impot: <?= htmlspecialchars($storeData['isf']) ?></div>
+                <?php endif; ?>
+                <?php if (!empty($storeData['nid'])): ?>
+                    <div>NID: <?= htmlspecialchars($storeData['nid']) ?></div>
                 <?php endif; ?>
             </div>
 
