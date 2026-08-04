@@ -4078,7 +4078,7 @@ function openInvoiceInfoModal() {
     const clientNif = document.getElementById('client-nif')?.value || (posCart.currentClient?.nif || '');
     const clientAddress = document.getElementById('client-address')?.value || (posCart.currentClient?.adresse || '');
 
-    const isAdmin = typeof CURRENT_USER !== 'undefined' && CURRENT_USER.role === 'admin';
+    const isAdmin = typeof CURRENT_USER !== 'undefined' && ['admin', 'super_admin'].includes(CURRENT_USER.role);
     if (isAdmin) {
         document.getElementById('modal-invoice-type').value = invoiceType;
         document.getElementById('modal-invoice-ref').value = invoiceRef;
@@ -4349,7 +4349,7 @@ function highlightModalField(fieldId) {
 
 // Confirmer les informations facture et passer au preview
 function confirmInvoiceInfo() {
-    const isAdmin = typeof CURRENT_USER !== 'undefined' && CURRENT_USER.role === 'admin';
+    const isAdmin = typeof CURRENT_USER !== 'undefined' && ['admin', 'super_admin'].includes(CURRENT_USER.role);
     const invoiceType = isAdmin ? document.getElementById('modal-invoice-type').value : 'FV';
     const invoiceRefs = getModalRefDocs();
     const invoiceRef = invoiceRefs[0] || '';

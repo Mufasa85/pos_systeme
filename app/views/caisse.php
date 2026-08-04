@@ -463,7 +463,7 @@
         <button class="close-modal" onclick="closeInvoiceInfoModal()">&times;</button>
       </div>
       <div style="padding: 1.5rem;">
-        <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin'): ?>
+        <?php if (isset($_SESSION['role']) && in_array($_SESSION['role'], ['admin', 'super_admin'], true)): ?>
           <!-- Type et Référence Document -->
           <div style="display: grid; grid-template-columns: 80px 1fr; gap: 12px; margin-bottom: 0.75rem; align-items: flex-end;">
             <div>

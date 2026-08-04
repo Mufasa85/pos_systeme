@@ -24,6 +24,7 @@ use App\Controllers\PayrollTimeClockController;
 use App\Controllers\PayrollReportController;
 use App\Core\Router;
 use App\Models\Shop;
+use App\Models\Sale;
 
 // Garde d'authentification simple pour les endpoints proxy (évite l'abus par
 // des visiteurs non connectés qui utiliseraient le serveur comme relais).
@@ -507,14 +508,35 @@ $serviceBillHandler = function () {
         return;
     }
 
+    // La boutique de référence est celle qui a émis la facture, pas celle de la
+    // session : un super_admin n'a pas de shop_id et doit pouvoir consulter les
+    // factures de toutes les boutiques.
+    $sessionShopId = $_SESSION['shop_id'] ?? null;
+    $isSuperAdmin = ($_SESSION['role'] ?? '') === 'super_admin';
+
+    $sale = (new Sale())->findByInvoiceNumber($invoice_number);
+    $shopId = $sale['shop_id'] ?? $sessionShopId;
+
+    // Isolation multi-boutique : hors super_admin, on refuse les factures d'une autre boutique
+    if (!$isSuperAdmin && $shopId && $sessionShopId && $shopId != $sessionShopId) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'message' => 'Cette facture ne fait pas partie de votre boutique']);
+        return;
+    }
+
+    $shop = $shopId ? (new Shop())->findById($shopId) : null;
+    $token = trim((string)($shop['token'] ?? ''));
+
+    // L'ISF doit correspondre à la boutique émettrice, sinon la DGI renvoie "Facture introuvable"
+    $shopIsf = trim((string)($shop['isf'] ?? ''));
+    if ($shopIsf !== '') {
+        $store_isf = $shopIsf;
+    }
+
     if (empty($store_isf)) {
         echo json_encode(['success' => false, 'message' => 'Paramètre store_isf requis']);
         return;
     }
-
-    $shopId = $_SESSION['shop_id'] ?? null;
-    $shop = $shopId ? (new Shop())->findById($shopId) : null;
-    $token = trim((string)($shop['token'] ?? ''));
 
     if ($token === '') {
         http_response_code(500);
@@ -551,6 +573,9 @@ $serviceBillHandler = function () {
         // La réponse est déjà au format { success, data: {...} } — on la renvoie telle quelle
         // mais on s'assure que success est vrai si la donnée existe
         if (isset($data['success']) && $data['success'] === true) {
+            echo json_encode($data);
+        } elseif (isset($data['success']) && $data['success'] === false) {
+            // Echec explicite de la DGI : on le propage tel quel
             echo json_encode($data);
         } elseif (isset($data['data'])) {
             echo json_encode(['success' => true, 'data' => $data['data']]);
