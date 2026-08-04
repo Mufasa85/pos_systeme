@@ -1026,7 +1026,7 @@
               </div>
               <table class="cloture-table"><thead><tr><th>Produit</th><th>Qté</th><th>Revenu</th></tr></thead><tbody>`;
             d.top_products.forEach((p,i) => {
-              const medal = i===0?'🥇 ':i===1?'🥈 ':i===2?'🥉 ':'';
+              const medal = i===0?'1 ':i===1?'2 ':i===2?'3 ':'';
               html += `<tr><td>${medal}${p.nom||'-'}</td><td>${p.qty}</td><td>${fmtMoney(p.revenue)}</td></tr>`;
             });
             html += '</tbody></table></div>';
