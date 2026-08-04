@@ -17,39 +17,38 @@ class SettingsController extends Controller
     // GET /api/settings - Récupérer tous les paramètres
     public function index()
     {
-        // Super admin: paramètres globaux via table settings
-        if ($this->isSuperAdmin()) {
-            $this->json($this->settingsModel->getAll(null));
-            return;
-        }
+        if (!$this->requireAuth()) return;
 
-        // Admin: les infos Magasin/POS doivent venir de la table shops
         $shopId = $this->getShopId();
-        $shop = (new \App\Models\Shop())->findById($shopId);
 
-        if (!$shop) {
-            $this->status(404)->json(['error' => 'Boutique non trouvée']);
-            return;
+        // Clés non liées au magasin (theme, paper_type, tax_rate, receipt_padding...)
+        $settings = $this->settingsModel->getAll($shopId);
+
+        // Les infos Magasin/POS proviennent désormais de la table shops
+        $shop = $shopId ? (new \App\Models\Shop())->findById($shopId) : null;
+
+        if ($shop) {
+            $settings = array_merge($settings, [
+                // Informations magasin
+                'store_name'    => $shop['nom'] ?? '',
+                'store_address' => $shop['adresse'] ?? '',
+                'store_phone'   => $shop['telephone'] ?? '',
+                'store_email'   => $shop['email'] ?? '',
+                'store_ice'     => $shop['ice'] ?? '',
+                'store_rccm'    => $shop['rccm'] ?? '',
+                'store_isf'     => $shop['isf'] ?? '',
+
+                // Informations POS
+                'shop_id'      => $shop['id'] ?? null,
+                'pdv'          => $shop['pdv'] ?? '',
+                'nid'          => $shop['nid'] ?? '',
+                'token'        => $shop['token'] ?? '',
+                'port'         => $shop['port'] ?? '',
+                'service_type' => $shop['service_type_id'] ?? 'Caisse'
+            ]);
         }
 
-        // On renvoie uniquement les clés attendues par la vue JS
-        $this->json([
-            // Informations magasin
-            'store_name' => $shop['nom'] ?? '',
-            'store_address' => $shop['adresse'] ?? '',
-            'store_phone' => $shop['telephone'] ?? '',
-            'store_email' => $shop['email'] ?? '',
-            'store_ice' => $shop['ice'] ?? '',
-            'store_rccm' => $shop['rccm'] ?? '',
-            'store_isf' => $shop['isf'] ?? '',
-
-            // Informations POS (depuis la table shops)
-            'pdv' => $shop['pdv'] ?? '',
-            'nid' => $shop['nid'] ?? '',
-            'token' => $shop['token'] ?? '',
-            'port' => $shop['port'] ?? '',
-            'service_type' => $shop['service_type_id'] ?? 'Caisse'
-        ]);
+        $this->json($settings);
     }
 
     // POST /api/settings - Mettre à jour les paramètres
