@@ -68,7 +68,7 @@ class BillPayment {
     // ==========================================
 
     async fetchBillInquiry(providerCode, numeroCompteur) {
-        console.log('[BillPayment] Fetch inquiry:', providerCode, numeroCompteur);
+       
 
         const providerId = providerCode === 'ELECTRICITE' ? 1 : 2;
         this.currentProvider = providerId;
@@ -84,7 +84,7 @@ class BillPayment {
             }
 
             this.apiResponse = response;
-            console.log('[BillPayment] API Response:', JSON.stringify(response).substring(0, 500));
+           
 
             // Extraire années disponibles - parser toutes les clés numériques
             const allKeys = Object.keys(response.results || {});
@@ -93,7 +93,7 @@ class BillPayment {
                 .map(y => parseInt(y))
                 .sort((a, b) => b - a);
 
-            console.log('[BillPayment] Années disponibles:', this.availableYears);
+          
 
             // Afficher filtre années
             this.populateYearFilter();
@@ -149,7 +149,7 @@ class BillPayment {
         this.selectedMonths = [];
 
         if (!this.apiResponse?.results?.[year]) {
-            console.log('[BillPayment] Aucune donnée pour year:', year);
+        
             this.displayMonths([]);
             return;
         }
@@ -184,7 +184,6 @@ class BillPayment {
 
         this.displayMonths(this.months);
 
-        console.log('[BillPayment] Mois chargés pour', year, ':', this.months.length);
     }
 
     // ==========================================
@@ -213,7 +212,6 @@ class BillPayment {
 
         this.updateCart();
 
-        console.log('[BillPayment] Mois sélectionnés:', this.selectedMonths.length);
     }
 
     updateMonthUI(monthId, selected) {
@@ -301,7 +299,6 @@ class BillPayment {
     // ==========================================
 
     async processPayment(paymentData) {
-        console.log('[BillPayment] Traitement paiement avec DGI...');
 
         if (this.selectedMonths.length === 0) {
             this.showError('Aucun mois sélectionné');
@@ -331,8 +328,7 @@ class BillPayment {
 
             this.showLoading('Sauvegarde en cours...');
 
-            console.log(this.currentProvider)
-
+          
             const service = this.currentProvider === 1 ? 'ELECTRICITE' : 'EAU';
             const total = this.selectedMonths.reduce((acc, m) => acc + m.montant, 0);
 
@@ -372,8 +368,7 @@ class BillPayment {
                 }
             };
 
-            console.log('[BillPayment] Appel API:', APP_URL + '/api/vente');
-            console.log('[BillPayment] Payload:', JSON.stringify(ventePayload));
+        
 
             const venteRes = await fetch(APP_URL + '/api/vente', {
                 method: 'POST',
@@ -532,8 +527,7 @@ class BillPayment {
                 //client_document: clientNumeroDoc,
             };
 
-            console.log('[DGI] Payload:', JSON.stringify(payload, null, 2));
-
+          
             const res = await fetch(DGI_API_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -541,8 +535,7 @@ class BillPayment {
             });
 
             const text = await res.text();
-            console.log('[DGI] Response status:', res.status);
-            console.log('[DGI] Response text:', text.substring(0, 500));
+         
 
             if (!res.ok) {
                 console.warn('[DGI] Réponse non OK:', res.status, res.statusText);
@@ -597,7 +590,7 @@ class BillPayment {
             }
 
             const result = await response.json();
-            console.log('[BillPayment] Données API:', JSON.stringify(result).substring(0, 1000));
+       
 
             if (!result.success) {
                 throw new Error(result.message || 'Erreur API');
@@ -1202,7 +1195,7 @@ class BillPayment {
         const clientNom = document.getElementById('client-nom')?.value || this.clientInfo?.nom || '';
         const clientNumero = document.getElementById('invoice-number')?.value || '';
         const clientTelNum = document.getElementById('modal-client-tel1')?.value
-        console.log(clientTelNum)
+       
         const clientType = document.getElementById('client-type')?.value || '';
 
         const clientNif = document.getElementById('modal-client-nif')?.value || '';
@@ -1379,7 +1372,7 @@ class BillPayment {
     }
 
     generateTicket(data, dgiResponse) {
-        console.log('[BillPayment] Ticket généré avec DGI:', data, dgiResponse);
+       
 
         const service = this.currentProvider === 1 ? 'ELECTRICITE' : 'EAU';
         const total = this.selectedMonths.reduce((acc, m) => acc + m.montant, 0);
@@ -1844,11 +1837,11 @@ document.addEventListener('DOMContentLoaded', () => {
 function confirmSaleFromPreview() {
     // Vérifier si billPayment a des mois sélectionnés (page /recharges)
     if (typeof billPayment !== 'undefined' && billPayment.selectedMonths && billPayment.selectedMonths.length > 0) {
-        console.log('[confirmSaleFromPreview] Mode: BillPayment (Recharges)');
+       
         billPayment.processPayment();
     } else {
         // Sinon utiliser posCart (page Caisse classique)
-        console.log('[confirmSaleFromPreview] Mode: posCart (Caisse)');
+    
         posCart.confirmSale();
     }
 }

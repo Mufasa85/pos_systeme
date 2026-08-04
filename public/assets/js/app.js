@@ -160,9 +160,12 @@ let STORE_INFO = {
 async function loadStoreInfo() {
     try {
         const res = await fetch(APP_URL + '/api/settings');
+        if (!res.ok) throw new Error('HTTP ' + res.status);
         const data = await res.json();
+        if (!data || data.error) throw new Error(data && data.error ? data.error : 'Reponse invalide');
+
         STORE_INFO = {
-            pdv : data.pdv || STORE_INFO.pdv,
+            pdv: data.pdv || STORE_INFO.pdv || '',
             name: data.store_name || STORE_INFO.name,
             address: data.store_address || STORE_INFO.address,
             phone: data.store_phone || STORE_INFO.phone,
@@ -172,7 +175,7 @@ async function loadStoreInfo() {
             isf: data.store_isf || ''
         };
     } catch (e) {
-        console.warn('Impossible de charger les paramètres du magasin, utilisation des valeurs par défaut');
+        console.warn('Impossible de charger les informations du magasin:', e.message);
     }
 
     // Charger aussi les types de clients pour le select
@@ -2319,6 +2322,7 @@ function deleteCategory(id) {
 const SERVICE_BILL_API_URL = APP_URL + '/api/service-bill';
 
 async function fetchServiceBillData(invoice_number, store_isf) {
+    console.log(store_isf)
     try {
         const url = SERVICE_BILL_API_URL
             + '?store_isf=' + encodeURIComponent(store_isf || '')
@@ -2692,7 +2696,7 @@ async function viewSaleDetails(saleId) {
         document.getElementById('sale-details-modal').classList.add('active');
 
         const serviceData = await fetchServiceBillData(sale.numero_facture, STORE_INFO.isf);
-
+        console.log(STORE_INFO)
         if (serviceData && serviceData.data) {
             document.getElementById('sale-details-content').innerHTML = renderServiceBillContent(serviceData, sale);
         } else {
