@@ -263,7 +263,7 @@ class AuthController extends Controller
             $sendSms = (bool)$userPhone;
         }
 
-        $primaryChannel = 'sms';
+        $primaryChannel = 'email';
         $code = $otpModel->generate($userId, 'login', $primaryChannel);
 
         $sentChannels = [];
