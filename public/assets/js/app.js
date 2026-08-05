@@ -179,7 +179,7 @@ async function loadStoreInfo() {
             nid: data.nid || STORE_INFO.nid || ''
         };
 
-         console.log(STORE_INFO)
+        
     } catch (e) {
         console.warn('Impossible de charger les informations du magasin:', e.message);
     }
@@ -1642,7 +1642,7 @@ const posCart = {
 
                 return
             }
-            console.log(STORE_INFO)
+           
             // Etape 2: Sauvegarder la vente
             // Si la facture N'est PAS FA ou EA, on envoie les quantités et
             // les totaux en négatif au backend (cohérent avec la DGI)
@@ -2354,7 +2354,7 @@ function deleteCategory(id) {
 const SERVICE_BILL_API_URL = APP_URL + '/api/service-bill';
 
 async function fetchServiceBillData(invoice_number, store_isf) {
-    console.log(store_isf)
+    
     try {
         const url = SERVICE_BILL_API_URL
             + '?store_isf=' + encodeURIComponent(store_isf || '')
@@ -2728,7 +2728,7 @@ async function viewSaleDetails(saleId) {
         document.getElementById('sale-details-modal').classList.add('active');
 
         const serviceData = await fetchServiceBillData(sale.numero_facture, STORE_INFO.isf);
-        console.log(STORE_INFO)
+      
         if (serviceData && serviceData.data) {
             document.getElementById('sale-details-content').innerHTML = renderServiceBillContent(serviceData, sale);
         } else {
