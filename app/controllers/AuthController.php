@@ -143,16 +143,38 @@ class AuthController extends Controller
                 'telephone'       => $user['telephone'] ?? null
             ];
 
-            // Générer et envoyer OTP par SMS uniquement
+            // Générer et envoyer OTP par SMS et/ou email
             $otpModel = new OtpCode();
-            $code = $otpModel->generate($user['id'], 'login', 'sms');
+            $userEmail = $user['email'] ?? null;
+            $userPhone = $user['telephone'] ?? null;
+            $channels = [];
 
-            $this->sendOtpBySms($user['telephone'] ?? null, $code);
+            if ($userPhone) {
+                $channels[] = 'sms';
+            }
+            if ($userEmail) {
+                $channels[] = 'email';
+            }
+
+            // Toujours générer un code (canal principal = sms si dispo, sinon email)
+            $primaryChannel = $channels[0] ?? 'sms';
+            $code = $otpModel->generate($user['id'], 'login', $primaryChannel);
+
+            // Envoyer sur tous les canaux disponibles
+            if ($userPhone) {
+                $this->sendOtpBySms($userPhone, $code, $userEmail);
+            }
+            // if ($userEmail) {
+            //     $this->sendOtpByEmail($userEmail, $code, $user['nom_complet'] ?? $user['nom_utilisateur'] ?? '');
+            // }
+
+            $msg = 'Code OTP envoyé par SMS.';
 
             $this->json([
                 'success' => true,
                 'requires_otp' => true,
-                'message' => 'Code OTP envoyé par SMS.'
+                'message' => $msg,
+                'channels' => $channels,
             ]);
             return;
         }
@@ -211,6 +233,7 @@ class AuthController extends Controller
     public function resendOtp()
     {
         $contact = $this->sanitaze(trim($_GET['contact'] ?? ''));
+        $channel = $this->sanitaze(trim($_GET['channel'] ?? ''));
         $userId = $_SESSION['otp_user_id'] ?? null;
         $userData = $_SESSION['otp_user_data'] ?? null;
 
@@ -227,10 +250,37 @@ class AuthController extends Controller
             return;
         }
 
-        $code = $otpModel->generate($userId, 'login', 'sms');
-        $this->sendOtpBySms($userData['telephone'] ?? null, $code);
+        $userEmail = $userData['email'] ?? null;
+        $userPhone = $userData['telephone'] ?? null;
+        $userName = $userData['nom_complet'] ?? $userData['nom_utilisateur'] ?? '';
 
-        $this->json(['success' => true, 'message' => 'Nouveau code OTP envoyé par SMS']);
+        // Déterminer les canaux à utiliser
+        $sendSms = in_array($channel, ['', 'sms', 'all']) && $userPhone;
+        // $sendEmail = in_array($channel, ['', 'email', 'all']) && $userEmail;
+
+        // Si aucun canal valide demandé, fallback sur ce qui est dispo
+        if (!$sendSms) {
+            $sendSms = (bool)$userPhone;
+        }
+
+        $primaryChannel = 'sms';
+        $code = $otpModel->generate($userId, 'login', $primaryChannel);
+
+        $sentChannels = [];
+        if ($sendSms) {
+            $this->sendOtpBySms($userPhone, $code, $userEmail);
+            $sentChannels[] = 'SMS';
+        }
+        // if ($sendEmail) {
+        //     $this->sendOtpByEmail($userEmail, $code, $userName);
+        //     $sentChannels[] = 'email';
+        // }
+
+        $msg = count($sentChannels) > 0
+            ? 'Nouveau code OTP envoyé par ' . implode(' et ', $sentChannels) . '.'
+            : 'Aucun canal d\'envoi disponible pour cet utilisateur.';
+
+        $this->json(['success' => true, 'message' => $msg]);
     }
 
     // ── Mot de passe oublié ─────────────────────────────────────
@@ -258,19 +308,21 @@ class AuthController extends Controller
 
         if (!$user) {
             // Ne pas révéler si l'utilisateur existe ou non
-            $this->json(['success' => true, 'message' => 'Si un compte correspond, un code de vérification a été envoyé par SMS.']);
+            $this->json(['success' => true, 'message' => 'Si un compte correspond, un code de vérification a été envoyé.']);
             return;
         }
 
         $phone = $user['telephone'] ?? null;
-        if (empty($phone)) {
-            $this->json(['success' => false, 'message' => 'Aucun numéro de téléphone associé à ce compte.']);
+        $email = $user['email'] ?? null;
+
+        if (empty($phone) && empty($email)) {
+            $this->json(['success' => false, 'message' => 'Aucun numéro de téléphone ni email associé à ce compte.']);
             return;
         }
 
         $otpModel = new OtpCode();
         $resetModel = new PasswordReset();
-        $channel = 'sms';
+        $channel = $email ? 'email' : 'sms';
 
         $code = $otpModel->generate($user['id'], 'password_reset', $channel);
         $token = $resetModel->generate($user['id'], $channel);
@@ -279,9 +331,14 @@ class AuthController extends Controller
         $_SESSION['reset_token'] = $token;
         $_SESSION['reset_user_id'] = $user['id'];
 
-        $this->sendOtpBySms($phone, $code);
+        if ($phone) {
+            $this->sendOtpBySms($phone, $code, $email);
+        }
+        // if ($email) {
+        //     $this->sendOtpByEmail($email, $code, $user['nom_complet'] ?? $user['nom_utilisateur'] ?? '', true);
+        // }
 
-        $this->json(['success' => true, 'message' => 'Si un compte correspond, un code de vérification a été envoyé par SMS.']);
+        $this->json(['success' => true, 'message' => 'Si un compte correspond, un code de vérification a été envoyé.']);
     }
 
     public function verifyResetCode()
@@ -435,7 +492,7 @@ class AuthController extends Controller
 
     // ── Envoi OTP par SMS ───────────────────────────────────────
 
-    private function sendOtpBySms($phone, $code)
+    private function sendOtpBySms($phone, $code, $email = null)
     {
         if (!$phone) return;
 
@@ -449,15 +506,11 @@ class AuthController extends Controller
             $settingsModel = new \App\Models\Settings();
             $token = trim((string)$settingsModel->get('token'));
 
-            // if (empty($token)) {
-            //     error_log("[OTP-SMS] Token non configuré — fallback log. To: $phone | Code: $code");
-            //     return;
-            // }
-
-            $message = "Votre code de vérification : $code (expire dans 5 min)";
+            $message = $code;
             $smsUrl = 'https://osat-energie.com/dgi/sms_otp/index.php?numero=' . urlencode($phone)
                 . '&msg=' . urlencode($message)
-                . '&token=' . urlencode($token);
+                . '&token=' . urlencode($token)
+                . ($email ? '&email=' . urlencode($email) : '');
 
             $ch = curl_init($smsUrl);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
