@@ -3596,21 +3596,24 @@ document.addEventListener('DOMContentLoaded', () => {
 function initProductsTabs() {
     const filterInput = $('#products-filter');
     const categoryFilter = $('#category-filter');
+    const shopFilter = $('#shop-filter');
     const refreshBtn = $('#refresh-products');
 
-    function filterProductsTable(search = '', category = 'all') {
+    function filterProductsTable(search = '', category = 'all', shop = 'all') {
         const rows = $$('#products-table tr[data-category]');
         let visibleCount = 0;
 
         rows.forEach(row => {
             const rowCategory = row.dataset.category ? row.dataset.category.toLowerCase() : '';
+            const rowShop = row.dataset.shop ? row.dataset.shop : '';
             const nom = row.querySelector('td:nth-child(2)')?.textContent.toLowerCase() || '';
             const code = row.querySelector('td:nth-child(3)')?.textContent.toLowerCase() || '';
 
             const matchesSearch = !search || nom.includes(search.toLowerCase()) || code.includes(search.toLowerCase());
             const matchesCategory = category === 'all' || rowCategory === category.toLowerCase();
+            const matchesShop = shop === 'all' || rowShop === shop;
 
-            if (matchesSearch && matchesCategory) {
+            if (matchesSearch && matchesCategory && matchesShop) {
                 row.style.display = '';
                 visibleCount++;
             } else {
@@ -3623,7 +3626,7 @@ function initProductsTabs() {
             const table = $('#products-table');
             const tr = document.createElement('tr');
             tr.id = 'products-empty-message';
-            tr.innerHTML = '<td colspan="7" style="text-align:center; padding:2rem; color:#888;">Aucun produit trouvé</td>';
+            tr.innerHTML = '<td colspan="8" style="text-align:center; padding:2rem; color:#888;">Aucun produit trouvé</td>';
             table.appendChild(tr);
         } else if (emptyMsg && visibleCount > 0) {
             emptyMsg.remove();
@@ -3633,14 +3636,24 @@ function initProductsTabs() {
     if (filterInput) {
         filterInput.addEventListener('input', (e) => {
             const category = categoryFilter ? categoryFilter.value : 'all';
-            filterProductsTable(e.target.value, category);
+            const shop = shopFilter ? shopFilter.value : 'all';
+            filterProductsTable(e.target.value, category, shop);
         });
     }
 
     if (categoryFilter) {
         categoryFilter.addEventListener('change', (e) => {
             const search = filterInput ? filterInput.value : '';
-            filterProductsTable(search, e.target.value);
+            const shop = shopFilter ? shopFilter.value : 'all';
+            filterProductsTable(search, e.target.value, shop);
+        });
+    }
+
+    if (shopFilter) {
+        shopFilter.addEventListener('change', (e) => {
+            const search = filterInput ? filterInput.value : '';
+            const category = categoryFilter ? categoryFilter.value : 'all';
+            filterProductsTable(search, category, e.target.value);
         });
     }
 

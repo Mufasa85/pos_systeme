@@ -12,7 +12,7 @@
             </button>
           <?php endif; ?>
         </div>
-        <div class="filters-bar">
+<div class="filters-bar">
           <input type="text" id="products-filter" placeholder="Rechercher un produit...">
           <select id="category-filter">
             <option value="all">Toutes les catégories</option>
@@ -20,6 +20,14 @@
               <option value="<?= htmlspecialchars($cat['category']) ?>"><?= htmlspecialchars($cat['category']) ?></option>
             <?php endforeach; ?>
           </select>
+          <?php if (($_SESSION['role'] ?? '') === 'super_admin'): ?>
+            <select id="shop-filter">
+              <option value="all">Toutes les boutiques</option>
+              <?php foreach ($shops ?? [] as $shop): ?>
+                <option value="<?= htmlspecialchars($shop['id']) ?>"><?= htmlspecialchars($shop['nom']) ?></option>
+              <?php endforeach; ?>
+            </select>
+          <?php endif; ?>
         </div>
         <div class="table-container">
           <table class="data-table" style="width:100%; border-collapse:collapse;">
@@ -38,7 +46,7 @@
             </thead>
             <tbody id="products-table">
               <?php foreach ($produits as $p): ?>
-                <tr data-category="<?= htmlspecialchars($p['categorie']) ?>" style="border-bottom:1px solid #eee;">
+                <tr data-category="<?= htmlspecialchars($p['categorie']) ?>" data-shop="<?= htmlspecialchars($p['shop_id'] ?? '') ?>" style="border-bottom:1px solid #eee;">
                   <td style="padding:0.75rem;">
                     <img src="<?= $p['image'] ?>" alt="<?= htmlspecialchars($p['nom']) ?>" style="width:40px;height:40px;object-fit:cover;border-radius:4px;" onerror="this.style.display='none'">
                   </td>

@@ -270,10 +270,18 @@ class PageController extends Controller
         $categories = $categoryModel->all($shopId);
         $taxes = $taxModel->getAll();
 
+        // Boutiques pour le filtre super_admin
+        $shops = [];
+        if ($this->isSuperAdmin()) {
+            $shopModel = new \App\Models\Shop();
+            $shops = $shopModel->getAll();
+        }
+
         $this->render('produits', [
             'produits' => $produits,
             'categories' => $categories,
-            'taxes' => $taxes
+            'taxes' => $taxes,
+            'shops' => $shops
         ]);
     }
 
