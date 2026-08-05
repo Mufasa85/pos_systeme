@@ -136,7 +136,7 @@ $storeName = $settingsModel->get('store_name') ?? 'Mon Magasin';
           </svg>
         </div>
         <h1>Vérification en deux étapes</h1>
-        <p>Un code à 6 chiffres a été envoyé par SMS</p>
+        <p id="otp-channel-text">Un code à 6 chiffres a été envoyé</p>
       </div>
       <form id="otp-form" class="login-form">
         <div class="form-group">
@@ -152,6 +152,16 @@ $storeName = $settingsModel->get('store_name') ?? 'Mon Magasin';
         <button id="resend-btn" style="background:none;border:none;color:var(--primary);cursor:pointer;font-size:.875rem">
           Renvoyer le code
         </button>
+        <div id="resend-channels" style="display:none;margin-top:.5rem;gap:.5rem;justify-content:center;flex-wrap:wrap">
+          <button class="resend-channel-btn" data-channel="sms"
+                  style="background:none;border:1px solid var(--primary);color:var(--primary);cursor:pointer;font-size:.8rem;padding:.4rem .8rem;border-radius:6px">
+            Par SMS
+          </button>
+          <button class="resend-channel-btn" data-channel="email"
+                  style="background:none;border:1px solid var(--primary);color:var(--primary);cursor:pointer;font-size:.8rem;padding:.4rem .8rem;border-radius:6px">
+            Par Email
+          </button>
+        </div>
       </div>
       <div style="text-align:center;margin-top:.5rem">
         <a href="/" style="color:#888;font-size:.8rem">Annuler et revenir à la connexion</a>
@@ -197,30 +207,45 @@ $storeName = $settingsModel->get('store_name') ?? 'Mon Magasin';
     });
 
     document.getElementById('resend-btn').addEventListener('click', async () => {
-      const btn = document.getElementById('resend-btn');
-      btn.disabled = true;
-      btn.textContent = 'Envoi en cours...';
+      const channelsDiv = document.getElementById('resend-channels');
+      const isVisible = channelsDiv.style.display !== 'none';
+      channelsDiv.style.display = isVisible ? 'none' : 'flex';
+    });
 
-      try {
-        const params = new URLSearchParams();
-        const contact = new URLSearchParams(window.location.search).get('contact') || '';
-        if (contact) {
-          params.set('contact', contact);
+    document.querySelectorAll('.resend-channel-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const channel = btn.dataset.channel;
+        const allBtns = document.querySelectorAll('.resend-channel-btn');
+        allBtns.forEach(b => b.disabled = true);
+        btn.textContent = 'Envoi en cours...';
+
+        try {
+          const params = new URLSearchParams();
+          const contact = new URLSearchParams(window.location.search).get('contact') || '';
+          if (contact) {
+            params.set('contact', contact);
+          }
+          params.set('channel', channel);
+
+          const res = await fetch(APP_URL + '/api/auth/resend-otp?' + params.toString(), {
+            method: 'GET'
+          });
+          const data = await res.json();
+          const mainBtn = document.getElementById('resend-btn');
+          mainBtn.textContent = data.success ? 'Code renvoyé ✓' : data.message;
+          document.getElementById('resend-channels').style.display = 'none';
+        } catch (err) {
+          btn.textContent = 'Erreur';
         }
 
-        const res = await fetch(APP_URL + '/api/auth/resend-otp?' + params.toString(), {
-          method: 'GET'
-        });
-        const data = await res.json();
-        btn.textContent = data.success ? 'Code renvoyé ✓' : data.message;
-      } catch (err) {
-        btn.textContent = 'Erreur';
-      }
-
-      setTimeout(() => {
-        btn.disabled = false;
-        btn.textContent = 'Renvoyer le code';
-      }, 30000);
+        setTimeout(() => {
+          allBtns.forEach(b => {
+            b.disabled = false;
+            b.textContent = b.dataset.channel === 'sms' ? ' Par SMS' : ' Par Email';
+          });
+          document.getElementById('resend-btn').textContent = 'Renvoyer le code';
+        }, 30000);
+      });
     });
   </script>
 </body>
