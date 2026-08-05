@@ -31,6 +31,11 @@ class Shop
         return $this->db->fetch("SELECT * FROM shops WHERE code = ?", [$code]);
     }
 
+    public function findByIsf($isf)
+    {
+        return $this->db->fetch("SELECT * FROM shops WHERE isf = ?", [$isf]);
+    }
+
     public function create($data)
     {
         $sql = "INSERT INTO shops (nom, code, adresse, telephone, email, ice, rccm, isf, pdv, nid, token, port, service_type_id, actif)
