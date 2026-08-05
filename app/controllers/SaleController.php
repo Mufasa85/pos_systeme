@@ -45,6 +45,29 @@ class SaleController extends Controller
             // Récupérer les données DGI (si présentes)
             $dgiData = $data['dgi_data'] ?? [];
 
+            // ISF figé sur la vente : c'est la clé de recherche de la facture
+            // auprès de la DGI. On conserve exactement l'ISF utilisé lors de
+            // l'enregistrement DGI, sinon la facture devient introuvable.
+            $shopId = $this->getShopId();
+
+            // 1. ISF envoyé par le client (STORE_INFO.isf) : c'est celui utilisé
+            //    pour l'enregistrement DGI, donc la clé de recherche fiable.
+            // 2. ISF renvoyé par la DGI en repli.
+            $storeIsf = trim((string)($data['store_isf'] ?? ''));
+            if ($storeIsf === '') {
+                $storeIsf = trim((string)($dgiData['isf'] ?? ''));
+            }
+
+            // 3. Repli serveur : boutique rattachée, puis société (super_admin)
+            if ($storeIsf === '') {
+                $shop = $shopId ? (new \App\Models\Shop())->findById($shopId) : null;
+                $storeIsf = trim((string)($shop['isf'] ?? ''));
+            }
+            if ($storeIsf === '') {
+                $companyInfo = (new \App\Models\CompanyInfo())->get();
+                $storeIsf = trim((string)($companyInfo['isf'] ?? ''));
+            }
+
             $saleId = $saleModel->create([
                 'numero_facture' => $invoiceNum,
                 'client_id'      => $clientId,
@@ -53,7 +76,8 @@ class SaleController extends Controller
                 'total'          => $data['total'],
                 'payments'       => $data['payments'] ?? null,
                 'vendeur_id'     => $_SESSION['user_id'],
-                'shop_id'        => $this->getShopId(),
+                'shop_id'        => $shopId,
+                'store_isf'      => $storeIsf !== '' ? $storeIsf : null,
                 'date'           => date('Y-m-d H:i:s'),
                 'dateDGI'        => $dgiData['dateDGI'] ?? null,
                 'qrCode'         => $dgiData['qrCode'] ?? null,
