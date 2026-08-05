@@ -62,8 +62,8 @@
                   <input type="text" id="company-phone" placeholder="Ex: +243 123 456 789">
                 </div>
                 <div class="form-group">
-                  <label style="font-size:.85rem;font-weight:600">ICE</label>
-                  <input type="text" id="company-ice" placeholder="Numéro ICE">
+                  <label style="font-size:.85rem;font-weight:600">NUMERO D'IDENTIFACTION NATIONALE</label>
+                  <input type="text" id="company-ice" placeholder="Numéro d'identification nationale">
                 </div>
               </div>
               <div class="form-row">
@@ -72,8 +72,8 @@
                   <input type="text" id="company-rccm" placeholder="Numéro RCCM">
                 </div>
                 <div class="form-group">
-                  <label style="font-size:.85rem;font-weight:600">ISF</label>
-                  <input type="text" id="company-isf" placeholder="Numéro ISF">
+                  <label style="font-size:.85rem;font-weight:600">NUMERO IMPOT</label>
+                  <input type="text" id="company-isf" placeholder="Numéro impôt">
                 </div>
               </div>
               <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border)">
