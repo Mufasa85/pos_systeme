@@ -136,14 +136,14 @@ $storeName = $settingsModel->get('store_name') ?? 'Mon Magasin';
           </svg>
         </div>
         <h1>Mot de passe oublié</h1>
-        <p>Entrez votre numéro de téléphone</p>
+        <p>Entrez votre numéro de téléphone ou email</p>
       </div>
 
       <!-- Étape 1 : Saisir le contact -->
       <form id="forgot-form" class="login-form">
         <div class="form-group">
-          <label for="contact">Numéro de téléphone</label>
-          <input type="text" id="contact" name="contact" placeholder="0800000000" required autofocus>
+          <label for="contact">Téléphone ou Email</label>
+          <input type="text" id="contact" name="contact" placeholder="0800000000 ou email@exemple.com" required autofocus>
         </div>
         <div id="forgot-error" class="login-error"></div>
         <div id="forgot-success" style="color:green;font-size:.875rem;margin-bottom:.5rem;display:none"></div>
