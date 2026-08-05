@@ -161,18 +161,24 @@ class InvoiceController extends Controller
 
         $details = $detailModel->getBySaleId($sale['id']);
 
+        // Page publique : aucune session fiable, on se base sur la boutique
+        // émettrice de la facture.
+        $shopId = $sale['shop_id'] ?? $shopId;
+        $shop = $shopId ? (new \App\Models\Shop())->findById($shopId) : null;
+
         // Charger les informations du magasin + fallback company_info
         $companyInfo = (new \App\Models\CompanyInfo())->get();
         $storeInfo = [
-            'name' => $settingsModel->get('store_name', $shopId) ?? $companyInfo['name'] ?? 'Mon Magasin',
-            'address' => $settingsModel->get('store_address', $shopId) ?? $companyInfo['address'] ?? '',
-            'phone' => $settingsModel->get('store_phone', $shopId) ?? $companyInfo['phone'] ?? '',
-            'email' => $settingsModel->get('store_email', $shopId) ?? $companyInfo['email'] ?? '',
-            'pdv' => $settingsModel->get('store_pdv', $shopId) ?? $companyInfo['pdv'] ?? '',
-            'ice' => $settingsModel->get('store_ice', $shopId) ?? $companyInfo['ice'] ?? '',
-            'rccm' => $settingsModel->get('store_rccm', $shopId) ?? $companyInfo['rccm'] ?? '',
-            'isf' => $settingsModel->get('store_isf', $shopId) ?? $companyInfo['isf'] ?? '',
-            'nid' => $companyInfo['nid'] ?? ''
+            'name' => $shop['nom'] ?? $companyInfo['name'] ?? 'Mon Magasin',
+            'address' => $shop['adresse'] ?? $companyInfo['address'] ?? '',
+            'phone' => $shop['telephone'] ?? $companyInfo['phone'] ?? '',
+            'email' => $shop['email'] ?? $companyInfo['email'] ?? '',
+            'pdv' => $shop['pdv'] ?? $companyInfo['pdv'] ?? '',
+            'ice' => $shop['ice'] ?? $companyInfo['ice'] ?? '',
+            'rccm' => $shop['rccm'] ?? $companyInfo['rccm'] ?? '',
+            // ISF figé sur la vente : clé de recherche DGI
+            'isf' => ($sale['store_isf'] ?? '') ?: ($shop['isf'] ?? $companyInfo['isf'] ?? ''),
+            'nid' => $shop['nid'] ?? $companyInfo['nid'] ?? ''
         ];
 
         // URL de base pour les liens

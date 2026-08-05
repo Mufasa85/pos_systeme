@@ -25,6 +25,7 @@ use App\Controllers\PayrollReportController;
 use App\Core\Router;
 use App\Models\Shop;
 use App\Models\Sale;
+use App\Models\CompanyInfo;
 
 // Garde d'authentification simple pour les endpoints proxy (évite l'abus par
 // des visiteurs non connectés qui utiliseraient le serveur comme relais).
@@ -524,18 +525,46 @@ $serviceBillHandler = function () {
         return;
     }
 
-    $shop = $shopId ? (new Shop())->findById($shopId) : null;
-    $token = trim((string)($shop['token'] ?? ''));
+    $shopModel = new Shop();
+    $shop = $shopId ? $shopModel->findById($shopId) : null;
+    $companyInfo = (new CompanyInfo())->get();
 
-    // L'ISF doit correspondre à la boutique émettrice, sinon la DGI renvoie "Facture introuvable"
-    $shopIsf = trim((string)($shop['isf'] ?? ''));
-    if ($shopIsf !== '') {
-        $store_isf = $shopIsf;
+    // L'ISF de recherche est celui figé sur la vente à sa création : c'est le
+    // seul fiable, l'ISF de l'utilisateur qui consulte pouvant être différent
+    // (super_admin, autre boutique). Replis pour les ventes antérieures à la
+    // migration : boutique émettrice, puis société.
+    $saleIsf = trim((string)($sale['store_isf'] ?? ''));
+    if ($saleIsf === '') {
+        $saleIsf = trim((string)($shop['isf'] ?? ''));
+    }
+    if ($saleIsf === '') {
+        $saleIsf = trim((string)($companyInfo['isf'] ?? ''));
+    }
+
+    if ($saleIsf !== '') {
+        $store_isf = $saleIsf;
     }
 
     if (empty($store_isf)) {
         echo json_encode(['success' => false, 'message' => 'Paramètre store_isf requis']);
         return;
+    }
+
+    // Le token doit appartenir au même émetteur que l'ISF interrogé : on le
+    // résout donc à partir de l'ISF, pas de la session.
+    $token = '';
+    if (trim((string)($companyInfo['isf'] ?? '')) === $store_isf) {
+        $token = trim((string)($companyInfo['token'] ?? ''));
+    }
+    if ($token === '') {
+        $isfShop = $shopModel->findByIsf($store_isf);
+        $token = trim((string)($isfShop['token'] ?? ''));
+    }
+    if ($token === '') {
+        $token = trim((string)($shop['token'] ?? ''));
+    }
+    if ($token === '') {
+        $token = trim((string)($companyInfo['token'] ?? ''));
     }
 
     if ($token === '') {

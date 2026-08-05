@@ -178,6 +178,8 @@ async function loadStoreInfo() {
             isf: data.store_isf || STORE_INFO.isf || '',
             nid: data.nid || STORE_INFO.nid || ''
         };
+
+         console.log(STORE_INFO)
     } catch (e) {
         console.warn('Impossible de charger les informations du magasin:', e.message);
     }
@@ -1640,6 +1642,7 @@ const posCart = {
 
                 return
             }
+            console.log(STORE_INFO)
             // Etape 2: Sauvegarder la vente
             // Si la facture N'est PAS FA ou EA, on envoie les quantités et
             // les totaux en négatif au backend (cohérent avec la DGI)
@@ -1659,6 +1662,9 @@ const posCart = {
                     tva: this.currentTotals.tva * saveSign,
                     total: this.currentTotals.total * saveSign,
                     type_facture: saveTypeFacture,
+                    // ISF réellement utilisé pour l'enregistrement DGI : c'est la
+                    // clé de recherche de la facture, il doit être figé tel quel.
+                    store_isf: STORE_INFO.isf || '',
                     payments: this.currentPayments?.length > 0 ? this.currentPayments : [{ type: (document.getElementById('modal-payment-type') || document.getElementById('payment-type'))?.value || 'ESPECES', amount: this.currentTotals.total }],
                     dgi_data: {
                         dateDGI: dgiResponse.data ? dgiResponse.data.dateDGI : null,
