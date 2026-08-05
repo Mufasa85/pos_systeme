@@ -354,6 +354,9 @@ class BillPayment {
                 total: total * rechargeSign,
                 type_facture: rechargeTypeFacture,
                 providerService: service,
+                // ISF réellement utilisé pour l'enregistrement DGI : c'est la
+                // clé de recherche de la facture, il doit être figé tel quel.
+                store_isf: STORE_INFO.isf || '',
                 payments: this.currentPayments?.length > 0 ? this.currentPayments : [{ type: (document.getElementById('modal-payment-type') || document.getElementById('payment-type'))?.value || 'cash', amount: total }],
                 dgi_data: {
                     dateDGI: dgiResponse.data?.dateDGI || null,
@@ -774,7 +777,7 @@ class BillPayment {
         const clientType = document.getElementById('client-type')?.value || '';
 
         // Remplir le modal
-        const isAdmin = typeof CURRENT_USER !== 'undefined' && CURRENT_USER.role === 'admin';
+        const isAdmin = typeof CURRENT_USER !== 'undefined' && ['admin', 'super_admin'].includes(CURRENT_USER.role);
         if (isAdmin) {
             document.getElementById('modal-invoice-type').value = invoiceType;
             document.getElementById('modal-invoice-ref').value = invoiceRef;
@@ -1035,7 +1038,7 @@ class BillPayment {
     // Confirmer les infos client et ouvrir le preview
     async confirmInvoiceInfoRecharge() {
         // Sauvegarder les valeurs du modal vers les champs du panier
-        const isAdmin = typeof CURRENT_USER !== 'undefined' && CURRENT_USER.role === 'admin';
+        const isAdmin = typeof CURRENT_USER !== 'undefined' && ['admin', 'super_admin'].includes(CURRENT_USER.role);
         const modalInvoiceType = isAdmin ? document.getElementById('modal-invoice-type')?.value || 'FV' : 'FV';
         const modalClientName = document.getElementById('modal-client-name')?.value || '';
         const modalClientNumber = document.getElementById('modal-client-tel1')?.value?.trim() || '';
