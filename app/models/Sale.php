@@ -15,8 +15,8 @@ class Sale
 
     public function create($data)
     {
-        $sql = "INSERT INTO ventes (numero_facture, client_id, sous_total_ht, tva, total, payments, vendeur_id, shop_id, date, dateDGI, qrCode, codeDEFDGI, counters, nim, comment, service) 
-                VALUES (:numero_facture, :client_id, :sous_total_ht, :tva, :total, :payments, :vendeur_id, :shop_id, :date, :dateDGI, :qrCode, :codeDEFDGI, :counters, :nim, :comment, :service)";
+        $sql = "INSERT INTO ventes (numero_facture, client_id, sous_total_ht, tva, total, payments, vendeur_id, shop_id, store_isf, date, dateDGI, qrCode, codeDEFDGI, counters, nim, comment, service) 
+                VALUES (:numero_facture, :client_id, :sous_total_ht, :tva, :total, :payments, :vendeur_id, :shop_id, :store_isf, :date, :dateDGI, :qrCode, :codeDEFDGI, :counters, :nim, :comment, :service)";
         $this->db->query($sql, [
             ':numero_facture' => $data['numero_facture'],
             ':client_id'      => $data['client_id'] ?? null,
@@ -26,6 +26,7 @@ class Sale
             ':payments'       => isset($data['payments']) ? json_encode($data['payments']) : null,
             ':vendeur_id'     => $data['vendeur_id'],
             ':shop_id'        => $data['shop_id'] ?? null,
+            ':store_isf'      => $data['store_isf'] ?? null,
             ':date'           => $data['date'],
             ':dateDGI'        => $data['dateDGI'] ?? null,
             ':qrCode'         => $data['qrCode'] ?? null,
