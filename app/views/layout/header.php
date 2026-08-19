@@ -168,6 +168,42 @@
           <span>Produits</span>
         </a>
 
+        <?php if (!empty($showRestaurantMenu)): ?>
+          <div class="nav-item <?= in_array($currentPage, ['restaurant-tables', 'restaurant-menu', 'restaurant-commandes', 'restaurant-cuisine', 'restaurant-rapports']) ? 'active' : '' ?>">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="12" y1="1" x2="12" y2="23"></line>
+              <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+            </svg>
+            <select class="service-select" onchange="if(this.value){ window.location.href=this.value; }">
+              <option value="" disabled <?= !in_array($currentPage, ['restaurant-tables', 'restaurant-menu', 'restaurant-commandes', 'restaurant-cuisine', 'restaurant-rapports']) ? 'selected' : '' ?>>Pages Restaurant</option>
+              <option value="/restaurant/tables" <?= $currentPage == 'restaurant-tables' ? 'selected' : '' ?>>Tables</option>
+              <option value="/restaurant/menu" <?= $currentPage == 'restaurant-menu' ? 'selected' : '' ?>>Menu</option>
+              <option value="/restaurant/commandes" <?= $currentPage == 'restaurant-commandes' ? 'selected' : '' ?>>Commandes</option>
+              <option value="/restaurant/cuisine" <?= $currentPage == 'restaurant-cuisine' ? 'selected' : '' ?>>Cuisine</option>
+              <option value="/restaurant/rapports" <?= $currentPage == 'restaurant-rapports' ? 'selected' : '' ?>>Rapports</option>
+            </select>
+          </div>
+        <?php endif; ?>
+
+        <?php if (!empty($showPressingMenu)): ?>
+          <div class="nav-item <?= in_array($currentPage, ['pressing-depot', 'pressing-suivi', 'pressing-retrait', 'pressing-historique', 'pressing-rapports']) ? 'active' : '' ?>">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M6 2v6a6 6 0 0 0 12 0V2"></path>
+              <line x1="4" y1="22" x2="20" y2="22"></line>
+              <path d="M6 22v-6a6 6 0 0 1 12 0v6"></path>
+            </svg>
+            <select class="service-select" onchange="if(this.value){ window.location.href=this.value; }">
+              <option value="" disabled <?= !in_array($currentPage, ['pressing-depot', 'pressing-suivi', 'pressing-retrait', 'pressing-historique', 'pressing-rapports', 'pressing-admin']) ? 'selected' : '' ?>>Pages Pressing</option>
+              <option value="/pressing/depot" <?= $currentPage == 'pressing-depot' ? 'selected' : '' ?>>Dépôt</option>
+              <option value="/pressing/suivi" <?= $currentPage == 'pressing-suivi' ? 'selected' : '' ?>>Suivi</option>
+              <option value="/pressing/retrait" <?= $currentPage == 'pressing-retrait' ? 'selected' : '' ?>>Retrait</option>
+              <option value="/pressing/historique" <?= $currentPage == 'pressing-historique' ? 'selected' : '' ?>>Historique</option>
+              <option value="/pressing/rapports" <?= $currentPage == 'pressing-rapports' ? 'selected' : '' ?>>Rapports</option>
+              <option value="/pressing/admin" <?= $currentPage == 'pressing-admin' ? 'selected' : '' ?>>Paramètres</option>
+            </select>
+          </div>
+        <?php endif; ?>
+
         <a href="/analytics" class="nav-item <?= $currentPage == 'analytics' ? 'active' : '' ?>">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M3 3v18h18"></path>

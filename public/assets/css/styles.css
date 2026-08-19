@@ -425,6 +425,24 @@ body {
   text-decoration: none;
 }
 
+.nav-item .service-select {
+  flex: 1;
+  background: transparent;
+  color: inherit;
+  border: none;
+  font-size: inherit;
+  font-family: inherit;
+  cursor: pointer;
+  outline: none;
+  padding: 0;
+}
+
+.nav-item .service-select option,
+.nav-item .service-select optgroup {
+  background: var(--sidebar-bg);
+  color: var(--sidebar-text);
+}
+
 .sidebar-footer {
   padding: 1rem;
   border-top: 1px solid var(--sidebar-hover);

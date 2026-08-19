@@ -12,6 +12,19 @@ use App\Controllers\ClientController;
 use App\Controllers\TaxController;
 use App\Controllers\ShopController;
 use App\Controllers\ServiceTypeController;
+use App\Controllers\RestaurantTableController;
+use App\Controllers\RestaurantMenuController;
+use App\Controllers\RestaurantOrderController;
+use App\Controllers\RestaurantKitchenController;
+use App\Controllers\RestaurantReportController;
+use App\Controllers\RestaurantPartBController;
+use App\Controllers\PressingDepotController;
+use App\Controllers\PressingServiceController;
+use App\Controllers\PressingTarifController;
+use App\Controllers\PressingPaymentController;
+use App\Controllers\PressingConsumableController;
+use App\Controllers\PressingPhotoController;
+use App\Controllers\PressingReportController;
 use App\Controllers\CompanyInfoController;
 use App\Controllers\NotificationController;
 use App\Controllers\AuthController;
@@ -60,6 +73,123 @@ Router::get("/api/service-types", [ServiceTypeController::class, 'index']);
 Router::post("/api/service-types", [ServiceTypeController::class, 'create']);
 Router::post("/api/service-types/update/[i:id]", [ServiceTypeController::class, 'update']);
 Router::post("/api/service-types/delete/[i:id]", [ServiceTypeController::class, 'delete']);
+
+// ── Restaurant : Tables ────────────────────────────────────────
+Router::get("/api/restaurant/tables", [RestaurantTableController::class, 'index']);
+Router::post("/api/restaurant/tables", [RestaurantTableController::class, 'create']);
+Router::post("/api/restaurant/tables/update/[i:id]", [RestaurantTableController::class, 'update']);
+Router::post("/api/restaurant/tables/state/[i:id]", [RestaurantTableController::class, 'updateState']);
+Router::post("/api/restaurant/tables/delete/[i:id]", [RestaurantTableController::class, 'delete']);
+
+// ── Restaurant : Catégories & Menu ──────────────────────────────
+Router::get("/api/restaurant/menu", [RestaurantMenuController::class, 'index']);
+Router::post("/api/restaurant/categories", [RestaurantMenuController::class, 'createCategory']);
+Router::post("/api/restaurant/categories/update/[i:id]", [RestaurantMenuController::class, 'updateCategory']);
+Router::post("/api/restaurant/categories/delete/[i:id]", [RestaurantMenuController::class, 'deleteCategory']);
+Router::post("/api/restaurant/plats", [RestaurantMenuController::class, 'createItem']);
+Router::post("/api/restaurant/plats/update/[i:id]", [RestaurantMenuController::class, 'updateItem']);
+Router::post("/api/restaurant/plats/toggle/[i:id]", [RestaurantMenuController::class, 'toggleItem']);
+Router::post("/api/restaurant/plats/delete/[i:id]", [RestaurantMenuController::class, 'deleteItem']);
+
+// ── Restaurant : Commandes ───────────────────────────────────────
+Router::post("/api/restaurant/commandes", [RestaurantOrderController::class, 'create']);
+Router::get("/api/restaurant/commandes/[i:id]", [RestaurantOrderController::class, 'get']);
+Router::post("/api/restaurant/commandes/[i:id]/items", [RestaurantOrderController::class, 'addItem']);
+Router::post("/api/restaurant/commandes/items/[i:detailId]/update", [RestaurantOrderController::class, 'updateItem']);
+Router::post("/api/restaurant/commandes/items/[i:detailId]/delete", [RestaurantOrderController::class, 'removeItem']);
+Router::post("/api/restaurant/commandes/[i:id]/remise", [RestaurantOrderController::class, 'setRemise']);
+Router::post("/api/restaurant/commandes/[i:id]/envoyer-cuisine", [RestaurantOrderController::class, 'sendToKitchen']);
+Router::post("/api/restaurant/commandes/[i:id]/annuler", [RestaurantOrderController::class, 'cancel']);
+Router::post("/api/restaurant/commandes/[i:id]/paiement", [RestaurantOrderController::class, 'pay']);
+
+// ── Restaurant : Cuisine ──────────────────────────────────────
+Router::get("/api/restaurant/cuisine", [RestaurantKitchenController::class, 'index']);
+Router::post("/api/restaurant/cuisine/[i:detailId]/commencer", [RestaurantKitchenController::class, 'start']);
+Router::post("/api/restaurant/cuisine/[i:detailId]/servi", [RestaurantKitchenController::class, 'markServed']);
+
+// ── Restaurant : Partie B ─────────────────────────────────────
+Router::get("/api/restaurant/reservations", [RestaurantPartBController::class, 'reservations']);
+Router::post("/api/restaurant/reservations", [RestaurantPartBController::class, 'createReservation']);
+Router::post("/api/restaurant/reservations/[i:id]/update", [RestaurantPartBController::class, 'updateReservation']);
+Router::post("/api/restaurant/reservations/[i:id]/delete", [RestaurantPartBController::class, 'deleteReservation']);
+
+Router::get("/api/restaurant/commandes/[i:id]/split-bills", [RestaurantPartBController::class, 'splitBills']);
+Router::post("/api/restaurant/split-bills", [RestaurantPartBController::class, 'createSplitBill']);
+Router::post("/api/restaurant/split-bills/[i:id]/update", [RestaurantPartBController::class, 'updateSplitBill']);
+Router::post("/api/restaurant/split-bills/[i:id]/delete", [RestaurantPartBController::class, 'deleteSplitBill']);
+
+Router::get("/api/restaurant/commandes/[i:id]/paiements", [RestaurantPartBController::class, 'payments']);
+Router::post("/api/restaurant/paiements", [RestaurantPartBController::class, 'createPayment']);
+Router::post("/api/restaurant/paiements/[i:id]/delete", [RestaurantPartBController::class, 'deletePayment']);
+
+Router::get("/api/restaurant/plats/[i:id]/options", [RestaurantPartBController::class, 'menuItemOptions']);
+Router::post("/api/restaurant/options", [RestaurantPartBController::class, 'createMenuItemOption']);
+Router::post("/api/restaurant/options/[i:id]/update", [RestaurantPartBController::class, 'updateMenuItemOption']);
+Router::post("/api/restaurant/options/[i:id]/delete", [RestaurantPartBController::class, 'deleteMenuItemOption']);
+
+Router::get("/api/restaurant/menus", [RestaurantPartBController::class, 'menus']);
+Router::post("/api/restaurant/menus", [RestaurantPartBController::class, 'createMenu']);
+Router::post("/api/restaurant/menus/[i:id]/update", [RestaurantPartBController::class, 'updateMenu']);
+Router::post("/api/restaurant/menus/[i:id]/delete", [RestaurantPartBController::class, 'deleteMenu']);
+Router::get("/api/restaurant/menus/[i:id]/compositions", [RestaurantPartBController::class, 'menuCompositions']);
+Router::post("/api/restaurant/compositions", [RestaurantPartBController::class, 'createMenuComposition']);
+Router::post("/api/restaurant/compositions/[i:id]/delete", [RestaurantPartBController::class, 'deleteMenuComposition']);
+
+Router::get("/api/restaurant/fidelite-regles", [RestaurantPartBController::class, 'fideliteRegles']);
+Router::post("/api/restaurant/fidelite-regles", [RestaurantPartBController::class, 'createFideliteRegle']);
+Router::post("/api/restaurant/fidelite-regles/[i:id]/update", [RestaurantPartBController::class, 'updateFideliteRegle']);
+Router::post("/api/restaurant/fidelite-regles/[i:id]/delete", [RestaurantPartBController::class, 'deleteFideliteRegle']);
+Router::get("/api/restaurant/fidelite/clients/[i:id]", [RestaurantPartBController::class, 'fidelite']);
+Router::post("/api/restaurant/fidelite/add-points", [RestaurantPartBController::class, 'addFidelitePoints']);
+Router::post("/api/restaurant/fidelite/use-points", [RestaurantPartBController::class, 'useFidelitePoints']);
+
+Router::post("/api/restaurant/tables/[i:id]/qr", [RestaurantPartBController::class, 'generateTableQr']);
+Router::post("/api/restaurant/commandes/transfer", [RestaurantPartBController::class, 'transferOrder']);
+Router::post("/api/restaurant/commandes/merge", [RestaurantPartBController::class, 'mergeOrders']);
+
+// ── Restaurant : Rapports ─────────────────────────────────────
+Router::get("/api/restaurant/rapports", [RestaurantReportController::class, 'index']);
+
+// ── Pressing : Dépôts ─────────────────────────────────────────
+Router::get("/api/pressing/depots", [PressingDepotController::class, 'index']);
+Router::get("/api/pressing/depots/search", [PressingDepotController::class, 'search']);
+Router::get("/api/pressing/depots/[i:id]", [PressingDepotController::class, 'get']);
+Router::post("/api/pressing/depots", [PressingDepotController::class, 'create']);
+Router::post("/api/pressing/depots/[i:id]/statut", [PressingDepotController::class, 'updateStatus']);
+Router::post("/api/pressing/depots/[i:id]/paiement", [PressingDepotController::class, 'pay']);
+Router::post("/api/pressing/depots/[i:id]/retrait", [PressingDepotController::class, 'withdraw']);
+
+// ── Pressing : Paiements partiels / mixtes ────────────────────
+Router::get("/api/pressing/depots/[i:id]/paiements", [PressingPaymentController::class, 'index']);
+Router::post("/api/pressing/depots/[i:id]/paiements", [PressingPaymentController::class, 'create']);
+Router::post("/api/pressing/depots/paiements/[i:id]/delete", [PressingPaymentController::class, 'delete']);
+
+// ── Pressing : Services ───────────────────────────────────────
+Router::get("/api/pressing/services", [PressingServiceController::class, 'index']);
+Router::post("/api/pressing/services", [PressingServiceController::class, 'create']);
+Router::post("/api/pressing/services/[i:id]/update", [PressingServiceController::class, 'update']);
+Router::post("/api/pressing/services/[i:id]/delete", [PressingServiceController::class, 'delete']);
+
+// ── Pressing : Tarifs ─────────────────────────────────────────
+Router::get("/api/pressing/tarifs", [PressingTarifController::class, 'index']);
+Router::post("/api/pressing/tarifs", [PressingTarifController::class, 'create']);
+Router::post("/api/pressing/tarifs/[i:id]/update", [PressingTarifController::class, 'update']);
+Router::post("/api/pressing/tarifs/[i:id]/delete", [PressingTarifController::class, 'delete']);
+
+// ── Pressing : Consommables ───────────────────────────────────
+Router::get("/api/pressing/consumables", [PressingConsumableController::class, 'index']);
+Router::post("/api/pressing/consumables", [PressingConsumableController::class, 'create']);
+Router::post("/api/pressing/consumables/[i:id]/update", [PressingConsumableController::class, 'update']);
+Router::post("/api/pressing/consumables/[i:id]/delete", [PressingConsumableController::class, 'delete']);
+Router::post("/api/pressing/consumables/[i:id]/consume", [PressingConsumableController::class, 'consume']);
+
+// ── Pressing : Photos ─────────────────────────────────────────
+Router::get("/api/pressing/depots/[i:id]/photos", [PressingPhotoController::class, 'index']);
+Router::post("/api/pressing/depots/[i:id]/photos", [PressingPhotoController::class, 'create']);
+Router::post("/api/pressing/photos/[i:id]/delete", [PressingPhotoController::class, 'delete']);
+
+// ── Pressing : Rapports ───────────────────────────────────────
+Router::get("/api/pressing/rapports", [PressingReportController::class, 'index']);
 
 // ── Company Info (super_admin only) ───────────────────────────
 Router::get("/api/company-info", [CompanyInfoController::class, 'index']);
@@ -221,6 +351,33 @@ Router::get("/api/taxes", [TaxController::class, 'index']);
 Router::post("/api/taxes", [TaxController::class, 'create']);
 Router::post("/api/taxes/update", [TaxController::class, 'update']);
 Router::post("/api/taxes/delete", [TaxController::class, 'delete']);
+
+// Restaurant API routes
+Router::get("/api/restaurant/tables", [RestaurantTableController::class, 'index']);
+Router::post("/api/restaurant/tables", [RestaurantTableController::class, 'create']);
+Router::put("/api/restaurant/tables/[i:id]", [RestaurantTableController::class, 'update']);
+Router::delete("/api/restaurant/tables/[i:id]", [RestaurantTableController::class, 'delete']);
+
+Router::get("/api/restaurant/menu", [RestaurantMenuController::class, 'index']);
+Router::post("/api/restaurant/categories", [RestaurantMenuController::class, 'createCategory']);
+Router::post("/api/restaurant/plats", [RestaurantMenuController::class, 'createItem']);
+
+Router::post("/api/restaurant/commandes", [RestaurantOrderController::class, 'create']);
+Router::put("/api/restaurant/commandes/[i:id]", [RestaurantOrderController::class, 'update']);
+Router::post("/api/restaurant/commandes/[i:id]/envoyer-cuisine", [RestaurantOrderController::class, 'sendToKitchen']);
+Router::post("/api/restaurant/commandes/[i:id]/paiement", [RestaurantOrderController::class, 'pay']);
+
+Router::get("/api/restaurant/cuisine", [RestaurantKitchenController::class, 'index']);
+Router::post("/api/restaurant/cuisine/[i:detailId]/commencer", [RestaurantKitchenController::class, 'start']);
+Router::post("/api/restaurant/cuisine/[i:detailId]/servi", [RestaurantKitchenController::class, 'markServed']);
+
+// Pressing API routes
+Router::get("/api/pressing/depots", [PressingDepotController::class, 'index']);
+Router::post("/api/pressing/depots", [PressingDepotController::class, 'create']);
+Router::get("/api/pressing/depots/search", [PressingDepotController::class, 'search']);
+Router::put("/api/pressing/depots/[i:id]/statut", [PressingDepotController::class, 'updateStatus']);
+Router::post("/api/pressing/depots/[i:id]/paiement", [PressingDepotController::class, 'pay']);
+Router::post("/api/pressing/depots/[i:id]/retrait", [PressingDepotController::class, 'withdraw']);
 
 // Proxy Bill Payment API (OSAT-Energie pour éviter CORS)
 // POST vers https://osat-energie.com/snel_regideso/

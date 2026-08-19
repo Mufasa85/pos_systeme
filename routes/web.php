@@ -24,6 +24,7 @@ Router::get("/taxes", [PageController::class, 'taxes']);
 Router::get("/parametres", [PageController::class, 'parametres']);
 Router::get("/analytics", [PageController::class, 'analytics']);
 Router::get("/shops", [PageController::class, 'shops']);
+Router::get("/restaurant/tables", [PageController::class, 'restaurantTables']);
 Router::get("/payroll", [PageController::class, 'payroll']);
 Router::get("/payroll/[:view]", [PageController::class, 'payroll']);
 Router::get("/scanner", [PageController::class, 'scanner']);
@@ -39,6 +40,22 @@ Router::get("/api/facture/[i:id]/pdf", [\App\Controllers\InvoiceController::clas
 // API route for client search
 Router::get("/api/client/search", [\App\Controllers\ClientController::class, 'searchByNumero']);
 Router::get("/api/client/types", [\App\Controllers\ClientController::class, 'getTypes']);
+
+// Restaurant routes
+Router::get("/restaurant/menu", [PageController::class, 'restaurantMenu']);
+Router::get("/restaurant/commandes", [PageController::class, 'restaurantCommandes']);
+Router::get("/restaurant/cuisine", [PageController::class, 'restaurantCuisine']);
+Router::get("/restaurant/rapports", [PageController::class, 'restaurantRapports']);
+
+// Pressing routes
+Router::get("/pressing/depot", [PageController::class, 'pressingDepot']);
+Router::get("/pressing/suivi", [PageController::class, 'pressingSuivi']);
+Router::get("/pressing/retrait", [PageController::class, 'pressingRetrait']);
+Router::get("/pressing/historique", [PageController::class, 'pressingHistorique']);
+Router::get("/pressing/rapports", [PageController::class, 'pressingRapports']);
+Router::get("/pressing/admin", [PageController::class, 'pressingAdmin']);
+Router::get("/pressing/ticket", [PageController::class, 'pressingTicket']);
+
 
 /*
 $router->get('/', 'AuthController@showLogin');

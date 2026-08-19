@@ -75,6 +75,12 @@ class PageController extends Controller
         // Pour le super_admin, forcer le type de service affiché à 'Caisse' (brut)
         $data['serviceType'] = $this->isSuperAdmin() ? 'Caisse' : $serviceType;
 
+        // Modules Restaurant / Pressing : visibles si la boutique de l'utilisateur
+        // a ce type de service, ou toujours pour le super_admin (vue transverse,
+        // même logique que le menu "Boutiques")
+        $data['showRestaurantMenu'] = ($serviceType === 'Restaurant') || $this->isSuperAdmin();
+        $data['showPressingMenu'] = ($serviceType === 'Pressing') || $this->isSuperAdmin();
+
         $data['currentRole'] = $_SESSION['role'] ?? '';
         $data['currentShopId'] = $shopId;
 
@@ -643,6 +649,228 @@ class PageController extends Controller
         $taxModel = new \App\Models\Tax();
         $taxes = $taxModel->getAll();
         $this->render('taxes', ['taxes' => $taxes]);
+    }
+
+    public function restaurantTables()
+    {
+        $tableModel = new \App\Models\RestaurantTable();
+        $shopId = $this->isSuperAdmin() ? null : $this->getShopId();
+        $tables = $tableModel->all($shopId);
+
+        $shops = [];
+        if ($this->isSuperAdmin()) {
+            $shopModel = new Shop();
+            $shops = $shopModel->getAll();
+        }
+
+        $this->render('restaurant/tables', [
+            'page' => 'restaurant-tables',
+            'restaurantTables' => $tables,
+            'shops' => $shops,
+        ]);
+    }
+
+    public function restaurantMenu()
+    {
+        $categoryModel = new \App\Models\RestaurantCategory();
+        $itemModel = new \App\Models\RestaurantMenuItem();
+        $shopId = $this->isSuperAdmin() ? null : $this->getShopId();
+
+        $shops = [];
+        if ($this->isSuperAdmin()) {
+            $shopModel = new Shop();
+            $shops = $shopModel->getAll();
+        }
+
+        $this->render('restaurant/menu', [
+            'page' => 'restaurant-menu',
+            'restaurantCategories' => $categoryModel->all($shopId),
+            'restaurantMenuItems' => $itemModel->all($shopId),
+            'shops' => $shops,
+        ]);
+    }
+
+    public function restaurantCommandes()
+    {
+        $shopId = $this->isSuperAdmin() ? null : $this->getShopId();
+
+        $tableModel = new \App\Models\RestaurantTable();
+        $categoryModel = new \App\Models\RestaurantCategory();
+        $itemModel = new \App\Models\RestaurantMenuItem();
+        $orderModel = new \App\Models\RestaurantOrder();
+
+        $tableId = isset($_GET['table_id']) ? (int)$_GET['table_id'] : null;
+        $table = $tableId ? $tableModel->findById($tableId, $shopId) : null;
+
+        $order = null;
+        $orderDetails = [];
+        if ($table) {
+            $order = $orderModel->findOpenByTable($tableId);
+            if ($order) {
+                $orderDetails = $orderModel->getDetails($order['id']);
+            }
+        }
+
+        $this->render('restaurant/commandes', [
+            'page' => 'restaurant-commandes',
+            'restaurantTables' => $tableModel->all($shopId),
+            'restaurantCategories' => $categoryModel->all($table['shop_id'] ?? $shopId),
+            'restaurantMenuItems' => $itemModel->all($table['shop_id'] ?? $shopId),
+            'selectedTable' => $table,
+            'currentOrder' => $order,
+            'currentOrderDetails' => $orderDetails,
+        ]);
+    }
+
+    public function restaurantCuisine()
+    {
+        $this->render('restaurant/cuisine', [
+            'page' => 'restaurant-cuisine',
+        ]);
+    }
+
+    public function restaurantRapports()
+    {
+        if (!$this->isAdmin() && !$this->isSuperAdmin()) {
+            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";
+            $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+            header('Location: ' . $protocol . '://' . $host . '/dashboard');
+            exit;
+        }
+        $this->render('restaurant/rapports', [
+            'page' => 'restaurant-rapports',
+        ]);
+    }
+
+    public function pressingDepot()
+    {
+        $shopId = $this->isSuperAdmin() ? null : $this->getShopId();
+        $settingsModel = new \App\Models\Settings();
+        $tauxUsd = $settingsModel->get('taux_usd', $shopId) ?: 2800;
+
+        $this->render('pressing/depot', [
+            'page' => 'pressing-depot',
+            'tauxUsd' => $tauxUsd,
+            'isAdmin' => $this->isAdmin(),
+        ]);
+    }
+
+    public function pressingSuivi()
+    {
+        $shopId = $this->isSuperAdmin() ? null : $this->getShopId();
+        $depotModel = new \App\Models\PressingDepot();
+
+        $this->render('pressing/suivi', [
+            'page' => 'pressing-suivi',
+            'depots' => $depotModel->all($shopId, ['statut' => null]),
+        ]);
+    }
+
+    public function pressingRetrait()
+    {
+        $this->render('pressing/retrait', [
+            'page' => 'pressing-retrait',
+        ]);
+    }
+
+    public function pressingHistorique()
+    {
+        $shopId = $this->isSuperAdmin() ? null : $this->getShopId();
+        $depotModel = new \App\Models\PressingDepot();
+
+        $filters = [
+            'statut'    => $_GET['statut'] ?? null,
+            'date_from' => $_GET['date_from'] ?? null,
+            'date_to'   => $_GET['date_to'] ?? null,
+        ];
+
+        $this->render('pressing/historique', [
+            'page' => 'pressing-historique',
+            'depots' => $depotModel->all($shopId, $filters),
+            'filters' => $filters,
+        ]);
+    }
+
+    public function pressingRapports()
+    {
+        if (!$this->isAdmin() && !$this->isSuperAdmin()) {
+            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";
+            $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+            header('Location: ' . $protocol . '://' . $host . '/dashboard');
+            exit;
+        }
+        $this->render('pressing/rapports', [
+            'page' => 'pressing-rapports',
+        ]);
+    }
+
+    public function pressingAdmin()
+    {
+        if (!$this->isAdmin() && !$this->isSuperAdmin()) {
+            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";
+            $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+            header('Location: ' . $protocol . '://' . $host . '/dashboard');
+            exit;
+        }
+
+        $shopId = $this->isSuperAdmin() ? (($_GET['shop_id'] ?? '') !== '' ? (int)$_GET['shop_id'] : null) : $this->getShopId();
+        $serviceModel = new \App\Models\PressingService();
+        $tarifModel = new \App\Models\PressingTarif();
+        $consumableModel = new \App\Models\PressingConsumable();
+
+        $shops = [];
+        if ($this->isSuperAdmin()) {
+            $shopModel = new Shop();
+            $shops = $shopModel->getAll();
+        }
+
+        $this->render('pressing/admin', [
+            'page'              => 'pressing-admin',
+            'services'          => $serviceModel->all($shopId),
+            'tarifs'            => $tarifModel->all($shopId),
+            'consumables'       => $consumableModel->all($shopId),
+            'shops'             => $shops,
+            'currentShopId'     => $shopId,
+        ]);
+    }
+
+    public function pressingTicket()
+    {
+        $numero = $_GET['numero'] ?? '';
+        if (!$numero) {
+            http_response_code(400);
+            $this->render('pressing/ticket', [
+                'page'  => 'pressing-ticket',
+                'error' => 'Numéro de dépôt manquant',
+            ]);
+            return;
+        }
+
+        $depotModel = new \App\Models\PressingDepot();
+        $articleModel = new \App\Models\PressingArticle();
+        $shopId = $this->isSuperAdmin() ? null : $this->getShopId();
+
+        $depot = $depotModel->findByNumero($numero);
+        if (!$depot || (!$this->isSuperAdmin() && $depot['shop_id'] != $this->getShopId())) {
+            http_response_code(404);
+            $this->render('pressing/ticket', [
+                'page'  => 'pressing-ticket',
+                'error' => 'Dépôt introuvable',
+            ]);
+            return;
+        }
+
+        $depot['articles'] = $articleModel->getByDepot($depot['id']);
+
+        $shopModel = new Shop();
+        $shop = $shopModel->findById($depot['shop_id']);
+
+        extract([
+            'depot'     => $depot,
+            'storeName' => $shop['nom'] ?? 'Mon Magasin',
+        ]);
+        require __DIR__ . '/../../app/views/pressing/ticket.php';
+        exit;
     }
 
     public function categories()
