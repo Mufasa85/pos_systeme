@@ -60,8 +60,45 @@ function getExonerationLabel(code) {
 let USD_RATE = 0; // Valeur par défaut
 let ren = {}
 
-// Charger le taux de change depuis l'API
-async function loadCurrencyRate() {
+// Cache du taux de change: on ne refetch que si le cache a plus de 30 min
+const CURRENCY_CACHE_KEY = 'currency_rate_cache';
+const CURRENCY_CACHE_TTL = 30 * 60 * 1000; // 30 minutes
+
+function getCachedCurrencyRate() {
+    try {
+        const raw = localStorage.getItem(CURRENCY_CACHE_KEY);
+        if (!raw) return null;
+        const cached = JSON.parse(raw);
+        if (!cached || !cached.rate || !cached.timestamp) return null;
+        if (Date.now() - cached.timestamp > CURRENCY_CACHE_TTL) return null;
+        return cached.rate;
+    } catch (e) {
+        return null;
+    }
+}
+
+function setCachedCurrencyRate(rate) {
+    try {
+        localStorage.setItem(CURRENCY_CACHE_KEY, JSON.stringify({ rate, timestamp: Date.now() }));
+    } catch (e) {
+        // ignore
+    }
+}
+
+// Charger le taux de change depuis l'API (utilise le cache si valide, sauf si force=true)
+async function loadCurrencyRate(force = false) {
+    // Si un taux valide est en cache, on l'utilise sans refaire de requête
+    if (!force) {
+        const cachedRate = getCachedCurrencyRate();
+        if (cachedRate) {
+            USD_RATE = cachedRate;
+            if (typeof updateCartUSDDisplay === 'function') {
+                updateCartUSDDisplay();
+            }
+            return;
+        }
+    }
+
     // Afficher le loader pendant le chargement
     const loaderEl = $('#currency-loader');
     const statusEl = $('#currency-status');
@@ -81,6 +118,7 @@ async function loadCurrencyRate() {
 
             if (rate && rate > 1) {
                 USD_RATE = rate;
+                setCachedCurrencyRate(rate);
             }
         }
     } catch (e) {
