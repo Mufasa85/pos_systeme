@@ -32,6 +32,10 @@ Router::get("/facture/[i:id]", [\App\Controllers\InvoiceController::class, 'show
 Router::get("/facture", [\App\Controllers\InvoiceController::class, 'showByRef']);
 Router::get("/facture-client/[i:id]", [\App\Controllers\InvoiceController::class, 'publicInvoice']);
 
+// Médias protégés (photos de profil / produits stockées hors de public/)
+Router::get("/media/product/[*:filename]", [\App\Controllers\MediaController::class, 'product']);
+Router::get("/media/profile/[*:filename]", [\App\Controllers\MediaController::class, 'profile']);
+
 // API routes for invoice actions
 Router::post("/api/facture/[i:id]/send", [\App\Controllers\InvoiceController::class, 'sendInvoice']);
 Router::get("/api/facture/[i:id]/pdf", [\App\Controllers\InvoiceController::class, 'downloadPdf']);
