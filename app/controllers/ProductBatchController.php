@@ -2,15 +2,16 @@
 
 namespace App\Controllers;
 
-use App\Models\ProductBatch;
 use App\Models\Product;
-use App\controllers\Controller;
+use App\Models\ProductBatch;
 
 class ProductBatchController extends Controller
 {
     public function index()
     {
-        if (!$this->requireAuth()) return;
+        if (!$this->requireAuth()) {
+            return;
+        }
 
         $productId = (int)($_GET['product_id'] ?? 0);
         if (!$productId) {
@@ -25,7 +26,9 @@ class ProductBatchController extends Controller
 
     public function create()
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
 
         $productId = (int)$this->sanitaze($_POST['product_id'] ?? 0);
         $stock = (float)$this->sanitaze($_POST['stock'] ?? 0);
@@ -50,13 +53,13 @@ class ProductBatchController extends Controller
             'stock' => $stock,
             'date_expiration' => $dateExpiration,
             'batch_number' => $batchNumber,
-            'date_reception' => date('Y-m-d')
+            'date_reception' => date('Y-m-d'),
         ]);
 
         $this->logAudit('create', 'lot_produit', $id, [
             'produit' => $product['nom'],
             'quantite' => $stock,
-            'date_expiration' => $dateExpiration
+            'date_expiration' => $dateExpiration,
         ]);
 
         $this->json(['success' => true, 'id' => $id]);
@@ -64,7 +67,9 @@ class ProductBatchController extends Controller
 
     public function update()
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
 
         $id = (int)$this->sanitaze($_POST['id'] ?? 0);
         $stock = (float)$this->sanitaze($_POST['stock'] ?? 0);
@@ -80,7 +85,7 @@ class ProductBatchController extends Controller
         $success = $batchModel->update($id, [
             'stock' => $stock,
             'date_expiration' => $dateExpiration,
-            'batch_number' => $batchNumber
+            'batch_number' => $batchNumber,
         ]);
 
         if (!$success) {
@@ -94,7 +99,9 @@ class ProductBatchController extends Controller
 
     public function delete()
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
 
         $id = (int)$this->sanitaze($_POST['id'] ?? 0);
         if (!$id) {
@@ -116,7 +123,9 @@ class ProductBatchController extends Controller
 
     public function alerts()
     {
-        if (!$this->requireAuth()) return;
+        if (!$this->requireAuth()) {
+            return;
+        }
 
         $days = (int)($_GET['days'] ?? 7);
         $shopId = $this->isSuperAdmin() ? ($_GET['shop_id'] ?? null) : $this->getShopId();
@@ -128,7 +137,7 @@ class ProductBatchController extends Controller
         $this->json([
             'success' => true,
             'expiring_soon' => $expiringSoon,
-            'expired' => $expired
+            'expired' => $expired,
         ]);
     }
 }

@@ -688,8 +688,8 @@
               <div id="profile-display-name" style="font-weight:700;font-size:1.1rem"><?= htmlspecialchars($_SESSION['full_name'] ?? $_SESSION['nom_complet'] ?? '') ?></div>
               <div style="color:var(--muted,#64748b);font-size:.85rem"><?php
                 $r = $_SESSION['role'] ?? '';
-                echo $r === 'super_admin' ? 'Super Admin' : ($r === 'admin' ? 'Administrateur' : 'Vendeur');
-              ?></div>
+                  echo $r === 'super_admin' ? 'Super Admin' : ($r === 'admin' ? 'Administrateur' : 'Vendeur');
+                  ?></div>
               <div style="font-size:.75rem;color:var(--muted,#94a3b8);margin-top:2px">@<?= htmlspecialchars($_SESSION['nom_utilisateur'] ?? '') ?></div>
             </div>
           </div>

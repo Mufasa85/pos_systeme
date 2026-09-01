@@ -64,7 +64,7 @@
                       <?php
                         $days = (strtotime($p['nearest_expiration_date']) - strtotime(date('Y-m-d'))) / 86400;
                         $color = $days < 0 ? 'red' : ($days <= 7 ? 'orange' : 'green');
-                      ?>
+                        ?>
                       <span style="color: <?= $color ?>; font-size: 0.85rem;">
                         <?= date('d/m/Y', strtotime($p['nearest_expiration_date'])) ?>
                         <?= $days < 0 ? '(périmé)' : '(' . floor($days) . 'j)' ?>

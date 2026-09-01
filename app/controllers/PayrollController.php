@@ -2,20 +2,21 @@
 
 namespace App\Controllers;
 
-use App\controllers\Controller;
-use App\Models\PayrollPeriod;
 use App\Models\PayrollAllowance;
-use App\Models\PayrollDeduction;
 use App\Models\PayrollContributionRate;
-use App\Models\PayrollSeniorityBand;
+use App\Models\PayrollDeduction;
 use App\Models\PayrollPaymentMethod;
+use App\Models\PayrollPeriod;
+use App\Models\PayrollSeniorityBand;
 use App\Services\PayrollCalculator;
 
 class PayrollController extends Controller
 {
     public function periods()
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
         $shopId = $this->getShopId();
         $super  = $this->isSuperAdmin();
         $this->json((new PayrollPeriod())->all($shopId, $super));
@@ -23,7 +24,9 @@ class PayrollController extends Controller
 
     public function createPeriod()
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
         $data = $this->getJsonOrPost();
         $data['shop_id'] = $this->isSuperAdmin() ? ($data['shop_id'] ?? $this->getShopId()) : $this->getShopId();
 
@@ -44,12 +47,19 @@ class PayrollController extends Controller
 
     public function updatePeriod($params)
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
         $id = $params['id'] ?? null;
-        if (!$id) { $this->status(400)->json(['error' => 'ID manquant']); return; }
+        if (!$id) {
+            $this->status(400)->json(['error' => 'ID manquant']);
+            return;
+        }
 
         $data = $this->getJsonOrPost();
-        if (!$this->isSuperAdmin() && isset($data['shop_id'])) unset($data['shop_id']);
+        if (!$this->isSuperAdmin() && isset($data['shop_id'])) {
+            unset($data['shop_id']);
+        }
 
         $ok = (new PayrollPeriod())->update($id, $data);
         $this->json(['success' => (bool)$ok]);
@@ -57,9 +67,14 @@ class PayrollController extends Controller
 
     public function deletePeriod($params)
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
         $id = $params['id'] ?? null;
-        if (!$id) { $this->status(400)->json(['error' => 'ID manquant']); return; }
+        if (!$id) {
+            $this->status(400)->json(['error' => 'ID manquant']);
+            return;
+        }
 
         $ok = (new PayrollPeriod())->delete($id);
         $this->json(['success' => (bool)$ok]);
@@ -67,9 +82,14 @@ class PayrollController extends Controller
 
     public function calculate($params)
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
         $id = $params['id'] ?? null;
-        if (!$id) { $this->status(400)->json(['error' => 'ID période manquant']); return; }
+        if (!$id) {
+            $this->status(400)->json(['error' => 'ID période manquant']);
+            return;
+        }
 
         try {
             $calc = new PayrollCalculator();
@@ -82,9 +102,14 @@ class PayrollController extends Controller
 
     public function validatePeriod($params)
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
         $id = $params['id'] ?? null;
-        if (!$id) { $this->status(400)->json(['error' => 'ID période manquant']); return; }
+        if (!$id) {
+            $this->status(400)->json(['error' => 'ID période manquant']);
+            return;
+        }
 
         (new PayrollPeriod())->markValidated($id);
         $this->json(['success' => true]);
@@ -92,9 +117,14 @@ class PayrollController extends Controller
 
     public function closePeriod($params)
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
         $id = $params['id'] ?? null;
-        if (!$id) { $this->status(400)->json(['error' => 'ID période manquant']); return; }
+        if (!$id) {
+            $this->status(400)->json(['error' => 'ID période manquant']);
+            return;
+        }
 
         (new PayrollPeriod())->markClosed($id);
         $this->json(['success' => true]);
@@ -102,7 +132,9 @@ class PayrollController extends Controller
 
     public function parameters()
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
         $shopId = $this->getShopId();
         $this->json([
             'allowances'      => (new PayrollAllowance())->all($shopId),
@@ -115,13 +147,17 @@ class PayrollController extends Controller
 
     public function paymentMethods()
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
         $this->json((new PayrollPaymentMethod())->all($this->getShopId()));
     }
 
     public function createPaymentMethod()
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
         $data = $this->getJsonOrPost();
         $data['shop_id'] = $this->getShopId();
         $id = (new PayrollPaymentMethod())->create($data);
@@ -130,12 +166,19 @@ class PayrollController extends Controller
 
     public function updatePaymentMethod($params)
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
         $id = $params['id'] ?? null;
-        if (!$id) { $this->status(400)->json(['error' => 'ID manquant']); return; }
+        if (!$id) {
+            $this->status(400)->json(['error' => 'ID manquant']);
+            return;
+        }
 
         $data = $this->getJsonOrPost();
-        if (!$this->isSuperAdmin() && isset($data['shop_id'])) unset($data['shop_id']);
+        if (!$this->isSuperAdmin() && isset($data['shop_id'])) {
+            unset($data['shop_id']);
+        }
 
         $ok = (new PayrollPaymentMethod())->update($id, $data);
         $this->json(['success' => (bool)$ok]);
@@ -143,9 +186,14 @@ class PayrollController extends Controller
 
     public function deletePaymentMethod($params)
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
         $id = $params['id'] ?? null;
-        if (!$id) { $this->status(400)->json(['error' => 'ID manquant']); return; }
+        if (!$id) {
+            $this->status(400)->json(['error' => 'ID manquant']);
+            return;
+        }
 
         $ok = (new PayrollPaymentMethod())->delete($id);
         $this->json(['success' => (bool)$ok]);
@@ -153,13 +201,17 @@ class PayrollController extends Controller
 
     public function allowances()
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
         $this->json((new PayrollAllowance())->all($this->getShopId()));
     }
 
     public function createAllowance()
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
         $data = $this->getJsonOrPost();
         $data['shop_id'] = $this->getShopId();
         $id = (new PayrollAllowance())->create($data);
@@ -168,12 +220,19 @@ class PayrollController extends Controller
 
     public function updateAllowance($params)
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
         $id = $params['id'] ?? null;
-        if (!$id) { $this->status(400)->json(['error' => 'ID manquant']); return; }
+        if (!$id) {
+            $this->status(400)->json(['error' => 'ID manquant']);
+            return;
+        }
 
         $data = $this->getJsonOrPost();
-        if (!$this->isSuperAdmin() && isset($data['shop_id'])) unset($data['shop_id']);
+        if (!$this->isSuperAdmin() && isset($data['shop_id'])) {
+            unset($data['shop_id']);
+        }
 
         $ok = (new PayrollAllowance())->update($id, $data);
         $this->json(['success' => (bool)$ok]);
@@ -181,9 +240,14 @@ class PayrollController extends Controller
 
     public function deleteAllowance($params)
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
         $id = $params['id'] ?? null;
-        if (!$id) { $this->status(400)->json(['error' => 'ID manquant']); return; }
+        if (!$id) {
+            $this->status(400)->json(['error' => 'ID manquant']);
+            return;
+        }
 
         $ok = (new PayrollAllowance())->delete($id);
         $this->json(['success' => (bool)$ok]);
@@ -191,13 +255,17 @@ class PayrollController extends Controller
 
     public function deductions()
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
         $this->json((new PayrollDeduction())->all($this->getShopId()));
     }
 
     public function createDeduction()
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
         $data = $this->getJsonOrPost();
         $data['shop_id'] = $this->getShopId();
         $id = (new PayrollDeduction())->create($data);
@@ -206,12 +274,19 @@ class PayrollController extends Controller
 
     public function updateDeduction($params)
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
         $id = $params['id'] ?? null;
-        if (!$id) { $this->status(400)->json(['error' => 'ID manquant']); return; }
+        if (!$id) {
+            $this->status(400)->json(['error' => 'ID manquant']);
+            return;
+        }
 
         $data = $this->getJsonOrPost();
-        if (!$this->isSuperAdmin() && isset($data['shop_id'])) unset($data['shop_id']);
+        if (!$this->isSuperAdmin() && isset($data['shop_id'])) {
+            unset($data['shop_id']);
+        }
 
         $ok = (new PayrollDeduction())->update($id, $data);
         $this->json(['success' => (bool)$ok]);
@@ -219,9 +294,14 @@ class PayrollController extends Controller
 
     public function deleteDeduction($params)
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
         $id = $params['id'] ?? null;
-        if (!$id) { $this->status(400)->json(['error' => 'ID manquant']); return; }
+        if (!$id) {
+            $this->status(400)->json(['error' => 'ID manquant']);
+            return;
+        }
 
         $ok = (new PayrollDeduction())->delete($id);
         $this->json(['success' => (bool)$ok]);
@@ -229,13 +309,17 @@ class PayrollController extends Controller
 
     public function contributions()
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
         $this->json((new PayrollContributionRate())->all($this->getShopId()));
     }
 
     public function createContribution()
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
         $data = $this->getJsonOrPost();
         $data['shop_id'] = $this->getShopId();
         $id = (new PayrollContributionRate())->create($data);
@@ -244,12 +328,19 @@ class PayrollController extends Controller
 
     public function updateContribution($params)
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
         $id = $params['id'] ?? null;
-        if (!$id) { $this->status(400)->json(['error' => 'ID manquant']); return; }
+        if (!$id) {
+            $this->status(400)->json(['error' => 'ID manquant']);
+            return;
+        }
 
         $data = $this->getJsonOrPost();
-        if (!$this->isSuperAdmin() && isset($data['shop_id'])) unset($data['shop_id']);
+        if (!$this->isSuperAdmin() && isset($data['shop_id'])) {
+            unset($data['shop_id']);
+        }
 
         $ok = (new PayrollContributionRate())->update($id, $data);
         $this->json(['success' => (bool)$ok]);
@@ -257,9 +348,14 @@ class PayrollController extends Controller
 
     public function deleteContribution($params)
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
         $id = $params['id'] ?? null;
-        if (!$id) { $this->status(400)->json(['error' => 'ID manquant']); return; }
+        if (!$id) {
+            $this->status(400)->json(['error' => 'ID manquant']);
+            return;
+        }
 
         $ok = (new PayrollContributionRate())->delete($id);
         $this->json(['success' => (bool)$ok]);
@@ -267,13 +363,17 @@ class PayrollController extends Controller
 
     public function seniority()
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
         $this->json((new PayrollSeniorityBand())->all($this->getShopId()));
     }
 
     public function createSeniority()
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
         $data = $this->getJsonOrPost();
         $data['shop_id'] = $this->getShopId();
         $id = (new PayrollSeniorityBand())->create($data);
@@ -282,12 +382,19 @@ class PayrollController extends Controller
 
     public function updateSeniority($params)
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
         $id = $params['id'] ?? null;
-        if (!$id) { $this->status(400)->json(['error' => 'ID manquant']); return; }
+        if (!$id) {
+            $this->status(400)->json(['error' => 'ID manquant']);
+            return;
+        }
 
         $data = $this->getJsonOrPost();
-        if (!$this->isSuperAdmin() && isset($data['shop_id'])) unset($data['shop_id']);
+        if (!$this->isSuperAdmin() && isset($data['shop_id'])) {
+            unset($data['shop_id']);
+        }
 
         $ok = (new PayrollSeniorityBand())->update($id, $data);
         $this->json(['success' => (bool)$ok]);
@@ -295,9 +402,14 @@ class PayrollController extends Controller
 
     public function deleteSeniority($params)
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
         $id = $params['id'] ?? null;
-        if (!$id) { $this->status(400)->json(['error' => 'ID manquant']); return; }
+        if (!$id) {
+            $this->status(400)->json(['error' => 'ID manquant']);
+            return;
+        }
 
         $ok = (new PayrollSeniorityBand())->delete($id);
         $this->json(['success' => (bool)$ok]);

@@ -1,44 +1,44 @@
 <?php
 
-use App\Core\Router;
 use App\Controllers\AuthController;
 use App\Controllers\PageController;
+use App\Core\Router;
 
-Router::get("/", [AuthController::class, 'showLogin']);
-Router::post("/login", [AuthController::class, 'login']);
-Router::get("/logout", [AuthController::class, 'logout']);
-Router::get("/verify-otp", [AuthController::class, 'showVerifyOtp']);
-Router::get("/forgot-password", [AuthController::class, 'showForgotPassword']);
-Router::get("/reset-password", [AuthController::class, 'showResetPassword']);
+Router::get('/', [AuthController::class, 'showLogin']);
+Router::post('/login', [AuthController::class, 'login']);
+Router::get('/logout', [AuthController::class, 'logout']);
+Router::get('/verify-otp', [AuthController::class, 'showVerifyOtp']);
+Router::get('/forgot-password', [AuthController::class, 'showForgotPassword']);
+Router::get('/reset-password', [AuthController::class, 'showResetPassword']);
 
-Router::get("/dashboard", [PageController::class, 'dashboard']);
-Router::get("/caisse", [PageController::class, 'caisse']);
-Router::get("/recharges", [PageController::class, 'recharges']);
-Router::get("/produits", [PageController::class, 'produits']);
-Router::get("/utilisateurs", [PageController::class, 'utilisateurs']);
-Router::get("/otp-codes", [PageController::class, 'otpCodes']);
-Router::get("/mon-profil", [PageController::class, 'monProfil']);
-Router::get("/historique", [PageController::class, 'historique']);
-Router::get("/categories", [PageController::class, 'categories']);
-Router::get("/taxes", [PageController::class, 'taxes']);
-Router::get("/parametres", [PageController::class, 'parametres']);
-Router::get("/analytics", [PageController::class, 'analytics']);
-Router::get("/shops", [PageController::class, 'shops']);
-Router::get("/payroll", [PageController::class, 'payroll']);
-Router::get("/payroll/[:view]", [PageController::class, 'payroll']);
-Router::get("/scanner", [PageController::class, 'scanner']);
-Router::get("/new-scanner", [PageController::class, 'newScanner']);
-Router::get("/facture/[i:id]", [\App\Controllers\InvoiceController::class, 'show']);
-Router::get("/facture", [\App\Controllers\InvoiceController::class, 'showByRef']);
-Router::get("/facture-client/[i:id]", [\App\Controllers\InvoiceController::class, 'publicInvoice']);
+Router::get('/dashboard', [PageController::class, 'dashboard']);
+Router::get('/caisse', [PageController::class, 'caisse']);
+Router::get('/recharges', [PageController::class, 'recharges']);
+Router::get('/produits', [PageController::class, 'produits']);
+Router::get('/utilisateurs', [PageController::class, 'utilisateurs']);
+Router::get('/otp-codes', [PageController::class, 'otpCodes']);
+Router::get('/mon-profil', [PageController::class, 'monProfil']);
+Router::get('/historique', [PageController::class, 'historique']);
+Router::get('/categories', [PageController::class, 'categories']);
+Router::get('/taxes', [PageController::class, 'taxes']);
+Router::get('/parametres', [PageController::class, 'parametres']);
+Router::get('/analytics', [PageController::class, 'analytics']);
+Router::get('/shops', [PageController::class, 'shops']);
+Router::get('/payroll', [PageController::class, 'payroll']);
+Router::get('/payroll/[:view]', [PageController::class, 'payroll']);
+Router::get('/scanner', [PageController::class, 'scanner']);
+Router::get('/new-scanner', [PageController::class, 'newScanner']);
+Router::get('/facture/[i:id]', [\App\Controllers\InvoiceController::class, 'show']);
+Router::get('/facture', [\App\Controllers\InvoiceController::class, 'showByRef']);
+Router::get('/facture-client/[i:id]', [\App\Controllers\InvoiceController::class, 'publicInvoice']);
 
 // API routes for invoice actions
-Router::post("/api/facture/[i:id]/send", [\App\Controllers\InvoiceController::class, 'sendInvoice']);
-Router::get("/api/facture/[i:id]/pdf", [\App\Controllers\InvoiceController::class, 'downloadPdf']);
+Router::post('/api/facture/[i:id]/send', [\App\Controllers\InvoiceController::class, 'sendInvoice']);
+Router::get('/api/facture/[i:id]/pdf', [\App\Controllers\InvoiceController::class, 'downloadPdf']);
 
 // API route for client search
-Router::get("/api/client/search", [\App\Controllers\ClientController::class, 'searchByNumero']);
-Router::get("/api/client/types", [\App\Controllers\ClientController::class, 'getTypes']);
+Router::get('/api/client/search', [\App\Controllers\ClientController::class, 'searchByNumero']);
+Router::get('/api/client/types', [\App\Controllers\ClientController::class, 'getTypes']);
 
 /*
 $router->get('/', 'AuthController@showLogin');

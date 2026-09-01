@@ -3,13 +3,14 @@
 namespace App\Controllers;
 
 use App\Models\Shop;
-use App\controllers\Controller;
 
 class ShopController extends Controller
 {
     public function index()
     {
-        if (!$this->requireSuperAdmin()) return;
+        if (!$this->requireSuperAdmin()) {
+            return;
+        }
 
         $shopModel = new Shop();
         $this->json($shopModel->getAll());
@@ -17,7 +18,9 @@ class ShopController extends Controller
 
     public function create()
     {
-        if (!$this->requireSuperAdmin()) return;
+        if (!$this->requireSuperAdmin()) {
+            return;
+        }
 
         $input = json_decode(file_get_contents('php://input'), true);
 
@@ -51,7 +54,7 @@ class ShopController extends Controller
             'token'           => $this->sanitaze($input['token'] ?? ''),
             'port'            => $this->sanitaze($input['port'] ?? ''),
             'service_type_id' => isset($input['service_type_id']) ? (int)$input['service_type_id'] : null,
-            'actif'           => (int)($input['actif'] ?? 1)
+            'actif'           => (int)($input['actif'] ?? 1),
         ]);
 
         $this->logAudit('create', 'shop', $id, ['nom' => $nom, 'code' => $code]);
@@ -60,9 +63,13 @@ class ShopController extends Controller
 
     public function update($id)
     {
-        if (!$this->requireSuperAdmin()) return;
+        if (!$this->requireSuperAdmin()) {
+            return;
+        }
 
-        if (is_array($id)) $id = $id['id'] ?? null;
+        if (is_array($id)) {
+            $id = $id['id'] ?? null;
+        }
         $id = (int)$id;
 
         if (!$id) {
@@ -103,9 +110,13 @@ class ShopController extends Controller
 
     public function delete($id)
     {
-        if (!$this->requireSuperAdmin()) return;
+        if (!$this->requireSuperAdmin()) {
+            return;
+        }
 
-        if (is_array($id)) $id = $id['id'] ?? null;
+        if (is_array($id)) {
+            $id = $id['id'] ?? null;
+        }
         $id = (int)$id;
 
         if (!$id) {
@@ -127,9 +138,13 @@ class ShopController extends Controller
 
     public function stats($id)
     {
-        if (!$this->requireSuperAdmin()) return;
+        if (!$this->requireSuperAdmin()) {
+            return;
+        }
 
-        if (is_array($id)) $id = $id['id'] ?? null;
+        if (is_array($id)) {
+            $id = $id['id'] ?? null;
+        }
         $id = (int)$id;
 
         $shopModel = new Shop();

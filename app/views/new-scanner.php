@@ -12,7 +12,7 @@ require_once __DIR__ . '/../../app/models/Settings.php';
 $settingsModel = new \App\Models\Settings();
 $storeName = $settingsModel->get('store_name') ?? 'Mon Magasin';
 
-$protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";
+$protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
 $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
 $baseUrl = $protocol . '://' . $host;
 ?>

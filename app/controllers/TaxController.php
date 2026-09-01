@@ -3,7 +3,6 @@
 namespace App\Controllers;
 
 use App\Models\Tax;
-use App\controllers\Controller;
 
 class TaxController extends Controller
 {
@@ -17,14 +16,18 @@ class TaxController extends Controller
     // GET /api/taxes - Récupérer toutes les taxes
     public function index()
     {
-        if (!$this->requireAuth()) return;
+        if (!$this->requireAuth()) {
+            return;
+        }
         $this->json($this->taxModel->getAll());
     }
 
     // POST /api/taxes - Créer une taxe
     public function create()
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
 
         // Supporte application/x-www-form-urlencoded ($_POST) ou JSON (php://input)
         $raw = file_get_contents('php://input');
@@ -52,7 +55,7 @@ class TaxController extends Controller
                 'groupe_taxe' => $groupe,
                 'etiquette' => $etiquette,
                 'description' => $description,
-                'taux' => $taux
+                'taux' => $taux,
             ]);
             $this->json(['success' => true, 'message' => 'Taxe créée avec succès']);
         } catch (\Exception $e) {
@@ -63,7 +66,9 @@ class TaxController extends Controller
     // POST /api/taxes/update - Modifier une taxe
     public function update()
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
 
         $raw = file_get_contents('php://input');
         $json = $raw !== '' ? json_decode($raw, true) : null;
@@ -103,7 +108,7 @@ class TaxController extends Controller
                 'groupe_taxe' => $groupe,
                 'etiquette' => $etiquette,
                 'description' => $description,
-                'taux' => $taux
+                'taux' => $taux,
             ]);
             $this->json(['success' => true, 'message' => 'Taxe modifiée avec succès']);
         } catch (\Exception $e) {
@@ -114,7 +119,9 @@ class TaxController extends Controller
     // POST /api/taxes/delete - Supprimer une taxe
     public function delete()
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
 
         $raw = file_get_contents('php://input');
         $json = $raw !== '' ? json_decode($raw, true) : null;
@@ -138,7 +145,7 @@ class TaxController extends Controller
             $productCount = $this->taxModel->countProducts($id);
             if ($productCount > 0) {
                 self::status(400)->json([
-                    'error' => "Cette taxe ne peut pas être supprimée car elle est associée à {$productCount} produit(s)."
+                    'error' => "Cette taxe ne peut pas être supprimée car elle est associée à {$productCount} produit(s).",
                 ]);
                 return;
             }

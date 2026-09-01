@@ -4,7 +4,6 @@ namespace App\Controllers;
 
 use App\Models\Product;
 use App\Models\ProductBatch;
-use App\controllers\Controller;
 
 class ProductController extends Controller
 {
@@ -34,7 +33,9 @@ class ProductController extends Controller
 
     public function create()
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
 
         $data = [
             'code_barres' => $this->sanitaze($_POST['code_barres']),
@@ -50,7 +51,7 @@ class ProductController extends Controller
             'remise_value' => (float)$this->sanitaze($_POST['remise_value']) ?: 0,
             'taxe_specifique_type' => in_array($this->sanitaze($_POST['taxe_specifique_type'] ?? '%'), ['%', 'CDF']) ? $this->sanitaze($_POST['taxe_specifique_type'] ?? '%') : '%',
             'taxe_specifique_value' => (float)$this->sanitaze($_POST['taxe_specifique_value'] ?? 0) ?: 0,
-            'date_expiration' => !empty($_POST['date_expiration']) ? $this->sanitaze($_POST['date_expiration']) : null
+            'date_expiration' => !empty($_POST['date_expiration']) ? $this->sanitaze($_POST['date_expiration']) : null,
         ];
 
         // Vérifier si le code-barres existe déjà
@@ -111,7 +112,7 @@ class ProductController extends Controller
                 'batch_number' => null,
                 'stock' => (float)$data['stock'],
                 'date_expiration' => $data['date_expiration'] ?? null,
-                'date_reception' => date('Y-m-d')
+                'date_reception' => date('Y-m-d'),
             ]);
         }
 
@@ -121,7 +122,9 @@ class ProductController extends Controller
 
     public function update()
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
 
         $id = $this->sanitaze($_POST['id'] ?? null);
         if (!$id) {
@@ -157,7 +160,7 @@ class ProductController extends Controller
             'taxe_specifique_type' => in_array($this->sanitaze($_POST['taxe_specifique_type'] ?? '%'), ['%', 'CDF']) ? $this->sanitaze($_POST['taxe_specifique_type'] ?? '%') : '%',
             'taxe_specifique_value' => (float)$this->sanitaze($_POST['taxe_specifique_value'] ?? 0) ?: 0,
             'image' => $oldImage,
-            'date_expiration' => !empty($_POST['date_expiration']) ? $this->sanitaze($_POST['date_expiration']) : null
+            'date_expiration' => !empty($_POST['date_expiration']) ? $this->sanitaze($_POST['date_expiration']) : null,
         ];
 
         // Image upload - seulement si une nouvelle image est uploadée
@@ -217,7 +220,9 @@ class ProductController extends Controller
 
     public function delete()
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
 
         $id = $this->sanitaze((int)$_POST['id']);
 

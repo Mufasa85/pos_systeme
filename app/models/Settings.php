@@ -14,14 +14,18 @@ class Settings
     public function get($key, $shopId = null)
     {
         if ($shopId) {
-            $sql = "SELECT value FROM settings WHERE setting_key = ? AND shop_id = ?";
+            $sql = 'SELECT value FROM settings WHERE setting_key = ? AND shop_id = ?';
             $result = $this->db->fetch($sql, [$key, $shopId]);
-            if ($result) return $result['value'];
+            if ($result) {
+                return $result['value'];
+            }
         }
-        $sql = "SELECT value FROM settings WHERE setting_key = ? AND shop_id IS NULL";
+        $sql = 'SELECT value FROM settings WHERE setting_key = ? AND shop_id IS NULL';
         $result = $this->db->fetch($sql, [$key]);
-        if ($result) return $result['value'];
-        $sql = "SELECT value FROM settings WHERE setting_key = ? ORDER BY id LIMIT 1";
+        if ($result) {
+            return $result['value'];
+        }
+        $sql = 'SELECT value FROM settings WHERE setting_key = ? ORDER BY id LIMIT 1';
         $result = $this->db->fetch($sql, [$key]);
         return $result ? $result['value'] : null;
     }
@@ -29,10 +33,10 @@ class Settings
     public function getAll($shopId = null)
     {
         if ($shopId) {
-            $sql = "SELECT setting_key, value FROM settings WHERE shop_id = ? OR shop_id IS NULL";
+            $sql = 'SELECT setting_key, value FROM settings WHERE shop_id = ? OR shop_id IS NULL';
             $rows = $this->db->fetchAll($sql, [$shopId]);
         } else {
-            $sql = "SELECT setting_key, value FROM settings";
+            $sql = 'SELECT setting_key, value FROM settings';
             $rows = $this->db->fetchAll($sql);
         }
         $settings = [];
@@ -46,21 +50,24 @@ class Settings
     {
         if ($shopId) {
             // With shop_id: ON DUPLICATE KEY works fine (UNIQUE on setting_key + shop_id)
-            $sql = "INSERT INTO settings (setting_key, shop_id, value) VALUES (?, ?, ?)
-                    ON DUPLICATE KEY UPDATE value = VALUES(value)";
+            $sql = 'INSERT INTO settings (setting_key, shop_id, value) VALUES (?, ?, ?)
+                    ON DUPLICATE KEY UPDATE value = VALUES(value)';
             $this->db->query($sql, [$key, $shopId, $value]);
         } else {
             // With NULL shop_id: ON DUPLICATE KEY doesn't work (NULL != NULL in UNIQUE)
             $existing = $this->db->fetch(
-                "SELECT id FROM settings WHERE setting_key = ? AND shop_id IS NULL", [$key]
+                'SELECT id FROM settings WHERE setting_key = ? AND shop_id IS NULL',
+                [$key]
             );
             if ($existing) {
                 $this->db->query(
-                    "UPDATE settings SET value = ? WHERE id = ?", [$value, $existing['id']]
+                    'UPDATE settings SET value = ? WHERE id = ?',
+                    [$value, $existing['id']]
                 );
             } else {
                 $this->db->query(
-                    "INSERT INTO settings (setting_key, shop_id, value) VALUES (?, NULL, ?)", [$key, $value]
+                    'INSERT INTO settings (setting_key, shop_id, value) VALUES (?, NULL, ?)',
+                    [$key, $value]
                 );
             }
         }

@@ -13,22 +13,22 @@ class PayrollPeriod
 
     public function all($shopId = null, $superAdmin = false)
     {
-        $sql = "SELECT * FROM payroll_periods";
+        $sql = 'SELECT * FROM payroll_periods';
         $params = [];
         if (!$superAdmin && $shopId) {
-            $sql .= " WHERE shop_id = ?";
+            $sql .= ' WHERE shop_id = ?';
             $params[] = $shopId;
         }
-        $sql .= " ORDER BY year DESC, month DESC";
+        $sql .= ' ORDER BY year DESC, month DESC';
         return $this->db->fetchAll($sql, $params);
     }
 
     public function findById($id, $shopId = null, $superAdmin = false)
     {
-        $sql = "SELECT * FROM payroll_periods WHERE id = ?";
+        $sql = 'SELECT * FROM payroll_periods WHERE id = ?';
         $params = [$id];
         if (!$superAdmin && $shopId) {
-            $sql .= " AND shop_id = ?";
+            $sql .= ' AND shop_id = ?';
             $params[] = $shopId;
         }
         return $this->db->fetch($sql, $params);
@@ -37,29 +37,29 @@ class PayrollPeriod
     public function findByShopMonthYear($shopId, $month, $year)
     {
         return $this->db->fetch(
-            "SELECT * FROM payroll_periods WHERE shop_id = ? AND month = ? AND year = ?",
+            'SELECT * FROM payroll_periods WHERE shop_id = ? AND month = ? AND year = ?',
             [$shopId, $month, $year]
         );
     }
 
     public function findByStatus($status, $shopId = null)
     {
-        $sql = "SELECT * FROM payroll_periods WHERE status = ?";
+        $sql = 'SELECT * FROM payroll_periods WHERE status = ?';
         $params = [$status];
         if ($shopId) {
-            $sql .= " AND shop_id = ?";
+            $sql .= ' AND shop_id = ?';
             $params[] = $shopId;
         }
-        $sql .= " ORDER BY year DESC, month DESC";
+        $sql .= ' ORDER BY year DESC, month DESC';
         return $this->db->fetchAll($sql, $params);
     }
 
     public function create($data)
     {
-        $sql = "INSERT INTO payroll_periods
+        $sql = 'INSERT INTO payroll_periods
                 (shop_id, month, year, working_days, status)
                 VALUES
-                (:shop_id, :month, :year, :working_days, :status)";
+                (:shop_id, :month, :year, :working_days, :status)';
         $this->db->query($sql, [
             ':shop_id'      => $data['shop_id'] ?? null,
             ':month'        => $data['month'] ?? null,
@@ -81,14 +81,16 @@ class PayrollPeriod
                 $params[":$field"] = $data[$field];
             }
         }
-        if (empty($fields)) return false;
-        $sql = "UPDATE payroll_periods SET " . implode(", ", $fields) . " WHERE id = :id";
+        if (empty($fields)) {
+            return false;
+        }
+        $sql = 'UPDATE payroll_periods SET ' . implode(', ', $fields) . ' WHERE id = :id';
         return $this->db->execute($sql, $params);
     }
 
     public function delete($id)
     {
-        return $this->db->execute("DELETE FROM payroll_periods WHERE id = ?", [$id]);
+        return $this->db->execute('DELETE FROM payroll_periods WHERE id = ?', [$id]);
     }
 
     public function markCalculated($id)

@@ -2,18 +2,18 @@
 
 namespace App\Services;
 
-use App\Models\PayrollEmployee;
-use App\Models\PayrollContract;
-use App\Models\PayrollPeriod;
-use App\Models\PayrollAttendance;
 use App\Models\PayrollAbsence;
-use App\Models\PayrollOvertime;
 use App\Models\PayrollAllowance;
-use App\Models\PayrollDeduction;
+use App\Models\PayrollAttendance;
+use App\Models\PayrollContract;
 use App\Models\PayrollContributionRate;
-use App\Models\PayrollSeniorityBand;
+use App\Models\PayrollDeduction;
+use App\Models\PayrollEmployee;
+use App\Models\PayrollOvertime;
 use App\Models\PayrollPayslip;
 use App\Models\PayrollPayslipLine;
+use App\Models\PayrollPeriod;
+use App\Models\PayrollSeniorityBand;
 
 class PayrollCalculator
 {
@@ -49,13 +49,19 @@ class PayrollCalculator
     public function calculateForEmployee($employeeId, $periodId, $shopId = null)
     {
         $employee = $this->employee->findById($employeeId);
-        if (!$employee) throw new \Exception('Employé inconnu');
+        if (!$employee) {
+            throw new \Exception('Employé inconnu');
+        }
 
         $contract = $this->contract->findActiveByEmployee($employeeId);
-        if (!$contract) throw new \Exception('Contrat actif non trouvé pour l\'employé');
+        if (!$contract) {
+            throw new \Exception('Contrat actif non trouvé pour l\'employé');
+        }
 
         $period = $this->period->findById($periodId);
-        if (!$period) throw new \Exception('Période de paie inconnue');
+        if (!$period) {
+            throw new \Exception('Période de paie inconnue');
+        }
 
         $shopId = $shopId ?? $employee['shop_id'] ?? $period['shop_id'];
 
@@ -135,7 +141,9 @@ class PayrollCalculator
         $calc = $this->calculateForEmployee($employeeId, $periodId, $shopId);
         $payslipId = $this->payslip->createOrUpdate($calc['payslip']);
 
-        if (!$payslipId) throw new \Exception('Impossible d\'enregistrer le bulletin');
+        if (!$payslipId) {
+            throw new \Exception('Impossible d\'enregistrer le bulletin');
+        }
 
         $lines = array_map(function ($line) use ($payslipId) {
             $line['payslip_id'] = $payslipId;
@@ -149,7 +157,9 @@ class PayrollCalculator
     public function calculateForPeriod($periodId, $shopId = null)
     {
         $period = $this->period->findById($periodId);
-        if (!$period) throw new \Exception('Période inconnue');
+        if (!$period) {
+            throw new \Exception('Période inconnue');
+        }
 
         $shopId = $shopId ?? $period['shop_id'];
         $employees = $this->employee->all($shopId, false);
@@ -206,7 +216,9 @@ class PayrollCalculator
     {
         $years = $this->yearsBetween($employee['hire_date'], date('Y-m-d'));
         $band = $this->seniority->findBandForYears($years, $shopId);
-        if (!$band) return 0;
+        if (!$band) {
+            return 0;
+        }
         return $baseAmount * ((float)$band['percent'] / 100);
     }
 

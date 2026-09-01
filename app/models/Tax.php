@@ -65,7 +65,7 @@ class Tax
             $data['groupe_taxe'],
             $data['etiquette'],
             $data['description'] ?? null,
-            $data['taux'] ?? 0
+            $data['taux'] ?? 0,
         ]);
     }
 
@@ -83,7 +83,7 @@ class Tax
             $data['etiquette'],
             $data['description'] ?? null,
             $data['taux'] ?? 0,
-            $id
+            $id,
         ]);
     }
 
@@ -101,7 +101,7 @@ class Tax
      */
     public function countProducts($id)
     {
-        $sql = "SELECT COUNT(*) as count FROM produits WHERE taxe_id = ?";
+        $sql = 'SELECT COUNT(*) as count FROM produits WHERE taxe_id = ?';
         $result = $this->db->query($sql, [$id]);
         return $result ? (int)$result[0]['count'] : 0;
     }

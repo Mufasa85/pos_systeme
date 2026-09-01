@@ -13,41 +13,41 @@ class PayrollTimeClock
 
     public function findByEmployeeAndPeriod($employeeId, $periodId, $shopId = null)
     {
-        $sql = "SELECT * FROM payroll_time_clock_events
-                WHERE employee_id = ? AND payroll_period_id = ?";
+        $sql = 'SELECT * FROM payroll_time_clock_events
+                WHERE employee_id = ? AND payroll_period_id = ?';
         $params = [$employeeId, $periodId];
         if ($shopId) {
-            $sql .= " AND shop_id = ?";
+            $sql .= ' AND shop_id = ?';
             $params[] = $shopId;
         }
-        $sql .= " ORDER BY event_at ASC";
+        $sql .= ' ORDER BY event_at ASC';
         return $this->db->fetchAll($sql, $params);
     }
 
     public function findByPeriod($periodId, $shopId = null)
     {
-        $sql = "SELECT t.*, u.nom_complet
+        $sql = 'SELECT t.*, u.nom_complet
                 FROM payroll_time_clock_events t
                 JOIN payroll_employees pe ON t.employee_id = pe.id
                 JOIN utilisateurs u ON pe.user_id = u.id
-                WHERE t.payroll_period_id = ?";
+                WHERE t.payroll_period_id = ?';
         $params = [$periodId];
         if ($shopId) {
-            $sql .= " AND t.shop_id = ?";
+            $sql .= ' AND t.shop_id = ?';
             $params[] = $shopId;
         }
-        $sql .= " ORDER BY u.nom_complet ASC, t.event_at ASC";
+        $sql .= ' ORDER BY u.nom_complet ASC, t.event_at ASC';
         return $this->db->fetchAll($sql, $params);
     }
 
     public function create($data)
     {
-        $sql = "INSERT INTO payroll_time_clock_events
+        $sql = 'INSERT INTO payroll_time_clock_events
                 (shop_id, employee_id, event_type, event_at, source, verify_mode, device_sn,
                  latitude, longitude, in_zone, identity_verified, validated, import_batch_id)
                 VALUES
                 (:shop_id, :employee_id, :event_type, :event_at, :source, :verify_mode, :device_sn,
-                 :latitude, :longitude, :in_zone, :identity_verified, :validated, :import_batch_id)";
+                 :latitude, :longitude, :in_zone, :identity_verified, :validated, :import_batch_id)';
         $this->db->query($sql, [
             ':shop_id'          => $data['shop_id'] ?? null,
             ':employee_id'      => $data['employee_id'] ?? null,
@@ -77,21 +77,25 @@ class PayrollTimeClock
                 $params[":$field"] = $data[$field];
             }
         }
-        if (empty($fields)) return false;
-        $sql = "UPDATE payroll_time_clock_events SET " . implode(", ", $fields) . " WHERE id = :id";
+        if (empty($fields)) {
+            return false;
+        }
+        $sql = 'UPDATE payroll_time_clock_events SET ' . implode(', ', $fields) . ' WHERE id = :id';
         return $this->db->execute($sql, $params);
     }
 
     public function delete($id)
     {
-        return $this->db->execute("DELETE FROM payroll_time_clock_events WHERE id = ?", [$id]);
+        return $this->db->execute('DELETE FROM payroll_time_clock_events WHERE id = ?', [$id]);
     }
 
     public function bulkInsert($rows)
     {
         $created = 0;
         foreach ($rows as $row) {
-            if ($this->create($row)) $created++;
+            if ($this->create($row)) {
+                $created++;
+            }
         }
         return $created;
     }

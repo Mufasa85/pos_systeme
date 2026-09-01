@@ -4,10 +4,9 @@ namespace App\Controllers;
 
 require_once dirname(__DIR__, 2) . '/config/config.php';
 
-use App\Models\User;
 use App\Models\OtpCode;
 use App\Models\PasswordReset;
-use App\controllers\Controller;
+use App\Models\User;
 
 class AuthController extends Controller
 {
@@ -44,7 +43,9 @@ class AuthController extends Controller
 
     public function getOtpCodes()
     {
-        if (!$this->requireSuperAdmin()) return;
+        if (!$this->requireSuperAdmin()) {
+            return;
+        }
 
         $otpModel = new OtpCode();
         $codes = $otpModel->getAllWithUsers();
@@ -56,8 +57,8 @@ class AuthController extends Controller
     private function isRateLimited($username)
     {
         $db = \App\Core\Database::getInstance();
-        $sql = "SELECT COUNT(*) as attempts FROM login_attempts 
-                WHERE username = ? AND attempted_at > DATE_SUB(NOW(), INTERVAL ? MINUTE)";
+        $sql = 'SELECT COUNT(*) as attempts FROM login_attempts 
+                WHERE username = ? AND attempted_at > DATE_SUB(NOW(), INTERVAL ? MINUTE)';
         $result = $db->fetch($sql, [$username, $this->lockoutMinutes]);
         return ($result['attempts'] ?? 0) >= $this->maxLoginAttempts;
     }
@@ -65,15 +66,15 @@ class AuthController extends Controller
     private function recordLoginAttempt($username)
     {
         $db = \App\Core\Database::getInstance();
-        $db->query("INSERT INTO login_attempts (username, ip_address) VALUES (?, ?)", [
-            $username, $_SERVER['REMOTE_ADDR'] ?? ''
+        $db->query('INSERT INTO login_attempts (username, ip_address) VALUES (?, ?)', [
+            $username, $_SERVER['REMOTE_ADDR'] ?? '',
         ]);
     }
 
     private function clearLoginAttempts($username)
     {
         $db = \App\Core\Database::getInstance();
-        $db->execute("DELETE FROM login_attempts WHERE username = ?", [$username]);
+        $db->execute('DELETE FROM login_attempts WHERE username = ?', [$username]);
     }
 
     // ── Login (étape 1) ─────────────────────────────────────────
@@ -102,19 +103,20 @@ class AuthController extends Controller
 
         if (!$user) {
             $this->recordLoginAttempt($username);
-            
+
             // Vérifier si on atteint le seuil pour notification
             $db = \App\Core\Database::getInstance();
-            $sql = "SELECT COUNT(*) as attempts FROM login_attempts 
-                    WHERE username = ? AND attempted_at > DATE_SUB(NOW(), INTERVAL ? MINUTE)";
+            $sql = 'SELECT COUNT(*) as attempts FROM login_attempts 
+                    WHERE username = ? AND attempted_at > DATE_SUB(NOW(), INTERVAL ? MINUTE)';
             $result = $db->fetch($sql, [$username, $this->lockoutMinutes]);
             if (($result['attempts'] ?? 0) >= $this->maxLoginAttempts) {
-                $this->notifySuperAdmins('suspicious_action', 
+                $this->notifySuperAdmins(
+                    'suspicious_action',
                     'Tentatives de connexion suspectes',
                     "L'utilisateur '$username' a atteint {$this->maxLoginAttempts} tentatives échouées depuis l'IP " . ($_SERVER['REMOTE_ADDR'] ?? 'inconnue')
                 );
             }
-            
+
             $this->json(['success' => false, 'message' => 'Identifiants incorrects']);
             return;
         }
@@ -140,7 +142,7 @@ class AuthController extends Controller
                 'shop_id'         => $user['shop_id'] ?? null,
                 'agent_code'      => $user['agent_code'] ?? '',
                 'email'           => $user['email'] ?? null,
-                'telephone'       => $user['telephone'] ?? null
+                'telephone'       => $user['telephone'] ?? null,
             ];
 
             // Générer et envoyer OTP par SMS et/ou email
@@ -222,7 +224,7 @@ class AuthController extends Controller
         } else {
             // Debug : lister les codes en base pour cet utilisateur
             $db = \App\Core\Database::getInstance();
-            $rows = $db->fetchAll("SELECT id, code, type, used, expires_at, NOW() as now_mysql FROM otp_codes WHERE user_id = ? ORDER BY id DESC LIMIT 3", [$userId]);
+            $rows = $db->fetchAll('SELECT id, code, type, used, expires_at, NOW() as now_mysql FROM otp_codes WHERE user_id = ? ORDER BY id DESC LIMIT 3', [$userId]);
             error_log("[OTP-VERIFY-FAIL] userId=$userId code=$code rows=" . json_encode($rows));
             $this->json(['success' => false, 'message' => 'Code OTP invalide ou expiré']);
         }
@@ -432,7 +434,9 @@ class AuthController extends Controller
 
     private function sendOtpByEmail($email, $code, $name = '', $isReset = false)
     {
-        if (!$email) return;
+        if (!$email) {
+            return;
+        }
 
         try {
             $config = require dirname(__DIR__) . '/config/mail.php';
@@ -486,7 +490,7 @@ class AuthController extends Controller
             $type = $isReset ? 'PASSWORD_RESET' : 'LOGIN';
             error_log("[OTP-EMAIL] [$type] Sent to: $email");
         } catch (\Exception $e) {
-            error_log("OTP email error: " . $e->getMessage());
+            error_log('OTP email error: ' . $e->getMessage());
         }
     }
 
@@ -494,7 +498,9 @@ class AuthController extends Controller
 
     private function sendOtpBySms($phone, $code, $email = null)
     {
-        if (!$phone) return;
+        if (!$phone) {
+            return;
+        }
 
         try {
             // Formater le numéro : 0xxx → 243xxx
@@ -523,7 +529,7 @@ class AuthController extends Controller
 
             error_log("[OTP-SMS] Sent to: $phone | HTTP: $httpCode");
         } catch (\Exception $e) {
-            error_log("OTP SMS error: " . $e->getMessage());
+            error_log('OTP SMS error: ' . $e->getMessage());
         }
     }
 }

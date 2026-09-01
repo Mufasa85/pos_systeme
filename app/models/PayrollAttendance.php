@@ -13,24 +13,24 @@ class PayrollAttendance
 
     public function findByPeriod($periodId, $shopId = null)
     {
-        $sql = "SELECT pa.*, u.nom_complet
+        $sql = 'SELECT pa.*, u.nom_complet
                 FROM payroll_attendance pa
                 JOIN payroll_employees pe ON pa.employee_id = pe.id
                 JOIN utilisateurs u ON pe.user_id = u.id
-                WHERE pa.payroll_period_id = ?";
+                WHERE pa.payroll_period_id = ?';
         $params = [$periodId];
         if ($shopId) {
-            $sql .= " AND pa.shop_id = ?";
+            $sql .= ' AND pa.shop_id = ?';
             $params[] = $shopId;
         }
-        $sql .= " ORDER BY u.nom_complet ASC";
+        $sql .= ' ORDER BY u.nom_complet ASC';
         return $this->db->fetchAll($sql, $params);
     }
 
     public function findByEmployeeAndPeriod($employeeId, $periodId)
     {
         return $this->db->fetch(
-            "SELECT * FROM payroll_attendance WHERE employee_id = ? AND payroll_period_id = ?",
+            'SELECT * FROM payroll_attendance WHERE employee_id = ? AND payroll_period_id = ?',
             [$employeeId, $periodId]
         );
     }
@@ -46,10 +46,10 @@ class PayrollAttendance
 
     public function create($data)
     {
-        $sql = "INSERT INTO payroll_attendance
+        $sql = 'INSERT INTO payroll_attendance
                 (shop_id, employee_id, payroll_period_id, worked_days, worked_hours, expected_working_days, paid_days, notes)
                 VALUES
-                (:shop_id, :employee_id, :payroll_period_id, :worked_days, :worked_hours, :expected_working_days, :paid_days, :notes)";
+                (:shop_id, :employee_id, :payroll_period_id, :worked_days, :worked_hours, :expected_working_days, :paid_days, :notes)';
         $this->db->query($sql, [
             ':shop_id'             => $data['shop_id'] ?? null,
             ':employee_id'         => $data['employee_id'] ?? null,
@@ -74,21 +74,25 @@ class PayrollAttendance
                 $params[":$field"] = $data[$field];
             }
         }
-        if (empty($fields)) return false;
-        $sql = "UPDATE payroll_attendance SET " . implode(", ", $fields) . " WHERE id = :id";
+        if (empty($fields)) {
+            return false;
+        }
+        $sql = 'UPDATE payroll_attendance SET ' . implode(', ', $fields) . ' WHERE id = :id';
         return $this->db->execute($sql, $params);
     }
 
     public function delete($id)
     {
-        return $this->db->execute("DELETE FROM payroll_attendance WHERE id = ?", [$id]);
+        return $this->db->execute('DELETE FROM payroll_attendance WHERE id = ?', [$id]);
     }
 
     public function bulkSave($rows)
     {
         $created = 0;
         foreach ($rows as $row) {
-            if ($this->createOrUpdate($row)) $created++;
+            if ($this->createOrUpdate($row)) {
+                $created++;
+            }
         }
         return $created;
     }

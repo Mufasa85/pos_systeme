@@ -6,7 +6,7 @@ use App\App;
 
 class Router
 {
-    private static string $route_name = "";
+    private static string $route_name = '';
 
     public static function getInstance(): \AltoRouter
     {

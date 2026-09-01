@@ -2,7 +2,7 @@
 
 /**
  * Configuration SMTP pour l'envoi d'emails (OTP, reset password, notifications)
- * 
+ *
  * Remplissez avec vos informations SMTP réelles.
  */
 

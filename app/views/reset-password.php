@@ -1,5 +1,6 @@
 <?php
 use App\Models\Settings;
+
 $settingsModel = new Settings();
 $storeName = $settingsModel->get('store_name') ?? 'Mon Magasin';
 
