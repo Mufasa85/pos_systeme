@@ -355,6 +355,12 @@ Router::post("/api/dgi", function () {
 
     $input['token'] = $token;
 
+    // Statut d'homologation DGI (RCCM/licence) du magasin : calculé côté
+    // serveur à partir de la base de données pour ne pas pouvoir être
+    // falsifié par le client, puis injecté/écrasé dans la requête envoyée
+    // à la DGI.
+    $input['store_homologation'] = (bool)($shop['homologation'] ?? false);
+
     // Forward vers le serveur DGI
     $dgiUrl = 'https://osat-energie.com/dgi/';
     $postData = json_encode($input);
@@ -529,6 +535,10 @@ $serviceBillHandler = function () {
     $shop = $shopId ? $shopModel->findById($shopId) : null;
     $companyInfo = (new CompanyInfo())->get();
 
+    // Statut d'homologation DGI (RCCM/licence) de la boutique émettrice de
+    // la facture, calculé côté serveur pour ne pas être falsifiable.
+    $homologation = (bool)($shop['homologation'] ?? false);
+
     // L'ISF de recherche est celui figé sur la vente à sa création : c'est le
     // seul fiable, l'ISF de l'utilisateur qui consulte pouvant être différent
     // (super_admin, autre boutique). Replis pour les ventes antérieures à la
@@ -602,13 +612,23 @@ $serviceBillHandler = function () {
         // La réponse est déjà au format { success, data: {...} } — on la renvoie telle quelle
         // mais on s'assure que success est vrai si la donnée existe
         if (isset($data['success']) && $data['success'] === true) {
+            if (isset($data['data']) && is_array($data['data'])) {
+                $data['data']['homologation'] = $homologation;
+            }
             echo json_encode($data);
         } elseif (isset($data['success']) && $data['success'] === false) {
             // Echec explicite de la DGI : on le propage tel quel
             echo json_encode($data);
         } elseif (isset($data['data'])) {
-            echo json_encode(['success' => true, 'data' => $data['data']]);
+            $facture = $data['data'];
+            if (is_array($facture)) {
+                $facture['homologation'] = $homologation;
+            }
+            echo json_encode(['success' => true, 'data' => $facture]);
         } else {
+            if (is_array($data)) {
+                $data['homologation'] = $homologation;
+            }
             echo json_encode(['success' => true, 'data' => $data]);
         }
     } else {
