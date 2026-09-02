@@ -194,7 +194,8 @@ let STORE_INFO = {
     ice: '001234567890123',
     rccm: '',
     isf: '',
-    nid: ''
+    nid: '',
+    homologation: false
 };
 
 // Charger les informations du magasin depuis les paramètres
@@ -214,7 +215,8 @@ async function loadStoreInfo() {
             ice: data.store_ice || STORE_INFO.ice,
             rccm: data.store_rccm || STORE_INFO.rccm || '',
             isf: data.store_isf || STORE_INFO.isf || '',
-            nid: data.nid || STORE_INFO.nid || ''
+            nid: data.nid || STORE_INFO.nid || '',
+            homologation: data.store_homologation ?? STORE_INFO.homologation ?? false
         };
 
         
@@ -932,6 +934,7 @@ const posCart = {
                 store_ice: STORE_INFO.ice,
                 store_isf: STORE_INFO.isf,
                 store_rccm: STORE_INFO.rccm,
+                store_homologation: !!STORE_INFO.homologation,
                 seller_name: sellerName,
                 seller_agent_code: (typeof CURRENT_USER !== 'undefined' && CURRENT_USER.agentCode) ? CURRENT_USER.agentCode : '',
                 store_name: STORE_INFO.name,
