@@ -46,6 +46,7 @@ class ShopController extends Controller
             'ice'             => $this->sanitaze($input['ice'] ?? ''),
             'rccm'            => $this->sanitaze($input['rccm'] ?? ''),
             'isf'             => $this->sanitaze($input['isf'] ?? ''),
+            'homologation'    => !empty($input['homologation']) ? 1 : 0,
             'pdv'             => $this->sanitaze($input['pdv'] ?? ''),
             'nid'             => $this->sanitaze($input['nid'] ?? ''),
             'token'           => $this->sanitaze($input['token'] ?? ''),
@@ -80,10 +81,16 @@ class ShopController extends Controller
         }
 
         $data = [];
-        $allowed = ['nom', 'code', 'adresse', 'telephone', 'email', 'ice', 'rccm', 'isf', 'pdv', 'nid', 'token', 'port', 'service_type_id', 'actif'];
+        $allowed = ['nom', 'code', 'adresse', 'telephone', 'email', 'ice', 'rccm', 'isf', 'homologation', 'pdv', 'nid', 'token', 'port', 'service_type_id', 'actif'];
         foreach ($allowed as $field) {
             if (isset($input[$field])) {
-                $data[$field] = $field === 'service_type_id' ? (int)$input[$field] : $this->sanitaze($input[$field]);
+                if ($field === 'service_type_id') {
+                    $data[$field] = (int)$input[$field];
+                } elseif ($field === 'homologation') {
+                    $data[$field] = !empty($input[$field]) ? 1 : 0;
+                } else {
+                    $data[$field] = $this->sanitaze($input[$field]);
+                }
             }
         }
 
