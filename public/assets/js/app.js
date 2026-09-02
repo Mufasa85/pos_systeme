@@ -194,7 +194,8 @@ let STORE_INFO = {
     ice: '001234567890123',
     rccm: '',
     isf: '',
-    nid: ''
+    nid: '',
+    homologation: false
 };
 
 // Charger les informations du magasin depuis les paramètres
@@ -214,7 +215,8 @@ async function loadStoreInfo() {
             ice: data.store_ice || STORE_INFO.ice,
             rccm: data.store_rccm || STORE_INFO.rccm || '',
             isf: data.store_isf || STORE_INFO.isf || '',
-            nid: data.nid || STORE_INFO.nid || ''
+            nid: data.nid || STORE_INFO.nid || '',
+            homologation: data.store_homologation ?? STORE_INFO.homologation ?? false
         };
 
         
@@ -932,6 +934,7 @@ const posCart = {
                 store_ice: STORE_INFO.ice,
                 store_isf: STORE_INFO.isf,
                 store_rccm: STORE_INFO.rccm,
+                store_homologation: !!STORE_INFO.homologation,
                 seller_name: sellerName,
                 seller_agent_code: (typeof CURRENT_USER !== 'undefined' && CURRENT_USER.agentCode) ? CURRENT_USER.agentCode : '',
                 store_name: STORE_INFO.name,
@@ -1739,20 +1742,27 @@ const posCart = {
 
             // Métadonnées pour l'envoi SMS depuis le modal d'impression
            
+            // Si la DGI renvoie homologation:false, le magasin n'est pas
+            // homologué : on masque l'ISF et le bloc "Eléments de sécurité"
+            // de la facture normalisée (par défaut on les affiche).
+            const isHomologuee = dgiResponse?.data?.homologation !== false && dgiResponse?.homologation !== false;
 
             // Construire le HTML du recap DGI
-            let dgiInfoHtml = '<div style="background: #e8f5e9; border: 1px solid #4caf50; border-radius: 8px; padding: 10px; margin: 10px 0; text-align: center;"><div style="color: #2e7d32; font-weight: bold; font-size: 11px;">--- Elements de securite de la facture normalisee ---</div>';
-            if (dgiResponse.data) {
-                dgiInfoHtml += '<div style="font-size: 12px; color: #555; margin-top: 4px;">';
-                if (dgiResponse.data.codeDEFDGI) dgiInfoHtml += 'CODE DEF/DGI: ' + dgiResponse.data.codeDEFDGI;
-                if (dgiResponse.data.nim) dgiInfoHtml += '<br> DEF NID : ' + dgiResponse.data.nim;
-                if (dgiResponse.data.counters) dgiInfoHtml += '<br> DEF Compteurs: ' + dgiResponse.data.counters;
-                if (dgiResponse.data.dateTime) dgiInfoHtml += '<br> DEF Heure : ' + dgiResponse.data.dateTime + '\n';
-                //if (dgiResponse.data.isf) dgiInfoHtml += '<br> ISF : ' + dgiResponse.data.isf;
-                else dgiInfoHtml += '';
+            let dgiInfoHtml = '';
+            if (isHomologuee) {
+                dgiInfoHtml = '<div style="background: #e8f5e9; border: 1px solid #4caf50; border-radius: 8px; padding: 10px; margin: 10px 0; text-align: center;"><div style="color: #2e7d32; font-weight: bold; font-size: 11px;">--- Elements de securite de la facture normalisee ---</div>';
+                if (dgiResponse.data) {
+                    dgiInfoHtml += '<div style="font-size: 12px; color: #555; margin-top: 4px;">';
+                    if (dgiResponse.data.codeDEFDGI) dgiInfoHtml += 'CODE DEF/DGI: ' + dgiResponse.data.codeDEFDGI;
+                    if (dgiResponse.data.nim) dgiInfoHtml += '<br> DEF NID : ' + dgiResponse.data.nim;
+                    if (dgiResponse.data.counters) dgiInfoHtml += '<br> DEF Compteurs: ' + dgiResponse.data.counters;
+                    if (dgiResponse.data.dateTime) dgiInfoHtml += '<br> DEF Heure : ' + dgiResponse.data.dateTime + '\n';
+                    //if (dgiResponse.data.isf) dgiInfoHtml += '<br> ISF : ' + dgiResponse.data.isf;
+                    else dgiInfoHtml += '';
+                    dgiInfoHtml += '</div>';
+                }
                 dgiInfoHtml += '</div>';
             }
-            dgiInfoHtml += '</div>';
 
             ren = { ...dgiResponse.data }
 
@@ -1891,9 +1901,9 @@ const posCart = {
 
                         ${(dgiResponse.data?.remise != null && parseFloat(dgiResponse.data.remise) !== 0) ? `<div class="receipt-total-row" style="font-size: 11px; color: #555;"><span>Remise :</span><span>${parseFloat(dgiResponse.data.remise).toFixed(2)} Fc</span></div>` : ''}
                         ${this.getPaymentInfoHtml(dgiResponse)}
-                         <div style="margin: 10px 0; font-size: 11px; color: #333; border: 1px dashed #ccc; padding: 8px; border-radius: 4px; text-align: center;">
+                         ${isHomologuee ? `<div style="margin: 10px 0; font-size: 11px; color: #333; border: 1px dashed #ccc; padding: 8px; border-radius: 4px; text-align: center;">
                             ISF : ${dgiResponse.data?.isf}
-                         </div>
+                         </div>` : ''}
                     </div>
 
                     ${dgiInfoHtml}
@@ -2701,7 +2711,11 @@ function renderServiceBillContent(data, sale) {
     if (amountInWords) {
         html += '<div style="text-align:center; font-size:12px; color:#888; font-style:italic; margin-top:2px;">Arrêté le présent duplicata à la somme de ' + amountInWords + ' congolais toutes taxes comprises</div>';
     }
-    if (info.isf || info.store_isf) {
+    // Si la DGI renvoie homologation:false, le magasin n'est pas homologué :
+    // on masque l'ISF et le bloc "Eléments de sécurité" de la facture
+    // normalisée (par défaut on les affiche).
+    const isHomologuee = info.homologation !== false;
+    if (isHomologuee && (info.isf || info.store_isf)) {
         html += '<div style="margin:10px 0; font-size:11px; color:#333; border:1px dashed #ccc; padding:8px; border-radius:4px; text-align:center;">ISF : ' + (info.isf || info.store_isf) + '</div>';
     }
 
@@ -2715,7 +2729,7 @@ function renderServiceBillContent(data, sale) {
     html += '</div>'; // fin receipt-totals
 
     // ----- Bloc sécurité DGI -----
-    if (info.codeDEFDGI || info.counters || info.nim) {
+    if (isHomologuee && (info.codeDEFDGI || info.counters || info.nim)) {
         html += '<div style="background:#e8f5e9; border:1px solid #4caf50; border-radius:8px; padding:10px; margin:10px 0; text-align:center;">';
         html += '<div style="color:#2e7d32; font-weight:bold; font-size:11px;">--- Elements de securite de la facture normalisee ---</div>';
         html += '<div style="font-size:12px; color:#555; margin-top:4px;">';

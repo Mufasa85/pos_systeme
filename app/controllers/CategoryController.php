@@ -3,7 +3,6 @@
 namespace App\Controllers;
 
 use App\Models\Category;
-use App\controllers\Controller;
 
 class CategoryController extends Controller
 {
@@ -16,7 +15,9 @@ class CategoryController extends Controller
 
     public function delete()
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
 
         $category = new \App\Models\Category();
         $id = $this->sanitaze($_POST['id']);
@@ -32,7 +33,9 @@ class CategoryController extends Controller
 
     public function create()
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
 
         $name = $this->sanitaze($_POST['category'] ?? null);
         if (!$name) {
@@ -48,7 +51,9 @@ class CategoryController extends Controller
 
     public function update()
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
 
         $id = $this->sanitaze($_POST['id'] ?? null);
         $name = $this->sanitaze($_POST['category'] ?? null);

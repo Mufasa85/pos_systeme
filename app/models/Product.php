@@ -34,10 +34,10 @@ class Product
 
     public function findByBarcode($barcode)
     {
-        $product = $this->db->fetch("SELECT p.*, t.taux AS tax_rate, t.etiquette AS tax_etiquette 
+        $product = $this->db->fetch('SELECT p.*, t.taux AS tax_rate, t.etiquette AS tax_etiquette 
             FROM produits p 
             LEFT JOIN taxes t ON p.taxe_id = t.id 
-            WHERE p.code_barres = :code_barres", [':code_barres' => $barcode]);
+            WHERE p.code_barres = :code_barres', [':code_barres' => $barcode]);
         if ($product) {
             $product = $this->enrichWithBatchInfo($product);
         }
@@ -46,14 +46,19 @@ class Product
 
     public function findById($id)
     {
-        $product = $this->db->fetch("SELECT p.*, t.taux AS tax_rate, t.etiquette AS tax_etiquette 
+        $product = $this->db->fetch('SELECT p.*, t.taux AS tax_rate, t.etiquette AS tax_etiquette 
             FROM produits p 
             LEFT JOIN taxes t ON p.taxe_id = t.id 
-            WHERE p.id = :id", [':id' => $id]);
+            WHERE p.id = :id', [':id' => $id]);
         if ($product) {
             $product = $this->enrichWithBatchInfo($product);
         }
         return $product;
+    }
+
+    public function findByImage($image)
+    {
+        return $this->db->fetch("SELECT id, shop_id, image FROM produits WHERE image = :image", [':image' => $image]);
     }
 
     private function enrichWithBatchInfo($product)
@@ -80,8 +85,8 @@ class Product
 
     public function create($data)
     {
-        $sql = "INSERT INTO produits (code_barres, nom, category_id, shop_id, prix, stock, stock_minimum, image, taxe_id, product_type, prod_service, remise_type, remise_value, taxe_specifique_type, taxe_specifique_value, date_expiration)
-                VALUES (:code_barres, :nom, :category_id, :shop_id, :prix, :stock, :stock_minimum, :image, :taxe_id, :product_type, :prod_service, :remise_type, :remise_value, :taxe_specifique_type, :taxe_specifique_value, :date_expiration)";
+        $sql = 'INSERT INTO produits (code_barres, nom, category_id, shop_id, prix, stock, stock_minimum, image, taxe_id, product_type, prod_service, remise_type, remise_value, taxe_specifique_type, taxe_specifique_value, date_expiration)
+                VALUES (:code_barres, :nom, :category_id, :shop_id, :prix, :stock, :stock_minimum, :image, :taxe_id, :product_type, :prod_service, :remise_type, :remise_value, :taxe_specifique_type, :taxe_specifique_value, :date_expiration)';
         $this->db->query($sql, [
             ':code_barres'   => $data['code_barres'],
             ':nom'           => $data['nom'],
@@ -98,20 +103,20 @@ class Product
             ':remise_value'  => $data['remise_value'] ?? 0,
             ':taxe_specifique_type' => $data['taxe_specifique_type'] ?? '%',
             ':taxe_specifique_value' => $data['taxe_specifique_value'] ?? 0,
-            ':date_expiration' => !empty($data['date_expiration']) ? $data['date_expiration'] : null
+            ':date_expiration' => !empty($data['date_expiration']) ? $data['date_expiration'] : null,
         ]);
         return $this->db->getConnection()->lastInsertId();
     }
 
     public function updateStock($id, $quantity)
     {
-        $sql = "UPDATE produits SET stock = stock - :quantite WHERE id = :id";
+        $sql = 'UPDATE produits SET stock = stock - :quantite WHERE id = :id';
         return $this->db->query($sql, [':quantite' => $quantity, ':id' => $id]);
     }
 
     public function update($id, $data)
     {
-        $sql = "UPDATE produits SET
+        $sql = 'UPDATE produits SET
                 code_barres = :code_barres,
                 nom = :nom,
                 category_id = :category_id,
@@ -127,7 +132,7 @@ class Product
                 taxe_specifique_type = :taxe_specifique_type,
                 taxe_specifique_value = :taxe_specifique_value,
                 date_expiration = :date_expiration
-                WHERE id = :id";
+                WHERE id = :id';
         $this->db->query($sql, [
             ':id' => $id,
             ':code_barres' => $data['code_barres'],
@@ -144,7 +149,7 @@ class Product
             ':remise_value' => $data['remise_value'] ?? 0,
             ':taxe_specifique_type' => $data['taxe_specifique_type'] ?? '%',
             ':taxe_specifique_value' => $data['taxe_specifique_value'] ?? 0,
-            ':date_expiration' => !empty($data['date_expiration']) ? $data['date_expiration'] : null
+            ':date_expiration' => !empty($data['date_expiration']) ? $data['date_expiration'] : null,
         ]);
         $this->recalculateProductStock($id);
         return true;
@@ -154,12 +159,12 @@ class Product
     {
         $batchModel = new ProductBatch();
         $total = $batchModel->getTotalStock($id);
-        $this->db->query("UPDATE produits SET stock = :stock WHERE id = :id", [':stock' => $total, ':id' => $id]);
+        $this->db->query('UPDATE produits SET stock = :stock WHERE id = :id', [':stock' => $total, ':id' => $id]);
     }
 
     public function delete($id)
     {
-        $sql = "DELETE FROM produits WHERE id = :id";
+        $sql = 'DELETE FROM produits WHERE id = :id';
         return $this->db->query($sql, [':id' => $id]);
     }
 }

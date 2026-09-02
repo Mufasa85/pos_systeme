@@ -3,13 +3,14 @@
 namespace App\Controllers;
 
 use App\Models\Shop;
-use App\controllers\Controller;
 
 class ShopController extends Controller
 {
     public function index()
     {
-        if (!$this->requireSuperAdmin()) return;
+        if (!$this->requireSuperAdmin()) {
+            return;
+        }
 
         $shopModel = new Shop();
         $this->json($shopModel->getAll());
@@ -17,7 +18,9 @@ class ShopController extends Controller
 
     public function create()
     {
-        if (!$this->requireSuperAdmin()) return;
+        if (!$this->requireSuperAdmin()) {
+            return;
+        }
 
         $input = json_decode(file_get_contents('php://input'), true);
 
@@ -46,12 +49,13 @@ class ShopController extends Controller
             'ice'             => $this->sanitaze($input['ice'] ?? ''),
             'rccm'            => $this->sanitaze($input['rccm'] ?? ''),
             'isf'             => $this->sanitaze($input['isf'] ?? ''),
+            'homologation'    => !empty($input['homologation']) ? 1 : 0,
             'pdv'             => $this->sanitaze($input['pdv'] ?? ''),
             'nid'             => $this->sanitaze($input['nid'] ?? ''),
             'token'           => $this->sanitaze($input['token'] ?? ''),
             'port'            => $this->sanitaze($input['port'] ?? ''),
             'service_type_id' => isset($input['service_type_id']) ? (int)$input['service_type_id'] : null,
-            'actif'           => (int)($input['actif'] ?? 1)
+            'actif'           => (int)($input['actif'] ?? 1),
         ]);
 
         $this->logAudit('create', 'shop', $id, ['nom' => $nom, 'code' => $code]);
@@ -60,9 +64,13 @@ class ShopController extends Controller
 
     public function update($id)
     {
-        if (!$this->requireSuperAdmin()) return;
+        if (!$this->requireSuperAdmin()) {
+            return;
+        }
 
-        if (is_array($id)) $id = $id['id'] ?? null;
+        if (is_array($id)) {
+            $id = $id['id'] ?? null;
+        }
         $id = (int)$id;
 
         if (!$id) {
@@ -80,10 +88,16 @@ class ShopController extends Controller
         }
 
         $data = [];
-        $allowed = ['nom', 'code', 'adresse', 'telephone', 'email', 'ice', 'rccm', 'isf', 'pdv', 'nid', 'token', 'port', 'service_type_id', 'actif'];
+        $allowed = ['nom', 'code', 'adresse', 'telephone', 'email', 'ice', 'rccm', 'isf', 'homologation', 'pdv', 'nid', 'token', 'port', 'service_type_id', 'actif'];
         foreach ($allowed as $field) {
             if (isset($input[$field])) {
-                $data[$field] = $field === 'service_type_id' ? (int)$input[$field] : $this->sanitaze($input[$field]);
+                if ($field === 'service_type_id') {
+                    $data[$field] = (int)$input[$field];
+                } elseif ($field === 'homologation') {
+                    $data[$field] = !empty($input[$field]) ? 1 : 0;
+                } else {
+                    $data[$field] = $this->sanitaze($input[$field]);
+                }
             }
         }
 
@@ -103,9 +117,13 @@ class ShopController extends Controller
 
     public function delete($id)
     {
-        if (!$this->requireSuperAdmin()) return;
+        if (!$this->requireSuperAdmin()) {
+            return;
+        }
 
-        if (is_array($id)) $id = $id['id'] ?? null;
+        if (is_array($id)) {
+            $id = $id['id'] ?? null;
+        }
         $id = (int)$id;
 
         if (!$id) {
@@ -127,9 +145,13 @@ class ShopController extends Controller
 
     public function stats($id)
     {
-        if (!$this->requireSuperAdmin()) return;
+        if (!$this->requireSuperAdmin()) {
+            return;
+        }
 
-        if (is_array($id)) $id = $id['id'] ?? null;
+        if (is_array($id)) {
+            $id = $id['id'] ?? null;
+        }
         $id = (int)$id;
 
         $shopModel = new Shop();

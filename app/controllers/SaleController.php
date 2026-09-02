@@ -2,18 +2,19 @@
 
 namespace App\Controllers;
 
+use App\Models\Client;
 use App\Models\Product;
 use App\Models\ProductBatch;
 use App\Models\Sale;
 use App\Models\SaleDetail;
-use App\Models\Client;
-use App\controllers\Controller;
 
 class SaleController extends Controller
 {
     public function create()
     {
-        if (!$this->requireAuth()) return;
+        if (!$this->requireAuth()) {
+            return;
+        }
 
         $data = json_decode(file_get_contents('php://input'), true);
         if (empty($data) || empty($data['articles'])) {
@@ -85,7 +86,7 @@ class SaleController extends Controller
                 'counters'       => $dgiData['counters'] ?? null,
                 'nim'            => $dgiData['nim'] ?? null,
                 'comment'        => $dgiData['comment'] ?? null,
-                'service'        => $data['providerService'] ?? null
+                'service'        => $data['providerService'] ?? null,
             ]);
 
             // Si providerService existe (recharges), ne pas enregistrer dans details_vente
@@ -104,7 +105,7 @@ class SaleController extends Controller
                         if (!$product || !$batchModel->hasEnoughStock($produitId, $quantite)) {
                             $db->rollBack();
                             $this->status(400)->json([
-                                'error' => 'Stock insuffisant pour le produit: ' . ($product['nom'] ?? $item['produit_id'])
+                                'error' => 'Stock insuffisant pour le produit: ' . ($product['nom'] ?? $item['produit_id']),
                             ]);
                             return;
                         }
@@ -117,7 +118,7 @@ class SaleController extends Controller
                         if (!$deductSuccess) {
                             $db->rollBack();
                             $this->status(400)->json([
-                                'error' => 'Erreur lors de la deduction du stock pour: ' . ($product['nom'] ?? $item['produit_id'])
+                                'error' => 'Erreur lors de la deduction du stock pour: ' . ($product['nom'] ?? $item['produit_id']),
                             ]);
                             return;
                         }
@@ -148,7 +149,7 @@ class SaleController extends Controller
                         'remise_type' => $item['remise_type'] ?? '%',
                         'remise_value' => $item['remise_value'] ?? 0,
                         'taxe_specifique_type' => $item['taxe_specifique_type'] ?? '%',
-                        'taxe_specifique_value' => $item['taxe_specifique_value'] ?? 0
+                        'taxe_specifique_value' => $item['taxe_specifique_value'] ?? 0,
                     ]);
                 }
             }
@@ -158,7 +159,7 @@ class SaleController extends Controller
             $this->logAudit('create', 'vente', $saleId, [
                 'numero_facture' => $invoiceNum,
                 'total' => $data['total'],
-                'type_facture' => $typeFacture
+                'type_facture' => $typeFacture,
             ]);
 
             $this->json([
@@ -166,7 +167,7 @@ class SaleController extends Controller
                 'numero_facture' => $invoiceNum,
                 'vente_id' => $saleId,
                 'type_facture' => $typeFacture,
-                'should_negate' => $shouldNegate
+                'should_negate' => $shouldNegate,
             ]);
         } catch (\Exception $e) {
             $db->rollBack();
@@ -176,7 +177,9 @@ class SaleController extends Controller
 
     public function delete($id)
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
 
         if (!$id) {
             $this->status(400)->json(['error' => 'ID de vente manquant']);
@@ -214,13 +217,13 @@ class SaleController extends Controller
             }
 
             // Supprimer la vente (les détails sont supprimés en cascade)
-            $db->prepare("DELETE FROM ventes WHERE id = ?")->execute([$id]);
+            $db->prepare('DELETE FROM ventes WHERE id = ?')->execute([$id]);
 
             $db->commit();
 
             $this->logAudit('delete', 'vente', $id, [
                 'numero_facture' => $sale['numero_facture'],
-                'total' => $sale['total']
+                'total' => $sale['total'],
             ]);
 
             // Notification action suspecte
@@ -240,7 +243,9 @@ class SaleController extends Controller
 
     public function details($params)
     {
-        if (!$this->requireAuth()) return;
+        if (!$this->requireAuth()) {
+            return;
+        }
 
         $id = $params['id'] ?? null;
 
@@ -262,13 +267,15 @@ class SaleController extends Controller
 
         $this->json([
             'sale' => $sale,
-            'details' => $details
+            'details' => $details,
         ]);
     }
 
     public function nextInvoice()
     {
-        if (!$this->requireAuth()) return;
+        if (!$this->requireAuth()) {
+            return;
+        }
 
         $saleModel = new Sale();
         $invoiceNum = $saleModel->generateInvoiceNumber();
@@ -279,7 +286,9 @@ class SaleController extends Controller
 
     public function archives()
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
 
         $shopId = $this->isSuperAdmin() ? ($_GET['shop_id'] ?? null) : $this->getShopId();
         $saleModel = new Sale();
@@ -292,17 +301,19 @@ class SaleController extends Controller
 
     public function cloture()
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
 
         $date = $_GET['date'] ?? date('Y-m-d');
         $shopId = $this->isSuperAdmin() ? ($_GET['shop_id'] ?? null) : $this->getShopId();
 
         $db = \App\Core\Database::getInstance();
 
-        $where = "WHERE DATE(v.date) = ?";
+        $where = 'WHERE DATE(v.date) = ?';
         $params = [$date];
         if ($shopId) {
-            $where .= " AND v.shop_id = ?";
+            $where .= ' AND v.shop_id = ?';
             $params[] = $shopId;
         }
 
@@ -331,7 +342,9 @@ class SaleController extends Controller
                 foreach ($decoded as $payment) {
                     $type = strtoupper($payment['type'] ?? $payment['mode'] ?? '');
                     $amount = (float) ($payment['amount'] ?? 0);
-                    if (!$type) continue;
+                    if (!$type) {
+                        continue;
+                    }
                     if (!isset($byPayment[$type])) {
                         $byPayment[$type] = ['type' => $type, 'nb' => 0, 'total' => 0];
                     }
@@ -347,7 +360,7 @@ class SaleController extends Controller
                 $byPayment[$type]['total'] += (float)$row['total'];
             }
         }
-        usort($byPayment, fn($a, $b) => $b['total'] <=> $a['total']);
+        usort($byPayment, fn ($a, $b) => $b['total'] <=> $a['total']);
 
         // Top 5 produits vendus
         $sql = "SELECT p.nom, SUM(dv.quantite) as qty, SUM(dv.prix * dv.quantite) as revenue
@@ -363,7 +376,7 @@ class SaleController extends Controller
             'totals' => $totals,
             'by_vendeur' => $byVendeur,
             'by_payment' => $byPayment,
-            'top_products' => $topProducts
+            'top_products' => $topProducts,
         ]);
     }
 
@@ -371,16 +384,18 @@ class SaleController extends Controller
 
     public function exportCsv()
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
 
         $from = $_GET['from'] ?? date('Y-m-01');
         $to = $_GET['to'] ?? date('Y-m-d');
         $shopId = $this->isSuperAdmin() ? ($_GET['shop_id'] ?? null) : $this->getShopId();
 
-        $where = "WHERE DATE(v.date) BETWEEN ? AND ?";
+        $where = 'WHERE DATE(v.date) BETWEEN ? AND ?';
         $params = [$from, $to];
         if ($shopId) {
-            $where .= " AND v.shop_id = ?";
+            $where .= ' AND v.shop_id = ?';
             $params[] = $shopId;
         }
 
@@ -434,7 +449,7 @@ class SaleController extends Controller
                 number_format($r['sous_total_ht'], 2, ',', ' '),
                 number_format($r['tva'], 2, ',', ' '),
                 number_format($r['total'], 2, ',', ' '),
-                $paymentText
+                $paymentText,
             ], ';');
         }
         fclose($out);

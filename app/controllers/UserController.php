@@ -3,12 +3,15 @@
 namespace App\Controllers;
 
 use App\controllers\Controller;
+use App\Services\ImageProcessor;
 
 class UserController extends Controller
 {
     public function create()
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
 
         $username  = $this->sanitaze($_POST['username'] ?? null);
         $password  = $this->sanitaze($_POST['password'] ?? null);
@@ -52,7 +55,9 @@ class UserController extends Controller
 
     public function update()
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
 
         $id = $this->sanitaze($_POST['id'] ?? null);
         if (!$id) {
@@ -62,7 +67,7 @@ class UserController extends Controller
 
         // Debug: log received data
         error_log("User update - ID: $id, POST data: " . print_r($_POST, true));
-        error_log("User update - FILES: " . print_r($_FILES, true));
+        error_log('User update - FILES: ' . print_r($_FILES, true));
 
         $data = [];
         if (isset($_POST['nom_utilisateur'])) {
@@ -100,28 +105,22 @@ class UserController extends Controller
         }
 
         // Handle profile image file upload
-        if (isset($_FILES['profile_image']) && $_FILES['profile_image']['error'] === UPLOAD_ERR_OK) {
-            $file = $_FILES['profile_image'];
-            $allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/gif'];
-            $maxSize = 2 * 1024 * 1024; // 2MB
+        $processedImage = $this->processProfileImage();
+        if ($processedImage) {
+            $data['profile_image'] = $processedImage;
 
-            if (in_array($file['type'], $allowedTypes) && $file['size'] <= $maxSize) {
-                $uploadDir = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'profiles';
-                if (!is_dir($uploadDir)) {
-                    mkdir($uploadDir, 0755, true);
-                }
-
-                $extension = pathinfo($file['name'], PATHINFO_EXTENSION);
-                $filename = uniqid('profile_', true) . '.' . $extension;
-                $filepath = $uploadDir . DIRECTORY_SEPARATOR . $filename;
-
-                if (move_uploaded_file($file['tmp_name'], $filepath)) {
-                    $data['profile_image'] = '/uploads/profiles/' . $filename;
+            $userModelForCleanup = new \App\Models\User();
+            $oldUser = $userModelForCleanup->exist($id);
+            $oldImage = $oldUser['profile_image'] ?? '';
+            if ($oldImage && strpos($oldImage, '/media/profile/') === 0) {
+                $oldPath = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'profiles' . DIRECTORY_SEPARATOR . basename($oldImage);
+                if (is_file($oldPath)) {
+                    @unlink($oldPath);
                 }
             }
         }
 
-        error_log("User update - data to update: " . print_r($data, true));
+        error_log('User update - data to update: ' . print_r($data, true));
 
         if (empty($data)) {
             $this->json(['success' => false, 'error' => 'Aucune donnée à mettre à jour']);
@@ -131,8 +130,8 @@ class UserController extends Controller
         $userModel = new \App\Models\User();
         $success = $userModel->update($id, $data);
 
-        error_log("User update - success: " . ($success ? 'true' : 'false'));
-        error_log("User update - role in data: " . ($data['role'] ?? 'NOT SET'));
+        error_log('User update - success: ' . ($success ? 'true' : 'false'));
+        error_log('User update - role in data: ' . ($data['role'] ?? 'NOT SET'));
 
         $this->logAudit('update', 'utilisateur', $id);
         $this->json(['success' => (bool)$success]);
@@ -140,7 +139,9 @@ class UserController extends Controller
 
     public function all()
     {
-        if (!$this->requireAuth()) return;
+        if (!$this->requireAuth()) {
+            return;
+        }
 
         $userModel = new \App\Models\User();
         $callerRole = $_SESSION['role'] ?? 'vendeur';
@@ -151,7 +152,9 @@ class UserController extends Controller
 
     public function delete()
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
 
         $id = $this->sanitaze($_POST['id'] ?? 0);
         if (!$id) {
@@ -183,7 +186,9 @@ class UserController extends Controller
 
     public function updateProfile()
     {
-        if (!$this->requireAuth()) return;
+        if (!$this->requireAuth()) {
+            return;
+        }
 
         $input = json_decode(file_get_contents('php://input'), true);
         $userId = $_SESSION['user_id'];
@@ -231,7 +236,9 @@ class UserController extends Controller
 
     public function changePassword()
     {
-        if (!$this->requireAuth()) return;
+        if (!$this->requireAuth()) {
+            return;
+        }
 
         $input = json_decode(file_get_contents('php://input'), true);
         $currentPassword = $input['current_password'] ?? '';
@@ -268,7 +275,9 @@ class UserController extends Controller
 
     public function uploadProfileImage()
     {
-        if (!$this->requireAuth()) return;
+        if (!$this->requireAuth()) {
+            return;
+        }
 
         if (!isset($_FILES['profile_image']) || $_FILES['profile_image']['error'] !== UPLOAD_ERR_OK) {
             $this->status(400)->json(['success' => false, 'message' => 'Erreur lors du téléchargement de l\'image']);
@@ -276,42 +285,74 @@ class UserController extends Controller
         }
 
         $file = $_FILES['profile_image'];
-        $allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/gif'];
-        $maxSize = 2 * 1024 * 1024; // 2MB
+        $maxSize = 5 * 1024 * 1024; // 5MB avant compression
 
-        if (!in_array($file['type'], $allowedTypes)) {
+        if ($file['size'] > $maxSize) {
+            $this->status(400)->json(['success' => false, 'message' => 'L\'image ne doit pas dépasser 5MB']);
+            return;
+        }
+
+        if (!ImageProcessor::validate($file['tmp_name'])) {
             $this->status(400)->json(['success' => false, 'message' => 'Type de fichier non autorisé. Utilisez JPG, PNG ou GIF']);
             return;
         }
 
-        if ($file['size'] > $maxSize) {
-            $this->status(400)->json(['success' => false, 'message' => 'L\'image ne doit pas dépasser 2MB']);
-            return;
-        }
-
-        // Create uploads directory if it doesn't exist
-        $uploadDir = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'profiles';
-        if (!is_dir($uploadDir)) {
-            mkdir($uploadDir, 0755, true);
-        }
-
-        // Generate unique filename
-        $extension = pathinfo($file['name'], PATHINFO_EXTENSION);
-        $filename = uniqid('profile_', true) . '.' . $extension;
-        $filepath = $uploadDir . DIRECTORY_SEPARATOR . $filename;
-
-        if (!move_uploaded_file($file['tmp_name'], $filepath)) {
+        $imageUrl = $this->processProfileImage();
+        if (!$imageUrl) {
             $this->status(500)->json(['success' => false, 'message' => 'Erreur lors de la sauvegarde de l\'image']);
             return;
         }
 
-        // Update user profile_image in database
+        // Supprimer l'ancienne image (nouveau format uniquement, hors public/)
         $userId = $_SESSION['user_id'];
-        $imageUrl = '/uploads/profiles/' . $filename;
         $userModel = new \App\Models\User();
+        $oldUser = $userModel->exist($userId);
+        $oldImage = $oldUser['profile_image'] ?? '';
+        if ($oldImage && strpos($oldImage, '/media/profile/') === 0) {
+            $oldPath = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'profiles' . DIRECTORY_SEPARATOR . basename($oldImage);
+            if (is_file($oldPath)) {
+                @unlink($oldPath);
+            }
+        }
+
         $userModel->update($userId, ['profile_image' => $imageUrl]);
 
-        $this->logAudit('upload_profile_image', 'utilisateur', $userId, ['image' => $filename]);
+        $this->logAudit('upload_profile_image', 'utilisateur', $userId, ['image' => basename($imageUrl)]);
         $this->json(['success' => true, 'image_url' => $imageUrl, 'message' => 'Image de profil mise à jour']);
+    }
+
+    /**
+     * Valide, redimensionne/compresse et stocke la photo de profil hors de public/.
+     * Retourne la référence à stocker en base ('/media/profile/xxx.jpg') ou null.
+     */
+    private function processProfileImage(): ?string
+    {
+        if (!isset($_FILES['profile_image']) || $_FILES['profile_image']['error'] !== UPLOAD_ERR_OK) {
+            return null;
+        }
+
+        $file = $_FILES['profile_image'];
+        $maxSize = 5 * 1024 * 1024; // 5MB avant compression
+        if ($file['size'] > $maxSize) {
+            return null;
+        }
+
+        if (!ImageProcessor::validate($file['tmp_name'])) {
+            return null;
+        }
+
+        $uploadDir = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'profiles';
+        if (!is_dir($uploadDir)) {
+            mkdir($uploadDir, 0755, true);
+        }
+
+        $filename = uniqid('profile_', true) . '.jpg';
+        $filepath = $uploadDir . DIRECTORY_SEPARATOR . $filename;
+
+        if (!ImageProcessor::resizeAndSave($file['tmp_name'], $filepath, 500, 85)) {
+            return null;
+        }
+
+        return '/media/profile/' . $filename;
     }
 }

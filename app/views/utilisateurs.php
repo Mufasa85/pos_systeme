@@ -28,7 +28,7 @@
                   $isTargetSuperAdmin = ($u['role'] === 'super_admin');
                   $canEdit = ($currentRole === 'super_admin') || (!$isTargetSuperAdmin && $currentRole === 'admin');
                   $canDelete = $canEdit && !$isTargetSuperAdmin && ($u['id'] != ($_SESSION['user_id'] ?? 0));
-                ?>
+                  ?>
                 <tr style="border-bottom:1px solid #eee;" data-user-id="<?= $u['id'] ?>">
                   <td style="padding:0.75rem;">
                     <div style="display: flex; align-items: center; gap: 0.75rem;">

@@ -2,12 +2,10 @@
 
 namespace App\Controllers;
 
-use App\controllers\Controller;
+use App\Models\PayrollContract;
+use App\Models\PayrollEmployee;
 use App\Models\PayrollPayslip;
 use App\Models\PayrollPayslipLine;
-use App\Models\PayrollEmployee;
-use App\Models\PayrollContract;
-use App\Models\PayrollPeriod;
 use App\Services\PayrollCalculator;
 use App\Services\PayrollPdfService;
 
@@ -15,9 +13,14 @@ class PayrollPayslipController extends Controller
 {
     public function forPeriod($params)
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
         $periodId = $params['id'] ?? null;
-        if (!$periodId) { $this->status(400)->json(['error' => 'ID période manquant']); return; }
+        if (!$periodId) {
+            $this->status(400)->json(['error' => 'ID période manquant']);
+            return;
+        }
 
         $shopId = $this->getShopId();
         $this->json((new PayrollPayslip())->findByPeriod($periodId, $shopId));
@@ -25,12 +28,20 @@ class PayrollPayslipController extends Controller
 
     public function show($params)
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
         $id = $params['id'] ?? null;
-        if (!$id) { $this->status(400)->json(['error' => 'ID manquant']); return; }
+        if (!$id) {
+            $this->status(400)->json(['error' => 'ID manquant']);
+            return;
+        }
 
         $payslip = (new PayrollPayslip())->findById($id, $this->getShopId());
-        if (!$payslip) { $this->status(404)->json(['error' => 'Bulletin introuvable']); return; }
+        if (!$payslip) {
+            $this->status(404)->json(['error' => 'Bulletin introuvable']);
+            return;
+        }
 
         $payslip['lines'] = (new PayrollPayslipLine())->forPayslip($id);
         $this->json($payslip);
@@ -38,7 +49,9 @@ class PayrollPayslipController extends Controller
 
     public function calculateOne()
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
         $data = $this->getJsonOrPost();
         if (empty($data['employee_id']) || empty($data['period_id'])) {
             $this->status(400)->json(['error' => 'employee_id et period_id obligatoires']);
@@ -56,9 +69,14 @@ class PayrollPayslipController extends Controller
 
     public function calculatePeriod($params)
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
         $id = $params['id'] ?? null;
-        if (!$id) { $this->status(400)->json(['error' => 'ID période manquant']); return; }
+        if (!$id) {
+            $this->status(400)->json(['error' => 'ID période manquant']);
+            return;
+        }
 
         try {
             $calc = new PayrollCalculator();
@@ -71,9 +89,14 @@ class PayrollPayslipController extends Controller
 
     public function validate($params)
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
         $id = $params['id'] ?? null;
-        if (!$id) { $this->status(400)->json(['error' => 'ID manquant']); return; }
+        if (!$id) {
+            $this->status(400)->json(['error' => 'ID manquant']);
+            return;
+        }
 
         (new PayrollPayslip())->updateStatus($id, 'validated');
         $this->json(['success' => true]);
@@ -81,9 +104,14 @@ class PayrollPayslipController extends Controller
 
     public function generatePdf($params)
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
         $id = $params['id'] ?? null;
-        if (!$id) { $this->status(400)->json(['error' => 'ID manquant']); return; }
+        if (!$id) {
+            $this->status(400)->json(['error' => 'ID manquant']);
+            return;
+        }
 
         try {
             $path = (new PayrollPdfService())->generate($id, $this->getShopId());
@@ -95,9 +123,14 @@ class PayrollPayslipController extends Controller
 
     public function streamPdf($params)
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
         $id = $params['id'] ?? null;
-        if (!$id) { $this->status(400)->json(['error' => 'ID manquant']); return; }
+        if (!$id) {
+            $this->status(400)->json(['error' => 'ID manquant']);
+            return;
+        }
 
         try {
             (new PayrollPdfService())->stream($id, $this->getShopId());
@@ -108,7 +141,9 @@ class PayrollPayslipController extends Controller
 
     public function canCalculateEmployee($params)
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
         $id = $params['id'] ?? null;
         $employee = (new PayrollEmployee())->findById($id, $this->getShopId(), $this->isSuperAdmin());
         $contract = $employee ? (new PayrollContract())->findActiveByEmployee($employee['id']) : null;
@@ -117,10 +152,15 @@ class PayrollPayslipController extends Controller
 
     public function myPayslips()
     {
-        if (!$this->requireAuth()) return;
+        if (!$this->requireAuth()) {
+            return;
+        }
         $userId = $_SESSION['user_id'] ?? null;
         $employee = (new PayrollEmployee())->findByUserId($userId);
-        if (!$employee) { $this->json([]); return; }
+        if (!$employee) {
+            $this->json([]);
+            return;
+        }
 
         $this->json((new PayrollPayslip())->findByEmployee($employee['id']));
     }

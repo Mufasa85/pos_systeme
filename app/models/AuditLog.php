@@ -13,8 +13,8 @@ class AuditLog
 
     public function log($userId, $shopId, $action, $entity, $entityId = null, $details = null)
     {
-        $sql = "INSERT INTO audit_logs (user_id, shop_id, action, entity, entity_id, details, ip_address)
-                VALUES (:user_id, :shop_id, :action, :entity, :entity_id, :details, :ip_address)";
+        $sql = 'INSERT INTO audit_logs (user_id, shop_id, action, entity, entity_id, details, ip_address)
+                VALUES (:user_id, :shop_id, :action, :entity, :entity_id, :details, :ip_address)';
         return $this->db->query($sql, [
             ':user_id'   => $userId,
             ':shop_id'   => $shopId,
@@ -22,7 +22,7 @@ class AuditLog
             ':entity'    => $entity,
             ':entity_id' => $entityId,
             ':details'   => $details ? json_encode($details) : null,
-            ':ip_address' => $_SERVER['REMOTE_ADDR'] ?? null
+            ':ip_address' => $_SERVER['REMOTE_ADDR'] ?? null,
         ]);
     }
 
@@ -50,17 +50,17 @@ class AuditLog
 
     public function getByEntity($entity, $entityId)
     {
-        $sql = "SELECT a.*, u.nom_complet as user_name 
+        $sql = 'SELECT a.*, u.nom_complet as user_name 
                 FROM audit_logs a
                 LEFT JOIN utilisateurs u ON a.user_id = u.id
                 WHERE a.entity = ? AND a.entity_id = ?
-                ORDER BY a.created_at DESC";
+                ORDER BY a.created_at DESC';
         return $this->db->fetchAll($sql, [$entity, $entityId]);
     }
 
     public function purgeOlderThan($months = 6)
     {
-        $sql = "DELETE FROM audit_logs WHERE created_at < DATE_SUB(NOW(), INTERVAL ? MONTH)";
+        $sql = 'DELETE FROM audit_logs WHERE created_at < DATE_SUB(NOW(), INTERVAL ? MONTH)';
         return $this->db->execute($sql, [$months]);
     }
 }

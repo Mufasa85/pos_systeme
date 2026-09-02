@@ -13,31 +13,31 @@ class Notification
 
     public function create($userId, $shopId, $type, $title, $message, $link = null)
     {
-        $sql = "INSERT INTO notifications (user_id, shop_id, type, title, message, link)
-                VALUES (:user_id, :shop_id, :type, :title, :message, :link)";
+        $sql = 'INSERT INTO notifications (user_id, shop_id, type, title, message, link)
+                VALUES (:user_id, :shop_id, :type, :title, :message, :link)';
         $this->db->query($sql, [
             ':user_id' => $userId,
             ':shop_id' => $shopId,
             ':type'    => $type,
             ':title'   => $title,
             ':message' => $message,
-            ':link'    => $link
+            ':link'    => $link,
         ]);
         return $this->db->lastInsertId();
     }
 
     public function getForUser($userId, $limit = 20, $offset = 0)
     {
-        $sql = "SELECT * FROM notifications 
+        $sql = 'SELECT * FROM notifications 
                 WHERE user_id = ? 
                 ORDER BY created_at DESC 
-                LIMIT ? OFFSET ?";
+                LIMIT ? OFFSET ?';
         return $this->db->fetchAll($sql, [$userId, (int)$limit, (int)$offset]);
     }
 
     public function getUnreadCount($userId)
     {
-        $sql = "SELECT COUNT(*) as count FROM notifications WHERE user_id = ? AND is_read = 0";
+        $sql = 'SELECT COUNT(*) as count FROM notifications WHERE user_id = ? AND is_read = 0';
         $result = $this->db->fetch($sql, [$userId]);
         return $result['count'] ?? 0;
     }
@@ -45,7 +45,7 @@ class Notification
     public function markAsRead($id, $userId)
     {
         return $this->db->execute(
-            "UPDATE notifications SET is_read = 1 WHERE id = ? AND user_id = ?",
+            'UPDATE notifications SET is_read = 1 WHERE id = ? AND user_id = ?',
             [$id, $userId]
         );
     }
@@ -53,7 +53,7 @@ class Notification
     public function markAllAsRead($userId)
     {
         return $this->db->execute(
-            "UPDATE notifications SET is_read = 1 WHERE user_id = ? AND is_read = 0",
+            'UPDATE notifications SET is_read = 1 WHERE user_id = ? AND is_read = 0',
             [$userId]
         );
     }
@@ -79,7 +79,7 @@ class Notification
     public function delete($id, $userId)
     {
         return $this->db->execute(
-            "DELETE FROM notifications WHERE id = ? AND user_id = ?",
+            'DELETE FROM notifications WHERE id = ? AND user_id = ?',
             [$id, $userId]
         );
     }

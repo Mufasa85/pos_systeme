@@ -2,14 +2,15 @@
 
 namespace App\Controllers;
 
-use App\controllers\Controller;
 use App\Models\PayrollEmployee;
 
 class PayrollEmployeeController extends Controller
 {
     public function index()
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
 
         $employee = new PayrollEmployee();
         $shopId = $this->getShopId();
@@ -20,7 +21,9 @@ class PayrollEmployeeController extends Controller
 
     public function show($params)
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
 
         $id = $params['id'] ?? null;
         if (!$id) {
@@ -43,11 +46,15 @@ class PayrollEmployeeController extends Controller
 
     public function create()
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
 
         $raw = file_get_contents('php://input');
         $data = (!empty($raw)) ? json_decode($raw, true) : $_POST;
-        if (!is_array($data)) $data = [];
+        if (!is_array($data)) {
+            $data = [];
+        }
 
         $data['shop_id'] = $this->isSuperAdmin() ? ($data['shop_id'] ?? $this->getShopId()) : $this->getShopId();
 
@@ -75,7 +82,9 @@ class PayrollEmployeeController extends Controller
 
     public function update($params)
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
 
         $id = $params['id'] ?? null;
         if (!$id) {
@@ -94,7 +103,9 @@ class PayrollEmployeeController extends Controller
 
         $raw = file_get_contents('php://input');
         $data = (!empty($raw)) ? json_decode($raw, true) : $_POST;
-        if (!is_array($data)) $data = [];
+        if (!is_array($data)) {
+            $data = [];
+        }
 
         if (!$superAdmin && isset($data['shop_id'])) {
             unset($data['shop_id']);
@@ -106,7 +117,9 @@ class PayrollEmployeeController extends Controller
 
     public function delete($params)
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
 
         $id = $params['id'] ?? null;
         if (!$id) {
@@ -129,7 +142,9 @@ class PayrollEmployeeController extends Controller
 
     public function vendors()
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
 
         $shopId = $this->getShopId();
         if (!$shopId) {

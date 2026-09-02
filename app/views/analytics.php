@@ -210,7 +210,8 @@
                   </thead>
                   <tbody>
                     <?php if (!empty($topProducts)): ?>
-                      <?php $rank = 1; foreach ($topProducts as $pid => $p): ?>
+                      <?php $rank = 1;
+                        foreach ($topProducts as $pid => $p): ?>
                         <tr>
                           <td class="rank"><?= $rank ?></td>
                           <td><?= htmlspecialchars($p['name']) ?></td>
@@ -245,7 +246,8 @@
                   </thead>
                   <tbody>
                     <?php if (!empty($topClients)): ?>
-                      <?php $rank = 1; foreach ($topClients as $cid => $amount): ?>
+                      <?php $rank = 1;
+                        foreach ($topClients as $cid => $amount): ?>
                         <tr>
                           <td class="rank"><?= $rank ?></td>
                           <td><?= htmlspecialchars($topClientsNames[$cid] ?? 'Client #' . $cid) ?></td>

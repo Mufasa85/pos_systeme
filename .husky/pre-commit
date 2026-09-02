@@ -1,0 +1,7 @@
+#!/usr/bin/env sh
+
+# Vérification du style PHP
+composer cs:check
+
+# Vérification ESLint
+npm run lint

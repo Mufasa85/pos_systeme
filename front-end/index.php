@@ -31,7 +31,7 @@ function checkRateLimit($maxRequests = 2, $timeWindow = 30)
 // 🛑 Vérifier le rate limit
 if (!checkRateLimit(2, 30)) { // Max 2 requêtes en 30 secondes
     http_response_code(429); // Too Many Requests
-?>
+    ?>
     <!DOCTYPE html>
     <html lang="fr">
 
@@ -122,7 +122,7 @@ if (!checkRateLimit(2, 30)) { // Max 2 requêtes en 30 secondes
 
     </html>
 <?php
-    exit();
+        exit();
 }
 function isBlockedForInvalidReference()
 {
@@ -166,7 +166,7 @@ function getRemainingBlockTime()
 if (isBlockedForInvalidReference()) {
     http_response_code(403); // Forbidden
     $remainingTime = getRemainingBlockTime();
-?>
+    ?>
     <!DOCTYPE html>
     <html lang="fr">
 
@@ -259,7 +259,7 @@ if (isBlockedForInvalidReference()) {
 
     </html>
     <?php
-    exit();
+        exit();
 }
 // Fonction de validation de la référence
 function validateReference($ref)
@@ -299,7 +299,7 @@ if (isset($_GET['ref']) && !empty($_GET['ref'])) {
         // Bloquer la session pour 30 secondes
         blockSessionForInvalidReference();
         http_response_code(400); // Bad Request
-    ?>
+        ?>
         <!DOCTYPE html>
         <html lang="fr">
 
@@ -391,13 +391,13 @@ if (isset($_GET['ref']) && !empty($_GET['ref'])) {
 
         </html>
         <?php
-        exit();
+            exit();
     } else {
         // La référence est valide, vous pouvez continuer le traitement
         //echo "✅ Référence valide : " . htmlspecialchars($ref);
         if ($type == 1) {
             require_once __DIR__ . '/../db.php';
-            $sql = "SELECT * FROM facture_postpaid WHERE REF = :ref LIMIT 1";
+            $sql = 'SELECT * FROM facture_postpaid WHERE REF = :ref LIMIT 1';
             $stmt = $pdo->prepare($sql);
             $stmt->execute([':ref' => $ref]);
             $result = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -422,7 +422,7 @@ if (isset($_GET['ref']) && !empty($_GET['ref'])) {
                 $count_dgi = $result['COUNT_DGI'];
                 $nim_dgi = $result['NIM_DGI'];
                 $json_data = $result['JSON'];
-        ?>
+                ?>
                 <!DOCTYPE html>
                 <html lang="fr">
 
@@ -671,42 +671,42 @@ if (isset($_GET['ref']) && !empty($_GET['ref'])) {
                             <div class="code-label">📅 DÉTAILS MENSUELS</div>
                             <div style="font-size: 10px; color: white; font-family: 'Courier New', monospace;">
                                 <?php
-                                if (!empty($json_data)) {
-                                    $json_decoded = json_decode($json_data, true);
-                                    if (is_array($json_decoded)) {
-                                        // Vérifier s'il y a une structure "historique_calculs"
-                                        if (isset($json_decoded['historique_calculs']) && is_array($json_decoded['historique_calculs']) && count($json_decoded['historique_calculs']) > 0) {
-                                            // Boucler sur TOUS les calculs (pas juste le premier)
-                                            foreach ($json_decoded['historique_calculs'] as $calcul) {
-                                                $annee = $calcul['annee_selectionnee'] ?? '';
-                                                if (isset($calcul['details_mois']) && is_array($calcul['details_mois'])) {
-                                                    // Afficher le titre de l'année
-                                                    echo '<div style="font-weight: bold; margin-top: 8px; margin-bottom: 6px; padding-bottom: 3px; border-bottom: 2px solid rgba(255,255,255,0.5); color: white;">📅 ' . htmlspecialchars($annee) . '</div>';
+                                        if (!empty($json_data)) {
+                                            $json_decoded = json_decode($json_data, true);
+                                            if (is_array($json_decoded)) {
+                                                // Vérifier s'il y a une structure "historique_calculs"
+                                                if (isset($json_decoded['historique_calculs']) && is_array($json_decoded['historique_calculs']) && count($json_decoded['historique_calculs']) > 0) {
+                                                    // Boucler sur TOUS les calculs (pas juste le premier)
+                                                    foreach ($json_decoded['historique_calculs'] as $calcul) {
+                                                        $annee = $calcul['annee_selectionnee'] ?? '';
+                                                        if (isset($calcul['details_mois']) && is_array($calcul['details_mois'])) {
+                                                            // Afficher le titre de l'année
+                                                            echo '<div style="font-weight: bold; margin-top: 8px; margin-bottom: 6px; padding-bottom: 3px; border-bottom: 2px solid rgba(255,255,255,0.5); color: white;">📅 ' . htmlspecialchars($annee) . '</div>';
 
-                                                    foreach ($calcul['details_mois'] as $detail) {
-                                                        $mon = $detail['mois'] ?? '';
-                                                        $amt = $detail['montant'] ?? 0;
-                                                        echo '<div style="display: flex; justify-content: space-between; margin-bottom: 3px; padding: 2px 0 2px 8px; border-bottom: 1px dotted rgba(255,255,255,0.3);"><span>' . htmlspecialchars($mon) . '</span><span>' . number_format($amt, 2, ',', ' ') . ' CDF</span></div>';
+                                                            foreach ($calcul['details_mois'] as $detail) {
+                                                                $mon = $detail['mois'] ?? '';
+                                                                $amt = $detail['montant'] ?? 0;
+                                                                echo '<div style="display: flex; justify-content: space-between; margin-bottom: 3px; padding: 2px 0 2px 8px; border-bottom: 1px dotted rgba(255,255,255,0.3);"><span>' . htmlspecialchars($mon) . '</span><span>' . number_format($amt, 2, ',', ' ') . ' CDF</span></div>';
+                                                            }
+                                                        }
                                                     }
+                                                } else {
+                                                    echo '<div style="color: rgba(255,255,255,0.8);">Aucune donnée disponible</div>';
                                                 }
+                                            } else {
+                                                echo '<div style="color: rgba(255,255,255,0.8);">Aucune donnée disponible</div>';
                                             }
                                         } else {
                                             echo '<div style="color: rgba(255,255,255,0.8);">Aucune donnée disponible</div>';
                                         }
-                                    } else {
-                                        echo '<div style="color: rgba(255,255,255,0.8);">Aucune donnée disponible</div>';
-                                    }
-                                } else {
-                                    echo '<div style="color: rgba(255,255,255,0.8);">Aucune donnée disponible</div>';
-                                }
-                                ?>
+                ?>
                             </div>
                         </div>
 
                         <!-- QR CODE -->
                         <?php
-                        $qr_url = "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=" . urlencode($qr_code_dgi) . "&ecc=M";
-                        ?>
+                        $qr_url = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' . urlencode($qr_code_dgi) . '&ecc=M';
+                ?>
                         <div class="qr-box">
                             <img src="<?php echo $qr_url; ?>" alt="QR Code DGI">
                         </div>
@@ -745,9 +745,9 @@ if (isset($_GET['ref']) && !empty($_GET['ref'])) {
                 </html>
             <?php
             }
-        } else if ($type == 2) {
+        } elseif ($type == 2) {
             require_once __DIR__ . '/../db.php';
-            $sql = "SELECT * FROM facture_prepaid WHERE REF = :ref LIMIT 1";
+            $sql = 'SELECT * FROM facture_prepaid WHERE REF = :ref LIMIT 1';
             $stmt = $pdo->prepare($sql);
             $stmt->execute([':ref' => $ref]);
             $result = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -773,7 +773,7 @@ if (isset($_GET['ref']) && !empty($_GET['ref'])) {
                 $count_dgi = $result['COUNT_DGI'];
                 $nim_dgi = $result['NIM_DGI'];
                 $json_data = $result['JSON'];
-            ?>
+                ?>
                 <!DOCTYPE html>
                 <html lang="fr">
 
@@ -1024,19 +1024,19 @@ if (isset($_GET['ref']) && !empty($_GET['ref'])) {
                             <div class="code-label">CODE DE RECHARGE</div>
                             <div class="code-value">
                                 <?php
-                                $code_formatted = htmlspecialchars($code);
-                                if (strlen($code_formatted) > 5) {
-                                    $code_formatted = implode('-', str_split($code_formatted, 5));
-                                }
-                                echo $code_formatted;
-                                ?>
+                                    $code_formatted = htmlspecialchars($code);
+                if (strlen($code_formatted) > 5) {
+                    $code_formatted = implode('-', str_split($code_formatted, 5));
+                }
+                echo $code_formatted;
+                ?>
                             </div>
                         </div>
 
                         <!-- QR CODE -->
                         <?php
-                        $qr_url = "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=" . urlencode($qr_code_dgi) . "&ecc=M";
-                        ?>
+                        $qr_url = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' . urlencode($qr_code_dgi) . '&ecc=M';
+                ?>
                         <div class="qr-box">
                             <!--<p style="margin: 0 0 8px 0; font-size: 14px; font-weight: bold; color: #0055a4;">🔲 SCAN MOI</p>-->
                             <img src="<?php echo $qr_url; ?>" alt="QR Code DGI">
@@ -1089,7 +1089,7 @@ if (isset($_GET['ref']) && !empty($_GET['ref'])) {
 }
 // Votre code ici - $ref est maintenant sûr et validé
 if (!empty($ref)) {
-    // Code sécurisé - la référence a été validée 
+    // Code sécurisé - la référence a été validée
 }
 
 ?>

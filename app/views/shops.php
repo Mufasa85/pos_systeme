@@ -14,6 +14,10 @@
   .shop-badge-active { display:inline-flex; align-items:center; gap:4px; font-size:.7rem; font-weight:600; padding:2px 8px; border-radius:20px; background:#dcfce7; color:#16a34a }
   .shop-badge-inactive { display:inline-flex; align-items:center; gap:4px; font-size:.7rem; font-weight:600; padding:2px 8px; border-radius:20px; background:#fee2e2; color:#dc2626 }
   .shop-badge-dot { width:6px; height:6px; border-radius:50%; background:currentColor }
+  .shop-badge-homologuee { display:inline-flex; align-items:center; gap:4px; font-size:.7rem; font-weight:600; padding:2px 8px; border-radius:20px; background:#dbeafe; color:#1d4ed8 }
+  .shop-badge-non-homologuee { display:inline-flex; align-items:center; gap:4px; font-size:.7rem; font-weight:600; padding:2px 8px; border-radius:20px; background:#f1f5f9; color:#64748b }
+  .homologation-toggle { display:flex; align-items:center; gap:.5rem; padding:.6rem .75rem; background:var(--background,#f8fafc); border:1px solid var(--border,#e2e8f0); border-radius:8px }
+  .homologation-toggle input { width:auto; margin:0 }
   .shop-legal { display:flex; gap:.75rem; flex-wrap:wrap; padding:0 1.25rem; margin-top:.25rem }
   .shop-legal-item { font-size:.72rem; color:var(--muted,#94a3b8); background:var(--background,#f8fafc); padding:2px 8px; border-radius:4px }
   .shop-legal-item strong { color:var(--text-secondary,#475569); margin-right:3px }
@@ -79,6 +83,14 @@
             <span class="shop-badge-active"><span class="shop-badge-dot"></span>Active</span>
           <?php else: ?>
             <span class="shop-badge-inactive"><span class="shop-badge-dot"></span>Inactive</span>
+          <?php endif; ?>
+          <?php if (!empty($shop['homologation'])): ?>
+            <span class="shop-badge-homologuee" title="Boutique homologuée DGI (RCCM/licence en règle)">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+              Homologuée
+            </span>
+          <?php else: ?>
+            <span class="shop-badge-non-homologuee">Non homologuée</span>
           <?php endif; ?>
         </div>
         <div class="shop-card-code"><?= htmlspecialchars($shop['code']) ?></div>
@@ -218,6 +230,14 @@
           </div>
         </div>
 
+        <label class="homologation-toggle" style="margin-bottom:.75rem;cursor:pointer">
+          <input type="checkbox" id="shop-homologation">
+          <span>
+            <strong style="font-size:.8rem;display:block">Boutique homologuée (DGI)</strong>
+            <span style="font-size:.72rem;color:var(--muted,#94a3b8)">À cocher si cette boutique possède une homologation valide (RCCM/licence). Cette information est transmise à la DGI lors de la validation des factures.</span>
+          </span>
+        </label>
+
         <!-- Statut -->
         <div class="form-group" style="margin-bottom:0;margin-top:1rem">
           <label style="font-size:.8rem;font-weight:600">Statut</label>
@@ -287,6 +307,7 @@ function openEditShopModal(shop) {
   document.getElementById('shop-token').value = shop.token || '';
   document.getElementById('shop-port').value = shop.port || '';
   document.getElementById('shop-service-type').value = shop.service_type_id || '';
+  document.getElementById('shop-homologation').checked = !!(shop.homologation && shop.homologation !== '0');
   document.getElementById('shop-actif').value = shop.actif ?? '1';
   document.getElementById('shop-error').style.display = 'none';
   document.getElementById('shop-modal').classList.add('active');
@@ -318,6 +339,7 @@ async function saveShop(e) {
     token: document.getElementById('shop-token').value.trim(),
     port: document.getElementById('shop-port').value.trim(),
     service_type_id: document.getElementById('shop-service-type').value || null,
+    homologation: document.getElementById('shop-homologation').checked,
     actif: parseInt(document.getElementById('shop-actif').value)
   };
 

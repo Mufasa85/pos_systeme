@@ -58,7 +58,7 @@
                             'fullName' => $_SESSION['nom_complet'] ?? '',
                             'role' => $_SESSION['role'] ?? 'vendeur',
                             'agentCode' => $_SESSION['agent_code'] ?? '',
-                            'shopId' => $_SESSION['shop_id'] ?? null
+                            'shopId' => $_SESSION['shop_id'] ?? null,
                           ]) ?>;
   </script>
   <script src="/assets/js/service-bill-fetcher.js"></script>
@@ -113,13 +113,13 @@
         </div>
         <?php
         $role = $_SESSION['role'] ?? '';
-        if ($role === 'super_admin') {
-          // Utiliser exactement la même requête que dans le header/login (companyName / companyInfo / storeName)
-          $sidebarStoreName = ($companyName ?? ($companyInfo['name'] ?? ($storeName ?? 'Mon Magasin')));
-        } else {
-          $sidebarStoreName = ($storeName ?? 'Mon Magasin');
-        }
-        ?>
+  if ($role === 'super_admin') {
+      // Utiliser exactement la même requête que dans le header/login (companyName / companyInfo / storeName)
+      $sidebarStoreName = ($companyName ?? ($companyInfo['name'] ?? ($storeName ?? 'Mon Magasin')));
+  } else {
+      $sidebarStoreName = ($storeName ?? 'Mon Magasin');
+  }
+  ?>
         <span id="sidebar-store-name"><?= htmlspecialchars($sidebarStoreName) ?></span>
 
         <button id="close-sidebar" class="close-sidebar">
@@ -278,9 +278,9 @@
           <div class="user-details">
             <span class="user-name" id="user-name"><?= htmlspecialchars($_SESSION['nom_complet'] ?? '') ?></span>
             <span class="user-role" id="user-role"><?php
-              $r = $_SESSION['role'] ?? '';
-              echo $r === 'super_admin' ? 'Super Admin' : ($r === 'admin' ? 'Administrateur' : 'Vendeur');
-            ?></span>
+        $r = $_SESSION['role'] ?? '';
+  echo $r === 'super_admin' ? 'Super Admin' : ($r === 'admin' ? 'Administrateur' : 'Vendeur');
+  ?></span>
           </div>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-left:auto;opacity:.5">
             <polyline points="9 18 15 12 9 6"></polyline>

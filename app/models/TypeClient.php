@@ -54,7 +54,7 @@ class TypeClient
 
         return $this->db->query($sql, [
             $data['code'],
-            $data['description'] ?? null
+            $data['description'] ?? null,
         ]);
     }
 
@@ -70,7 +70,7 @@ class TypeClient
         return $this->db->query($sql, [
             $data['code'],
             $data['description'] ?? null,
-            $id
+            $id,
         ]);
     }
 

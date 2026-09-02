@@ -2,30 +2,30 @@
 
 // routes/api.php
 
+use App\Controllers\AuthController;
 use App\Controllers\CategoryController;
-use App\Controllers\ProductController;
-use App\Controllers\ProductBatchController;
-use App\Controllers\SaleController;
-use App\Controllers\UserController;
-use App\Controllers\SettingsController;
 use App\Controllers\ClientController;
-use App\Controllers\TaxController;
-use App\Controllers\ShopController;
-use App\Controllers\ServiceTypeController;
 use App\Controllers\CompanyInfoController;
 use App\Controllers\NotificationController;
-use App\Controllers\AuthController;
-use App\Controllers\PayrollEmployeeController;
-use App\Controllers\PayrollController;
 use App\Controllers\PayrollAttendanceController;
-use App\Controllers\PayrollPayslipController;
+use App\Controllers\PayrollController;
+use App\Controllers\PayrollEmployeeController;
 use App\Controllers\PayrollPaymentController;
-use App\Controllers\PayrollTimeClockController;
+use App\Controllers\PayrollPayslipController;
 use App\Controllers\PayrollReportController;
+use App\Controllers\PayrollTimeClockController;
+use App\Controllers\ProductBatchController;
+use App\Controllers\ProductController;
+use App\Controllers\SaleController;
+use App\Controllers\ServiceTypeController;
+use App\Controllers\SettingsController;
+use App\Controllers\ShopController;
+use App\Controllers\TaxController;
+use App\Controllers\UserController;
 use App\Core\Router;
-use App\Models\Shop;
-use App\Models\Sale;
 use App\Models\CompanyInfo;
+use App\Models\Sale;
+use App\Models\Shop;
 
 // Garde d'authentification simple pour les endpoints proxy (évite l'abus par
 // des visiteurs non connectés qui utiliseraient le serveur comme relais).
@@ -40,54 +40,54 @@ function requireAuthenticatedSession()
 }
 
 // ── Auth API (OTP, forgot password, reset) ──────────────────
-Router::get("/api/auth/verify-otp", [AuthController::class, 'verifyOtp']);
-Router::get("/api/auth/resend-otp", [AuthController::class, 'resendOtp']);
-Router::get("/api/auth/forgot-password", [AuthController::class, 'forgotPassword']);
-Router::post("/api/auth/verify-reset-code", [AuthController::class, 'verifyResetCode']);
-Router::post("/api/auth/reset-password", [AuthController::class, 'resetPassword']);
-Router::get("/api/auth/otp-codes", [AuthController::class, 'getOtpCodes']);
+Router::get('/api/auth/verify-otp', [AuthController::class, 'verifyOtp']);
+Router::get('/api/auth/resend-otp', [AuthController::class, 'resendOtp']);
+Router::get('/api/auth/forgot-password', [AuthController::class, 'forgotPassword']);
+Router::post('/api/auth/verify-reset-code', [AuthController::class, 'verifyResetCode']);
+Router::post('/api/auth/reset-password', [AuthController::class, 'resetPassword']);
+Router::get('/api/auth/otp-codes', [AuthController::class, 'getOtpCodes']);
 
 // ── Shops (super_admin only) ─────────────────────────────────
-Router::get("/api/shops", [ShopController::class, 'index']);
-Router::post("/api/shops", [ShopController::class, 'create']);
-Router::put("/api/shops/[i:id]", [ShopController::class, 'update']);
-Router::post("/api/shops/update/[i:id]", [ShopController::class, 'update']);
-Router::post("/api/shops/delete/[i:id]", [ShopController::class, 'delete']);
-Router::get("/api/shops/stats/[i:id]", [ShopController::class, 'stats']);
+Router::get('/api/shops', [ShopController::class, 'index']);
+Router::post('/api/shops', [ShopController::class, 'create']);
+Router::put('/api/shops/[i:id]', [ShopController::class, 'update']);
+Router::post('/api/shops/update/[i:id]', [ShopController::class, 'update']);
+Router::post('/api/shops/delete/[i:id]', [ShopController::class, 'delete']);
+Router::get('/api/shops/stats/[i:id]', [ShopController::class, 'stats']);
 
 // ── Service Types (super_admin/admin) ─────────────────────────
-Router::get("/api/service-types", [ServiceTypeController::class, 'index']);
-Router::post("/api/service-types", [ServiceTypeController::class, 'create']);
-Router::post("/api/service-types/update/[i:id]", [ServiceTypeController::class, 'update']);
-Router::post("/api/service-types/delete/[i:id]", [ServiceTypeController::class, 'delete']);
+Router::get('/api/service-types', [ServiceTypeController::class, 'index']);
+Router::post('/api/service-types', [ServiceTypeController::class, 'create']);
+Router::post('/api/service-types/update/[i:id]', [ServiceTypeController::class, 'update']);
+Router::post('/api/service-types/delete/[i:id]', [ServiceTypeController::class, 'delete']);
 
 // ── Company Info (super_admin only) ───────────────────────────
-Router::get("/api/company-info", [CompanyInfoController::class, 'index']);
-Router::post("/api/company-info", [CompanyInfoController::class, 'update']);
+Router::get('/api/company-info', [CompanyInfoController::class, 'index']);
+Router::post('/api/company-info', [CompanyInfoController::class, 'update']);
 
 // ── Notifications ────────────────────────────────────────────
-Router::get("/api/notifications", [NotificationController::class, 'index']);
-Router::get("/api/notifications/unread", [NotificationController::class, 'unreadCount']);
-Router::post("/api/notifications/read/[i:id]", [NotificationController::class, 'markRead']);
-Router::post("/api/notifications/read-all", [NotificationController::class, 'markAllRead']);
-Router::post("/api/notifications/delete/[i:id]", [NotificationController::class, 'delete']);
+Router::get('/api/notifications', [NotificationController::class, 'index']);
+Router::get('/api/notifications/unread', [NotificationController::class, 'unreadCount']);
+Router::post('/api/notifications/read/[i:id]', [NotificationController::class, 'markRead']);
+Router::post('/api/notifications/read-all', [NotificationController::class, 'markAllRead']);
+Router::post('/api/notifications/delete/[i:id]', [NotificationController::class, 'delete']);
 
 // ── Users extra ──────────────────────────────────────────────
-Router::post("/api/user/change-password", [UserController::class, 'changePassword']);
-Router::post("/api/user/update-profile", [UserController::class, 'updateProfile']);
-Router::post("/api/user/upload-profile-image", [UserController::class, 'uploadProfileImage']);
+Router::post('/api/user/change-password', [UserController::class, 'changePassword']);
+Router::post('/api/user/update-profile', [UserController::class, 'updateProfile']);
+Router::post('/api/user/upload-profile-image', [UserController::class, 'uploadProfileImage']);
 
-Router::get("/api/produits", [ProductController::class, 'index']);
-Router::get("/api/produit", [ProductController::class, 'find']);
-Router::post("/api/produit", [ProductController::class, 'create']);
-Router::post("/api/produit/update", [ProductController::class, 'update']);
-Router::post("/api/produit/delete", [ProductController::class, 'delete']);
+Router::get('/api/produits', [ProductController::class, 'index']);
+Router::get('/api/produit', [ProductController::class, 'find']);
+Router::post('/api/produit', [ProductController::class, 'create']);
+Router::post('/api/produit/update', [ProductController::class, 'update']);
+Router::post('/api/produit/delete', [ProductController::class, 'delete']);
 
-Router::get("/api/product-batches", [ProductBatchController::class, 'index']);
-Router::post("/api/product-batches", [ProductBatchController::class, 'create']);
-Router::post("/api/product-batches/update", [ProductBatchController::class, 'update']);
-Router::post("/api/product-batches/delete", [ProductBatchController::class, 'delete']);
-Router::get("/api/product-batches/alerts", [ProductBatchController::class, 'alerts']);
+Router::get('/api/product-batches', [ProductBatchController::class, 'index']);
+Router::post('/api/product-batches', [ProductBatchController::class, 'create']);
+Router::post('/api/product-batches/update', [ProductBatchController::class, 'update']);
+Router::post('/api/product-batches/delete', [ProductBatchController::class, 'delete']);
+Router::get('/api/product-batches/alerts', [ProductBatchController::class, 'alerts']);
 
 Router::get('/api/categories', [CategoryController::class, 'index']);
 Router::post('/api/categories', [CategoryController::class, 'create']);
@@ -96,135 +96,135 @@ Router::post('/api/categories/update', [CategoryController::class, 'update']);
 Router::get('/api/users', [UserController::class, 'all']);
 Router::post('/api/create/user', [UserController::class, 'create']);
 Router::post('/api/update/user', [UserController::class, 'update']);
-Router::post("/api/delete/user", [UserController::class, 'delete']);
+Router::post('/api/delete/user', [UserController::class, 'delete']);
 
 // Suppression d'une catégorie
-Router::post("/api/delete/category", [CategoryController::class, 'delete']);
+Router::post('/api/delete/category', [CategoryController::class, 'delete']);
 
 // Suppression d'une vente
-Router::post("/api/delete/vente", [SaleController::class, 'delete']);
-Router::post("/api/vente", [SaleController::class, 'create']);
-Router::get("/api/vente/[i:id]/details", [SaleController::class, 'details']);
-Router::get("/api/vente/next-invoice", [SaleController::class, 'nextInvoice']);
-Router::get("/api/ventes/archives", [SaleController::class, 'archives']);
-Router::get("/api/cloture", [SaleController::class, 'cloture']);
-Router::get("/api/export/ventes", [SaleController::class, 'exportCsv']);
+Router::post('/api/delete/vente', [SaleController::class, 'delete']);
+Router::post('/api/vente', [SaleController::class, 'create']);
+Router::get('/api/vente/[i:id]/details', [SaleController::class, 'details']);
+Router::get('/api/vente/next-invoice', [SaleController::class, 'nextInvoice']);
+Router::get('/api/ventes/archives', [SaleController::class, 'archives']);
+Router::get('/api/cloture', [SaleController::class, 'cloture']);
+Router::get('/api/export/ventes', [SaleController::class, 'exportCsv']);
 
 // ── Payroll (employés / vendeurs) ───────────────────────────
-Router::get("/api/payroll/employees", [PayrollEmployeeController::class, 'index']);
-Router::get("/api/payroll/employees/vendors", [PayrollEmployeeController::class, 'vendors']);
-Router::get("/api/payroll/employees/[i:id]", [PayrollEmployeeController::class, 'show']);
-Router::post("/api/payroll/employees", [PayrollEmployeeController::class, 'create']);
-Router::post("/api/payroll/employees/update/[i:id]", [PayrollEmployeeController::class, 'update']);
-Router::post("/api/payroll/employees/delete/[i:id]", [PayrollEmployeeController::class, 'delete']);
+Router::get('/api/payroll/employees', [PayrollEmployeeController::class, 'index']);
+Router::get('/api/payroll/employees/vendors', [PayrollEmployeeController::class, 'vendors']);
+Router::get('/api/payroll/employees/[i:id]', [PayrollEmployeeController::class, 'show']);
+Router::post('/api/payroll/employees', [PayrollEmployeeController::class, 'create']);
+Router::post('/api/payroll/employees/update/[i:id]', [PayrollEmployeeController::class, 'update']);
+Router::post('/api/payroll/employees/delete/[i:id]', [PayrollEmployeeController::class, 'delete']);
 
 // ── Payroll périodes & paramètres ───────────────────────────
-Router::get("/api/payroll/periods", [PayrollController::class, 'periods']);
-Router::post("/api/payroll/periods", [PayrollController::class, 'createPeriod']);
-Router::post("/api/payroll/periods/update/[i:id]", [PayrollController::class, 'updatePeriod']);
-Router::post("/api/payroll/periods/delete/[i:id]", [PayrollController::class, 'deletePeriod']);
-Router::post("/api/payroll/periods/calculate/[i:id]", [PayrollController::class, 'calculate']);
-Router::post("/api/payroll/periods/validate/[i:id]", [PayrollController::class, 'validatePeriod']);
-Router::post("/api/payroll/periods/close/[i:id]", [PayrollController::class, 'closePeriod']);
-Router::get("/api/payroll/parameters", [PayrollController::class, 'parameters']);
-Router::get("/api/payroll/payment-methods", [PayrollController::class, 'paymentMethods']);
-Router::post("/api/payroll/payment-methods", [PayrollController::class, 'createPaymentMethod']);
-Router::post("/api/payroll/payment-methods/update/[i:id]", [PayrollController::class, 'updatePaymentMethod']);
-Router::post("/api/payroll/payment-methods/delete/[i:id]", [PayrollController::class, 'deletePaymentMethod']);
+Router::get('/api/payroll/periods', [PayrollController::class, 'periods']);
+Router::post('/api/payroll/periods', [PayrollController::class, 'createPeriod']);
+Router::post('/api/payroll/periods/update/[i:id]', [PayrollController::class, 'updatePeriod']);
+Router::post('/api/payroll/periods/delete/[i:id]', [PayrollController::class, 'deletePeriod']);
+Router::post('/api/payroll/periods/calculate/[i:id]', [PayrollController::class, 'calculate']);
+Router::post('/api/payroll/periods/validate/[i:id]', [PayrollController::class, 'validatePeriod']);
+Router::post('/api/payroll/periods/close/[i:id]', [PayrollController::class, 'closePeriod']);
+Router::get('/api/payroll/parameters', [PayrollController::class, 'parameters']);
+Router::get('/api/payroll/payment-methods', [PayrollController::class, 'paymentMethods']);
+Router::post('/api/payroll/payment-methods', [PayrollController::class, 'createPaymentMethod']);
+Router::post('/api/payroll/payment-methods/update/[i:id]', [PayrollController::class, 'updatePaymentMethod']);
+Router::post('/api/payroll/payment-methods/delete/[i:id]', [PayrollController::class, 'deletePaymentMethod']);
 
 // ── Payroll paramètres (avantages, retenues, cotisations, barème)
-Router::get("/api/payroll/allowances", [PayrollController::class, 'allowances']);
-Router::post("/api/payroll/allowances", [PayrollController::class, 'createAllowance']);
-Router::post("/api/payroll/allowances/update/[i:id]", [PayrollController::class, 'updateAllowance']);
-Router::post("/api/payroll/allowances/delete/[i:id]", [PayrollController::class, 'deleteAllowance']);
+Router::get('/api/payroll/allowances', [PayrollController::class, 'allowances']);
+Router::post('/api/payroll/allowances', [PayrollController::class, 'createAllowance']);
+Router::post('/api/payroll/allowances/update/[i:id]', [PayrollController::class, 'updateAllowance']);
+Router::post('/api/payroll/allowances/delete/[i:id]', [PayrollController::class, 'deleteAllowance']);
 
-Router::get("/api/payroll/deductions", [PayrollController::class, 'deductions']);
-Router::post("/api/payroll/deductions", [PayrollController::class, 'createDeduction']);
-Router::post("/api/payroll/deductions/update/[i:id]", [PayrollController::class, 'updateDeduction']);
-Router::post("/api/payroll/deductions/delete/[i:id]", [PayrollController::class, 'deleteDeduction']);
+Router::get('/api/payroll/deductions', [PayrollController::class, 'deductions']);
+Router::post('/api/payroll/deductions', [PayrollController::class, 'createDeduction']);
+Router::post('/api/payroll/deductions/update/[i:id]', [PayrollController::class, 'updateDeduction']);
+Router::post('/api/payroll/deductions/delete/[i:id]', [PayrollController::class, 'deleteDeduction']);
 
-Router::get("/api/payroll/contributions", [PayrollController::class, 'contributions']);
-Router::post("/api/payroll/contributions", [PayrollController::class, 'createContribution']);
-Router::post("/api/payroll/contributions/update/[i:id]", [PayrollController::class, 'updateContribution']);
-Router::post("/api/payroll/contributions/delete/[i:id]", [PayrollController::class, 'deleteContribution']);
+Router::get('/api/payroll/contributions', [PayrollController::class, 'contributions']);
+Router::post('/api/payroll/contributions', [PayrollController::class, 'createContribution']);
+Router::post('/api/payroll/contributions/update/[i:id]', [PayrollController::class, 'updateContribution']);
+Router::post('/api/payroll/contributions/delete/[i:id]', [PayrollController::class, 'deleteContribution']);
 
-Router::get("/api/payroll/seniority", [PayrollController::class, 'seniority']);
-Router::post("/api/payroll/seniority", [PayrollController::class, 'createSeniority']);
-Router::post("/api/payroll/seniority/update/[i:id]", [PayrollController::class, 'updateSeniority']);
-Router::post("/api/payroll/seniority/delete/[i:id]", [PayrollController::class, 'deleteSeniority']);
+Router::get('/api/payroll/seniority', [PayrollController::class, 'seniority']);
+Router::post('/api/payroll/seniority', [PayrollController::class, 'createSeniority']);
+Router::post('/api/payroll/seniority/update/[i:id]', [PayrollController::class, 'updateSeniority']);
+Router::post('/api/payroll/seniority/delete/[i:id]', [PayrollController::class, 'deleteSeniority']);
 
 // ── Payroll présences / absences / heures supp ─────────────
-Router::get("/api/payroll/attendance/period/[i:id]", [PayrollAttendanceController::class, 'forPeriod']);
-Router::post("/api/payroll/attendance", [PayrollAttendanceController::class, 'save']);
-Router::post("/api/payroll/attendance/bulk", [PayrollAttendanceController::class, 'bulkSave']);
-Router::post("/api/payroll/absence", [PayrollAttendanceController::class, 'saveAbsence']);
-Router::post("/api/payroll/absence/update/[i:id]", [PayrollAttendanceController::class, 'updateAbsence']);
-Router::post("/api/payroll/absence/delete/[i:id]", [PayrollAttendanceController::class, 'deleteAbsence']);
-Router::post("/api/payroll/overtime", [PayrollAttendanceController::class, 'saveOvertime']);
-Router::post("/api/payroll/overtime/update/[i:id]", [PayrollAttendanceController::class, 'updateOvertime']);
-Router::post("/api/payroll/overtime/delete/[i:id]", [PayrollAttendanceController::class, 'deleteOvertime']);
+Router::get('/api/payroll/attendance/period/[i:id]', [PayrollAttendanceController::class, 'forPeriod']);
+Router::post('/api/payroll/attendance', [PayrollAttendanceController::class, 'save']);
+Router::post('/api/payroll/attendance/bulk', [PayrollAttendanceController::class, 'bulkSave']);
+Router::post('/api/payroll/absence', [PayrollAttendanceController::class, 'saveAbsence']);
+Router::post('/api/payroll/absence/update/[i:id]', [PayrollAttendanceController::class, 'updateAbsence']);
+Router::post('/api/payroll/absence/delete/[i:id]', [PayrollAttendanceController::class, 'deleteAbsence']);
+Router::post('/api/payroll/overtime', [PayrollAttendanceController::class, 'saveOvertime']);
+Router::post('/api/payroll/overtime/update/[i:id]', [PayrollAttendanceController::class, 'updateOvertime']);
+Router::post('/api/payroll/overtime/delete/[i:id]', [PayrollAttendanceController::class, 'deleteOvertime']);
 
 // ── Payroll bulletins ───────────────────────────────────────
-Router::get("/api/payroll/payslips/period/[i:id]", [PayrollPayslipController::class, 'forPeriod']);
-Router::get("/api/payroll/payslips/my", [PayrollPayslipController::class, 'myPayslips']);
-Router::get("/api/payroll/payslips/[i:id]", [PayrollPayslipController::class, 'show']);
-Router::post("/api/payroll/payslips/calculate", [PayrollPayslipController::class, 'calculateOne']);
-Router::post("/api/payroll/payslips/period/calculate/[i:id]", [PayrollPayslipController::class, 'calculatePeriod']);
-Router::post("/api/payroll/payslips/validate/[i:id]", [PayrollPayslipController::class, 'validate']);
-Router::get("/api/payroll/payslips/pdf/[i:id]", [PayrollPayslipController::class, 'streamPdf']);
-Router::post("/api/payroll/payslips/pdf/[i:id]", [PayrollPayslipController::class, 'generatePdf']);
+Router::get('/api/payroll/payslips/period/[i:id]', [PayrollPayslipController::class, 'forPeriod']);
+Router::get('/api/payroll/payslips/my', [PayrollPayslipController::class, 'myPayslips']);
+Router::get('/api/payroll/payslips/[i:id]', [PayrollPayslipController::class, 'show']);
+Router::post('/api/payroll/payslips/calculate', [PayrollPayslipController::class, 'calculateOne']);
+Router::post('/api/payroll/payslips/period/calculate/[i:id]', [PayrollPayslipController::class, 'calculatePeriod']);
+Router::post('/api/payroll/payslips/validate/[i:id]', [PayrollPayslipController::class, 'validate']);
+Router::get('/api/payroll/payslips/pdf/[i:id]', [PayrollPayslipController::class, 'streamPdf']);
+Router::post('/api/payroll/payslips/pdf/[i:id]', [PayrollPayslipController::class, 'generatePdf']);
 
 // ── Payroll paiements ───────────────────────────────────────
-Router::get("/api/payroll/payments/payslip/[i:id]", [PayrollPaymentController::class, 'forPayslip']);
-Router::post("/api/payroll/payments", [PayrollPaymentController::class, 'create']);
-Router::post("/api/payroll/payments/update/[i:id]", [PayrollPaymentController::class, 'update']);
-Router::post("/api/payroll/payments/delete/[i:id]", [PayrollPaymentController::class, 'delete']);
+Router::get('/api/payroll/payments/payslip/[i:id]', [PayrollPaymentController::class, 'forPayslip']);
+Router::post('/api/payroll/payments', [PayrollPaymentController::class, 'create']);
+Router::post('/api/payroll/payments/update/[i:id]', [PayrollPaymentController::class, 'update']);
+Router::post('/api/payroll/payments/delete/[i:id]', [PayrollPaymentController::class, 'delete']);
 
 // ── Payroll pointage / import ───────────────────────────────
-Router::get("/api/payroll/timeclock/period/[i:id]", [PayrollTimeClockController::class, 'forPeriod']);
-Router::post("/api/payroll/timeclock", [PayrollTimeClockController::class, 'create']);
-Router::post("/api/payroll/timeclock/update/[i:id]", [PayrollTimeClockController::class, 'update']);
-Router::post("/api/payroll/timeclock/delete/[i:id]", [PayrollTimeClockController::class, 'delete']);
-Router::post("/api/payroll/timeclock/import", [PayrollTimeClockController::class, 'import']);
+Router::get('/api/payroll/timeclock/period/[i:id]', [PayrollTimeClockController::class, 'forPeriod']);
+Router::post('/api/payroll/timeclock', [PayrollTimeClockController::class, 'create']);
+Router::post('/api/payroll/timeclock/update/[i:id]', [PayrollTimeClockController::class, 'update']);
+Router::post('/api/payroll/timeclock/delete/[i:id]', [PayrollTimeClockController::class, 'delete']);
+Router::post('/api/payroll/timeclock/import', [PayrollTimeClockController::class, 'import']);
 
 // ── Payroll rapports ────────────────────────────────────────
-Router::get("/api/payroll/reports/period/[i:id]", [PayrollReportController::class, 'periodSummary']);
-Router::get("/api/payroll/reports/csv/[i:id]", [PayrollReportController::class, 'periodCsv']);
-Router::get("/api/payroll/reports/payments/[i:id]", [PayrollReportController::class, 'payments']);
-Router::get("/api/payroll/reports/contributions/[i:id]", [PayrollReportController::class, 'contributions']);
-Router::get("/api/payroll/reports/headcount", [PayrollReportController::class, 'headcount']);
+Router::get('/api/payroll/reports/period/[i:id]', [PayrollReportController::class, 'periodSummary']);
+Router::get('/api/payroll/reports/csv/[i:id]', [PayrollReportController::class, 'periodCsv']);
+Router::get('/api/payroll/reports/payments/[i:id]', [PayrollReportController::class, 'payments']);
+Router::get('/api/payroll/reports/contributions/[i:id]', [PayrollReportController::class, 'contributions']);
+Router::get('/api/payroll/reports/headcount', [PayrollReportController::class, 'headcount']);
 
 // Paramètres du système
 // Routes pour les clients
-Router::get("/api/clients", [ClientController::class, 'index']);
-Router::get("/api/client/lookup", [ClientController::class, 'lookup']);
-Router::get("/api/client/search", [ClientController::class, 'searchByNumero']);
-Router::post("/api/client", [ClientController::class, 'create']);
-Router::put("/api/client/[i:id]", [ClientController::class, 'update']);
-Router::post("/api/client/update/[i:id]", [ClientController::class, 'update']);
+Router::get('/api/clients', [ClientController::class, 'index']);
+Router::get('/api/client/lookup', [ClientController::class, 'lookup']);
+Router::get('/api/client/search', [ClientController::class, 'searchByNumero']);
+Router::post('/api/client', [ClientController::class, 'create']);
+Router::put('/api/client/[i:id]', [ClientController::class, 'update']);
+Router::post('/api/client/update/[i:id]', [ClientController::class, 'update']);
 
-Router::get("/api/settings", [SettingsController::class, 'index']);
-Router::post("/api/settings", [SettingsController::class, 'update']);
-Router::post("/api/settings/store", [SettingsController::class, 'updateStore']);
-Router::post("/api/settings/tax", [SettingsController::class, 'updateTax']);
-Router::post("/api/settings/theme", [SettingsController::class, 'saveTheme']);
-Router::get("/api/settings/theme", [SettingsController::class, 'getTheme']);
+Router::get('/api/settings', [SettingsController::class, 'index']);
+Router::post('/api/settings', [SettingsController::class, 'update']);
+Router::post('/api/settings/store', [SettingsController::class, 'updateStore']);
+Router::post('/api/settings/tax', [SettingsController::class, 'updateTax']);
+Router::post('/api/settings/theme', [SettingsController::class, 'saveTheme']);
+Router::get('/api/settings/theme', [SettingsController::class, 'getTheme']);
 // Format d'impression (papier)
-Router::post("/api/settings/paper-type", [SettingsController::class, 'updatePaperType']);
-Router::get("/api/settings/paper-type", [SettingsController::class, 'getPaperType']);
+Router::post('/api/settings/paper-type', [SettingsController::class, 'updatePaperType']);
+Router::get('/api/settings/paper-type', [SettingsController::class, 'getPaperType']);
 // Padding d'affichage des articles sur le ticket (57mm / 80mm)
-Router::post("/api/settings/receipt-padding", [SettingsController::class, 'updateReceiptPadding']);
-Router::get("/api/settings/receipt-padding", [SettingsController::class, 'getReceiptPadding']);
+Router::post('/api/settings/receipt-padding', [SettingsController::class, 'updateReceiptPadding']);
+Router::get('/api/settings/receipt-padding', [SettingsController::class, 'getReceiptPadding']);
 
 // Routes pour la gestion des taxes
-Router::get("/api/taxes", [TaxController::class, 'index']);
-Router::post("/api/taxes", [TaxController::class, 'create']);
-Router::post("/api/taxes/update", [TaxController::class, 'update']);
-Router::post("/api/taxes/delete", [TaxController::class, 'delete']);
+Router::get('/api/taxes', [TaxController::class, 'index']);
+Router::post('/api/taxes', [TaxController::class, 'create']);
+Router::post('/api/taxes/update', [TaxController::class, 'update']);
+Router::post('/api/taxes/delete', [TaxController::class, 'delete']);
 
 // Proxy Bill Payment API (OSAT-Energie pour éviter CORS)
 // POST vers https://osat-energie.com/snel_regideso/
-Router::post("/api/bill-payment", function () {
+Router::post('/api/bill-payment', function () {
     header('Access-Control-Allow-Origin: *');
     header('Access-Control-Allow-Methods: POST, OPTIONS');
     header('Access-Control-Allow-Headers: Content-Type');
@@ -235,7 +235,9 @@ Router::post("/api/bill-payment", function () {
         exit;
     }
 
-    if (!requireAuthenticatedSession()) return;
+    if (!requireAuthenticatedSession()) {
+        return;
+    }
 
     $input = json_decode(file_get_contents('php://input'), true);
 
@@ -254,7 +256,7 @@ Router::post("/api/bill-payment", function () {
 
         $postData = json_encode([
             'compteur' => $compteur,
-            'service' => $service
+            'service' => $service,
         ]);
 
         $ch = curl_init($osatUrl);
@@ -262,7 +264,7 @@ Router::post("/api/bill-payment", function () {
         curl_setopt($ch, CURLOPT_POSTFIELDS, $postData);
         curl_setopt($ch, CURLOPT_HTTPHEADER, [
             'Content-Type: application/json',
-            'Accept: application/json'
+            'Accept: application/json',
         ]);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_TIMEOUT, 30);
@@ -301,11 +303,13 @@ Router::post("/api/bill-payment", function () {
 });
 
 // Proxy DGI API - GET
-Router::get("/api/dgi", function () {
+Router::get('/api/dgi', function () {
     header('Access-Control-Allow-Origin: *');
     header('Content-Type: application/json');
 
-    if (!requireAuthenticatedSession()) return;
+    if (!requireAuthenticatedSession()) {
+        return;
+    }
 
     $dgiUrl = 'https://osat-energie.com/dgi/';
     $response = @file_get_contents($dgiUrl);
@@ -313,7 +317,7 @@ Router::get("/api/dgi", function () {
     if ($response === false) {
         echo json_encode([
             'success' => false,
-            'message' => 'Erreur de connexion DGI'
+            'message' => 'Erreur de connexion DGI',
         ]);
         return;
     }
@@ -322,7 +326,7 @@ Router::get("/api/dgi", function () {
 });
 
 // Proxy DGI API - POST uniquement (forward au serveur DGI)
-Router::post("/api/dgi", function () {
+Router::post('/api/dgi', function () {
     header('Access-Control-Allow-Origin: *');
     header('Access-Control-Allow-Methods: POST, OPTIONS');
     header('Access-Control-Allow-Headers: Content-Type');
@@ -333,7 +337,9 @@ Router::post("/api/dgi", function () {
         exit;
     }
 
-    if (!requireAuthenticatedSession()) return;
+    if (!requireAuthenticatedSession()) {
+        return;
+    }
 
     $input = json_decode(file_get_contents('php://input'), true);
 
@@ -355,6 +361,12 @@ Router::post("/api/dgi", function () {
 
     $input['token'] = $token;
 
+    // Statut d'homologation DGI (RCCM/licence) du magasin : calculé côté
+    // serveur à partir de la base de données pour ne pas pouvoir être
+    // falsifié par le client, puis injecté/écrasé dans la requête envoyée
+    // à la DGI.
+    $input['store_homologation'] = (bool)($shop['homologation'] ?? false);
+
     // Forward vers le serveur DGI
     $dgiUrl = 'https://osat-energie.com/dgi/';
     $postData = json_encode($input);
@@ -364,7 +376,7 @@ Router::post("/api/dgi", function () {
     curl_setopt($ch, CURLOPT_POSTFIELDS, $postData);
     curl_setopt($ch, CURLOPT_HTTPHEADER, [
         'Content-Type: application/json',
-        'Content-Length: ' . strlen($postData)
+        'Content-Length: ' . strlen($postData),
     ]);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_TIMEOUT, 30);
@@ -380,7 +392,7 @@ Router::post("/api/dgi", function () {
         http_response_code(503);
         echo json_encode([
             'success' => false,
-            'message' => 'DGI inaccessible'
+            'message' => 'DGI inaccessible',
         ]);
         return;
     }
@@ -401,7 +413,9 @@ $smsHandler = function () {
         exit;
     }
 
-    if (!requireAuthenticatedSession()) return;
+    if (!requireAuthenticatedSession()) {
+        return;
+    }
 
     try {
         $numeroTelephone = $_GET['numero_telephone'] ?? '';
@@ -471,8 +485,8 @@ $smsHandler = function () {
         echo json_encode(['success' => false, 'message' => 'Erreur interne proxy SMS: ' . $e->getMessage()]);
     }
 };
-Router::get("/api/dgi/sms", $smsHandler);
-Router::post("/api/dgi/sms", $smsHandler);
+Router::get('/api/dgi/sms', $smsHandler);
+Router::post('/api/dgi/sms', $smsHandler);
 
 // Proxy DGI Facture (enregistrée) - GET/POST (pour éviter CORS)
 // URL distante: https://osat-energie.com/dgi/facture/?store_isf=...&invoice_number=...
@@ -487,7 +501,9 @@ $serviceBillHandler = function () {
         exit;
     }
 
-    if (!requireAuthenticatedSession()) return;
+    if (!requireAuthenticatedSession()) {
+        return;
+    }
 
     $method = $_SERVER['REQUEST_METHOD'];
 
@@ -528,6 +544,10 @@ $serviceBillHandler = function () {
     $shopModel = new Shop();
     $shop = $shopId ? $shopModel->findById($shopId) : null;
     $companyInfo = (new CompanyInfo())->get();
+
+    // Statut d'homologation DGI (RCCM/licence) de la boutique émettrice de
+    // la facture, calculé côté serveur pour ne pas être falsifiable.
+    $homologation = (bool)($shop['homologation'] ?? false);
 
     // L'ISF de recherche est celui figé sur la vente à sa création : c'est le
     // seul fiable, l'ISF de l'utilisateur qui consulte pouvant être différent
@@ -579,7 +599,7 @@ $serviceBillHandler = function () {
     $ch = curl_init($osatUrl);
     curl_setopt($ch, CURLOPT_HTTPGET, true);
     curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        'Accept: application/json'
+        'Accept: application/json',
     ]);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_TIMEOUT, 30);
@@ -602,28 +622,40 @@ $serviceBillHandler = function () {
         // La réponse est déjà au format { success, data: {...} } — on la renvoie telle quelle
         // mais on s'assure que success est vrai si la donnée existe
         if (isset($data['success']) && $data['success'] === true) {
+            if (isset($data['data']) && is_array($data['data'])) {
+                $data['data']['homologation'] = $homologation;
+            }
             echo json_encode($data);
         } elseif (isset($data['success']) && $data['success'] === false) {
             // Echec explicite de la DGI : on le propage tel quel
             echo json_encode($data);
         } elseif (isset($data['data'])) {
-            echo json_encode(['success' => true, 'data' => $data['data']]);
+            $facture = $data['data'];
+            if (is_array($facture)) {
+                $facture['homologation'] = $homologation;
+            }
+            echo json_encode(['success' => true, 'data' => $facture]);
         } else {
+            if (is_array($data)) {
+                $data['homologation'] = $homologation;
+            }
             echo json_encode(['success' => true, 'data' => $data]);
         }
     } else {
         echo json_encode(['success' => true, 'data' => $response]);
     }
 };
-Router::get("/api/service-bill", $serviceBillHandler);
-Router::post("/api/service-bill", $serviceBillHandler);
+Router::get('/api/service-bill', $serviceBillHandler);
+Router::post('/api/service-bill', $serviceBillHandler);
 
 // Proxy Currency API - GET (taux de change)
-Router::get("/api/currency", function () {
+Router::get('/api/currency', function () {
     header('Access-Control-Allow-Origin: *');
     header('Content-Type: application/json');
 
-    if (!requireAuthenticatedSession()) return;
+    if (!requireAuthenticatedSession()) {
+        return;
+    }
 
     $currencyUrl = 'https://osat-energie.com/dgi/currency/index.php';
     $response = @file_get_contents($currencyUrl);
@@ -631,7 +663,7 @@ Router::get("/api/currency", function () {
     if ($response === false) {
         echo json_encode([
             'success' => false,
-            'message' => 'Erreur de connexion Currency API'
+            'message' => 'Erreur de connexion Currency API',
         ]);
         return;
     }

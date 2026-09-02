@@ -12,7 +12,13 @@ class App
     {
         if (self::$router == null) {
             self::$router = new AltoRouter();
-            // Pas de base path - routes sont relatives à la racine du domaine
+
+            $scriptName = $_SERVER['SCRIPT_NAME'] ?? '/index.php';
+            $basePath = rtrim(str_replace('\\', '/', dirname($scriptName)), '/');
+
+            if ($basePath !== '') {
+                self::$router->setBasePath($basePath);
+            }
         }
         return self::$router;
     }

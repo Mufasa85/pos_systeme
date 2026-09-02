@@ -5,6 +5,7 @@ namespace App\Controllers;
 use App\Models\Product;
 use App\Models\ProductBatch;
 use App\controllers\Controller;
+use App\Services\ImageProcessor;
 
 class ProductController extends Controller
 {
@@ -34,7 +35,9 @@ class ProductController extends Controller
 
     public function create()
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
 
         $data = [
             'code_barres' => $this->sanitaze($_POST['code_barres']),
@@ -50,7 +53,7 @@ class ProductController extends Controller
             'remise_value' => (float)$this->sanitaze($_POST['remise_value']) ?: 0,
             'taxe_specifique_type' => in_array($this->sanitaze($_POST['taxe_specifique_type'] ?? '%'), ['%', 'CDF']) ? $this->sanitaze($_POST['taxe_specifique_type'] ?? '%') : '%',
             'taxe_specifique_value' => (float)$this->sanitaze($_POST['taxe_specifique_value'] ?? 0) ?: 0,
-            'date_expiration' => !empty($_POST['date_expiration']) ? $this->sanitaze($_POST['date_expiration']) : null
+            'date_expiration' => !empty($_POST['date_expiration']) ? $this->sanitaze($_POST['date_expiration']) : null,
         ];
 
         // Vérifier si le code-barres existe déjà
@@ -62,40 +65,9 @@ class ProductController extends Controller
         }
 
         // Image upload
-        if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
-            $uploadDir = dirname(__DIR__, 2) . '/public/assets/img/products/';
-            if (!is_dir($uploadDir)) {
-                mkdir($uploadDir, 0755, true);
-            }
-
-            // Obtenir l'extension du fichier
-            $extension = strtolower(pathinfo($_FILES['image']['name'], PATHINFO_EXTENSION));
-            $allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
-
-            if (!in_array($extension, $allowedExtensions)) {
-                $extension = 'jpg'; // Extension par défaut
-            }
-
-            // Sanitiser le nom du produit pour le nom du fichier
-            $productName = preg_replace('/[^a-zA-Z0-9_-]/', '_', strtolower($data['nom']));
-            $productName = preg_replace('/_+/', '_', $productName); // Éliminer les underscores multiples
-            $productName = trim($productName, '_');
-
-            // Générer un nom de fichier unique basé sur le nom du produit
-            $fileName = $productName . '_' . time() . '.' . $extension;
-            $filePath = $uploadDir . $fileName;
-
-            // Vérifier si le fichier existe déjà et ajouter un suffixe si nécessaire
-            $counter = 1;
-            while (file_exists($filePath)) {
-                $fileName = $productName . '_' . time() . '_' . $counter . '.' . $extension;
-                $filePath = $uploadDir . $fileName;
-                $counter++;
-            }
-
-            if (move_uploaded_file($_FILES['image']['tmp_name'], $filePath)) {
-                $data['image'] = 'assets/img/products/' . $fileName;
-            }
+        $processedImage = $this->processProductImage($data['nom']);
+        if ($processedImage) {
+            $data['image'] = $processedImage;
         }
 
         $data['shop_id'] = $this->getShopId();
@@ -111,7 +83,7 @@ class ProductController extends Controller
                 'batch_number' => null,
                 'stock' => (float)$data['stock'],
                 'date_expiration' => $data['date_expiration'] ?? null,
-                'date_reception' => date('Y-m-d')
+                'date_reception' => date('Y-m-d'),
             ]);
         }
 
@@ -121,7 +93,9 @@ class ProductController extends Controller
 
     public function update()
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
 
         $id = $this->sanitaze($_POST['id'] ?? null);
         if (!$id) {
@@ -157,43 +131,19 @@ class ProductController extends Controller
             'taxe_specifique_type' => in_array($this->sanitaze($_POST['taxe_specifique_type'] ?? '%'), ['%', 'CDF']) ? $this->sanitaze($_POST['taxe_specifique_type'] ?? '%') : '%',
             'taxe_specifique_value' => (float)$this->sanitaze($_POST['taxe_specifique_value'] ?? 0) ?: 0,
             'image' => $oldImage,
-            'date_expiration' => !empty($_POST['date_expiration']) ? $this->sanitaze($_POST['date_expiration']) : null
+            'date_expiration' => !empty($_POST['date_expiration']) ? $this->sanitaze($_POST['date_expiration']) : null,
         ];
 
         // Image upload - seulement si une nouvelle image est uploadée
-        if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
-            $uploadDir = dirname(__DIR__, 2) . '/public/assets/img/products/';
-            if (!is_dir($uploadDir)) {
-                mkdir($uploadDir, 0755, true);
-            }
-
-            // Obtenir l'extension du fichier
-            $extension = strtolower(pathinfo($_FILES['image']['name'], PATHINFO_EXTENSION));
-            $allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
-
-            if (!in_array($extension, $allowedExtensions)) {
-                $extension = 'jpg';
-            }
-
-            // Sanitiser le nom du produit pour le nom du fichier
-            $productName = preg_replace('/[^a-zA-Z0-9_-]/', '_', strtolower($data['nom']));
-            $productName = preg_replace('/_+/', '_', $productName);
-            $productName = trim($productName, '_');
-
-            // Générer un nom de fichier unique basé sur le nom du produit
-            $fileName = $productName . '_' . time() . '.' . $extension;
-            $filePath = $uploadDir . $fileName;
-
-            // Vérifier si le fichier existe déjà
-            $counter = 1;
-            while (file_exists($filePath)) {
-                $fileName = $productName . '_' . time() . '_' . $counter . '.' . $extension;
-                $filePath = $uploadDir . $fileName;
-                $counter++;
-            }
-
-            if (move_uploaded_file($_FILES['image']['tmp_name'], $filePath)) {
-                $data['image'] = 'assets/img/products/' . $fileName;
+        $processedImage = $this->processProductImage($data['nom']);
+        if ($processedImage) {
+            $data['image'] = $processedImage;
+            // Supprimer l'ancienne image (nouveau format uniquement, hors public/)
+            if ($oldImage && strpos($oldImage, 'media/product/') === 0) {
+                $oldPath = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'products' . DIRECTORY_SEPARATOR . basename($oldImage);
+                if (is_file($oldPath)) {
+                    @unlink($oldPath);
+                }
             }
         }
 
@@ -217,7 +167,9 @@ class ProductController extends Controller
 
     public function delete()
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
 
         $id = $this->sanitaze((int)$_POST['id']);
 
@@ -228,5 +180,42 @@ class ProductController extends Controller
         } else {
             $this->status(400)->json(['error' => 'ID manquant ' . $id]);
         }
+    }
+
+    /**
+     * Valide, redimensionne/compresse et stocke l'image produit hors de public/.
+     * Retourne la référence relative à stocker en base ('media/product/xxx.jpg') ou null.
+     */
+    private function processProductImage(string $productName): ?string
+    {
+        if (!isset($_FILES['image']) || $_FILES['image']['error'] !== UPLOAD_ERR_OK) {
+            return null;
+        }
+
+        $file = $_FILES['image'];
+        $maxSize = 5 * 1024 * 1024; // 5MB avant compression
+        if ($file['size'] > $maxSize) {
+            return null;
+        }
+
+        if (!ImageProcessor::validate($file['tmp_name'])) {
+            return null;
+        }
+
+        $uploadDir = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'products';
+        if (!is_dir($uploadDir)) {
+            mkdir($uploadDir, 0755, true);
+        }
+
+        $slug = preg_replace('/[^a-z0-9_-]/', '_', strtolower($productName));
+        $slug = trim(preg_replace('/_+/', '_', $slug), '_') ?: 'produit';
+        $fileName = $slug . '_' . uniqid() . '.jpg';
+        $filePath = $uploadDir . DIRECTORY_SEPARATOR . $fileName;
+
+        if (!ImageProcessor::resizeAndSave($file['tmp_name'], $filePath, 1000, 82)) {
+            return null;
+        }
+
+        return 'media/product/' . $fileName;
     }
 }

@@ -3,7 +3,6 @@
 namespace App\Controllers;
 
 use App\Models\Settings;
-use App\controllers\Controller;
 
 class SettingsController extends Controller
 {
@@ -17,7 +16,9 @@ class SettingsController extends Controller
     // GET /api/settings - Récupérer tous les paramètres
     public function index()
     {
-        if (!$this->requireAuth()) return;
+        if (!$this->requireAuth()) {
+            return;
+        }
 
         $shopId = $this->getShopId();
 
@@ -37,6 +38,7 @@ class SettingsController extends Controller
                 'store_ice'     => $shop['ice'] ?? '',
                 'store_rccm'    => $shop['rccm'] ?? '',
                 'store_isf'     => $shop['isf'] ?? '',
+                'store_homologation' => !empty($shop['homologation']),
 
                 // Informations POS
                 'shop_id'      => $shop['id'] ?? null,
@@ -44,7 +46,7 @@ class SettingsController extends Controller
                 'nid'          => $shop['nid'] ?? '',
                 'token'        => $shop['token'] ?? '',
                 'port'         => $shop['port'] ?? '',
-                'service_type' => $shop['service_type_id'] ?? 'Caisse'
+                'service_type' => $shop['service_type_id'] ?? 'Caisse',
             ]);
         }
 
@@ -75,7 +77,9 @@ class SettingsController extends Controller
     // POST /api/settings - Mettre à jour les paramètres
     public function update()
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
 
         // Gestion des données POST ou JSON
         $raw = file_get_contents('php://input');
@@ -101,7 +105,7 @@ class SettingsController extends Controller
             'pdv'           => 'pdv',
             'nid'           => 'nid',
             'token'         => 'token',
-            'port'          => 'port'
+            'port'          => 'port',
         ];
 
         $shopData = [];
@@ -150,7 +154,9 @@ class SettingsController extends Controller
     // POST /api/settings/store - Mettre à jour les infos du magasin
     public function updateStore()
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
 
         $data = [
             'store_name'    => $_POST['store_name'] ?? '',
@@ -158,7 +164,7 @@ class SettingsController extends Controller
             'store_phone'   => $_POST['store_phone'] ?? '',
             'store_ice'     => $_POST['store_ice'] ?? '',
             'store_rccm'    => $_POST['store_rccm'] ?? '',
-            'store_isf'     => $_POST['store_isf'] ?? ''
+            'store_isf'     => $_POST['store_isf'] ?? '',
         ];
 
         $shopId = $this->getShopId();
@@ -176,7 +182,9 @@ class SettingsController extends Controller
     // POST /api/settings/tax - Mettre à jour les paramètres TVA
     public function updateTax()
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
 
         $taxRate = $_POST['tax_rate'] ?? null;
 
@@ -197,7 +205,9 @@ class SettingsController extends Controller
     // POST /api/settings/theme - Sauvegarder le thème (Admin/Super_admin)
     public function saveTheme()
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
 
         $theme = $_POST['theme'] ?? null;
 
@@ -228,7 +238,9 @@ class SettingsController extends Controller
     // Formats acceptés : 80mm, 57mm, A4, A5, Letter, Legal
     public function updatePaperType()
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
 
         $allowed = ['80mm', '57mm', 'A4', 'A5', 'Letter', 'Legal'];
 
@@ -247,7 +259,7 @@ class SettingsController extends Controller
 
         if (!in_array($paperType, $allowed, true)) {
             $this->status(400)->json([
-                'error' => 'Format de papier invalide. Formats acceptés : ' . implode(', ', $allowed)
+                'error' => 'Format de papier invalide. Formats acceptés : ' . implode(', ', $allowed),
             ]);
             return;
         }
@@ -273,7 +285,9 @@ class SettingsController extends Controller
     // Payload attendu : { paper_type: '57mm'|'80mm', padding_h: number, padding_v: number } (en mm)
     public function updateReceiptPadding()
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
 
         $allowedFormats = ['57mm', '80mm'];
 
@@ -287,7 +301,7 @@ class SettingsController extends Controller
 
         if (!in_array($paperType, $allowedFormats, true)) {
             $this->status(400)->json([
-                'error' => 'Format de papier invalide. Formats acceptés : ' . implode(', ', $allowedFormats)
+                'error' => 'Format de papier invalide. Formats acceptés : ' . implode(', ', $allowedFormats),
             ]);
             return;
         }
@@ -309,7 +323,7 @@ class SettingsController extends Controller
                 'message' => 'Padding du ticket mis à jour',
                 'paper_type' => $paperType,
                 'padding_h' => $paddingH,
-                'padding_v' => $paddingV
+                'padding_v' => $paddingV,
             ]);
         } catch (\Exception $e) {
             $this->status(500)->json(['error' => 'Erreur: ' . $e->getMessage()]);
@@ -323,7 +337,7 @@ class SettingsController extends Controller
 
         $defaults = [
             '57mm' => ['h' => 0, 'v' => 1],
-            '80mm' => ['h' => 0, 'v' => 1]
+            '80mm' => ['h' => 0, 'v' => 1],
         ];
 
         $result = [];

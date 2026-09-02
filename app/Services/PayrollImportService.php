@@ -23,7 +23,9 @@ class PayrollImportService
         }
 
         $handle = fopen($filePath, 'r');
-        if (!$handle) throw new \Exception('Impossible d\'ouvrir le fichier');
+        if (!$handle) {
+            throw new \Exception('Impossible d\'ouvrir le fichier');
+        }
 
         $batch = [
             'shop_id'      => $shopId,
@@ -36,10 +38,10 @@ class PayrollImportService
         ];
 
         $db = \App\Core\Database::getInstance();
-        $db->query("INSERT INTO payroll_time_clock_imports
+        $db->query('INSERT INTO payroll_time_clock_imports
                     (shop_id, filename, imported_by, rows_total, rows_ok, rows_skipped, rows_error)
                     VALUES
-                    (:shop_id, :filename, :imported_by, 0, 0, 0, 0)", [
+                    (:shop_id, :filename, :imported_by, 0, 0, 0, 0)', [
             ':shop_id'     => $shopId,
             ':filename'    => $batch['filename'],
             ':imported_by' => $importedBy,
@@ -69,7 +71,7 @@ class PayrollImportService
             }
 
             $emp = $db->fetch(
-                "SELECT id FROM payroll_employees WHERE device_user_id = ? AND shop_id = ? LIMIT 1",
+                'SELECT id FROM payroll_employees WHERE device_user_id = ? AND shop_id = ? LIMIT 1',
                 [$deviceUserId, $shopId]
             );
             if (!$emp) {
@@ -78,8 +80,8 @@ class PayrollImportService
             }
 
             $existing = $db->fetch(
-                "SELECT id FROM payroll_time_clock_events
-                 WHERE employee_id = ? AND event_at = ? AND event_type = ?",
+                'SELECT id FROM payroll_time_clock_events
+                 WHERE employee_id = ? AND event_at = ? AND event_type = ?',
                 [$emp['id'], $eventAt, $eventType]
             );
             if ($existing) {
@@ -100,9 +102,9 @@ class PayrollImportService
         fclose($handle);
 
         $db->execute(
-            "UPDATE payroll_time_clock_imports
+            'UPDATE payroll_time_clock_imports
              SET rows_total = ?, rows_ok = ?, rows_skipped = ?, rows_error = ?
-             WHERE id = ?",
+             WHERE id = ?',
             [$total, $ok, $skipped, $error, $batchId]
         );
 

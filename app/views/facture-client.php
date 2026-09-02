@@ -46,11 +46,11 @@
             <!-- Info Section (Vendeur, Client) -->
             <?php
             $vendeur = $saleData['nom_vendeur'] ?? 'N/A';
-            $clientNom = $saleData['client_nom'] ?? $saleData['nom_client'] ?? '';
-            $clientNumero = $saleData['client_numero'] ?? '';
-            $clientType = $saleData['client_type_code'] ?? $saleData['client_type'] ?? '';
-            $clientNif = $saleData['client_nif'] ?? '';
-            ?>
+    $clientNom = $saleData['client_nom'] ?? $saleData['nom_client'] ?? '';
+    $clientNumero = $saleData['client_numero'] ?? '';
+    $clientType = $saleData['client_type_code'] ?? $saleData['client_type'] ?? '';
+    $clientNif = $saleData['client_nif'] ?? '';
+    ?>
             <div style="border-top: 1px dashed #ccc; margin-top: 6px; padding-top: 6px; text-align: left; font-size: 15px; line-height: 1.5;">
                 <div style="display: flex; justify-content: space-between; gap: 10px;">
                     <span><strong>Vendeur:</strong></span>
@@ -103,7 +103,7 @@
                 $itemTax = $itemHT * ($taxRate / 100);
                 $itemTTC = $itemHT + $itemTax;
                 $taxLabel = !empty($item['tax_etiquette']) ? htmlspecialchars($item['tax_etiquette']) : ($taxRate > 0 ? 'TVA ' . $taxRate . '%' : 'Exonere');
-            ?>
+                ?>
                 <div class="receipt-item">
                     <span class="item-name">
                         <?= htmlspecialchars($item['produit_nom'] ?? 'Produit') ?>

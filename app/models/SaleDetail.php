@@ -15,8 +15,8 @@ class SaleDetail
 
     public function create($data)
     {
-        $sql = "INSERT INTO details_vente (vente_id, produit_id, quantite, prix, remise_type, remise_value, taxe_specifique_type, taxe_specifique_value) 
-                VALUES (:vente_id, :produit_id, :quantite, :prix, :remise_type, :remise_value, :taxe_specifique_type, :taxe_specifique_value)";
+        $sql = 'INSERT INTO details_vente (vente_id, produit_id, quantite, prix, remise_type, remise_value, taxe_specifique_type, taxe_specifique_value) 
+                VALUES (:vente_id, :produit_id, :quantite, :prix, :remise_type, :remise_value, :taxe_specifique_type, :taxe_specifique_value)';
         return $this->db->query($sql, [
             ':vente_id'   => $data['vente_id'],
             ':produit_id' => $data['produit_id'],
@@ -25,22 +25,22 @@ class SaleDetail
             ':remise_type' => $data['remise_type'] ?? '%',
             ':remise_value' => $data['remise_value'] ?? 0,
             ':taxe_specifique_type' => $data['taxe_specifique_type'] ?? '%',
-            ':taxe_specifique_value' => $data['taxe_specifique_value'] ?? 0
+            ':taxe_specifique_value' => $data['taxe_specifique_value'] ?? 0,
         ]);
     }
     public function exist($id)
     {
-        return $this->db->fetch("SELECT * FROM details_vente WHERE id = ?", [$id]);
+        return $this->db->fetch('SELECT * FROM details_vente WHERE id = ?', [$id]);
     }
 
     public function getBySaleId($saleId)
     {
-        $sql = "SELECT dv.*, p.nom as produit_nom, p.code_barres,
+        $sql = 'SELECT dv.*, p.nom as produit_nom, p.code_barres,
                        t.taux as tax_rate, t.etiquette as tax_etiquette
                 FROM details_vente dv 
                 LEFT JOIN produits p ON dv.produit_id = p.id 
                 LEFT JOIN taxes t ON p.taxe_id = t.id
-                WHERE dv.vente_id = ?";
+                WHERE dv.vente_id = ?';
         return $this->db->fetchAll($sql, [$saleId]);
     }
 }

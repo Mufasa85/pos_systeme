@@ -56,11 +56,11 @@ $localQrData  = $sale['qrCode'] ?? '';
             <!-- Info Section (Vendeur, Client) -->
             <?php
             $vendeur = $sale['nom_vendeur'] ?? 'N/A';
-            $clientNom = $sale['client_nom'] ?? $sale['nom_client'] ?? '';
-            $clientNumero = $sale['client_numero'] ?? '';
-            $clientType = $sale['client_type_code'] ?? $sale['client_type'] ?? '';
-            $clientNif = $sale['client_nif'] ?? '';
-            ?>
+$clientNom = $sale['client_nom'] ?? $sale['nom_client'] ?? '';
+$clientNumero = $sale['client_numero'] ?? '';
+$clientType = $sale['client_type_code'] ?? $sale['client_type'] ?? '';
+$clientNif = $sale['client_nif'] ?? '';
+?>
             <div style="border-top: 1px dashed #ccc; margin-top: 6px; padding-top: 6px; text-align: left; font-size: 15px; line-height: 1.5;">
                 <div style="display: flex; justify-content: space-between; gap: 10px;">
                     <span><strong>Vendeur:</strong></span>
@@ -123,7 +123,7 @@ $localQrData  = $sale['qrCode'] ?? '';
                         ? ' <span style="color:#b45309;font-weight:700;">[TS]</span> ' . number_format($specificTaxValue, 2, '.', ' ') . ' Fc taxe spécifique'
                         : ' <span style="color:#b45309;font-weight:700;">[TS]</span> ' . htmlspecialchars($specificTaxValue) . '% taxe spécifique')
                     : '';
-            ?>
+                ?>
                 <div class="receipt-item">
                     <span class="item-name">
                         <?= htmlspecialchars($item['produit_nom'] ?? 'Produit') ?>

@@ -1,0 +1,20 @@
+{
+  "name": "pos_systeme",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Testing stack for POS Systeme",
+  "devDependencies": {
+    "@playwright/test": "^1.46.0",
+    "eslint": "^8.57.0",
+    "husky": "^9.1.0",
+    "playwright": "^1.46.0"
+  },
+  "scripts": {
+    "prepare": "husky",
+    "lint": "eslint front-end e2e",
+    "lint:fix": "eslint front-end e2e --fix",
+    "test:e2e": "playwright test",
+    "test:visual": "playwright test --project=visual",
+    "test:ui": "playwright test --ui"
+  }
+}

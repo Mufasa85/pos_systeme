@@ -6,6 +6,8 @@
  * Option A: Utilise table `ventes` modifiée
  */
 
+use App\Core\Database;
+
 require_once __DIR__ . '/../../core/Database.php';
 
 class BillPaymentController
@@ -38,8 +40,8 @@ class BillPaymentController
                 'http' => [
                     'method' => 'GET',
                     'timeout' => 30,
-                    'ignore_errors' => true
-                ]
+                    'ignore_errors' => true,
+                ],
             ]);
 
             $response = file_get_contents($url, false, $context);
@@ -56,12 +58,12 @@ class BillPaymentController
 
             return [
                 'success' => true,
-                'data' => $data
+                'data' => $data,
             ];
         } catch (Exception $e) {
             return [
                 'success' => false,
-                'message' => $e->getMessage()
+                'message' => $e->getMessage(),
             ];
         }
     }
@@ -120,22 +122,22 @@ class BillPaymentController
                 $methodePaiement,
                 $totalMontant,
                 $totalMontant,
-                $apiResponse
+                $apiResponse,
             ]);
             $venteId = $this->db->lastInsertId();
 
             // Insert details_vente pour chaque mois
-            $stmtDetail = $this->db->prepare("
+            $stmtDetail = $this->db->prepare('
                 INSERT INTO details_vente (vente_id, produit_id, quantite, prix, comment)
                 VALUES (?, NULL, 1, ?, ?)
-            ");
+            ');
 
             foreach ($months as $month) {
                 $moisAnnee = $this->formatMoisAnnee($month['annee'], $month['mois']);
                 $stmtDetail->execute([
                     $venteId,
                     floatval($month['montant']),
-                    $moisAnnee
+                    $moisAnnee,
                 ]);
             }
 
@@ -151,13 +153,13 @@ class BillPaymentController
                     'numero_compteur' => $numeroCompteur,
                     'total_montant' => $totalMontant,
                     'nombre_mois' => $nombreMois,
-                    'date' => date('Y-m-d H:i:s')
-                ]
+                    'date' => date('Y-m-d H:i:s'),
+                ],
             ];
         } catch (Exception $e) {
             return [
                 'success' => false,
-                'message' => $e->getMessage()
+                'message' => $e->getMessage(),
             ];
         }
     }
@@ -173,7 +175,7 @@ class BillPaymentController
             $where = "WHERE v.type_vente = 'bill_payment'";
             $params = [];
             if ($shopId && ($_SESSION['role'] ?? '') !== 'super_admin') {
-                $where .= " AND v.shop_id = ?";
+                $where .= ' AND v.shop_id = ?';
                 $params[] = $shopId;
             }
             $stmt = $this->db->prepare("
@@ -189,12 +191,12 @@ class BillPaymentController
 
             return [
                 'success' => true,
-                'data' => $payments
+                'data' => $payments,
             ];
         } catch (Exception $e) {
             return [
                 'success' => false,
-                'message' => $e->getMessage()
+                'message' => $e->getMessage(),
             ];
         }
     }
@@ -221,20 +223,20 @@ class BillPaymentController
             }
 
             // Récupérer les détails (mois)
-            $stmtDetails = $this->db->prepare("
+            $stmtDetails = $this->db->prepare('
                 SELECT * FROM details_vente WHERE vente_id = ?
-            ");
+            ');
             $stmtDetails->execute([$venteId]);
             $vente['items'] = $stmtDetails->fetchAll(PDO::FETCH_ASSOC);
 
             return [
                 'success' => true,
-                'data' => $vente
+                'data' => $vente,
             ];
         } catch (Exception $e) {
             return [
                 'success' => false,
-                'message' => $e->getMessage()
+                'message' => $e->getMessage(),
             ];
         }
     }
@@ -254,10 +256,10 @@ class BillPaymentController
     {
         $columns = [
             'type_vente' => "ADD COLUMN type_vente ENUM('product', 'bill_payment') DEFAULT 'product'",
-            'provider_id' => "ADD COLUMN provider_id INT NULL",
-            'numero_compteur' => "ADD COLUMN numero_compteur VARCHAR(50) NULL",
-            'client_reference' => "ADD COLUMN client_reference VARCHAR(100) NULL",
-            'api_response' => "ADD COLUMN api_response TEXT NULL"
+            'provider_id' => 'ADD COLUMN provider_id INT NULL',
+            'numero_compteur' => 'ADD COLUMN numero_compteur VARCHAR(50) NULL',
+            'client_reference' => 'ADD COLUMN client_reference VARCHAR(100) NULL',
+            'api_response' => 'ADD COLUMN api_response TEXT NULL',
         ];
 
         foreach ($columns as $col => $alter) {
@@ -269,7 +271,7 @@ class BillPaymentController
 
     private function generateNumeroFacture()
     {
-        $stmt = $this->db->query("SELECT MAX(CAST(SUBSTRING(numero_facture, 5) AS UNSIGNED)) as max_num FROM ventes");
+        $stmt = $this->db->query('SELECT MAX(CAST(SUBSTRING(numero_facture, 5) AS UNSIGNED)) as max_num FROM ventes');
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
         $next = intval($row['max_num'] ?? 0) + 1;
         return 'FAC-' . str_pad($next, 6, '0', STR_PAD_LEFT);
@@ -290,7 +292,7 @@ class BillPaymentController
             'Septembre',
             'Octobre',
             'Novembre',
-            'Décembre'
+            'Décembre',
         ];
         return $moisNoms[$mois] . ' ' . $annee;
     }
@@ -304,13 +306,13 @@ class BillPaymentController
         // $stmt = $this->db->prepare("SELECT * FROM service_providers WHERE id = ?");
         // $stmt->execute([$providerId]);
         // $provider = $stmt->fetch(PDO::FETCH_ASSOC);
-        // 
+        //
         // $payload = [
         //     'compteur' => $numeroCompteur,
         //     'reference_client' => $clientReference,
         //     'mois' => $months
         // ];
-        // 
+        //
         // $response = file_get_contents($provider['api_endpoint'], ...);
 
         return true;

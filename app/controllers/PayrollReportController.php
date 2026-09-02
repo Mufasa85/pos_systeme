@@ -2,20 +2,24 @@
 
 namespace App\Controllers;
 
-use App\controllers\Controller;
+use App\Models\PayrollEmployee;
+use App\Models\PayrollPayment;
 use App\Models\PayrollPayslip;
 use App\Models\PayrollPayslipLine;
-use App\Models\PayrollPayment;
-use App\Models\PayrollEmployee;
 use App\Models\PayrollPeriod;
 
 class PayrollReportController extends Controller
 {
     public function periodSummary($params)
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
         $periodId = $params['id'] ?? null;
-        if (!$periodId) { $this->status(400)->json(['error' => 'ID période manquant']); return; }
+        if (!$periodId) {
+            $this->status(400)->json(['error' => 'ID période manquant']);
+            return;
+        }
 
         $shopId = $this->getShopId();
         $payslips = (new PayrollPayslip())->findByPeriod($periodId, $shopId);
@@ -39,9 +43,14 @@ class PayrollReportController extends Controller
 
     public function periodCsv($params)
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
         $periodId = $params['id'] ?? null;
-        if (!$periodId) { $this->status(400)->json(['error' => 'ID période manquant']); return; }
+        if (!$periodId) {
+            $this->status(400)->json(['error' => 'ID période manquant']);
+            return;
+        }
 
         $shopId = $this->getShopId();
         $payslips = (new PayrollPayslip())->findByPeriod($periodId, $shopId);
@@ -69,7 +78,9 @@ class PayrollReportController extends Controller
 
     public function headcount($params)
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
         $shopId = $this->getShopId();
         $this->json([
             'active'  => count((new PayrollEmployee())->all($shopId, $this->isSuperAdmin())),
@@ -79,15 +90,22 @@ class PayrollReportController extends Controller
 
     public function payments($params)
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
         $periodId = $params['id'] ?? null;
-        if (!$periodId) { $this->status(400)->json(['error' => 'ID période manquant']); return; }
+        if (!$periodId) {
+            $this->status(400)->json(['error' => 'ID période manquant']);
+            return;
+        }
 
         $shopId = $this->getShopId();
         $payments = (new PayrollPayment())->findByPeriod($periodId, $shopId);
 
         $total = 0;
-        foreach ($payments as $p) { $total += (float)$p['amount']; }
+        foreach ($payments as $p) {
+            $total += (float)$p['amount'];
+        }
 
         $this->json([
             'payments'   => $payments,
@@ -97,15 +115,22 @@ class PayrollReportController extends Controller
 
     public function contributions($params)
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
         $periodId = $params['id'] ?? null;
-        if (!$periodId) { $this->status(400)->json(['error' => 'ID période manquant']); return; }
+        if (!$periodId) {
+            $this->status(400)->json(['error' => 'ID période manquant']);
+            return;
+        }
 
         $shopId = $this->getShopId();
         $rows = (new PayrollPayslipLine())->contributionsByPeriod($periodId, $shopId);
 
         $total = 0;
-        foreach ($rows as $r) { $total += (float)$r['total']; }
+        foreach ($rows as $r) {
+            $total += (float)$r['total'];
+        }
 
         $this->json([
             'contributions'   => $rows,
