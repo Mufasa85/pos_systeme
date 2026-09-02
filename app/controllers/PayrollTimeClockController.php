@@ -2,25 +2,30 @@
 
 namespace App\Controllers;
 
-use App\controllers\Controller;
 use App\Models\PayrollTimeClock;
-use App\Models\PayrollPeriod;
 use App\Services\PayrollImportService;
 
 class PayrollTimeClockController extends Controller
 {
     public function forPeriod($params)
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
         $periodId = $params['id'] ?? null;
-        if (!$periodId) { $this->status(400)->json(['error' => 'ID période manquant']); return; }
+        if (!$periodId) {
+            $this->status(400)->json(['error' => 'ID période manquant']);
+            return;
+        }
 
         $this->json((new PayrollTimeClock())->findByPeriod($periodId, $this->getShopId()));
     }
 
     public function create()
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
         $data = $this->getJsonOrPost();
         $data['shop_id'] = $this->getShopId();
 
@@ -30,9 +35,14 @@ class PayrollTimeClockController extends Controller
 
     public function update($params)
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
         $id = $params['id'] ?? null;
-        if (!$id) { $this->status(400)->json(['error' => 'ID manquant']); return; }
+        if (!$id) {
+            $this->status(400)->json(['error' => 'ID manquant']);
+            return;
+        }
 
         $ok = (new PayrollTimeClock())->update($id, $this->getJsonOrPost());
         $this->json(['success' => (bool)$ok]);
@@ -40,9 +50,14 @@ class PayrollTimeClockController extends Controller
 
     public function delete($params)
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
         $id = $params['id'] ?? null;
-        if (!$id) { $this->status(400)->json(['error' => 'ID manquant']); return; }
+        if (!$id) {
+            $this->status(400)->json(['error' => 'ID manquant']);
+            return;
+        }
 
         $ok = (new PayrollTimeClock())->delete($id);
         $this->json(['success' => (bool)$ok]);
@@ -50,7 +65,9 @@ class PayrollTimeClockController extends Controller
 
     public function import()
     {
-        if (!$this->requireAdmin()) return;
+        if (!$this->requireAdmin()) {
+            return;
+        }
         if (empty($_FILES['file']) || $_FILES['file']['error'] !== UPLOAD_ERR_OK) {
             $this->status(400)->json(['error' => 'Fichier requis']);
             return;

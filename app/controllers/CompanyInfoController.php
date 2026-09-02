@@ -3,13 +3,14 @@
 namespace App\Controllers;
 
 use App\Models\CompanyInfo;
-use App\controllers\Controller;
 
 class CompanyInfoController extends Controller
 {
     public function index()
     {
-        if (!$this->requireSuperAdmin()) return;
+        if (!$this->requireSuperAdmin()) {
+            return;
+        }
 
         $companyInfoModel = new CompanyInfo();
         $this->json($companyInfoModel->get());
@@ -17,10 +18,12 @@ class CompanyInfoController extends Controller
 
     public function update()
     {
-        if (!$this->requireSuperAdmin()) return;
+        if (!$this->requireSuperAdmin()) {
+            return;
+        }
 
         $input = json_decode(file_get_contents('php://input'), true);
-        
+
         $companyInfoModel = new CompanyInfo();
         $result = $companyInfoModel->update([
             'name' => $input['name'] ?? null,
@@ -33,7 +36,7 @@ class CompanyInfoController extends Controller
             'isf' => $input['isf'] ?? null,
             'nid' => $input['nid'] ?? null,
             'token' => $input['token'] ?? null,
-            'port' => $input['port'] ?? null
+            'port' => $input['port'] ?? null,
         ]);
 
         if ($result) {

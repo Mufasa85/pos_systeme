@@ -80,7 +80,7 @@ class Client
             $data['type_client_id'] ?? 1,
             $data['nif'] ?? '',
             $data['adresse'] ?? '',
-            $data['shop_id'] ?? null
+            $data['shop_id'] ?? null,
         ]);
 
         return $this->db->lastInsertId();
@@ -101,7 +101,7 @@ class Client
             $data['type_client_id'] ?? 1,
             $data['nif'] ?? '',
             $data['adresse'] ?? '',
-            $id
+            $id,
         ]);
     }
 
@@ -119,7 +119,7 @@ class Client
      */
     public function getTypes()
     {
-        $sql = "SELECT * FROM type_client ORDER BY code ASC";
+        $sql = 'SELECT * FROM type_client ORDER BY code ASC';
         return $this->db->query($sql);
     }
 }

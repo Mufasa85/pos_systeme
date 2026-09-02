@@ -13,14 +13,14 @@ class ProductBatch
 
     public function create($data)
     {
-        $sql = "INSERT INTO product_batches (product_id, batch_number, stock, date_expiration, date_reception)
-                VALUES (:product_id, :batch_number, :stock, :date_expiration, :date_reception)";
+        $sql = 'INSERT INTO product_batches (product_id, batch_number, stock, date_expiration, date_reception)
+                VALUES (:product_id, :batch_number, :stock, :date_expiration, :date_reception)';
         $this->db->query($sql, [
             ':product_id' => $data['product_id'],
             ':batch_number' => $data['batch_number'] ?? null,
             ':stock' => (float)$data['stock'],
             ':date_expiration' => !empty($data['date_expiration']) ? $data['date_expiration'] : null,
-            ':date_reception' => !empty($data['date_reception']) ? $data['date_reception'] : date('Y-m-d')
+            ':date_reception' => !empty($data['date_reception']) ? $data['date_reception'] : date('Y-m-d'),
         ]);
         $batchId = $this->db->getConnection()->lastInsertId();
         $this->recalculateProductStock($data['product_id']);
@@ -30,14 +30,14 @@ class ProductBatch
     public function findByProductId($productId)
     {
         return $this->db->fetchAll(
-            "SELECT * FROM product_batches WHERE product_id = ? ORDER BY date_expiration ASC, date_reception ASC, id ASC",
+            'SELECT * FROM product_batches WHERE product_id = ? ORDER BY date_expiration ASC, date_reception ASC, id ASC',
             [$productId]
         );
     }
 
     public function findById($id)
     {
-        return $this->db->fetch("SELECT * FROM product_batches WHERE id = ?", [$id]);
+        return $this->db->fetch('SELECT * FROM product_batches WHERE id = ?', [$id]);
     }
 
     public function update($id, $data)
@@ -47,18 +47,18 @@ class ProductBatch
             return false;
         }
 
-        $sql = "UPDATE product_batches SET
+        $sql = 'UPDATE product_batches SET
                     batch_number = :batch_number,
                     stock = :stock,
                     date_expiration = :date_expiration,
                     date_reception = :date_reception
-                WHERE id = :id";
+                WHERE id = :id';
         $this->db->query($sql, [
             ':id' => $id,
             ':batch_number' => $data['batch_number'] ?? $batch['batch_number'],
             ':stock' => isset($data['stock']) ? (float)$data['stock'] : $batch['stock'],
             ':date_expiration' => !empty($data['date_expiration']) ? $data['date_expiration'] : $batch['date_expiration'],
-            ':date_reception' => !empty($data['date_reception']) ? $data['date_reception'] : $batch['date_reception']
+            ':date_reception' => !empty($data['date_reception']) ? $data['date_reception'] : $batch['date_reception'],
         ]);
         $this->recalculateProductStock($batch['product_id']);
         return true;
@@ -70,7 +70,7 @@ class ProductBatch
         if (!$batch) {
             return false;
         }
-        $this->db->query("DELETE FROM product_batches WHERE id = ?", [$id]);
+        $this->db->query('DELETE FROM product_batches WHERE id = ?', [$id]);
         $this->recalculateProductStock($batch['product_id']);
         return true;
     }
@@ -78,7 +78,7 @@ class ProductBatch
     public function getTotalStock($productId)
     {
         $row = $this->db->fetch(
-            "SELECT COALESCE(SUM(stock), 0) as total FROM product_batches WHERE product_id = ?",
+            'SELECT COALESCE(SUM(stock), 0) as total FROM product_batches WHERE product_id = ?',
             [$productId]
         );
         return (float)($row['total'] ?? 0);
@@ -87,7 +87,7 @@ class ProductBatch
     public function getAvailableStock($productId)
     {
         $row = $this->db->fetch(
-            "SELECT COALESCE(SUM(stock), 0) as total FROM product_batches WHERE product_id = ? AND (date_expiration IS NULL OR date_expiration >= CURDATE())",
+            'SELECT COALESCE(SUM(stock), 0) as total FROM product_batches WHERE product_id = ? AND (date_expiration IS NULL OR date_expiration >= CURDATE())',
             [$productId]
         );
         return (float)($row['total'] ?? 0);
@@ -130,7 +130,7 @@ class ProductBatch
             $newStock = $batchStock - $deduct;
 
             $this->db->query(
-                "UPDATE product_batches SET stock = :stock WHERE id = :id",
+                'UPDATE product_batches SET stock = :stock WHERE id = :id',
                 [':stock' => $newStock, ':id' => $batch['id']]
             );
 
@@ -157,7 +157,7 @@ class ProductBatch
             $oldest = $batches[0];
             $newStock = (float)$oldest['stock'] + $quantity;
             $this->db->query(
-                "UPDATE product_batches SET stock = :stock WHERE id = :id",
+                'UPDATE product_batches SET stock = :stock WHERE id = :id',
                 [':stock' => $newStock, ':id' => $oldest['id']]
             );
         } else {
@@ -166,7 +166,7 @@ class ProductBatch
                 'batch_number' => 'RESTORE-' . date('YmdHis'),
                 'stock' => $quantity,
                 'date_expiration' => null,
-                'date_reception' => date('Y-m-d')
+                'date_reception' => date('Y-m-d'),
             ]);
             return true;
         }
@@ -178,20 +178,20 @@ class ProductBatch
     public function getAvailableBatches($productId)
     {
         return $this->db->fetchAll(
-            "SELECT * FROM product_batches
+            'SELECT * FROM product_batches
              WHERE product_id = ? AND stock > 0 AND (date_expiration IS NULL OR date_expiration >= CURDATE())
-             ORDER BY CASE WHEN date_expiration IS NULL THEN 1 ELSE 0 END ASC, date_expiration ASC, date_reception ASC, id ASC",
+             ORDER BY CASE WHEN date_expiration IS NULL THEN 1 ELSE 0 END ASC, date_expiration ASC, date_reception ASC, id ASC',
             [$productId]
         );
     }
 
     public function getExpiringSoon($days = 7, $shopId = null)
     {
-        $where = "WHERE b.date_expiration IS NOT NULL AND b.date_expiration >= CURDATE() AND b.date_expiration <= DATE_ADD(CURDATE(), INTERVAL :days DAY) AND b.stock > 0";
+        $where = 'WHERE b.date_expiration IS NOT NULL AND b.date_expiration >= CURDATE() AND b.date_expiration <= DATE_ADD(CURDATE(), INTERVAL :days DAY) AND b.stock > 0';
         $params = [':days' => (int)$days];
 
         if ($shopId) {
-            $where .= " AND p.shop_id = :shop_id";
+            $where .= ' AND p.shop_id = :shop_id';
             $params[':shop_id'] = $shopId;
         }
 
@@ -205,11 +205,11 @@ class ProductBatch
 
     public function getExpired($shopId = null)
     {
-        $where = "WHERE b.date_expiration IS NOT NULL AND b.date_expiration < CURDATE() AND b.stock > 0";
+        $where = 'WHERE b.date_expiration IS NOT NULL AND b.date_expiration < CURDATE() AND b.stock > 0';
         $params = [];
 
         if ($shopId) {
-            $where .= " AND p.shop_id = :shop_id";
+            $where .= ' AND p.shop_id = :shop_id';
             $params[':shop_id'] = $shopId;
         }
 
@@ -224,8 +224,8 @@ class ProductBatch
     public function getNearestExpirationDate($productId)
     {
         $row = $this->db->fetch(
-            "SELECT MIN(date_expiration) as nearest FROM product_batches
-             WHERE product_id = ? AND stock > 0 AND date_expiration >= CURDATE()",
+            'SELECT MIN(date_expiration) as nearest FROM product_batches
+             WHERE product_id = ? AND stock > 0 AND date_expiration >= CURDATE()',
             [$productId]
         );
         return $row['nearest'] ?? null;
@@ -235,7 +235,7 @@ class ProductBatch
     {
         $total = $this->getTotalStock($productId);
         $this->db->query(
-            "UPDATE produits SET stock = :stock WHERE id = :id",
+            'UPDATE produits SET stock = :stock WHERE id = :id',
             [':stock' => $total, ':id' => $productId]
         );
     }

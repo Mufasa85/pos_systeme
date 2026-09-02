@@ -2,9 +2,9 @@
 
 namespace App\Services;
 
+use App\Models\PayrollEmployee;
 use App\Models\PayrollPayslip;
 use App\Models\PayrollPayslipLine;
-use App\Models\PayrollEmployee;
 use App\Models\PayrollPeriod;
 
 class PayrollPdfService
@@ -29,7 +29,9 @@ class PayrollPdfService
         }
 
         $payslip = $this->payslip->findById($payslipId, $shopId);
-        if (!$payslip) throw new \Exception('Bulletin introuvable');
+        if (!$payslip) {
+            throw new \Exception('Bulletin introuvable');
+        }
 
         $lines = $this->payslipLine->forPayslip($payslipId);
         $employee = $this->employee->findById($payslip['employee_id']);
@@ -38,7 +40,9 @@ class PayrollPdfService
         $html = $this->renderHtml($payslip, $lines, $employee, $period);
 
         $dir = $this->pdfDirectory($payslip['shop_id'], $period['year'], $period['month']);
-        if (!is_dir($dir)) mkdir($dir, 0777, true);
+        if (!is_dir($dir)) {
+            mkdir($dir, 0777, true);
+        }
 
         $filename = 'bulletin_' . $payslipId . '_' . ($employee['matricule'] ?? $payslipId) . '.pdf';
         $path = $dir . '/' . $filename;
@@ -60,7 +64,9 @@ class PayrollPdfService
         }
 
         $payslip = $this->payslip->findById($payslipId, $shopId);
-        if (!$payslip) throw new \Exception('Bulletin introuvable');
+        if (!$payslip) {
+            throw new \Exception('Bulletin introuvable');
+        }
 
         $lines = $this->payslipLine->forPayslip($payslipId);
         $employee = $this->employee->findById($payslip['employee_id']);
@@ -86,9 +92,9 @@ class PayrollPdfService
 
     private function renderHtml($payslip, $lines, $employee, $period)
     {
-        $earnings = array_values(array_filter($lines, fn($l) => $l['type'] === 'earning'));
-        $deductions = array_values(array_filter($lines, fn($l) => $l['type'] === 'deduction'));
-        $employer = array_values(array_filter($lines, fn($l) => $l['type'] === 'employer'));
+        $earnings = array_values(array_filter($lines, fn ($l) => $l['type'] === 'earning'));
+        $deductions = array_values(array_filter($lines, fn ($l) => $l['type'] === 'deduction'));
+        $employer = array_values(array_filter($lines, fn ($l) => $l['type'] === 'employer'));
 
         ob_start();
         ?>

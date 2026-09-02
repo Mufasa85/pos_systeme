@@ -3,15 +3,14 @@
 namespace App\Controllers;
 
 //use App\Models\Category;
-use App\Models\User;
+use App\Models\Notification;
 use App\Models\Product;
 use App\Models\ProductBatch;
 use App\Models\Sale;
+use App\Models\ServiceType;
 use App\Models\Settings;
 use App\Models\Shop;
-use App\Models\ServiceType;
-use App\Models\Notification;
-use App\controllers\Controller;
+use App\Models\User;
 
 class PageController extends Controller
 {
@@ -26,7 +25,7 @@ class PageController extends Controller
         // Vérifier la session AVANT d'afficher la page
         if (!isset($_SESSION['user_id'])) {
             // Redirection vers login
-            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";
+            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
             $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
             header('Location: ' . $protocol . '://' . $host . '/');
             exit;
@@ -38,7 +37,7 @@ class PageController extends Controller
         $shopModel = new Shop();
         $serviceTypeModel = new ServiceType();
         $shopId = $this->getShopId();
-        
+
         // Get shop name from shops table instead of settings
         $storeName = 'Mon Magasin'; // default
         $serviceType = 'Caisse'; // default
@@ -89,7 +88,7 @@ class PageController extends Controller
         }
 
         // Notifications non lues
-        
+
         try {
             $notifModel = new Notification();
             $data['unreadNotifications'] = $notifModel->getUnreadCount($_SESSION['user_id']);
@@ -180,15 +179,15 @@ class PageController extends Controller
             foreach ($allShops as $shop) {
                 $sid = $shop['id'];
                 $row = $db->fetch(
-                    "SELECT COUNT(*) as nb, COALESCE(SUM(total),0) as total FROM ventes WHERE shop_id = ? AND DATE(date) = ?",
+                    'SELECT COUNT(*) as nb, COALESCE(SUM(total),0) as total FROM ventes WHERE shop_id = ? AND DATE(date) = ?',
                     [$sid, $today]
                 );
                 $rowMonth = $db->fetch(
-                    "SELECT COALESCE(SUM(total),0) as total FROM ventes WHERE shop_id = ? AND date BETWEEN ? AND ?",
+                    'SELECT COALESCE(SUM(total),0) as total FROM ventes WHERE shop_id = ? AND date BETWEEN ? AND ?',
                     [$sid, $mois_start, $mois_end]
                 );
                 $prodCount = $db->fetch(
-                    "SELECT COUNT(*) as c FROM produits WHERE shop_id = ?",
+                    'SELECT COUNT(*) as c FROM produits WHERE shop_id = ?',
                     [$sid]
                 );
                 $shopStats[] = [
@@ -225,7 +224,7 @@ class PageController extends Controller
             'expiration_alerts' => $expirationAlerts,
             'expired_alerts' => $expiredAlerts,
             'shopStats' => $shopStats,
-            'isSuperAdmin' => $this->isSuperAdmin()
+            'isSuperAdmin' => $this->isSuperAdmin(),
         ]);
     }
 
@@ -241,7 +240,7 @@ class PageController extends Controller
 
         $this->render('caisse', [
             'categories' => $categories,
-            'clientTypes' => $clientTypes
+            'clientTypes' => $clientTypes,
         ]);
     }
 
@@ -255,7 +254,7 @@ class PageController extends Controller
 
         $this->render('recharges', [
             'categories' => $categories,
-            'clientTypes' => $clientTypes
+            'clientTypes' => $clientTypes,
         ]);
     }
 
@@ -281,14 +280,14 @@ class PageController extends Controller
             'produits' => $produits,
             'categories' => $categories,
             'taxes' => $taxes,
-            'shops' => $shops
+            'shops' => $shops,
         ]);
     }
 
     public function utilisateurs()
     {
         if (!$this->isAdmin() && !$this->isSuperAdmin()) {
-            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";
+            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
             $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
             header('Location: ' . $protocol . '://' . $host . '/dashboard');
             exit;
@@ -311,7 +310,7 @@ class PageController extends Controller
     public function otpCodes()
     {
         if (!$this->isSuperAdmin()) {
-            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";
+            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
             $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
             header('Location: ' . $protocol . '://' . $host . '/dashboard');
             exit;
@@ -322,7 +321,7 @@ class PageController extends Controller
     public function monProfil()
     {
         if (!isset($_SESSION['user_id'])) {
-            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";
+            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
             $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
             header('Location: ' . $protocol . '://' . $host . '/');
             exit;
@@ -343,7 +342,7 @@ class PageController extends Controller
     public function analytics()
     {
         if (!$this->isAdmin() && !$this->isSuperAdmin()) {
-            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";
+            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
             $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
             header('Location: ' . $protocol . '://' . $host . '/dashboard');
             exit;
@@ -620,7 +619,7 @@ class PageController extends Controller
     public function parametres()
     {
         if (!$this->isAdmin() && !$this->isSuperAdmin()) {
-            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";
+            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
             $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
             header('Location: ' . $protocol . '://' . $host . '/dashboard');
             exit;
@@ -635,7 +634,7 @@ class PageController extends Controller
     public function taxes()
     {
         if (!$this->isAdmin() && !$this->isSuperAdmin()) {
-            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";
+            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
             $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
             header('Location: ' . $protocol . '://' . $host . '/dashboard');
             exit;
@@ -648,7 +647,7 @@ class PageController extends Controller
     public function categories()
     {
         if (!$this->isAdmin() && !$this->isSuperAdmin()) {
-            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";
+            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
             $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
             header('Location: ' . $protocol . '://' . $host . '/dashboard');
             exit;
@@ -683,7 +682,7 @@ class PageController extends Controller
                 'id' => $c['id'],
                 'nom' => $c['category'],
                 'couleur' => $c['couleur'] ?? $colors[$colorIndex % count($colors)],
-                'nombre_produits' => $categoryCounts[$c['category']] ?? 0
+                'nombre_produits' => $categoryCounts[$c['category']] ?? 0,
             ];
             $colorIndex++;
         }
@@ -694,7 +693,7 @@ class PageController extends Controller
     public function shops()
     {
         if (!$this->isSuperAdmin()) {
-            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";
+            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
             $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
             header('Location: ' . $protocol . '://' . $host . '/dashboard');
             exit;
@@ -708,7 +707,7 @@ class PageController extends Controller
     {
         // Vérifier la session
         if (!isset($_SESSION['user_id'])) {
-            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";
+            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
             $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
             header('Location: ' . $protocol . '://' . $host . '/');
             exit;
@@ -728,7 +727,7 @@ class PageController extends Controller
     {
         // Vérifier la session
         if (!isset($_SESSION['user_id'])) {
-            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";
+            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
             $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
             header('Location: ' . $protocol . '://' . $host . '/');
             exit;
@@ -741,7 +740,7 @@ class PageController extends Controller
     public function payroll($params)
     {
         if (!isset($_SESSION['user_id'])) {
-            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";
+            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
             $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
             header('Location: ' . $protocol . '://' . $host . '/');
             exit;
@@ -752,10 +751,14 @@ class PageController extends Controller
 
         if ($isAdmin) {
             $allowed = ['index','employees','employee_form','periods','attendance','payslips','payslip_detail','payslip_pdf','payments','timeclock','reports','settings'];
-            if (!in_array($view, $allowed)) $view = 'index';
+            if (!in_array($view, $allowed)) {
+                $view = 'index';
+            }
         } else {
             $allowed = ['mypayslips'];
-            if (!in_array($view, $allowed)) $view = 'mypayslips';
+            if (!in_array($view, $allowed)) {
+                $view = 'mypayslips';
+            }
         }
 
         $data = ['page' => 'payroll'];
@@ -764,7 +767,7 @@ class PageController extends Controller
 
     private function getBaseUrl()
     {
-        $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";
+        $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
         $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
         return $protocol . '://' . $host;
     }

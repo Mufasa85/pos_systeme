@@ -1,6 +1,6 @@
 <?php
 
-namespace App\controllers;
+namespace App\Controllers;
 
 class Controller
 {
@@ -27,7 +27,7 @@ class Controller
 
     public static function json($array)
     {
-        header("Content-Type:application/json");
+        header('Content-Type:application/json');
         echo json_encode($array, JSON_PRETTY_PRINT);
     }
 
@@ -77,7 +77,9 @@ class Controller
 
     protected function requireAdmin()
     {
-        if (!$this->requireAuth()) return false;
+        if (!$this->requireAuth()) {
+            return false;
+        }
         if (!$this->isAdmin()) {
             self::status(403)->json(['error' => 'Accès refusé']);
             return false;
@@ -87,7 +89,9 @@ class Controller
 
     protected function requireSuperAdmin()
     {
-        if (!$this->requireAuth()) return false;
+        if (!$this->requireAuth()) {
+            return false;
+        }
         if (!$this->isSuperAdmin()) {
             self::status(403)->json(['error' => 'Accès refusé — super_admin requis']);
             return false;
@@ -110,7 +114,7 @@ class Controller
                 $details
             );
         } catch (\Exception $e) {
-            error_log("Audit log error: " . $e->getMessage());
+            error_log('Audit log error: ' . $e->getMessage());
         }
     }
 
@@ -122,7 +126,7 @@ class Controller
             $notif = new \App\Models\Notification();
             $notif->create($userId, $shopId, $type, $title, $message, $link);
         } catch (\Exception $e) {
-            error_log("Notification error: " . $e->getMessage());
+            error_log('Notification error: ' . $e->getMessage());
         }
     }
 
@@ -132,7 +136,7 @@ class Controller
             $notif = new \App\Models\Notification();
             $notif->notifyShopAdmins($shopId, $type, $title, $message, $link);
         } catch (\Exception $e) {
-            error_log("Notification error: " . $e->getMessage());
+            error_log('Notification error: ' . $e->getMessage());
         }
     }
 
@@ -142,7 +146,7 @@ class Controller
             $notif = new \App\Models\Notification();
             $notif->notifySuperAdmins($type, $title, $message, $link);
         } catch (\Exception $e) {
-            error_log("Notification error: " . $e->getMessage());
+            error_log('Notification error: ' . $e->getMessage());
         }
     }
 

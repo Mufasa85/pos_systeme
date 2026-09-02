@@ -13,41 +13,41 @@ class PayrollOvertime
 
     public function findByPeriod($periodId, $shopId = null)
     {
-        $sql = "SELECT po.*, u.nom_complet
+        $sql = 'SELECT po.*, u.nom_complet
                 FROM payroll_overtimes po
                 JOIN payroll_employees pe ON po.employee_id = pe.id
                 JOIN utilisateurs u ON pe.user_id = u.id
-                WHERE po.payroll_period_id = ?";
+                WHERE po.payroll_period_id = ?';
         $params = [$periodId];
         if ($shopId) {
-            $sql .= " AND po.shop_id = ?";
+            $sql .= ' AND po.shop_id = ?';
             $params[] = $shopId;
         }
-        $sql .= " ORDER BY u.nom_complet ASC, po.work_date ASC";
+        $sql .= ' ORDER BY u.nom_complet ASC, po.work_date ASC';
         return $this->db->fetchAll($sql, $params);
     }
 
     public function findByEmployeeAndPeriod($employeeId, $periodId)
     {
         return $this->db->fetchAll(
-            "SELECT * FROM payroll_overtimes
+            'SELECT * FROM payroll_overtimes
              WHERE employee_id = ? AND payroll_period_id = ?
-             ORDER BY work_date ASC",
+             ORDER BY work_date ASC',
             [$employeeId, $periodId]
         );
     }
 
     public function findById($id)
     {
-        return $this->db->fetch("SELECT * FROM payroll_overtimes WHERE id = ?", [$id]);
+        return $this->db->fetch('SELECT * FROM payroll_overtimes WHERE id = ?', [$id]);
     }
 
     public function create($data)
     {
-        $sql = "INSERT INTO payroll_overtimes
+        $sql = 'INSERT INTO payroll_overtimes
                 (shop_id, employee_id, payroll_period_id, work_date, hours, rate_type, multiplier, amount)
                 VALUES
-                (:shop_id, :employee_id, :payroll_period_id, :work_date, :hours, :rate_type, :multiplier, :amount)";
+                (:shop_id, :employee_id, :payroll_period_id, :work_date, :hours, :rate_type, :multiplier, :amount)';
         $this->db->query($sql, [
             ':shop_id'           => $data['shop_id'] ?? null,
             ':employee_id'       => $data['employee_id'] ?? null,
@@ -72,21 +72,23 @@ class PayrollOvertime
                 $params[":$field"] = $data[$field];
             }
         }
-        if (empty($fields)) return false;
-        $sql = "UPDATE payroll_overtimes SET " . implode(", ", $fields) . " WHERE id = :id";
+        if (empty($fields)) {
+            return false;
+        }
+        $sql = 'UPDATE payroll_overtimes SET ' . implode(', ', $fields) . ' WHERE id = :id';
         return $this->db->execute($sql, $params);
     }
 
     public function delete($id)
     {
-        return $this->db->execute("DELETE FROM payroll_overtimes WHERE id = ?", [$id]);
+        return $this->db->execute('DELETE FROM payroll_overtimes WHERE id = ?', [$id]);
     }
 
     public function totalAmountByEmployeeAndPeriod($employeeId, $periodId)
     {
         $row = $this->db->fetch(
-            "SELECT COALESCE(SUM(amount), 0) AS total FROM payroll_overtimes
-             WHERE employee_id = ? AND payroll_period_id = ?",
+            'SELECT COALESCE(SUM(amount), 0) AS total FROM payroll_overtimes
+             WHERE employee_id = ? AND payroll_period_id = ?',
             [$employeeId, $periodId]
         );
         return $row['total'] ?? 0;

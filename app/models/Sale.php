@@ -15,8 +15,8 @@ class Sale
 
     public function create($data)
     {
-        $sql = "INSERT INTO ventes (numero_facture, client_id, sous_total_ht, tva, total, payments, vendeur_id, shop_id, store_isf, date, dateDGI, qrCode, codeDEFDGI, counters, nim, comment, service) 
-                VALUES (:numero_facture, :client_id, :sous_total_ht, :tva, :total, :payments, :vendeur_id, :shop_id, :store_isf, :date, :dateDGI, :qrCode, :codeDEFDGI, :counters, :nim, :comment, :service)";
+        $sql = 'INSERT INTO ventes (numero_facture, client_id, sous_total_ht, tva, total, payments, vendeur_id, shop_id, store_isf, date, dateDGI, qrCode, codeDEFDGI, counters, nim, comment, service) 
+                VALUES (:numero_facture, :client_id, :sous_total_ht, :tva, :total, :payments, :vendeur_id, :shop_id, :store_isf, :date, :dateDGI, :qrCode, :codeDEFDGI, :counters, :nim, :comment, :service)';
         $this->db->query($sql, [
             ':numero_facture' => $data['numero_facture'],
             ':client_id'      => $data['client_id'] ?? null,
@@ -34,7 +34,7 @@ class Sale
             ':counters'       => $data['counters'] ?? null,
             ':nim'            => $data['nim'] ?? null,
             ':comment'        => $data['comment'] ?? null,
-            ':service'        => $data['service'] ?? null
+            ':service'        => $data['service'] ?? null,
         ]);
         return $this->db->getConnection()->lastInsertId();
     }
@@ -65,9 +65,9 @@ class Sale
         $year = date('Y');
 
         // Récupérer le dernier numéro de l'année en cours
-        $sql = "SELECT numero_facture FROM ventes 
+        $sql = 'SELECT numero_facture FROM ventes 
                 WHERE YEAR(date) = YEAR(CURDATE())
-                ORDER BY id DESC LIMIT 1";
+                ORDER BY id DESC LIMIT 1';
         $last = $this->db->fetch($sql);
 
         if ($last && preg_match('/^(\d{4})\/(\d+)$/', $last['numero_facture'], $m)) {
@@ -81,14 +81,14 @@ class Sale
 
     public function exist($id)
     {
-        $sql = "SELECT v.*, u.nom_complet as nom_vendeur, 
+        $sql = 'SELECT v.*, u.nom_complet as nom_vendeur, 
                        c.nom_client, c.code_client, c.numero as client_numero, c.nif as client_nif, c.adresse as client_adresse,
                        tc.code as client_type_code
                 FROM ventes v 
                 LEFT JOIN utilisateurs u ON v.vendeur_id = u.id 
                 LEFT JOIN clients c ON v.client_id = c.id
                 LEFT JOIN type_client tc ON c.type_client_id = tc.id
-                WHERE v.id = ?";
+                WHERE v.id = ?';
         return $this->db->fetch($sql, [$id]);
     }
 
@@ -97,10 +97,10 @@ class Sale
      */
     public function findByInvoiceNumber($invoiceNumber)
     {
-        $sql = "SELECT v.*, u.nom_complet as nom_vendeur 
+        $sql = 'SELECT v.*, u.nom_complet as nom_vendeur 
                 FROM ventes v 
                 LEFT JOIN utilisateurs u ON v.vendeur_id = u.id 
-                WHERE v.numero_facture = ?";
+                WHERE v.numero_facture = ?';
         return $this->db->fetch($sql, [$invoiceNumber]);
     }
 
@@ -128,15 +128,15 @@ class Sale
 
     public function delete($id)
     {
-        return $this->db->execute("DELETE FROM ventes WHERE id = ?", [$id]);
+        return $this->db->execute('DELETE FROM ventes WHERE id = ?', [$id]);
     }
 
     public function getDetailsBySaleId($saleId)
     {
-        $sql = "SELECT dv.*, p.nom as produit_nom, p.code_barres, p.stock
+        $sql = 'SELECT dv.*, p.nom as produit_nom, p.code_barres, p.stock
                 FROM details_vente dv
                 LEFT JOIN produits p ON dv.produit_id = p.id
-                WHERE dv.vente_id = ?";
+                WHERE dv.vente_id = ?';
         return $this->db->fetchAll($sql, [$saleId]);
     }
 }

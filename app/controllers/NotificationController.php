@@ -3,13 +3,14 @@
 namespace App\Controllers;
 
 use App\Models\Notification;
-use App\controllers\Controller;
 
 class NotificationController extends Controller
 {
     public function index()
     {
-        if (!$this->requireAuth()) return;
+        if (!$this->requireAuth()) {
+            return;
+        }
 
         $notifModel = new Notification();
         $notifications = $notifModel->getForUser($_SESSION['user_id']);
@@ -18,7 +19,9 @@ class NotificationController extends Controller
 
     public function unreadCount()
     {
-        if (!$this->requireAuth()) return;
+        if (!$this->requireAuth()) {
+            return;
+        }
 
         $notifModel = new Notification();
         $count = $notifModel->getUnreadCount($_SESSION['user_id']);
@@ -27,9 +30,13 @@ class NotificationController extends Controller
 
     public function markRead($id)
     {
-        if (!$this->requireAuth()) return;
+        if (!$this->requireAuth()) {
+            return;
+        }
 
-        if (is_array($id)) $id = $id['id'] ?? null;
+        if (is_array($id)) {
+            $id = $id['id'] ?? null;
+        }
         $id = (int)$id;
 
         if (!$id) {
@@ -44,7 +51,9 @@ class NotificationController extends Controller
 
     public function markAllRead()
     {
-        if (!$this->requireAuth()) return;
+        if (!$this->requireAuth()) {
+            return;
+        }
 
         $notifModel = new Notification();
         $notifModel->markAllAsRead($_SESSION['user_id']);
@@ -53,9 +62,13 @@ class NotificationController extends Controller
 
     public function delete($id)
     {
-        if (!$this->requireAuth()) return;
+        if (!$this->requireAuth()) {
+            return;
+        }
 
-        if (is_array($id)) $id = $id['id'] ?? null;
+        if (is_array($id)) {
+            $id = $id['id'] ?? null;
+        }
         $id = (int)$id;
 
         if (!$id) {

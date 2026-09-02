@@ -65,7 +65,7 @@ $screenMaxWidth = ($paperType === 'A4' || $paperType === 'A5' || $paperType === 
                                     'id' => $_SESSION['user_id'] ?? null,
                                     'username' => $_SESSION['nom_utilisateur'] ?? '',
                                     'fullName' => $_SESSION['nom_complet'] ?? '',
-                                    'role' => $_SESSION['role'] ?? 'vendeur'
+                                    'role' => $_SESSION['role'] ?? 'vendeur',
                                 ]) ?>;
     </script>
     <style>

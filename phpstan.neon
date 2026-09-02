@@ -1,0 +1,10 @@
+parameters:
+    level: 0
+    paths:
+        - app
+        - public
+        - routes
+        - tests
+    bootstrapFiles:
+        - vendor/autoload.php
+        - app/core/Database.php

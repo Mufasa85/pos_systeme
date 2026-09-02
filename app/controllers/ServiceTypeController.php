@@ -3,13 +3,14 @@
 namespace App\Controllers;
 
 use App\Models\ServiceType;
-use App\controllers\Controller;
 
 class ServiceTypeController extends Controller
 {
     public function index()
     {
-        if (!$this->requireSuperAdmin() && !$this->requireAdmin()) return;
+        if (!$this->requireSuperAdmin() && !$this->requireAdmin()) {
+            return;
+        }
 
         $serviceTypeModel = new ServiceType();
         $this->json($serviceTypeModel->getAll());
@@ -17,7 +18,9 @@ class ServiceTypeController extends Controller
 
     public function create()
     {
-        if (!$this->requireSuperAdmin() && !$this->requireAdmin()) return;
+        if (!$this->requireSuperAdmin() && !$this->requireAdmin()) {
+            return;
+        }
 
         $input = json_decode(file_get_contents('php://input'), true);
         $name = $this->sanitaze($input['name'] ?? '');
@@ -42,9 +45,13 @@ class ServiceTypeController extends Controller
 
     public function update($id)
     {
-        if (!$this->requireSuperAdmin() && !$this->requireAdmin()) return;
+        if (!$this->requireSuperAdmin() && !$this->requireAdmin()) {
+            return;
+        }
 
-        if (is_array($id)) $id = $id['id'] ?? null;
+        if (is_array($id)) {
+            $id = $id['id'] ?? null;
+        }
         $id = (int)$id;
 
         if (!$id) {
@@ -81,9 +88,13 @@ class ServiceTypeController extends Controller
 
     public function delete($id)
     {
-        if (!$this->requireSuperAdmin()) return;
+        if (!$this->requireSuperAdmin()) {
+            return;
+        }
 
-        if (is_array($id)) $id = $id['id'] ?? null;
+        if (is_array($id)) {
+            $id = $id['id'] ?? null;
+        }
         $id = (int)$id;
 
         if (!$id) {

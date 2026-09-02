@@ -13,12 +13,12 @@ class CompanyInfo
 
     public function get()
     {
-        return $this->db->fetch("SELECT * FROM company_info WHERE id = 1");
+        return $this->db->fetch('SELECT * FROM company_info WHERE id = 1');
     }
 
     public function update($data)
     {
-        $sql = "UPDATE company_info SET 
+        $sql = 'UPDATE company_info SET 
                 name = :name,
                 address = :address,
                 email = :email,
@@ -30,8 +30,8 @@ class CompanyInfo
                 nid = :nid,
                 token = :token,
                 port = :port
-                WHERE id = 1";
-        
+                WHERE id = 1';
+
         return $this->db->execute($sql, [
             ':name' => $data['name'] ?? null,
             ':address' => $data['address'] ?? null,
@@ -43,7 +43,7 @@ class CompanyInfo
             ':isf' => $data['isf'] ?? null,
             ':nid' => $data['nid'] ?? null,
             ':token' => $data['token'] ?? null,
-            ':port' => $data['port'] ?? null
+            ':port' => $data['port'] ?? null,
         ]);
     }
 }

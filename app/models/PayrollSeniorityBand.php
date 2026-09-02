@@ -13,40 +13,40 @@ class PayrollSeniorityBand
 
     public function all($shopId = null)
     {
-        $sql = "SELECT * FROM payroll_seniority_bands";
+        $sql = 'SELECT * FROM payroll_seniority_bands';
         $params = [];
         if ($shopId) {
-            $sql .= " WHERE (shop_id = ? OR shop_id IS NULL)";
+            $sql .= ' WHERE (shop_id = ? OR shop_id IS NULL)';
             $params[] = $shopId;
         }
-        $sql .= " ORDER BY min_years ASC";
+        $sql .= ' ORDER BY min_years ASC';
         return $this->db->fetchAll($sql, $params);
     }
 
     public function findById($id)
     {
-        return $this->db->fetch("SELECT * FROM payroll_seniority_bands WHERE id = ?", [$id]);
+        return $this->db->fetch('SELECT * FROM payroll_seniority_bands WHERE id = ?', [$id]);
     }
 
     public function findBandForYears($years, $shopId = null)
     {
-        $sql = "SELECT * FROM payroll_seniority_bands
-                WHERE ? >= min_years AND (max_years IS NULL OR ? <= max_years)";
+        $sql = 'SELECT * FROM payroll_seniority_bands
+                WHERE ? >= min_years AND (max_years IS NULL OR ? <= max_years)';
         $params = [$years, $years];
         if ($shopId) {
-            $sql .= " AND (shop_id = ? OR shop_id IS NULL)";
+            $sql .= ' AND (shop_id = ? OR shop_id IS NULL)';
             $params[] = $shopId;
         }
-        $sql .= " ORDER BY shop_id IS NULL ASC, percent DESC LIMIT 1";
+        $sql .= ' ORDER BY shop_id IS NULL ASC, percent DESC LIMIT 1';
         return $this->db->fetch($sql, $params);
     }
 
     public function create($data)
     {
-        $sql = "INSERT INTO payroll_seniority_bands
+        $sql = 'INSERT INTO payroll_seniority_bands
                 (shop_id, min_years, max_years, percent, label)
                 VALUES
-                (:shop_id, :min_years, :max_years, :percent, :label)";
+                (:shop_id, :min_years, :max_years, :percent, :label)';
         $this->db->query($sql, [
             ':shop_id'   => $data['shop_id'] ?? null,
             ':min_years' => $data['min_years'] ?? 0,
@@ -68,13 +68,15 @@ class PayrollSeniorityBand
                 $params[":$field"] = $data[$field];
             }
         }
-        if (empty($fields)) return false;
-        $sql = "UPDATE payroll_seniority_bands SET " . implode(", ", $fields) . " WHERE id = :id";
+        if (empty($fields)) {
+            return false;
+        }
+        $sql = 'UPDATE payroll_seniority_bands SET ' . implode(', ', $fields) . ' WHERE id = :id';
         return $this->db->execute($sql, $params);
     }
 
     public function delete($id)
     {
-        return $this->db->execute("DELETE FROM payroll_seniority_bands WHERE id = ?", [$id]);
+        return $this->db->execute('DELETE FROM payroll_seniority_bands WHERE id = ?', [$id]);
     }
 }

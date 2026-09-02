@@ -139,7 +139,7 @@ $localQrData  = $sale['qrCode'] ?? '';
                             ? ' - ' . number_format(floatval($item['remise_value']), 2, '.', ' ') . ' remise'
                             : ' - ' . htmlspecialchars($item['remise_value']) . '% remise')
                         : '';
-                ?>
+                    ?>
                     <div class="receipt-item">
                         <span class="item-name">
                             <?= htmlspecialchars($item['produit_nom'] ?? 'Produit') ?>

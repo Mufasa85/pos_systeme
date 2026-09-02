@@ -13,28 +13,28 @@ class PayrollContract
 
     public function all($shopId = null, $superAdmin = false)
     {
-        $sql = "SELECT pc.*, pe.shop_id, u.nom_complet
+        $sql = 'SELECT pc.*, pe.shop_id, u.nom_complet
                 FROM payroll_contracts pc
                 JOIN payroll_employees pe ON pc.employee_id = pe.id
-                JOIN utilisateurs u ON pe.user_id = u.id";
+                JOIN utilisateurs u ON pe.user_id = u.id';
         $params = [];
         if (!$superAdmin && $shopId) {
-            $sql .= " WHERE pe.shop_id = ?";
+            $sql .= ' WHERE pe.shop_id = ?';
             $params[] = $shopId;
         }
-        $sql .= " ORDER BY u.nom_complet ASC, pc.start_date DESC";
+        $sql .= ' ORDER BY u.nom_complet ASC, pc.start_date DESC';
         return $this->db->fetchAll($sql, $params);
     }
 
     public function findById($id, $shopId = null, $superAdmin = false)
     {
-        $sql = "SELECT pc.*, pe.shop_id
+        $sql = 'SELECT pc.*, pe.shop_id
                 FROM payroll_contracts pc
                 JOIN payroll_employees pe ON pc.employee_id = pe.id
-                WHERE pc.id = ?";
+                WHERE pc.id = ?';
         $params = [$id];
         if (!$superAdmin && $shopId) {
-            $sql .= " AND pe.shop_id = ?";
+            $sql .= ' AND pe.shop_id = ?';
             $params[] = $shopId;
         }
         return $this->db->fetch($sql, $params);
@@ -43,7 +43,7 @@ class PayrollContract
     public function findByEmployee($employeeId)
     {
         return $this->db->fetchAll(
-            "SELECT * FROM payroll_contracts WHERE employee_id = ? ORDER BY start_date DESC",
+            'SELECT * FROM payroll_contracts WHERE employee_id = ? ORDER BY start_date DESC',
             [$employeeId]
         );
     }
@@ -51,19 +51,19 @@ class PayrollContract
     public function findActiveByEmployee($employeeId)
     {
         return $this->db->fetch(
-            "SELECT * FROM payroll_contracts
+            'SELECT * FROM payroll_contracts
              WHERE employee_id = ? AND is_active = 1
-             ORDER BY start_date DESC LIMIT 1",
+             ORDER BY start_date DESC LIMIT 1',
             [$employeeId]
         );
     }
 
     public function create($data)
     {
-        $sql = "INSERT INTO payroll_contracts
+        $sql = 'INSERT INTO payroll_contracts
                 (employee_id, type, start_date, end_date, base_salary, sursalary, pay_type, currency, is_active)
                 VALUES
-                (:employee_id, :type, :start_date, :end_date, :base_salary, :sursalary, :pay_type, :currency, :is_active)";
+                (:employee_id, :type, :start_date, :end_date, :base_salary, :sursalary, :pay_type, :currency, :is_active)';
         $this->db->query($sql, $this->params($data));
         return $this->db->lastInsertId();
     }
@@ -79,14 +79,16 @@ class PayrollContract
                 $params[":$field"] = $data[$field];
             }
         }
-        if (empty($fields)) return false;
-        $sql = "UPDATE payroll_contracts SET " . implode(", ", $fields) . " WHERE id = :id";
+        if (empty($fields)) {
+            return false;
+        }
+        $sql = 'UPDATE payroll_contracts SET ' . implode(', ', $fields) . ' WHERE id = :id';
         return $this->db->execute($sql, $params);
     }
 
     public function delete($id)
     {
-        return $this->db->execute("DELETE FROM payroll_contracts WHERE id = ?", [$id]);
+        return $this->db->execute('DELETE FROM payroll_contracts WHERE id = ?', [$id]);
     }
 
     private function params($data)

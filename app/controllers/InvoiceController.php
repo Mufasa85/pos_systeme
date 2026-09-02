@@ -12,7 +12,7 @@ class InvoiceController extends Controller
     {
         // Vérifier la session AVANT d'afficher la page
         if (!isset($_SESSION['user_id'])) {
-            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";
+            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
             $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
             header('Location: ' . $protocol . '://' . $host . '/');
             exit;
@@ -37,7 +37,7 @@ class InvoiceController extends Controller
         $saleId = $params['id'] ?? null;
 
         if (!$saleId) {
-            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";
+            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
             $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
             header('Location: ' . $protocol . '://' . $host . '/historique');
             exit;
@@ -50,7 +50,7 @@ class InvoiceController extends Controller
 
         $sale = $saleModel->exist($saleId);
         if (!$sale) {
-            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";
+            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
             $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
             header('Location: ' . $protocol . '://' . $host . '/historique');
             exit;
@@ -70,7 +70,7 @@ class InvoiceController extends Controller
             'ice' => $companyInfo['ice'] ?? '',
             'rccm' => $companyInfo['rccm'] ?? '',
             'isf' => $companyInfo['isf'] ?? '',
-            'nid' => $companyInfo['nid'] ?? ''
+            'nid' => $companyInfo['nid'] ?? '',
         ];
 
         $storeInfo = [
@@ -91,7 +91,7 @@ class InvoiceController extends Controller
             // Numero impot (ISF)
             'isf' => $settingsModel->get('store_isf', $shopId) ?? $company['isf'],
             // NID
-            'nid' => $company['nid']
+            'nid' => $company['nid'],
         ];
 
         // Pour le super admin, forcer l'affichage des informations company_info
@@ -100,7 +100,7 @@ class InvoiceController extends Controller
         }
 
         // URL de base pour les liens
-        $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";
+        $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
         $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
         $baseUrl = $protocol . '://' . $host;
 
@@ -108,7 +108,7 @@ class InvoiceController extends Controller
             'sale' => $sale,
             'details' => $details,
             'storeInfo' => $storeInfo,
-            'baseUrl' => $baseUrl
+            'baseUrl' => $baseUrl,
         ]);
     }
 
@@ -178,11 +178,11 @@ class InvoiceController extends Controller
             'rccm' => $shop['rccm'] ?? $companyInfo['rccm'] ?? '',
             // ISF figé sur la vente : clé de recherche DGI
             'isf' => ($sale['store_isf'] ?? '') ?: ($shop['isf'] ?? $companyInfo['isf'] ?? ''),
-            'nid' => $shop['nid'] ?? $companyInfo['nid'] ?? ''
+            'nid' => $shop['nid'] ?? $companyInfo['nid'] ?? '',
         ];
 
         // URL de base pour les liens
-        $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";
+        $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
         $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
         $baseUrl = $protocol . '://' . $host;
 
@@ -248,11 +248,11 @@ class InvoiceController extends Controller
             'ice' => $settingsModel->get('store_ice', $shopId) ?? $companyInfo['ice'] ?? '',
             'rccm' => $settingsModel->get('store_rccm', $shopId) ?? $companyInfo['rccm'] ?? '',
             'isf' => $settingsModel->get('store_isf', $shopId) ?? $companyInfo['isf'] ?? '',
-            'nid' => $companyInfo['nid'] ?? ''
+            'nid' => $companyInfo['nid'] ?? '',
         ];
 
         // Définir l'URL de la facture publique
-        $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";
+        $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
         $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
         $invoiceUrl = $protocol . '://' . $host . '/facture-client/' . $saleId;
 
@@ -297,7 +297,7 @@ class InvoiceController extends Controller
         }
 
         // Construire l'URL de la facture - utiliser /facture?ref= pour le lien public
-        $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";
+        $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
         $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
         $invoiceUrl = $protocol . '://' . $host . '/facture?ref=' . $sale['numero_facture'];
         $storeName = $settingsModel->get('store_name', $shopId) ?? 'Mon Magasin';
@@ -305,8 +305,8 @@ class InvoiceController extends Controller
         // Construire le message
         $message = "{$storeName}\n";
         $message .= "Facture: {$sale['numero_facture']}\n";
-        $message .= "Total: " . number_format($sale['total'], 2) . " Fc\n";
-        $message .= "Date: " . date('d/m/Y H:i', strtotime($sale['date'])) . "\n\n";
+        $message .= 'Total: ' . number_format($sale['total'], 2) . " Fc\n";
+        $message .= 'Date: ' . date('d/m/Y H:i', strtotime($sale['date'])) . "\n\n";
         $message .= "Consulter votre facture:\n{$invoiceUrl}";
 
         // Lien WhatsApp
@@ -316,7 +316,7 @@ class InvoiceController extends Controller
             'success' => true,
             'message' => 'Message prêt à être envoyé',
             'whatsapp_url' => $whatsappUrl,
-            'sms_preview' => $message
+            'sms_preview' => $message,
         ]);
     }
 
@@ -358,7 +358,7 @@ class InvoiceController extends Controller
             'ice' => $settingsModel->get('store_ice', $shopId) ?? $companyInfo['ice'] ?? '',
             'rccm' => $settingsModel->get('store_rccm', $shopId) ?? $companyInfo['rccm'] ?? '',
             'isf' => $settingsModel->get('store_isf', $shopId) ?? $companyInfo['isf'] ?? '',
-            'nid' => $companyInfo['nid'] ?? ''
+            'nid' => $companyInfo['nid'] ?? '',
         ];
 
         // Générer le contenu HTML de la facture

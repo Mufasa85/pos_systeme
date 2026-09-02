@@ -4,8 +4,6 @@ namespace App\Controllers;
 
 use App\Models\Client;
 use App\Models\TypeClient;
-use App\Core\Database;
-use App\controllers\Controller;
 
 class ClientController extends Controller
 {
@@ -33,7 +31,7 @@ class ClientController extends Controller
         } catch (\Exception $e) {
             echo json_encode([
                 'success' => false,
-                'message' => 'Erreur: ' . $e->getMessage()
+                'message' => 'Erreur: ' . $e->getMessage(),
             ]);
         }
     }
@@ -51,7 +49,7 @@ class ClientController extends Controller
         if (empty($numero)) {
             echo json_encode([
                 'success' => false,
-                'message' => 'Le numéro est requis'
+                'message' => 'Le numéro est requis',
             ]);
             return;
         }
@@ -60,12 +58,12 @@ class ClientController extends Controller
             $client = $this->clientModel->findByNumero($numero);
             echo json_encode([
                 'found' => !empty($client),
-                'client' => $client
+                'client' => $client,
             ]);
         } catch (\Exception $e) {
             echo json_encode([
                 'success' => false,
-                'message' => 'Erreur: ' . $e->getMessage()
+                'message' => 'Erreur: ' . $e->getMessage(),
             ]);
         }
     }
@@ -90,7 +88,7 @@ class ClientController extends Controller
             if (empty($nom) || empty($numero)) {
                 echo json_encode([
                     'success' => false,
-                    'message' => 'Le nom et le numéro sont requis'
+                    'message' => 'Le nom et le numéro sont requis',
                 ]);
                 return;
             }
@@ -101,7 +99,7 @@ class ClientController extends Controller
                 echo json_encode([
                     'success' => false,
                     'message' => 'Ce numéro est déjà utilisé',
-                    'client' => $existing
+                    'client' => $existing,
                 ]);
                 return;
             }
@@ -113,7 +111,7 @@ class ClientController extends Controller
                 'type_client_id' => $typeClientId,
                 'nif' => $nif,
                 'adresse' => $adresse,
-                'shop_id' => $this->getShopId()
+                'shop_id' => $this->getShopId(),
             ]);
 
             // Récupérer le client créé
@@ -122,12 +120,12 @@ class ClientController extends Controller
             echo json_encode([
                 'success' => true,
                 'message' => 'Client créé avec succès',
-                'client' => $client
+                'client' => $client,
             ]);
         } catch (\Exception $e) {
             echo json_encode([
                 'success' => false,
-                'message' => 'Erreur: ' . $e->getMessage()
+                'message' => 'Erreur: ' . $e->getMessage(),
             ]);
         }
     }
@@ -152,7 +150,7 @@ class ClientController extends Controller
         if (!$id) {
             echo json_encode([
                 'success' => false,
-                'message' => 'ID client manquant'
+                'message' => 'ID client manquant',
             ]);
             return;
         }
@@ -172,7 +170,7 @@ class ClientController extends Controller
             if (empty($nom) || empty($numero)) {
                 echo json_encode([
                     'success' => false,
-                    'message' => 'Le nom et le numéro sont requis'
+                    'message' => 'Le nom et le numéro sont requis',
                 ]);
                 return;
             }
@@ -182,7 +180,7 @@ class ClientController extends Controller
                 'numero' => $numero,
                 'type_client_id' => $typeClientId,
                 'nif' => $nif,
-                'adresse' => $adresse
+                'adresse' => $adresse,
             ]);
 
             $client = $this->clientModel->findById($id);
@@ -190,12 +188,12 @@ class ClientController extends Controller
             echo json_encode([
                 'success' => true,
                 'message' => 'Client modifié avec succès',
-                'client' => $client
+                'client' => $client,
             ]);
         } catch (\Exception $e) {
             echo json_encode([
                 'success' => false,
-                'message' => 'Erreur: ' . $e->getMessage()
+                'message' => 'Erreur: ' . $e->getMessage(),
             ]);
         }
     }
@@ -214,7 +212,7 @@ class ClientController extends Controller
         } catch (\Exception $e) {
             echo json_encode([
                 'success' => false,
-                'message' => 'Erreur: ' . $e->getMessage()
+                'message' => 'Erreur: ' . $e->getMessage(),
             ]);
         }
     }
@@ -232,7 +230,7 @@ class ClientController extends Controller
         if (empty($numero)) {
             echo json_encode([
                 'success' => false,
-                'message' => 'Le numéro de téléphone est requis'
+                'message' => 'Le numéro de téléphone est requis',
             ]);
             return;
         }
@@ -252,19 +250,19 @@ class ClientController extends Controller
                         'type_code' => $client['type_code'] ?? '',
                         'type_description' => $client['type_description'] ?? '',
                         'nif' => $client['nif'] ?? '',
-                        'adresse' => $client['adresse'] ?? ''
-                    ]
+                        'adresse' => $client['adresse'] ?? '',
+                    ],
                 ]);
             } else {
                 echo json_encode([
                     'success' => false,
-                    'message' => 'Client non trouvé'
+                    'message' => 'Client non trouvé',
                 ]);
             }
         } catch (\Exception $e) {
             echo json_encode([
                 'success' => false,
-                'message' => 'Erreur lors de la recherche: ' . $e->getMessage()
+                'message' => 'Erreur lors de la recherche: ' . $e->getMessage(),
             ]);
         }
     }

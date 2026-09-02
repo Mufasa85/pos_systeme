@@ -10,7 +10,7 @@
             <option value="all">Tous les vendeurs</option>
             <?php
             $vendeurs = array_unique(array_column($ventes, 'nom_vendeur'));
-            foreach ($vendeurs as $v): ?>
+      foreach ($vendeurs as $v): ?>
               <option value="<?= htmlspecialchars($v) ?>"><?= htmlspecialchars($v) ?></option>
             <?php endforeach; ?>
           </select>
@@ -157,7 +157,7 @@
         }
         function exportHistoryCSV() {
           const from = document.getElementById('date-filter')?.value || '';
-          let url = APP_URL + '/api/export/ventes?from=' + (from || '<?= date("Y-m-01") ?>') + '&to=<?= date("Y-m-d") ?>';
+          let url = APP_URL + '/api/export/ventes?from=' + (from || '<?= date('Y-m-01') ?>') + '&to=<?= date('Y-m-d') ?>';
           window.open(url, '_blank');
         }
       </script>

@@ -13,27 +13,27 @@ class PayrollEmployee
 
     public function all($shopId = null, $superAdmin = false)
     {
-        $sql = "SELECT pe.*, u.nom_complet, u.email, u.telephone, u.nom_utilisateur
+        $sql = 'SELECT pe.*, u.nom_complet, u.email, u.telephone, u.nom_utilisateur
                 FROM payroll_employees pe
-                JOIN utilisateurs u ON pe.user_id = u.id";
+                JOIN utilisateurs u ON pe.user_id = u.id';
         $params = [];
         if (!$superAdmin && $shopId) {
-            $sql .= " WHERE pe.shop_id = ?";
+            $sql .= ' WHERE pe.shop_id = ?';
             $params[] = $shopId;
         }
-        $sql .= " ORDER BY u.nom_complet ASC";
+        $sql .= ' ORDER BY u.nom_complet ASC';
         return $this->db->fetchAll($sql, $params);
     }
 
     public function findById($id, $shopId = null, $superAdmin = false)
     {
-        $sql = "SELECT pe.*, u.nom_complet, u.email, u.telephone, u.nom_utilisateur
+        $sql = 'SELECT pe.*, u.nom_complet, u.email, u.telephone, u.nom_utilisateur
                 FROM payroll_employees pe
                 JOIN utilisateurs u ON pe.user_id = u.id
-                WHERE pe.id = ?";
+                WHERE pe.id = ?';
         $params = [$id];
         if (!$superAdmin && $shopId) {
-            $sql .= " AND pe.shop_id = ?";
+            $sql .= ' AND pe.shop_id = ?';
             $params[] = $shopId;
         }
         return $this->db->fetch($sql, $params);
@@ -41,15 +41,15 @@ class PayrollEmployee
 
     public function findByUserId($userId)
     {
-        return $this->db->fetch("SELECT * FROM payroll_employees WHERE user_id = ?", [$userId]);
+        return $this->db->fetch('SELECT * FROM payroll_employees WHERE user_id = ?', [$userId]);
     }
 
     public function create($data)
     {
-        $sql = "INSERT INTO payroll_employees
+        $sql = 'INSERT INTO payroll_employees
                 (user_id, shop_id, matricule, device_user_id, hire_date, iban, cnss_number, direction, job_title, sitaf, tax_dependents, cat_leg, cat_prof, ier_rate, department_id, job_category_id, status)
                 VALUES
-                (:user_id, :shop_id, :matricule, :device_user_id, :hire_date, :iban, :cnss_number, :direction, :job_title, :sitaf, :tax_dependents, :cat_leg, :cat_prof, :ier_rate, :department_id, :job_category_id, :status)";
+                (:user_id, :shop_id, :matricule, :device_user_id, :hire_date, :iban, :cnss_number, :direction, :job_title, :sitaf, :tax_dependents, :cat_leg, :cat_prof, :ier_rate, :department_id, :job_category_id, :status)';
         $this->db->query($sql, $this->params($data));
         return $this->db->lastInsertId();
     }
@@ -81,23 +81,25 @@ class PayrollEmployee
                 $params[":$field"] = $data[$field];
             }
         }
-        if (empty($fields)) return false;
-        $sql = "UPDATE payroll_employees SET " . implode(", ", $fields) . " WHERE id = :id";
+        if (empty($fields)) {
+            return false;
+        }
+        $sql = 'UPDATE payroll_employees SET ' . implode(', ', $fields) . ' WHERE id = :id';
         return $this->db->execute($sql, $params);
     }
 
     public function delete($id)
     {
-        return $this->db->execute("DELETE FROM payroll_employees WHERE id = ?", [$id]);
+        return $this->db->execute('DELETE FROM payroll_employees WHERE id = ?', [$id]);
     }
 
     public function vendorsWithoutEmployee($shopId, $role = 'vendeur')
     {
-        $sql = "SELECT u.id, u.nom_complet, u.email, u.telephone
+        $sql = 'SELECT u.id, u.nom_complet, u.email, u.telephone
                 FROM utilisateurs u
                 LEFT JOIN payroll_employees pe ON pe.user_id = u.id
                 WHERE u.shop_id = ? AND u.role = ? AND pe.id IS NULL
-                ORDER BY u.nom_complet ASC";
+                ORDER BY u.nom_complet ASC';
         return $this->db->fetchAll($sql, [$shopId, $role]);
     }
 
