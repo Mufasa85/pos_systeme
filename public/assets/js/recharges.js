@@ -501,6 +501,7 @@ class BillPayment {
                 store_ice: STORE_INFO.ice,
                 store_isf: STORE_INFO.isf || '',
                 store_rccm: STORE_INFO.rccm,
+                store_homologation: !!STORE_INFO.homologation,
                 seller_name: sellerName,
                 seller_agent_code: (typeof CURRENT_USER !== 'undefined' && CURRENT_USER.agentCode) ? CURRENT_USER.agentCode : '',
                 store_name: STORE_INFO.name,
@@ -1459,9 +1460,14 @@ class BillPayment {
                         
                          </div>`;
 
+        // Si la DGI renvoie homologation:false, le magasin n'est pas
+        // homologué : on masque l'ISF et le bloc "Eléments de sécurité"
+        // de la facture normalisée (par défaut on les affiche).
+        const isHomologuee = dgiResponse?.data?.homologation !== false && dgiResponse?.homologation !== false;
+
         // Infos DGI
         let dgiInfoHtml = '';
-        if (dgiResponse?.data) {
+        if (isHomologuee && dgiResponse?.data) {
             dgiInfoHtml = `<div style="background: #e8f5e9; border: 1px solid #4caf50; border-radius: 8px; padding: 10px; margin: 10px 0; text-align: center;">
                 <div style="color: #2e7d32; font-weight: bold; font-size: 11px;">--- Elements de securite ---</div>
                 <div style="font-size: 12px; color: #555; margin-top: 4px;">
@@ -1508,9 +1514,9 @@ class BillPayment {
                         <span>${this.formatMoney(total * ticketSign)} Fc</span>
                     </div>
                     ${this.getPaymentInfoHtml()}
-                    <div style="margin: 10px 0; font-size: 11px; color: #333; border: 1px dashed #ccc; padding: 8px; border-radius: 4px; text-align: center;">
+                    ${isHomologuee ? `<div style="margin: 10px 0; font-size: 11px; color: #333; border: 1px dashed #ccc; padding: 8px; border-radius: 4px; text-align: center;">
                         ISF : ${dgiResponse?.data?.isf || '0'}
-                    </div>
+                    </div>` : ''}
                 </div>
                 ${dgiInfoHtml}
                 <div class="receipt-footer">

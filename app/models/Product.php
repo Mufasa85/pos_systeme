@@ -56,6 +56,11 @@ class Product
         return $product;
     }
 
+    public function findByImage($image)
+    {
+        return $this->db->fetch("SELECT id, shop_id, image FROM produits WHERE image = :image", [':image' => $image]);
+    }
+
     private function enrichWithBatchInfo($product)
     {
         $batchModel = new ProductBatch();

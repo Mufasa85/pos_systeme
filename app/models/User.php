@@ -139,6 +139,11 @@ class User
         }
     }
 
+    public function findByProfileImage($profileImage)
+    {
+        return $this->db->fetch("SELECT id, shop_id, profile_image FROM utilisateurs WHERE profile_image = :profile_image", [':profile_image' => $profileImage]);
+    }
+
     public function findByEmail($email)
     {
         return $this->db->fetch('SELECT * FROM utilisateurs WHERE email = ? AND actif = 1', [$email]);
