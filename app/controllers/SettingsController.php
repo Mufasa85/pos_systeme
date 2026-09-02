@@ -37,6 +37,7 @@ class SettingsController extends Controller
                 'store_ice'     => $shop['ice'] ?? '',
                 'store_rccm'    => $shop['rccm'] ?? '',
                 'store_isf'     => $shop['isf'] ?? '',
+                'store_homologation' => !empty($shop['homologation']),
 
                 // Informations POS
                 'shop_id'      => $shop['id'] ?? null,
