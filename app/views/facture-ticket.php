@@ -682,7 +682,11 @@ $localQrData  = $sale['qrCode'] ?? '';
             }
             html += '<div class="receipt-total-row" style="font-size:11px; color:#555;"><span>Nombre d\'article(s):</span><span>' + totalQty.toFixed(2) + '</span></div>';
             html += '<div style="text-align:center; font-size:12px; color:#888; font-style:italic; margin-top:2px;">Arrêté le présent duplicata à la somme de ' + numToFr(totalTTC) + ' congolais toutes taxes comprises</div>';
-            if (info.isf || info.store_isf) {
+            // Si la DGI renvoie homologation:false, le magasin n'est pas
+            // homologué : on masque l'ISF et le bloc "Eléments de sécurité"
+            // de la facture normalisée (par défaut on les affiche).
+            var isHomologuee = info.homologation !== false;
+            if (isHomologuee && (info.isf || info.store_isf)) {
                 html += '<div style="margin:10px 0; font-size:11px; color:#333; border:1px dashed #ccc; padding:8px; border-radius:4px; text-align:center;">ISF : ' + esc(info.isf || info.store_isf) + '</div>';
             }
             // if (info.comment || info.providerService) {
@@ -693,7 +697,7 @@ $localQrData  = $sale['qrCode'] ?? '';
             html += '</div>';
 
             // Bloc sécurité DGI
-            if (info.codeDEFDGI || info.counters || info.nim) {
+            if (isHomologuee && (info.codeDEFDGI || info.counters || info.nim)) {
                 html += '<div style="background:#e8f5e9; border:1px solid #4caf50; border-radius:8px; padding:10px; margin:10px 0; text-align:center;">';
                 html += '<div style="color:#2e7d32; font-weight:bold; font-size:11px;">--- Elements de securite de la facture normalisee ---</div>';
                 html += '<div style="font-size:12px; color:#555; margin-top:4px;">';
