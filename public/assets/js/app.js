@@ -2711,7 +2711,11 @@ function renderServiceBillContent(data, sale) {
     if (amountInWords) {
         html += '<div style="text-align:center; font-size:12px; color:#888; font-style:italic; margin-top:2px;">Arrêté le présent duplicata à la somme de ' + amountInWords + ' congolais toutes taxes comprises</div>';
     }
-    if (info.isf || info.store_isf) {
+    // Si la DGI renvoie homologation:false, le magasin n'est pas homologué :
+    // on masque l'ISF et le bloc "Eléments de sécurité" de la facture
+    // normalisée (par défaut on les affiche).
+    const isHomologuee = info.homologation !== false;
+    if (isHomologuee && (info.isf || info.store_isf)) {
         html += '<div style="margin:10px 0; font-size:11px; color:#333; border:1px dashed #ccc; padding:8px; border-radius:4px; text-align:center;">ISF : ' + (info.isf || info.store_isf) + '</div>';
     }
 
@@ -2725,7 +2729,7 @@ function renderServiceBillContent(data, sale) {
     html += '</div>'; // fin receipt-totals
 
     // ----- Bloc sécurité DGI -----
-    if (info.codeDEFDGI || info.counters || info.nim) {
+    if (isHomologuee && (info.codeDEFDGI || info.counters || info.nim)) {
         html += '<div style="background:#e8f5e9; border:1px solid #4caf50; border-radius:8px; padding:10px; margin:10px 0; text-align:center;">';
         html += '<div style="color:#2e7d32; font-weight:bold; font-size:11px;">--- Elements de securite de la facture normalisee ---</div>';
         html += '<div style="font-size:12px; color:#555; margin-top:4px;">';
