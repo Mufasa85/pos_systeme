@@ -1891,10 +1891,10 @@ const posCart = {
 
                     <div class="receipt-totals">
                         ${this.getTaxBreakdownHtml(dgiResponse)}
-                        <div class="receipt-total-row">
+                        ${isHomologuee ? `<div class="receipt-total-row">
                             <span>Total TVA:</span>
                             <span>${dgiResponse.data.vtotal.toFixed(2)} Fc</span>
-                        </div>
+                        </div>` : ''}
                         <div class="receipt-total-row grand-total">
                             <span>TOTAL TTC:</span>
                             <span>${(dgiResponse.data.total).toFixed(2)} Fc</span>
@@ -2668,7 +2668,11 @@ function renderServiceBillContent(data, sale) {
     html += buildProformaTaxBreakdownHtml(info.ht_tva, info.ts);
 
     // Total TVA + TOTAL TTC
-    html += '<div class="receipt-total-row"><span>Total TVA:</span><span>' + tva.toFixed(2) + ' Fc</span></div>';
+    const infoHomologationRaw = info.store_homologation;
+    const isTvaVisible = !(infoHomologationRaw === 0 || infoHomologationRaw === '0' || infoHomologationRaw === false);
+    if (isTvaVisible) {
+        html += '<div class="receipt-total-row"><span>Total TVA:</span><span>' + tva.toFixed(2) + ' Fc</span></div>';
+    }
     html += '<div class="receipt-total-row grand-total"><span>TOTAL TTC:</span><span>' + total.toFixed(2) + ' Fc</span></div>';
 
     // Bloc paiement (taux + USD + nb articles + montant en lettres)
