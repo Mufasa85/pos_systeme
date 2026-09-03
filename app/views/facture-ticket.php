@@ -685,7 +685,8 @@ $localQrData  = $sale['qrCode'] ?? '';
             // Si la DGI renvoie homologation:false, le magasin n'est pas
             // homologué : on masque l'ISF et le bloc "Eléments de sécurité"
             // de la facture normalisée (par défaut on les affiche).
-            var isHomologuee = info.homologation !== false;
+            var storeHomologationRaw = info.store_homologation;
+            var isHomologuee = !(storeHomologationRaw === 0 || storeHomologationRaw === '0' || storeHomologationRaw === false);
             if (isHomologuee && (info.isf || info.store_isf)) {
                 html += '<div style="margin:10px 0; font-size:11px; color:#333; border:1px dashed #ccc; padding:8px; border-radius:4px; text-align:center;">ISF : ' + esc(info.isf || info.store_isf) + '</div>';
             }
