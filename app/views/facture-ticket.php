@@ -653,9 +653,13 @@ $localQrData  = $sale['qrCode'] ?? '';
             html += '</tbody></table></div>';
 
             // Totaux
+            var infoHomologationRaw = info.store_homologation;
+            var isTvaVisible = !(infoHomologationRaw === 0 || infoHomologationRaw === '0' || infoHomologationRaw === false);
             html += '<div class="receipt-totals">';
             html += taxBreakdownHtml(info.ht_tva, info.ts);
-            html += '<div class="receipt-total-row"><span>Total TVA:</span><span>' + tva.toFixed(2) + ' Fc</span></div>';
+            if (isTvaVisible) {
+                html += '<div class="receipt-total-row"><span>Total TVA:</span><span>' + tva.toFixed(2) + ' Fc</span></div>';
+            }
             html += '<div class="receipt-total-row grand-total"><span>TOTAL TTC:</span><span>' + totalTTC.toFixed(2) + ' Fc</span></div>';
             if (info.remise != null && parseFloat(info.remise) !== 0) {
                 html += '<div class="receipt-total-row" style="font-size:11px; color:#555;"><span>Remise :</span><span>' + parseFloat(info.remise).toFixed(2) + ' Fc</span></div>';
