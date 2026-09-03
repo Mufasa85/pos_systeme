@@ -622,8 +622,10 @@ $serviceBillHandler = function () {
         // La réponse est déjà au format { success, data: {...} } — on la renvoie telle quelle
         // mais on s'assure que success est vrai si la donnée existe
         if (isset($data['success']) && $data['success'] === true) {
-            if (isset($data['data']) && is_array($data['data'])) {
-                $data['data']['homologation'] = $homologation;
+            // Si la DGI ne renvoie pas déjà store_homologation (facture ancienne
+            // enregistrée avant l'ajout de ce champ), on la complète depuis la BDD.
+            if (isset($data['data']) && is_array($data['data']) && !isset($data['data']['store_homologation'])) {
+                $data['data']['store_homologation'] = $homologation;
             }
             echo json_encode($data);
         } elseif (isset($data['success']) && $data['success'] === false) {
@@ -631,13 +633,13 @@ $serviceBillHandler = function () {
             echo json_encode($data);
         } elseif (isset($data['data'])) {
             $facture = $data['data'];
-            if (is_array($facture)) {
-                $facture['homologation'] = $homologation;
+            if (is_array($facture) && !isset($facture['store_homologation'])) {
+                $facture['store_homologation'] = $homologation;
             }
             echo json_encode(['success' => true, 'data' => $facture]);
         } else {
-            if (is_array($data)) {
-                $data['homologation'] = $homologation;
+            if (is_array($data) && !isset($data['store_homologation'])) {
+                $data['store_homologation'] = $homologation;
             }
             echo json_encode(['success' => true, 'data' => $data]);
         }
