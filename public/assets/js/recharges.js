@@ -1463,7 +1463,8 @@ class BillPayment {
         // Si la DGI renvoie homologation:false, le magasin n'est pas
         // homologué : on masque l'ISF et le bloc "Eléments de sécurité"
         // de la facture normalisée (par défaut on les affiche).
-        const isHomologuee = dgiResponse?.data?.homologation !== false && dgiResponse?.homologation !== false;
+        const storeHomologationRaw = dgiResponse?.data?.store_homologation;
+        const isHomologuee = !(storeHomologationRaw === 0 || storeHomologationRaw === '0' || storeHomologationRaw === false);
 
         // Infos DGI
         let dgiInfoHtml = '';
