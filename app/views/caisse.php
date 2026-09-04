@@ -8,27 +8,6 @@
     margin: 0.75rem 0;
     flex-wrap: wrap;
   }
-  .view-toggle {
-    display: flex;
-    border: 1px solid var(--border, #e2e8f0);
-    border-radius: 8px;
-    overflow: hidden;
-  }
-  .view-btn {
-    background: #fff;
-    border: none;
-    padding: 0.5rem 0.75rem;
-    cursor: pointer;
-    color: var(--muted, #64748b);
-    transition: all 0.2s;
-  }
-  .view-btn.active {
-    background: var(--primary, #0B5E88);
-    color: #fff;
-  }
-  .view-btn:hover:not(.active) {
-    background: #f1f5f9;
-  }
   .products-count {
     font-size: 0.85rem;
     color: var(--muted, #64748b);
@@ -194,23 +173,6 @@
 
       </div>
       <div class="products-toolbar">
-        <div class="view-toggle" id="view-toggle">
-          <button type="button" class="view-btn active" data-mode="cards" title="Vue cartes">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="3" y="3" width="7" height="7" rx="1"></rect>
-              <rect x="14" y="3" width="7" height="7" rx="1"></rect>
-              <rect x="3" y="14" width="7" height="7" rx="1"></rect>
-              <rect x="14" y="14" width="7" height="7" rx="1"></rect>
-            </svg>
-          </button>
-          <button type="button" class="view-btn" data-mode="rows" title="Vue lignes">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <line x1="3" y1="6" x2="21" y2="6"></line>
-              <line x1="3" y1="12" x2="21" y2="12"></line>
-              <line x1="3" y1="18" x2="21" y2="18"></line>
-            </svg>
-          </button>
-        </div>
         <div class="products-count" id="products-count"></div>
       </div>
       <div id="products-grid" class="products-grid"></div>

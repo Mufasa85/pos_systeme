@@ -291,18 +291,6 @@ const posCart = {
             }
         }
 
-        // Gestion du toggle vue cartes / lignes
-        const viewToggle = $('#view-toggle');
-        if (viewToggle) {
-            viewToggle.addEventListener('click', (e) => {
-                const btn = e.target.closest('.view-btn');
-                if (!btn) return;
-                e.preventDefault();
-                this.setViewMode(btn.dataset.mode);
-            });
-            this.setViewMode(this.viewMode);
-        }
-
         if ($('#client-number')) {
             $('#client-number').addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') {
@@ -434,9 +422,6 @@ const posCart = {
             grid.classList.toggle('list-view', this.viewMode === 'rows');
             grid.classList.toggle('grid-view', this.viewMode === 'cards');
         }
-        document.querySelectorAll('#view-toggle .view-btn').forEach(btn => {
-            btn.classList.toggle('active', btn.dataset.mode === this.viewMode);
-        });
         this.currentPage = 1;
         const list = this.filteredProducts.length ? this.filteredProducts : this.allProducts;
         this.renderProducts(list);
