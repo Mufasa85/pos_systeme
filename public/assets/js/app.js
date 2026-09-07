@@ -2468,18 +2468,18 @@ function buildProformaTaxBreakdownHtml(htTvaRaw, tsRaw) {
         if (Math.abs(ht) > 0 || Math.abs(vat) > 0 || Math.abs(tsValue) > 0) {
             const htLabel = cat.tax === 0 ? 'TOTAL' : 'HT';
             const taxRateText = cat.tax === 0 ? '' : (' ' + cat.tax + '%');
-            html += '<div class="receipt-total-row" style="font-size:11px; padding-left:10px;">'
+            html += '<div class="receipt-total-row" style="padding-left:10px;">'
                 + '<span>' + htLabel + '[' + cat.label + '] ' + cat.description + taxRateText + ' :</span>'
                 + '<span>' + ht.toFixed(2) + ' Fc</span>'
                 + '</div>';
             if (Math.abs(tsValue) > 0) {
-                html += '<div class="receipt-total-row" style="font-size:11px; padding-left:10px; color:#666;">'
+                html += '<div class="receipt-total-row" style="padding-left:10px;">'
                     + '<span>TS[' + cat.label + '] ' + cat.description + taxRateText + ' :</span>'
                     + '<span>' + tsValue.toFixed(2) + ' Fc</span>'
                     + '</div>';
             }
             if (Math.abs(vat) > 0) {
-                html += '<div class="receipt-total-row" style="font-size:11px; padding-left:10px; color:#666;">'
+                html += '<div class="receipt-total-row" style="padding-left:10px;">'
                     + '<span>TVA[' + cat.label + '] ' + cat.description + taxRateText + ' :</span>'
                     + '<span>' + vat.toFixed(2) + ' Fc</span>'
                     + '</div>';
@@ -2666,10 +2666,10 @@ function renderServiceBillContent(data, sale) {
     if (info.remise != null && parseFloat(info.remise) !== 0) {
         html += '<div class="receipt-total-row" style="font-size:11px; color:#555;"><span>Remise :</span><span>' + parseFloat(info.remise).toFixed(2) + ' Fc</span></div>';
     }
-    html += '<div class="receipt-total-row" style="font-size:11px; color:#555;">'
+    html += '<div class="receipt-total-row">'
         + '<span>TAUX DU JOUR :</span><span>' + (usdRate || '-') + ' Fc/USD</span>'
         + '</div>';
-    html += '<div class="receipt-total-row" style="font-size:11px; color:#555;">'
+    html += '<div class="receipt-total-row">'
         + '<span>Equivalent en USD :</span><span>' + (usdRate ? (total < 0 ? -total / usdRate : total / usdRate).toFixed(2) + ' $' : '-') + '</span>'
         + '</div>';
     // Bloc paiement (support multi-paiements depuis payment_type JSON)
@@ -2694,12 +2694,12 @@ function renderServiceBillContent(data, sale) {
                 + '</div>';
         }
     }
-    html += '<div class="receipt-total-row" style="font-size:11px; color:#555;">'
+    html += '<div class="receipt-total-row" style="font-size:12px; color:#000; font-weight:700;">'
         + '<span>Nombre d\'article(s):</span><span>' + totalQty.toFixed(2) + '</span>'
         + '</div>';
 
     if (amountInWords) {
-        html += '<div style="text-align:center; font-size:12px; color:#888; font-style:italic; margin-top:2px;">Arrêté le présent duplicata à la somme de ' + amountInWords + ' congolais toutes taxes comprises</div>';
+        html += '<div style="text-align:center; font-size:13px; color:#000; margin-top:2px;">Arrêté le présent duplicata à la somme de ' + amountInWords + ' congolais toutes taxes comprises</div>';
     }
     // Si la DGI renvoie homologation:false, le magasin n'est pas homologué :
     // on masque l'ISF et le bloc "Eléments de sécurité" de la facture
@@ -2707,7 +2707,7 @@ function renderServiceBillContent(data, sale) {
     const storeHomologationRaw = info.store_homologation;
     const isHomologuee = !(storeHomologationRaw === 0 || storeHomologationRaw === '0' || storeHomologationRaw === false);
     if (isHomologuee && (info.isf || info.store_isf)) {
-        html += '<div style="margin:10px 0; font-size:11px; color:#333; border:1px dashed #ccc; padding:8px; border-radius:4px; text-align:center;">ISF : ' + (info.isf || info.store_isf) + '</div>';
+        html += '<div style="margin:10px 0; font-size:13px; color:#000; border:1px solid #000; padding:8px; border-radius:4px; text-align:center;">ISF : ' + (info.isf || info.store_isf) + '</div>';
     }
 
     // Commentaire
@@ -2721,9 +2721,9 @@ function renderServiceBillContent(data, sale) {
 
     // ----- Bloc sécurité DGI -----
     if (isHomologuee && (info.codeDEFDGI || info.counters || info.nim)) {
-        html += '<div style="background:#e8f5e9; border:1px solid #4caf50; border-radius:8px; padding:10px; margin:10px 0; text-align:center;">';
-        html += '<div style="color:#2e7d32; font-weight:bold; font-size:11px;">--- Elements de securite de la facture normalisee ---</div>';
-        html += '<div style="font-size:12px; color:#555; margin-top:4px;">';
+        html += '<div style="border:2px solid #000; border-radius:8px; padding:10px; margin:10px 0; text-align:center;">';
+        html += '<div style="color:#000; font-weight:bold; font-size:13px;">--- Elements de securite de la facture normalisee ---</div>';
+        html += '<div style="font-size:13px; color:#000; margin-top:4px;">';
         if (info.codeDEFDGI) html += 'CODE DEF/DGI: ' + info.codeDEFDGI;
         if (info.nim) html += '<br> DEF NID : ' + info.nim;
         if (info.counters) html += '<br> DEF Compteurs: ' + info.counters;
@@ -2735,7 +2735,7 @@ function renderServiceBillContent(data, sale) {
     html += '<div class="receipt-footer">';
     if (info.qrCode) html += '<div id="service-bill-qrcode" class="qrcode-container"></div>';
     html += '<div class="barcode">FACTURE n°' + invoiceNumber + '</div>';
-    if (info.dateDGI) html += '<div style="font-size:10px; color:#666; margin-top:4px;">Date : ' + info.dateDGI + '</div>';
+    if (info.dateDGI) html += '<div style="font-size:13px; color:#000; margin-top:4px;">Date : ' + info.dateDGI + '</div>';
     html += '<div class="thank-you">Merci de votre visite!</div>';
     html += '<div style="margin-top:5px; font-size:9px; font-style:italic;">---Powered By Osat---</div>';
     html += '</div></div>';
@@ -2762,23 +2762,21 @@ async function viewSaleDetails(saleId) {
 
     const sale = data.sale;
 
-    // Si la vente est marquée "service" OU si elle a un compteur DGI
-    // (donc enregistrée), on tente de récupérer la version enrichie via
-    // l'API DGI et on construit la PROFORMA comme la facture finale.
-    const isDgiRegistered = !!(sale && (sale.counters || sale.codeDEFDGI || sale.nim));
-    if (sale.service || isDgiRegistered) {
-        document.getElementById('sale-details-content').innerHTML = '<div style="text-align:center; padding:40px;"><div class="spinner"></div><p style="margin-top:1rem;">Chargement des donnees DGI...</p></div>';
-        document.getElementById('sale-details-modal').classList.add('active');
+    // On tente TOUJOURS de récupérer la version enrichie depuis l'API DGI
+    // (/api/service-bill), y compris pour les factures générées lorsque le
+    // magasin n'était pas homologué (store_homologation = 0) : elles sont
+    // bel et bien enregistrées côté DGI (seul l'affichage TVA/ISF diffère,
+    // géré dans renderServiceBillContent). On ne se repose plus sur
+    // sale.service/sale.counters côté client pour décider s'il faut fetch,
+    // car ces champs peuvent être absents localement même si la facture
+    // existe côté DGI.
+    document.getElementById('sale-details-content').innerHTML = '<div style="text-align:center; padding:40px;"><div class="spinner"></div><p style="margin-top:1rem;">Chargement des donnees DGI...</p></div>';
+    document.getElementById('sale-details-modal').classList.add('active');
 
-        const serviceData = await fetchServiceBillData(sale.numero_facture, STORE_INFO.isf);
-      
-        if (serviceData && serviceData.data) {
-            document.getElementById('sale-details-content').innerHTML = renderServiceBillContent(serviceData, sale);
-        } else {
-            alert('API DGI indisponible, impossible de charger la facture duplicata.');
-            document.getElementById('sale-details-modal').classList.remove('active');
-            return;
-        }
+    const serviceData = await fetchServiceBillData(sale.numero_facture, STORE_INFO.isf);
+
+    if (serviceData && serviceData.data) {
+        document.getElementById('sale-details-content').innerHTML = renderServiceBillContent(serviceData, sale);
 
         // Métadonnées pour l'envoi SMS depuis le modal d'impression
         window._currentReceiptMetadata = {
@@ -2789,7 +2787,9 @@ async function viewSaleDetails(saleId) {
 
         document.getElementById('print-sale-btn').onclick = () => printSaleReceipt(saleId);
     } else {
-        // Design unifié avec /caisse (même structure)
+        // Repli local : l'API DGI est indisponible (facture non retrouvée,
+        // erreur réseau, etc.) — on reconstruit le duplicata à partir des
+        // données locales. Design unifié avec /caisse (même structure)
         const acheteurNom = sale.nom_client || '';
         const acheteurNumero = sale.client_numero || '';
         const acheteurAddress = sale.client_adresse || '';
@@ -2804,7 +2804,13 @@ async function viewSaleDetails(saleId) {
         data.details.forEach(item => {
             const itemPrice = parseFloat(item.prix) || 0;
             const itemQty = parseFloat(item.quantite) || 0;
-            const itemTotalHT = itemPrice * itemQty;
+            // Utilise le même calcul que le panier (HT + taxe spécifique + TVA
+            // sur la taxe spécifique) pour rester cohérent avec la facture
+            // enregistrée DGI, y compris quand le magasin n'est pas homologué
+            // (store_homologation = 0), cas où l'on ne passe pas par
+            // renderServiceBillContent faute de codeDEFDGI/counters/nim.
+            const itemCalc = posCart.calculateItemTTC(item, itemQty);
+            const itemTotalHT = itemCalc.lineHT;
             const taxRate = parseFloat(item.tax_rate || 0);
             const taxLabel = item.tax_etiquette || (taxRate > 0 ? 'TVA ' + taxRate + '%' : 'Exonere');
             const prodService = item.prod_service ? '<span class="item-prod-service">[' + item.prod_service + ']</span>' : '';
@@ -2813,7 +2819,8 @@ async function viewSaleDetails(saleId) {
                     ? ' - ' + parseFloat(item.remise_value).toFixed(2) + ' remise'
                     : ' - ' + item.remise_value + '% remise')
                 : '';
-            itemsHtml += '<tr class="item-name-row"><td colspan="2"><span class="item-name">' + (item.produit_nom || 'Produit') + '<span class="item-tax-badge">' + taxLabel + '</span>' + prodService + '<small style="color:var(--success);font-weight:600;">' + discountLabel + '</small></span></td></tr>' +
+            const specificTaxLabel = posCart.getSpecificTaxLabel(item);
+            itemsHtml += '<tr class="item-name-row"><td colspan="2"><span class="item-name">' + (item.produit_nom || 'Produit') + '<span class="item-tax-badge">' + taxLabel + '</span>' + prodService + '<small style="color:var(--success);font-weight:600;">' + discountLabel + '</small><small style="color:#b45309;font-weight:600;">' + specificTaxLabel + '</small></span></td></tr>' +
                 '<tr class="item-detail-row"><td class="item-qty">' + itemQty + ' × ' + itemPrice.toFixed(2) + ' Fc</td><td class="item-total">' + itemTotalHT.toFixed(2) + ' Fc</td></tr>';
         });
         itemsHtml += '</tbody></table>';
@@ -2834,6 +2841,11 @@ async function viewSaleDetails(saleId) {
             (acheteurNif ? '<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>NIF:</strong></span><span>' + acheteurNif + '</span></div>' : '') +
             '</div>';
 
+        // Si le magasin n'est pas homologué DGI (store_homologation = 0), on
+        // masque le "Total TVA" et le bloc ISF, comme pour la facture DGI
+        // enrichie (renderServiceBillContent).
+        const isHomologuee = !(STORE_INFO.homologation === 0 || STORE_INFO.homologation === '0' || STORE_INFO.homologation === false);
+
         // Paiement + ISF (comme /caisse)
         const amountInWords = posCart.numberToFrenchWords ? posCart.numberToFrenchWords(totalNumber) : '';
         const remiseLine = (sale.remise != null && parseFloat(sale.remise) !== 0)
@@ -2845,7 +2857,7 @@ async function viewSaleDetails(saleId) {
             '<div class="receipt-total-row" style="font-size: 11px; color: #555"><span>Equivalent en USD :</span><span>' + (USD_RATE ? (totalNumber / USD_RATE).toFixed(2) + ' $' : '-') + '</span></div>' +
             '<div class="receipt-total-row" style="font-size: 11px; color: #555;"><span>Nombre d\'article(s):</span><span>' + (data.details.reduce((s, i) => s + parseFloat(i.quantite || 0), 0)).toFixed(2) + '</span></div>' +
             (amountInWords ? '<div style="text-align: center; font-size: 12px; color: #888; font-style: italic; margin-top: 2px;">Arrêté la présente facture à la somme de ' + amountInWords + ' congolais toutes taxes comprises</div>' : '') +
-            (STORE_INFO.isf ? '<div style="margin: 10px 0; font-size: 11px; color: #333; border: 1px dashed #ccc; padding: 8px; border-radius: 4px; text-align: center;">ISF : ' + STORE_INFO.isf + '</div>' : '');
+            (isHomologuee && STORE_INFO.isf ? '<div style="margin: 10px 0; font-size: 11px; color: #333; border: 1px dashed #ccc; padding: 8px; border-radius: 4px; text-align: center;">ISF : ' + STORE_INFO.isf + '</div>' : '');
 
         // Bloc DGI
         let dgiInfoHtml = '';
@@ -2876,7 +2888,7 @@ async function viewSaleDetails(saleId) {
             '<div class="receipt-meta" style="justify-content: center; font-size: 14px; font-weight: 555;">' + getInvoiceTypeLabel(sale.type_facture) + '</div>' +
             '<div class="receipt-items">' + itemsHtml + '</div>' +
             '<div class="receipt-totals">' +
-            '<div class="receipt-total-row"><span>Total TVA:</span><span>' + tvaNumber.toFixed(2) + ' Fc</span></div>' +
+            (isHomologuee ? '<div class="receipt-total-row"><span>Total TVA:</span><span>' + tvaNumber.toFixed(2) + ' Fc</span></div>' : '') +
             '<div class="receipt-total-row grand-total"><span>TOTAL TTC:</span><span>' + totalNumber.toFixed(2) + ' Fc</span></div>' +
             paymentInfoHtml +
             '</div>' +
