@@ -3880,6 +3880,11 @@ function _printReceiptContent(content) {
                 background: #fff;
             }
             .receipt { width: 100%; }
+            /* Sur imprimante thermique, tout texte non pur noir (gris,
+               couleurs) est restitue en trame de points et parait flou :
+               on force donc le texte en noir pur, meme si une couleur est
+               definie en style inline (ex: color:#555, #888, #b45309...). */
+            .receipt, .receipt * { color: #000 !important; }
             .receipt-header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 12px; margin-bottom: 12px; }
             .receipt-header .store-name { font-size: 20px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
             .receipt-header .store-info { font-size: 13px; line-height: 1.6; color: #222; }

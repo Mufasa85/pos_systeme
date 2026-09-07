@@ -702,13 +702,13 @@
             '.receipt-items { margin-bottom: 10px; }\n' +
             '.receipt-item { display: grid; grid-template-columns: 1fr auto; grid-template-rows: auto auto; column-gap: 4px; row-gap: 0; padding: ' + padV + 'px ' + padH + 'px; border-bottom: 1px dashed #ccc; font-size: 13px; width: 100%; }\n' +
             '.receipt-item .item-name { grid-column: 1 / -1; grid-row: 1; white-space: normal; overflow-wrap: break-word; word-break: break-word; }\n' +
-            '.receipt-item .item-qty { grid-column: 1; grid-row: 2; font-size: 11px; color: #555; font-style: italic; white-space: normal; word-break: break-word; overflow-wrap: anywhere; }\n' +
+            '.receipt-item .item-qty { grid-column: 1; grid-row: 2; font-size: 12px; color: #000; font-weight: 700; white-space: normal; word-break: break-word; overflow-wrap: anywhere; }\n' +
             '.receipt-item .item-price { grid-column: 2; grid-row: 2; text-align: right; font-weight: 700; white-space: normal; word-break: break-all; overflow-wrap: anywhere; min-width: 0; }\n' +
             '.receipt-table { width: 100%; border-collapse: collapse; }\n' +
             '.receipt-table th { text-align: left; padding: ' + padV + 'px ' + padH + 'px; border-bottom: 1px solid #000; font-size: 12px; }\n' +
             '.receipt-table th:last-child { text-align: right; }\n' +
             '.receipt-table .item-name-row td { padding: ' + padV + 'px ' + padH + 'px 1px; border-bottom: none; font-size: 12px; vertical-align: top; }\n' +
-            '.receipt-table .item-detail-row td { padding: 1px ' + padH + 'px ' + (padV + 4) + 'px; border-bottom: 1px dashed #ccc; font-size: 11px; color: #555; font-style: italic; vertical-align: top; word-break: break-word; overflow-wrap: anywhere; }\n' +
+            '.receipt-table .item-detail-row td { padding: 1px ' + padH + 'px ' + (padV + 4) + 'px; border-bottom: 1px dashed #ccc; font-size: 12px; color: #000; font-weight: 700; vertical-align: top; word-break: break-word; overflow-wrap: anywhere; }\n' +
             '.receipt-table .item-detail-row .item-total { text-align: right; font-weight: 700; color: #000; word-break: break-all; overflow-wrap: anywhere; }\n' +
             '.item-tax-badge { display: inline-block; font-size: 9px; border: 1px solid #999; border-radius: 2px; padding: 0 3px; margin-left: 3px; }\n' +
             '.receipt-totals { margin-bottom: 8px; }\n' +
