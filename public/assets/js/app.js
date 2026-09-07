@@ -2003,6 +2003,32 @@ const posCart = {
     }
 };
 
+// Verrouille le select "Type de taxe" sur le groupe A lorsque le magasin
+// n'est pas homologue DGI (store_homologation = 0) : ces magasins doivent
+// obligatoirement facturer en exonere (groupe A), l'utilisateur ne peut
+// donc pas choisir un autre groupe.
+function applyTaxGroupHomologationLock() {
+    const taxSelect = $('#product-tax');
+    if (!taxSelect) return;
+
+    const isHomologuee = !(STORE_INFO.homologation === 0 || STORE_INFO.homologation === '0' || STORE_INFO.homologation === false);
+
+    if (!isHomologuee) {
+        // Le groupe A est identifie via l'attribut data-etiquette (colonne
+        // `etiquette` de la table taxes, ex: "A"), et non via le texte
+        // affiche qui commence par `groupe_taxe` (ex: "Groupe A - A (0%)").
+        const groupAOption = Array.from(taxSelect.options).find(opt => (opt.dataset.etiquette || '').trim().toUpperCase() === 'A');
+        if (groupAOption) {
+            taxSelect.value = groupAOption.value;
+        }
+        taxSelect.disabled = true;
+        taxSelect.title = 'Magasin non homologue DGI : le groupe de taxe est fige sur A (exonere).';
+    } else {
+        taxSelect.disabled = false;
+        taxSelect.title = '';
+    }
+}
+
 function editProduct(product) {
     // Recharger les categories si necessaire pour le select
     if (categoriesCache.length === 0) {
@@ -2058,6 +2084,8 @@ function setProductForm(product) {
     if (taxSelect && product.taxe_id) {
         taxSelect.value = product.taxe_id;
     }
+    // Fige sur le groupe A si le magasin n'est pas homologue DGI
+    applyTaxGroupHomologationLock();
 
     // Selectionner le type de vente (unite ou poids)
     const typeSelect = $('#product-type');
@@ -3101,6 +3129,9 @@ function openProductModal() {
     stockInput.removeAttribute('readonly');
     stockInput.placeholder = 'Stock initial';
     stockInput.value = '';
+
+    // Fige sur le groupe A si le magasin n'est pas homologue DGI
+    applyTaxGroupHomologationLock();
 
     // Charger les catégories si nécessaire avant d'afficher le modal
     if (categoriesCache.length === 0) {
