@@ -3867,12 +3867,12 @@ function _printReceiptContent(content) {
 
     const printStyles = `
         <style>
-            @page { margin: 2mm 2mm; size: 80mm auto; }
+            @page { margin: 1mm 2mm; size: 80mm auto; }
             * { box-sizing: border-box; margin: 0; padding: 0; }
             body {
                 font-family: 'Courier New', Courier, monospace;
-                font-size: 11px;
-                line-height: 1.15;
+                font-size: 9px;
+                line-height: 1.05;
                 width: 100%;
                 max-width: 76mm;
                 margin: 0 auto;
@@ -3885,39 +3885,40 @@ function _printReceiptContent(content) {
                on force donc le texte en noir pur, meme si une couleur est
                definie en style inline (ex: color:#555, #888, #b45309...). */
             .receipt, .receipt * { color: #000 !important; }
-            /* Ticket compact : marges/espacements reduits au strict minimum
-               pour diviser la longueur du ticket imprime (papier thermique). */
-            .receipt-header { text-align: center; border-bottom: 1px solid #000; padding-bottom: 4px; margin-bottom: 4px; }
-            .receipt-header .store-name { font-size: 15px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; margin-bottom: 2px; }
-            .receipt-header .store-info { font-size: 10px; line-height: 1.25; color: #222; }
+            /* Ticket ultra-compact : marges/espacements reduits au strict
+               minimum pour diviser la longueur du ticket imprime (papier
+               thermique). */
+            .receipt-header { text-align: center; border-bottom: 1px solid #000; padding-bottom: 2px; margin-bottom: 2px; }
+            .receipt-header .store-name { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.2px; margin-bottom: 1px; }
+            .receipt-header .store-info { font-size: 8.5px; line-height: 1.1; color: #222; }
             .receipt-header .store-info > div { margin: 0; }
             div[style*="border-top:1px dashed #ccc"], div[style*="border-top: 1px dashed #ccc"] {
-                margin-top: 3px !important; padding-top: 3px !important; font-size: 10px !important; line-height: 1.25 !important;
+                margin-top: 1px !important; padding-top: 1px !important; font-size: 8.5px !important; line-height: 1.1 !important;
             }
-            .receipt-meta { display: flex; justify-content: space-between; font-size: 10px; font-weight: 600; padding: 3px 0; margin-bottom: 4px; border-bottom: 1px solid #000; }
-            .receipt-items { margin-bottom: 4px; }
+            .receipt-meta { display: flex; justify-content: space-between; font-size: 8.5px; font-weight: 600; padding: 1px 0; margin-bottom: 2px; border-bottom: 1px solid #000; }
+            .receipt-items { margin-bottom: 2px; }
             .receipt-table { width: 100%; border-collapse: collapse; }
-            .receipt-table th { text-align: left; padding: 2px 2px; border-bottom: 1px solid #000; font-size: 10px; }
+            .receipt-table th { text-align: left; padding: 1px 1px; border-bottom: 1px solid #000; font-size: 8.5px; }
             .receipt-table th:last-child { text-align: right; }
-            .receipt-table .item-name-row td { padding: 1px 2px 0; border-bottom: none; font-size: 10.5px; vertical-align: top; }
-            .receipt-table .item-detail-row td { padding: 0 2px 2px; border-bottom: 1px dashed #ccc; font-size: 9.5px; color: #555; font-style: italic; vertical-align: top; word-break: break-word; overflow-wrap: anywhere; }
+            .receipt-table .item-name-row td { padding: 0 1px 0; border-bottom: none; font-size: 9px; vertical-align: top; line-height: 1.1; }
+            .receipt-table .item-detail-row td { padding: 0 1px 1px; border-bottom: 1px dashed #ccc; font-size: 8px; color: #555; font-style: italic; vertical-align: top; word-break: break-word; overflow-wrap: anywhere; line-height: 1.1; }
             .receipt-table .item-detail-row .item-total { text-align: right; font-weight: 700; color: #000; word-break: break-all; overflow-wrap: anywhere; }
-            .receipt-totals { margin-bottom: 3px; }
-            .receipt-total-row { display: flex; justify-content: space-between; font-size: 10px; margin-bottom: 1px; }
-            .receipt-total-row.grand-total { font-size: 14px; font-weight: 700; border-top: 2px solid #000; border-bottom: 2px solid #000; padding: 3px 0; margin-top: 3px; }
-            div[style*="e8f5e9"], div[style*="4caf50"] { border-radius: 4px; padding: 4px 6px !important; margin: 4px 0 !important; font-size: 10px !important; }
-            div[style*="e8f5e9"] div, div[style*="4caf50"] div { line-height: 1.25 !important; }
+            .receipt-totals { margin-bottom: 1px; }
+            .receipt-total-row { display: flex; justify-content: space-between; font-size: 8.5px; margin-bottom: 0; line-height: 1.15; }
+            .receipt-total-row.grand-total { font-size: 12px; font-weight: 700; border-top: 2px solid #000; border-bottom: 2px solid #000; padding: 2px 0; margin-top: 1px; }
+            div[style*="e8f5e9"], div[style*="4caf50"] { border-radius: 3px; padding: 2px 4px !important; margin: 2px 0 !important; font-size: 8.5px !important; }
+            div[style*="e8f5e9"] div, div[style*="4caf50"] div { line-height: 1.1 !important; }
             div[style*="border:1px dashed #ccc"], div[style*="border: 1px dashed #ccc"],
             div[style*="border:2px solid #000"], div[style*="border: 2px solid #000"] {
-                margin: 4px 0 !important; padding: 4px 6px !important; font-size: 10px !important; line-height: 1.25 !important;
+                margin: 2px 0 !important; padding: 2px 4px !important; font-size: 8.5px !important; line-height: 1.1 !important;
             }
-            .receipt-footer { text-align: center; margin-top: 4px; padding-top: 4px; border-top: 1px solid #000; font-size: 10px; }
-            .vendeur-info { margin-bottom: 3px; }
-            .qrcode-container { width: 100%; text-align: center; margin: 4px 0; overflow: visible; }
+            .receipt-footer { text-align: center; margin-top: 2px; padding-top: 2px; border-top: 1px solid #000; font-size: 8.5px; }
+            .vendeur-info { margin-bottom: 1px; }
+            .qrcode-container { width: 100%; text-align: center; margin: 2px 0; overflow: visible; }
             .qrcode-container > div { display: inline-block; overflow: visible; }
-            .qrcode-container svg, .qrcode-container img { display: block; margin: 0 auto; max-width: 150px; height: auto; overflow: visible; }
-            .barcode { font-size: 14px; letter-spacing: 2px; font-weight: 700; margin: 3px 0; text-align: center; }
-            .thank-you { font-style: italic; margin-top: 3px; font-size: 10px; }
+            .qrcode-container svg, .qrcode-container img { display: block; margin: 0 auto; max-width: 120px; height: auto; overflow: visible; }
+            .barcode { font-size: 12px; letter-spacing: 1.5px; font-weight: 700; margin: 2px 0; text-align: center; }
+            .thank-you { font-style: italic; margin-top: 1px; font-size: 8.5px; }
         </style>
     `;
 
@@ -3936,10 +3937,10 @@ function _printReceiptContent(content) {
                     if (!svg.getAttribute('viewBox')) {
                         svg.setAttribute('viewBox', `0 0 ${origW} ${origH}`);
                     }
-                    svg.setAttribute('width', '150');
-                    svg.setAttribute('height', '150');
-                    svg.style.width = '150px';
-                    svg.style.height = '150px';
+                    svg.setAttribute('width', '120');
+                    svg.setAttribute('height', '120');
+                    svg.style.width = '120px';
+                    svg.style.height = '120px';
                     svg.style.display = 'block';
                     svg.style.margin = '0 auto';
                     svg.style.overflow = 'visible';
