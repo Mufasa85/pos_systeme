@@ -190,7 +190,7 @@
                 <select id="product-tax" required>
                   <option value="">Sélectionner le groupe de taxe</option>
                   <?php foreach ($taxes ?? [] as $tax): ?>
-                    <option value="<?= $tax['id'] ?>"><?= htmlspecialchars($tax['groupe_taxe']) ?> - <?= htmlspecialchars($tax['etiquette']) ?> (<?= $tax['taux'] ?>%)</option>
+                    <option value="<?= $tax['id'] ?>" data-etiquette="<?= htmlspecialchars($tax['etiquette']) ?>"><?= htmlspecialchars($tax['groupe_taxe']) ?> - <?= htmlspecialchars($tax['etiquette']) ?> (<?= $tax['taux'] ?>%)</option>
                   <?php endforeach; ?>
                 </select>
               </div>
