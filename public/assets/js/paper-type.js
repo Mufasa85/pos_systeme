@@ -61,12 +61,12 @@
 
         switch (pt) {
             case '57mm': sizeRule = '57mm auto'; maxWidth = '53mm'; bodyFontSize = '11px'; break;
-            case '80mm': sizeRule = '80mm auto'; maxWidth = '76mm'; bodyFontSize = '14px'; break;
+            case '80mm': sizeRule = '80mm auto'; maxWidth = '76mm'; bodyFontSize = '11px'; break;
             case 'A4': sizeRule = 'A4 portrait'; maxWidth = '190mm'; bodyFontSize = '12px'; bodyFont = "'Helvetica Neue', Arial, sans-serif"; break;
             case 'A5': sizeRule = 'A5 portrait'; maxWidth = '128mm'; bodyFontSize = '11px'; bodyFont = "'Helvetica Neue', Arial, sans-serif"; break;
             case 'Letter': sizeRule = 'Letter portrait'; maxWidth = '190mm'; bodyFontSize = '12px'; bodyFont = "'Helvetica Neue', Arial, sans-serif"; break;
             case 'Legal': sizeRule = 'Legal portrait'; maxWidth = '190mm'; bodyFontSize = '12px'; bodyFont = "'Helvetica Neue', Arial, sans-serif"; break;
-            default: sizeRule = '80mm auto'; maxWidth = '76mm'; bodyFontSize = '14px';
+            default: sizeRule = '80mm auto'; maxWidth = '76mm'; bodyFontSize = '11px';
         }
 
         var css;
@@ -689,39 +689,55 @@
         var padH = Math.round((pad.h || 0) * 3.78);
         var padV = Math.round((pad.v || 1) * 3.78);
 
+        // Reduction moderee du corps de texte et des paddings configurables
+        // pour un ticket compact mais lisible (voir aussi les valeurs fixes
+        // ci-dessous).
+        bodyFontSize = pt === '57mm' ? '11px' : '11px';
+        padH = Math.max(0, Math.round(padH * 0.8));
+        padV = Math.max(0, Math.round(padV * 0.8));
+
         return '\n<style>\n' +
-            '@page { margin: 5mm; size: ' + sizeRule + '; }\n' +
+            '@page { margin: 1.5mm 2mm; size: ' + sizeRule + '; }\n' +
             '* { box-sizing: border-box; margin: 0; padding: 0; }\n' +
             'html, body { width: 100%; }\n' +
-            'body { font-family: ' + bodyFont + '; font-size: ' + bodyFontSize + '; line-height: 1.5; max-width: ' + maxWidth + '; margin: 0 auto; color: #000; background: #fff; }\n' +
+            'body { font-family: ' + bodyFont + '; font-size: ' + bodyFontSize + '; line-height: 1.2; max-width: ' + maxWidth + '; margin: 0 auto; color: #000; background: #fff; }\n' +
             '.receipt { width: 100%; }\n' +
-            '.receipt-header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 12px; margin-bottom: 12px; }\n' +
-            '.receipt-header .store-name { font-size: 20px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }\n' +
-            '.receipt-header .store-info { font-size: 13px; line-height: 1.6; color: #222; }\n' +
-            '.receipt-meta { display: flex; justify-content: space-between; font-size: 13px; font-weight: 600; padding: 8px 0; margin-bottom: 10px; border-bottom: 2px solid #000; }\n' +
-            '.receipt-items { margin-bottom: 10px; }\n' +
-            '.receipt-item { display: grid; grid-template-columns: 1fr auto; grid-template-rows: auto auto; column-gap: 4px; row-gap: 0; padding: ' + padV + 'px ' + padH + 'px; border-bottom: 1px dashed #ccc; font-size: 13px; width: 100%; }\n' +
+            /* Sur imprimante thermique, tout texte non pur noir (gris,
+               couleurs) est restitue en trame de points et parait flou :
+               on force donc le texte en noir pur, meme si une couleur est
+               definie en style inline (ex: color:#555, #888, #b45309...). */
+            '.receipt, .receipt * { color: #000 !important; }\n' +
+            '.receipt-header { text-align: center; border-bottom: 1px solid #000; padding-bottom: 4px; margin-bottom: 4px; }\n' +
+            '.receipt-header .store-name { font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; margin-bottom: 2px; }\n' +
+            '.receipt-header .store-info { font-size: 10px; line-height: 1.25; }\n' +
+            '.receipt-header .store-info > div { margin: 0; }\n' +
+            'div[style*="border-top:1px dashed #ccc"], div[style*="border-top: 1px dashed #ccc"] { margin-top: 3px !important; padding-top: 3px !important; font-size: 10px !important; line-height: 1.25 !important; }\n' +
+            '.receipt-meta { display: flex; justify-content: space-between; font-size: 10px; font-weight: 600; padding: 2px 0; margin-bottom: 4px; border-bottom: 1px solid #000; }\n' +
+            '.receipt-items { margin-bottom: 4px; }\n' +
+            '.receipt-item { display: grid; grid-template-columns: 1fr auto; grid-template-rows: auto auto; column-gap: 4px; row-gap: 0; padding: ' + padV + 'px ' + padH + 'px; border-bottom: 1px dashed #ccc; font-size: 10.5px; width: 100%; }\n' +
             '.receipt-item .item-name { grid-column: 1 / -1; grid-row: 1; white-space: normal; overflow-wrap: break-word; word-break: break-word; }\n' +
-            '.receipt-item .item-qty { grid-column: 1; grid-row: 2; font-size: 12px; color: #000; font-weight: 700; white-space: normal; word-break: break-word; overflow-wrap: anywhere; }\n' +
+            '.receipt-item .item-qty { grid-column: 1; grid-row: 2; font-size: 9.5px; color: #000; font-weight: 700; white-space: normal; word-break: break-word; overflow-wrap: anywhere; }\n' +
             '.receipt-item .item-price { grid-column: 2; grid-row: 2; text-align: right; font-weight: 700; white-space: normal; word-break: break-all; overflow-wrap: anywhere; min-width: 0; }\n' +
             '.receipt-table { width: 100%; border-collapse: collapse; }\n' +
-            '.receipt-table th { text-align: left; padding: ' + padV + 'px ' + padH + 'px; border-bottom: 1px solid #000; font-size: 12px; }\n' +
+            '.receipt-table th { text-align: left; padding: ' + padV + 'px ' + padH + 'px; border-bottom: 1px solid #000; font-size: 10px; }\n' +
             '.receipt-table th:last-child { text-align: right; }\n' +
-            '.receipt-table .item-name-row td { padding: ' + padV + 'px ' + padH + 'px 1px; border-bottom: none; font-size: 12px; vertical-align: top; }\n' +
-            '.receipt-table .item-detail-row td { padding: 1px ' + padH + 'px ' + (padV + 4) + 'px; border-bottom: 1px dashed #ccc; font-size: 12px; color: #000; font-weight: 700; vertical-align: top; word-break: break-word; overflow-wrap: anywhere; }\n' +
+            '.receipt-table .item-name-row td { padding: ' + padV + 'px ' + padH + 'px 1px; border-bottom: none; font-size: 10.5px; vertical-align: top; line-height: 1.2; }\n' +
+            '.receipt-table .item-detail-row td { padding: 1px ' + padH + 'px ' + (padV + 2) + 'px; border-bottom: 1px dashed #ccc; font-size: 9.5px; color: #000; font-weight: 700; vertical-align: top; word-break: break-word; overflow-wrap: anywhere; line-height: 1.2; }\n' +
             '.receipt-table .item-detail-row .item-total { text-align: right; font-weight: 700; color: #000; word-break: break-all; overflow-wrap: anywhere; }\n' +
-            '.item-tax-badge { display: inline-block; font-size: 9px; border: 1px solid #999; border-radius: 2px; padding: 0 3px; margin-left: 3px; }\n' +
-            '.receipt-totals { margin-bottom: 8px; }\n' +
-            '.receipt-total-row { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 5px; }\n' +
-            '.receipt-total-row.grand-total { font-size: 18px; font-weight: 700; border-top: 3px solid #000; border-bottom: 3px solid #000; padding: 8px 0; margin-top: 8px; }\n' +
-            'div[style*="e8f5e9"], div[style*="4caf50"] { border-radius: 4px; padding: 8px 10px !important; margin: 10px 0 !important; font-size: 13px !important; }\n' +
-            '.receipt-footer { text-align: center; margin-top: 12px; padding-top: 10px; border-top: 2px solid #000; font-size: 13px; }\n' +
-            '.vendeur-info { margin-bottom: 8px; }\n' +
-            '.qrcode-container { width: 100%; text-align: center; margin: 10px 0; overflow: visible; }\n' +
+            '.item-tax-badge { display: inline-block; font-size: 8.5px; border: 1px solid #999; border-radius: 2px; padding: 0 3px; margin-left: 3px; }\n' +
+            '.receipt-totals { margin-bottom: 3px; }\n' +
+            '.receipt-total-row { display: flex; justify-content: space-between; font-size: 10px; margin-bottom: 1px; line-height: 1.2; }\n' +
+            '.receipt-total-row.grand-total { font-size: 14px; font-weight: 700; border-top: 2px solid #000; border-bottom: 2px solid #000; padding: 3px 0; margin-top: 3px; }\n' +
+            'div[style*="e8f5e9"], div[style*="4caf50"] { border-radius: 4px; padding: 4px 6px !important; margin: 4px 0 !important; font-size: 10px !important; }\n' +
+            'div[style*="e8f5e9"] div, div[style*="4caf50"] div { line-height: 1.25 !important; }\n' +
+            'div[style*="border:1px dashed #ccc"], div[style*="border: 1px dashed #ccc"], div[style*="border:2px solid #000"], div[style*="border: 2px solid #000"] { margin: 4px 0 !important; padding: 4px 6px !important; font-size: 10px !important; line-height: 1.25 !important; }\n' +
+            '.receipt-footer { text-align: center; margin-top: 4px; padding-top: 4px; border-top: 1px solid #000; font-size: 10px; }\n' +
+            '.vendeur-info { margin-bottom: 3px; }\n' +
+            '.qrcode-container { width: 100%; text-align: center; margin: 4px 0; overflow: visible; }\n' +
             '.qrcode-container > div { display: inline-block; overflow: visible; }\n' +
-            '.qrcode-container svg, .qrcode-container img { display: block; margin: 0 auto; max-width: 250px; height: auto; overflow: visible; }\n' +
-            '.barcode { font-size: 18px; letter-spacing: 3px; font-weight: 700; margin: 8px 0; text-align: center; }\n' +
-            '.thank-you { font-style: italic; margin-top: 8px; font-size: 13px; }\n' +
+            '.qrcode-container svg, .qrcode-container img { display: block; margin: 0 auto; max-width: 140px; height: auto; overflow: visible; }\n' +
+            '.barcode { font-size: 14px; letter-spacing: 2px; font-weight: 700; margin: 3px 0; text-align: center; }\n' +
+            '.thank-you { font-style: italic; margin-top: 3px; font-size: 10px; }\n' +
             '</style>\n';
     }
 
@@ -763,7 +779,7 @@
                             if (!svg.getAttribute('viewBox')) {
                                 svg.setAttribute('viewBox', '0 0 ' + origW + ' ' + origH);
                             }
-                            var qrSize = useLarge ? '120' : '220';
+                            var qrSize = useLarge ? '120' : '140';
                             svg.setAttribute('width', qrSize);
                             svg.setAttribute('height', qrSize);
                             svg.style.width = qrSize + 'px';
