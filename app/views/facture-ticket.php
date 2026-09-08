@@ -6,6 +6,10 @@ $storeIsf     = $storeInfo['isf'] ?? '';
 $isServiceBill = !empty($sale['service']) && ($sale['service'] === 'EAU' || $sale['service'] === 'ELECTRICITE');
 $isDgiRegistered = !empty($sale['counters']) || !empty($sale['codeDEFDGI']) || !empty($sale['nim']);
 $localQrData  = $sale['qrCode'] ?? '';
+// Statut d'homologation DGI du magasin : masque le Total TVA et le bloc ISF
+// dans le rendu de repli local (utilisé uniquement si l'API DGI est
+// indisponible), comme pour la version enrichie côté /historique.
+$isHomologueeLocal = !empty($storeInfo['homologation']);
 ?>
 
 <!-- Actions bar - will be hidden during print -->
@@ -44,25 +48,32 @@ $localQrData  = $sale['qrCode'] ?? '';
     data-dgi-registered="<?= $isDgiRegistered ? '1' : '0' ?>"
     data-is-service="<?= $isServiceBill ? '1' : '0' ?>">
 
-    <?php if ($isServiceBill || $isDgiRegistered): ?>
-        <!-- Sera rempli dynamiquement par le fetch DGI -->
-        <div id="ticket-loading" style="text-align: center; padding: 40px;">
-            <div class="spinner"></div>
-            <p style="margin-top: 1rem;">Chargement des donnees DGI...</p>
-        </div>
-        <div id="ticket-dgi-content"></div>
-    <?php else: ?>
-        <!-- Mode local: aucune donnee DGI disponible -->
-        <?php
-        $vendeur = $sale['nom_vendeur'] ?? 'N/A';
-        $clientNom = $sale['client_nom'] ?? $sale['nom_client'] ?? '';
-        $clientNumero = $sale['client_numero'] ?? '';
-        $clientType = $sale['client_type_code'] ?? $sale['client_type'] ?? '';
-        $clientNif = $sale['client_nif'] ?? '';
-        ?>
+    <!-- On tente TOUJOURS de recuperer la version enrichie depuis l'API DGI,
+         y compris pour les factures generees lorsque le magasin n'etait pas
+         homologue (store_homologation = 0) : elles sont bien enregistrees
+         cote DGI (seul l'affichage TVA/ISF differe, gere dans renderProforma). -->
+    <div id="ticket-loading" style="text-align: center; padding: 40px;">
+        <div class="spinner"></div>
+        <p style="margin-top: 1rem;">Chargement des donnees DGI...</p>
+    </div>
+    <div id="ticket-dgi-content"></div>
+
+    <?php
+    // Repli local : affiche uniquement si l'API DGI est indisponible
+    // (facture non retrouvee, erreur reseau, etc.).
+    $vendeur = $sale['nom_vendeur'] ?? 'N/A';
+    $clientNom = $sale['client_nom'] ?? $sale['nom_client'] ?? '';
+    $clientNumero = $sale['client_numero'] ?? '';
+    $clientType = $sale['client_type_code'] ?? $sale['client_type'] ?? '';
+    $clientNif = $sale['client_nif'] ?? '';
+    ?>
+    <div id="ticket-local-fallback" style="display:none;">
         <div class="receipt" id="receipt-ticket">
             <div class="receipt-header">
                 <div style="text-align: center; font-weight: 800; font-size: 24px; color: #000; margin-bottom: 10px; border-bottom: 2px solid #000; padding-bottom: 5px;">DUPLICATA</div>
+                <?php if (!empty($storeInfo['logo'])): ?>
+                    <img src="<?= htmlspecialchars($storeInfo['logo']) ?>" class="receipt-logo" alt="Logo">
+                <?php endif; ?>
                 <div class="store-name"><?= htmlspecialchars($storeInfo['name'] ?? 'SuperMarche Express') ?></div>
                 <div class="store-info">
                     <div><strong>Point de vente :</strong> <?= htmlspecialchars($storeInfo['pdv'] ?? '') ?></div>
@@ -157,10 +168,12 @@ $localQrData  = $sale['qrCode'] ?? '';
                     <span>Sous-total HT:</span>
                     <span><?= number_format(floatval($sale['sous_total_ht'] ?? 0), 2, '.', '') ?> Fc</span>
                 </div>
+                <?php if ($isHomologueeLocal): ?>
                 <div class="receipt-total-row">
                     <span>TVA:</span>
                     <span><?= number_format(floatval($sale['tva'] ?? 0), 2, '.', '') ?> Fc</span>
                 </div>
+                <?php endif; ?>
                 <div class="receipt-total-row grand-total">
                     <span>TOTAL TTC:</span>
                     <span><?= number_format(floatval($sale['total'] ?? 0), 2, '.', '') ?> Fc</span>
@@ -199,7 +212,7 @@ $localQrData  = $sale['qrCode'] ?? '';
                 });
             </script>
         <?php endif; ?>
-    <?php endif; ?>
+    </div>
 </div>
 
 <!-- QR Code Styling (librairie) -->
@@ -213,18 +226,25 @@ $localQrData  = $sale['qrCode'] ?? '';
         var container = document.getElementById('receipt-container');
         if (!container) return;
 
-        var isDgiRegistered = container.getAttribute('data-dgi-registered') === '1';
-        var isService = container.getAttribute('data-is-service') === '1';
         var invoiceNumber = container.getAttribute('data-invoice-number') || '';
         var storeIsf = container.getAttribute('data-store-isf') || '';
         var localQrData = <?= json_encode($localQrData) ?>;
+        var storeLogoUrl = <?= json_encode($storeInfo['logo'] ?? '') ?>;
 
-        if (!isDgiRegistered && !isService) {
-            // Pas de DGI, on garde le rendu serveur (deja affiche)
-            return;
+        // Repli local : affiche le rendu serveur (deja present, cache par
+        // defaut) et masque le loader, utilise si l'API DGI est indisponible
+        // ou si les identifiants necessaires manquent.
+        function showLocalFallback() {
+            var loading = document.getElementById('ticket-loading');
+            if (loading) loading.style.display = 'none';
+            var dgiContent = document.getElementById('ticket-dgi-content');
+            if (dgiContent) dgiContent.style.display = 'none';
+            var fallback = document.getElementById('ticket-local-fallback');
+            if (fallback) fallback.style.display = '';
         }
+
         if (!invoiceNumber || !storeIsf) {
-            alert('Numero de facture ou ISF manquant, impossible de charger le ticket DGI.');
+            showLocalFallback();
             return;
         }
 
@@ -589,6 +609,8 @@ $localQrData  = $sale['qrCode'] ?? '';
             html += '<div class="receipt" id="receipt-ticket">';
             html += '<div class="receipt-header">';
             html += '<div style="text-align:center; font-weight:800; font-size:24px; color:#000; margin-bottom:10px; border-bottom:2px solid #000; padding-bottom:5px;">DUPLICATA</div>';
+            var logoUrl = info.store_logo || storeLogoUrl;
+            if (logoUrl) html += '<img src="' + esc(logoUrl) + '" class="receipt-logo" alt="Logo">';
             html += '<div class="store-name">' + esc(info.store_name || (window.STORE_INFO && window.STORE_INFO.name) || '') + '</div>';
             html += '<div class="store-info">';
             html += '<div><strong>Point de vente :</strong> ' + esc(info.pdv || (window.STORE_INFO && window.STORE_INFO.pdv) || '') + '</div>';
@@ -731,8 +753,8 @@ $localQrData  = $sale['qrCode'] ?? '';
             try {
                 if (typeof QRCodeStyling === 'undefined') return;
                 var qr = new QRCodeStyling({
-                    width: 200,
-                    height: 200,
+                    width: 120,
+                    height: 120,
                     type: 'svg',
                     data: qrData,
                     margin: 5,
@@ -807,10 +829,10 @@ $localQrData  = $sale['qrCode'] ?? '';
                     }
                    
                 } else {
-                    alert('La facture DGI n\'a pas pu etre recuperee depuis l\'API.');
+                    showLocalFallback();
                 }
             } catch (e) {
-                alert('API DGI indisponible : ' + (e && e.message ? e.message : 'erreur inconnue'));
+                showLocalFallback();
             } finally {
                 if (badge) badge.style.display = 'none';
             }
