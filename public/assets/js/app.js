@@ -293,6 +293,34 @@ const posCart = {
             }
         }
 
+        if ($('#product-search')) {
+            $('#product-search').addEventListener('input', (e) => {
+                const category = $('#category-filter') ? $('#category-filter').value : 'all';
+                this.filterProducts(e.target.value, category);
+            });
+
+            // Scanner code-barres USB : le scanner agit comme un clavier,
+            // tape le code rapidement puis envoie Enter. Si le texte saisi
+            // correspond exactement au code-barres d'un produit, on l'ajoute
+            // directement au panier sans ouvrir le modal caméra.
+            $('#product-search').addEventListener('keydown', (e) => {
+                if (e.key !== 'Enter') return;
+                const barcode = e.target.value.trim();
+                if (!barcode) return;
+                const product = this.allProducts.find(p => p.code_barres === barcode);
+                if (product) {
+                    e.preventDefault();
+                    this.addToCart(product.id);
+                    e.target.value = '';
+                    const category = $('#category-filter') ? $('#category-filter').value : 'all';
+                    this.filterProducts('', category);
+                    // Feedback sonore
+                    if (typeof playScanBeep === 'function') playScanBeep();
+                    if ('vibrate' in navigator) navigator.vibrate(80);
+                }
+            });
+        }
+
         if ($('#client-number')) {
             $('#client-number').addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') {
@@ -376,10 +404,16 @@ const posCart = {
         const stock = parseInt(p.stock) || 0;
         const image = p.image || '';
         const isOutOfStock = stock === 0;
+        const availableStock = parseFloat(p.available_stock !== undefined ? p.available_stock : stock);
+        const isExpired = stock > 0 && availableStock <= 0;
+        const isBlocked = isOutOfStock || isExpired;
+        const badge = isExpired
+            ? '<div class="stock-badge expired-badge">Périmé</div>'
+            : (isOutOfStock ? '<div class="stock-badge out-of-stock-badge">Rupture de stock</div>' : '');
 
         return `
-        <div class="product-card ${isOutOfStock ? 'out-of-stock' : ''}"
-             onclick="${isOutOfStock ? 'event.stopPropagation()' : 'posCart.addToCart(' + p.id + ')'}">
+        <div class="product-card ${isBlocked ? 'out-of-stock' : ''}"
+             onclick="${isBlocked ? 'event.stopPropagation()' : 'posCart.addToCart(' + p.id + ')'}">
           <div class="product-image">
             ${image ? `<img src="${image}" alt="${name}" loading="lazy">` : '<svg width="40" height="50" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>'}
           </div>
@@ -387,7 +421,7 @@ const posCart = {
             <div class="name">${name}</div>
             <div class="price">${formatCurrency(price)}</div>
             <div class="barcode-display">${barcode}</div>
-            ${isOutOfStock ? '<div class="stock-badge out-of-stock-badge">Rupture de stock</div>' : ''}
+            ${badge}
           </div>
         </div>
         `;
@@ -400,16 +434,22 @@ const posCart = {
         const stock = parseInt(p.stock) || 0;
         const category = p.categorie || '';
         const isOutOfStock = stock === 0;
+        const availableStock = parseFloat(p.available_stock !== undefined ? p.available_stock : stock);
+        const isExpired = stock > 0 && availableStock <= 0;
+        const isBlocked = isOutOfStock || isExpired;
+        const badge = isExpired
+            ? '<span class="stock-badge expired-badge">Périmé</span>'
+            : (isOutOfStock ? '<span class="stock-badge out-of-stock-badge">Rupture</span>' : '');
 
         return `
-        <div class="product-row ${isOutOfStock ? 'out-of-stock' : ''}"
-             onclick="${isOutOfStock ? 'event.stopPropagation()' : 'posCart.addToCart(' + p.id + ')'}">
+        <div class="product-row ${isBlocked ? 'out-of-stock' : ''}"
+             onclick="${isBlocked ? 'event.stopPropagation()' : 'posCart.addToCart(' + p.id + ')'}">
           <div class="product-row-main">
             <div class="product-row-name">${name}</div>
             <div class="product-row-meta">
               <span class="product-row-barcode">${barcode}</span>
               ${category ? `<span class="product-row-category">${category}</span>` : ''}
-              ${isOutOfStock ? '<span class="stock-badge out-of-stock-badge">Rupture</span>' : ''}
+              ${badge}
             </div>
           </div>
           <div class="product-row-price">${formatCurrency(price)}</div>
@@ -480,10 +520,16 @@ const posCart = {
             const stock = parseInt(p.stock) || 0;
             const image = p.image || '';
             const isOutOfStock = stock === 0;
+            const availableStock = parseFloat(p.available_stock !== undefined ? p.available_stock : stock);
+            const isExpired = stock > 0 && availableStock <= 0;
+            const isBlocked = isOutOfStock || isExpired;
+            const badge = isExpired
+                ? '<div class="stock-badge expired-badge">Périmé</div>'
+                : (isOutOfStock ? '<div class="stock-badge out-of-stock-badge">Rupture de stock</div>' : '');
 
             return `
-            <div class="product-card ${isOutOfStock ? 'out-of-stock' : ''}" 
-                 onclick="${isOutOfStock ? 'event.stopPropagation()' : 'posCart.addToCart(' + p.id + ')'}">
+            <div class="product-card ${isBlocked ? 'out-of-stock' : ''}" 
+                 onclick="${isBlocked ? 'event.stopPropagation()' : 'posCart.addToCart(' + p.id + ')'}">
               <div class="product-image">
                 ${image ? `<img src="${image}" alt="${name}" onerror="this.parentElement.innerHTML='<svg width=\\'40\\\' height=\\'50\\\' viewBox=\\'0 0 24 24\\\' fill=\\'none\\\' stroke=\\'currentColor\\\' stroke-width=\\'1.5\\\'><path d=\\'M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z\\\'></path><line x1=\\'3\\\' y1=\\'6\\\' x2=\\'21\\\' y2=\\'6\\\'></line><path d=\\'M16 10a4 4 0 0 1-8 0\\\'></path></svg>'">` : '<svg width="40" height="50" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>'}
               </div>
@@ -491,7 +537,7 @@ const posCart = {
                 <div class="name">${name}</div>
                 <div class="price">${formatCurrency(price)}</div>
                 <div class="barcode-display">${barcode}</div>
-                ${isOutOfStock ? '<div class="stock-badge out-of-stock-badge">Rupture de stock</div>' : ''}
+                ${badge}
               </div>
             </div>
             `;
@@ -520,6 +566,7 @@ const posCart = {
 
         // Vérifier le stock avant d'ajouter
         const currentStock = parseInt(product.stock) || 0;
+        const availableStock = parseFloat(product.available_stock !== undefined ? product.available_stock : currentStock);
         const existingInCart = this.items.find(i => i.produit_id == id);
         const currentQtyInCart = existingInCart ? existingInCart.quantite : 0;
 
@@ -527,6 +574,12 @@ const posCart = {
         if (currentStock === 0) {
             // Afficher une notification visuelle
             this.showStockNotification(product.nom, 0);
+            return;
+        }
+
+        // Si le produit est périmé (stock total > 0 mais stock disponible = 0)
+        if (currentStock > 0 && availableStock <= 0) {
+            this.showStockNotification(product.nom + ' (produit périmé)', 0);
             return;
         }
 
@@ -3323,6 +3376,26 @@ function searchProductForCart(barcode) {
 }
 
 function onInlineProductFound(product, barcode) {
+    // Vérifier si le produit est périmé avant l'ajout
+    const stock = parseInt(product.stock) || 0;
+    const availableStock = parseFloat(product.available_stock !== undefined ? product.available_stock : stock);
+    const isExpired = stock > 0 && availableStock <= 0;
+
+    if (stock === 0 || isExpired) {
+        const resultEl = document.getElementById('scanner-result');
+        if (resultEl) {
+            resultEl.className = 'scanner-status error';
+            resultEl.textContent = isExpired
+                ? '✗ ' + product.nom + ' : produit périmé'
+                : '✗ ' + product.nom + ' : rupture de stock';
+            resultEl.style.display = 'block';
+        }
+        setTimeout(() => {
+            if (resultEl) resultEl.style.display = 'none';
+        }, 2000);
+        return;
+    }
+
     // Ajouter au panier (le réarmement du scanner est géré par rearmScanner via finally)
     posCart.addToCart(product.id);
 
