@@ -215,6 +215,9 @@ Router::get('/api/settings/paper-type', [SettingsController::class, 'getPaperTyp
 // Padding d'affichage des articles sur le ticket (57mm / 80mm)
 Router::post('/api/settings/receipt-padding', [SettingsController::class, 'updateReceiptPadding']);
 Router::get('/api/settings/receipt-padding', [SettingsController::class, 'getReceiptPadding']);
+// Logo du magasin (facture imprimée)
+Router::post('/api/settings/logo', [SettingsController::class, 'uploadLogo']);
+Router::post('/api/settings/logo/delete', [SettingsController::class, 'deleteLogo']);
 
 // Routes pour la gestion des taxes
 Router::get('/api/taxes', [TaxController::class, 'index']);
