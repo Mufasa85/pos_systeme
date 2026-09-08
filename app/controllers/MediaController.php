@@ -65,6 +65,21 @@ class MediaController extends Controller
         $this->stream($this->storageDir('products') . DIRECTORY_SEPARATOR . $filename);
     }
 
+    // GET /media/logo/[*:filename]
+    // Le logo est utilisé sur les factures/tickets imprimés, y compris sur la
+    // page publique /facture : pas d'authentification requise (image non
+    // sensible, à but purement décoratif).
+    public function logo($params)
+    {
+        $filename = basename($params['filename'] ?? '');
+        if ($filename === '') {
+            $this->status(400)->json(['error' => 'Nom de fichier manquant']);
+            return;
+        }
+
+        $this->stream($this->storageDir('logos') . DIRECTORY_SEPARATOR . $filename);
+    }
+
     // GET /media/profile/[*:filename]
     public function profile($params)
     {
