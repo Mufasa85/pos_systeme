@@ -119,6 +119,45 @@
               <p style="font-size: 0.85rem; color: var(--muted); margin-top: 0.25rem;">Configurez les informations affichées sur vos factures</p>
             </div>
             <div class="settings-form-container" style="background: var(--background); border-radius: var(--radius); padding: 1.25rem;">
+              <div class="form-row" style="margin-bottom: 1rem;">
+                <div class="form-group" style="flex: 1; min-width: 100%;">
+                  <label>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;">
+                      <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                      <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                      <polyline points="21 15 16 10 5 21"></polyline>
+                    </svg>
+                    Logo du magasin
+                  </label>
+                  <div style="display: flex; gap: 1rem; align-items: center;">
+                    <div id="store-logo-preview" style="width: 72px; height: 72px; border: 2px dashed var(--border); border-radius: var(--radius); display: flex; align-items: center; justify-content: center; background: #fff; overflow: hidden; flex-shrink: 0;">
+                      <span style="font-size: 0.7rem; color: var(--muted); text-align: center; padding: 0.25rem;">Aucun logo</span>
+                    </div>
+                    <div style="flex: 1;">
+                      <p style="font-size: 0.75rem; color: var(--muted); margin-bottom: 0.5rem;">Affiché en haut des factures/tickets imprimés. Formats: JPG, PNG, GIF, WebP. Taille max: 5MB.</p>
+                      <div style="display: flex; gap: 0.5rem; align-items: center;">
+                        <input type="file" id="store-logo-input" accept="image/*" style="display: none;" onchange="uploadStoreLogo(this)">
+                        <label for="store-logo-input" class="btn btn-secondary" style="cursor: pointer; display: inline-flex; align-items: center; gap: 0.5rem;">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                          </svg>
+                          Choisir une image
+                        </label>
+                        <button type="button" class="btn btn-ghost" id="store-logo-clear-btn" onclick="clearStoreLogo()" style="display: none;">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                          </svg>
+                          Supprimer
+                        </button>
+                        <span id="store-logo-status" style="font-size: 0.8rem; color: var(--muted);"></span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
               <div class="form-row">
                 <div class="form-group">
                   <label>
@@ -634,8 +673,78 @@
             document.getElementById('pos-port').value = data.port || '';
             const serviceTypeSel = document.getElementById('pos-service-type');
             if (serviceTypeSel) serviceTypeSel.value = data.service_type || 'Caisse';
+            renderStoreLogoPreview(data.store_logo || '');
           } catch (e) {
             console.error('Erreur chargement settings:', e);
+          }
+        }
+
+        // Affiche l'aperçu du logo (ou le placeholder si aucun logo)
+        function renderStoreLogoPreview(logoUrl) {
+          const preview = document.getElementById('store-logo-preview');
+          const clearBtn = document.getElementById('store-logo-clear-btn');
+          if (!preview) return;
+          if (logoUrl) {
+            preview.innerHTML = '<img src="' + APP_URL + logoUrl + '" style="width: 100%; height: 100%; object-fit: contain;">';
+            if (clearBtn) clearBtn.style.display = 'inline-flex';
+            if (typeof STORE_INFO !== 'undefined') STORE_INFO.logo = APP_URL + logoUrl;
+          } else {
+            preview.innerHTML = '<span style="font-size: 0.7rem; color: var(--muted); text-align: center; padding: 0.25rem;">Aucun logo</span>';
+            if (clearBtn) clearBtn.style.display = 'none';
+            if (typeof STORE_INFO !== 'undefined') STORE_INFO.logo = '';
+          }
+        }
+
+        // Upload immédiat du logo dès sélection du fichier
+        async function uploadStoreLogo(input) {
+          const file = input.files && input.files[0];
+          if (!file) return;
+
+          const statusEl = document.getElementById('store-logo-status');
+          if (statusEl) statusEl.textContent = 'Envoi en cours...';
+
+          const formData = new FormData();
+          formData.append('logo', file);
+
+          try {
+            const res = await fetch(APP_URL + '/api/settings/logo', {
+              method: 'POST',
+              body: formData
+            });
+            const data = await res.json();
+            if (data.success) {
+              renderStoreLogoPreview(data.logo);
+              if (statusEl) statusEl.textContent = 'Logo mis à jour ✓';
+              setTimeout(() => { if (statusEl) statusEl.textContent = ''; }, 3000);
+            } else {
+              if (statusEl) statusEl.textContent = data.error || 'Erreur lors de l\'envoi';
+            }
+          } catch (e) {
+            console.error('Erreur upload logo:', e);
+            if (statusEl) statusEl.textContent = 'Erreur de connexion';
+          } finally {
+            input.value = '';
+          }
+        }
+
+        // Supprime le logo actuel
+        async function clearStoreLogo() {
+          if (!confirm('Supprimer le logo du magasin ?')) return;
+
+          const statusEl = document.getElementById('store-logo-status');
+          try {
+            const res = await fetch(APP_URL + '/api/settings/logo/delete', { method: 'POST' });
+            const data = await res.json();
+            if (data.success) {
+              renderStoreLogoPreview('');
+              if (statusEl) statusEl.textContent = 'Logo supprimé';
+              setTimeout(() => { if (statusEl) statusEl.textContent = ''; }, 3000);
+            } else if (statusEl) {
+              statusEl.textContent = data.error || 'Erreur lors de la suppression';
+            }
+          } catch (e) {
+            console.error('Erreur suppression logo:', e);
+            if (statusEl) statusEl.textContent = 'Erreur de connexion';
           }
         }
 
