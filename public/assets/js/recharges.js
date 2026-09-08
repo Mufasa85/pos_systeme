@@ -1271,6 +1271,7 @@ class BillPayment {
         $('#preview-content').innerHTML = `
             <div class="receipt">
                 <div class="receipt-header">
+                    ${STORE_INFO.logo ? '<img src="' + STORE_INFO.logo + '" class="receipt-logo" alt="Logo">' : ''}
                     <div class="store-name">${STORE_INFO.name}</div>
                     <div class="store-info">
                         <div><strong>Point de vente :</strong> ${STORE_INFO.pdv}</div>
@@ -1487,6 +1488,7 @@ class BillPayment {
         $('#receipt-content').innerHTML = `
             <div class="receipt">
                 <div class="receipt-header">
+                    ${STORE_INFO.logo ? '<img src="' + STORE_INFO.logo + '" class="receipt-logo" alt="Logo">' : ''}
                     <div class="store-name">${STORE_INFO.name}</div>
                     <div class="store-info">
                         <div><strong>Point De vente :</strong> ${STORE_INFO.pdv}</div>
