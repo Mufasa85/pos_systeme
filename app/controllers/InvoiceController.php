@@ -60,6 +60,7 @@ class InvoiceController extends Controller
 
         // Charger les informations du shop + fallback entreprise
         $companyInfo = (new \App\Models\CompanyInfo())->get();
+        $shop = $shopId ? (new \App\Models\Shop())->findById($shopId) : null;
 
         $company = [
             'name' => $companyInfo['name'] ?? 'Mon Magasin',
@@ -92,6 +93,8 @@ class InvoiceController extends Controller
             'isf' => $settingsModel->get('store_isf', $shopId) ?? $company['isf'],
             // NID
             'nid' => $company['nid'],
+            // Logo affiché en haut du ticket/facture imprimée.
+            'logo' => !empty($shop['logo']) ? '/' . $shop['logo'] : '',
         ];
 
         // Pour le super admin, forcer l'affichage des informations company_info
@@ -179,6 +182,12 @@ class InvoiceController extends Controller
             // ISF figé sur la vente : clé de recherche DGI
             'isf' => ($sale['store_isf'] ?? '') ?: ($shop['isf'] ?? $companyInfo['isf'] ?? ''),
             'nid' => $shop['nid'] ?? $companyInfo['nid'] ?? '',
+            // Statut d'homologation DGI (RCCM/licence) de la boutique émettrice,
+            // utilisé pour masquer le Total TVA / bloc ISF en mode local si le
+            // magasin n'est pas homologué.
+            'homologation' => (bool)($shop['homologation'] ?? $companyInfo['homologation'] ?? false),
+            // Logo affiché en haut du ticket/facture imprimée.
+            'logo' => !empty($shop['logo']) ? '/' . $shop['logo'] : '',
         ];
 
         // URL de base pour les liens
@@ -239,6 +248,7 @@ class InvoiceController extends Controller
 
         // Charger les informations du magasin + fallback company_info
         $companyInfo = (new \App\Models\CompanyInfo())->get();
+        $shop = $shopId ? (new \App\Models\Shop())->findById($shopId) : null;
         $storeInfo = [
             'name' => $settingsModel->get('store_name', $shopId) ?? $companyInfo['name'] ?? 'Mon Magasin',
             'address' => $settingsModel->get('store_address', $shopId) ?? $companyInfo['address'] ?? '',
@@ -249,6 +259,8 @@ class InvoiceController extends Controller
             'rccm' => $settingsModel->get('store_rccm', $shopId) ?? $companyInfo['rccm'] ?? '',
             'isf' => $settingsModel->get('store_isf', $shopId) ?? $companyInfo['isf'] ?? '',
             'nid' => $companyInfo['nid'] ?? '',
+            // Logo affiché en haut du ticket/facture imprimée.
+            'logo' => !empty($shop['logo']) ? '/' . $shop['logo'] : '',
         ];
 
         // Définir l'URL de la facture publique
@@ -349,6 +361,7 @@ class InvoiceController extends Controller
 
         // Charger les informations du magasin + fallback company_info
         $companyInfo = (new \App\Models\CompanyInfo())->get();
+        $shop = $shopId ? (new \App\Models\Shop())->findById($shopId) : null;
         $storeInfo = [
             'name' => $settingsModel->get('store_name', $shopId) ?? $companyInfo['name'] ?? 'Mon Magasin',
             'address' => $settingsModel->get('store_address', $shopId) ?? $companyInfo['address'] ?? '',
@@ -359,6 +372,8 @@ class InvoiceController extends Controller
             'rccm' => $settingsModel->get('store_rccm', $shopId) ?? $companyInfo['rccm'] ?? '',
             'isf' => $settingsModel->get('store_isf', $shopId) ?? $companyInfo['isf'] ?? '',
             'nid' => $companyInfo['nid'] ?? '',
+            // Logo affiché en haut du ticket/facture imprimée.
+            'logo' => !empty($shop['logo']) ? '/' . $shop['logo'] : '',
         ];
 
         // Générer le contenu HTML de la facture
@@ -414,6 +429,7 @@ class InvoiceController extends Controller
 </head>
 <body>
     <div class="header">
+        ' . (!empty($storeInfo['logo']) ? '<img src="' . htmlspecialchars($storeInfo['logo']) . '" class="receipt-logo" alt="Logo" style="max-width:120px; max-height:80px; margin-bottom:8px;">' : '') . '
         <div class="store-name">' . htmlspecialchars($storeInfo['name']) . '</div>
         <div class="store-info">
             ' . ($storeInfo['pdv'] ? '<strong>Point de vente :</strong> ' . htmlspecialchars($storeInfo['pdv']) . '<br>' : '') . '
