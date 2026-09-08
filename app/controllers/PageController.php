@@ -41,10 +41,15 @@ class PageController extends Controller
         // Get shop name from shops table instead of settings
         $storeName = 'Mon Magasin'; // default
         $serviceType = 'Caisse'; // default
+        // Statut d'homologation DGI de la boutique : masque le lien "Taxes"
+        // dans la navbar quand le magasin n'est pas homologue. Par defaut
+        // (super_admin sans boutique, info indisponible) on affiche le lien.
+        $storeHomologation = true;
         if ($shopId) {
             $shop = $shopModel->findById($shopId);
             if ($shop) {
                 $storeName = $shop['nom'] ?? 'Mon Magasin';
+                $storeHomologation = !empty($shop['homologation']);
                 if (!empty($shop['service_type_id'])) {
                     $serviceTypeData = $serviceTypeModel->findById($shop['service_type_id']);
                     if ($serviceTypeData) {
@@ -53,6 +58,7 @@ class PageController extends Controller
                 }
             }
         }
+        $data['storeHomologation'] = $storeHomologation;
         // Company info (super_admin) pour l'affichage du nom entreprise dans le layout
         if ($this->isSuperAdmin()) {
             try {
