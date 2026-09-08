@@ -65,7 +65,7 @@ class Shop
         $fields = [];
         $params = [':id' => $id];
 
-        $allowed = ['nom', 'code', 'adresse', 'telephone', 'email', 'ice', 'rccm', 'isf', 'homologation', 'pdv', 'nid', 'token', 'port', 'service_type_id', 'actif'];
+        $allowed = ['nom', 'code', 'adresse', 'telephone', 'email', 'ice', 'rccm', 'isf', 'homologation', 'pdv', 'nid', 'logo', 'token', 'port', 'service_type_id', 'actif'];
         foreach ($allowed as $field) {
             if (isset($data[$field])) {
                 $fields[] = "$field = :$field";
