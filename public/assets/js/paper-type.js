@@ -218,6 +218,8 @@
         // Données magasin
         var storeNameEl = receipt.querySelector('.store-name');
         var storeName = storeNameEl ? storeNameEl.textContent.trim() : '';
+        var logoEl = receipt.querySelector('.receipt-header .receipt-logo');
+        var logoHtml = logoEl ? '<img src="' + logoEl.src + '" class="receipt-logo" alt="Logo">' : '';
         var storeInfoEl = receipt.querySelector('.store-info');
         var storeInfoHtml = storeInfoEl ? storeInfoEl.innerHTML : '';
         var storeInfoProcessedHtml = storeInfoHtml;
@@ -620,6 +622,7 @@
             '<div class="invoice-classic invoice-wrap">\n' +
             '<div class="inv-top-row">\n' +
             '  <div class="store-block">\n' +
+            (logoHtml ? '    ' + logoHtml + '\n' : '') +
             '    <div class="store-name">' + storeName + '</div>\n' +
             '    <div class="store-info">' + storeInfoProcessedHtml + '</div>\n' +
             '  </div>\n' +
@@ -708,6 +711,7 @@
                definie en style inline (ex: color:#555, #888, #b45309...). */
             '.receipt, .receipt * { color: #000 !important; }\n' +
             '.receipt-header { text-align: center; border-bottom: 1px solid #000; padding-bottom: 4px; margin-bottom: 4px; }\n' +
+            '.receipt-header .receipt-logo { max-width: 140px; max-height: 70px; margin: 0 auto 4px; display: block; }\n' +
             '.receipt-header .store-name { font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; margin-bottom: 2px; }\n' +
             '.receipt-header .store-info { font-size: 10px; line-height: 1.25; }\n' +
             '.receipt-header .store-info > div { margin: 0; }\n' +

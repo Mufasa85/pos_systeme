@@ -195,7 +195,8 @@ let STORE_INFO = {
     rccm: '',
     isf: '',
     nid: '',
-    homologation: false
+    homologation: false,
+    logo: ''
 };
 
 // Charger les informations du magasin depuis les paramètres
@@ -216,7 +217,8 @@ async function loadStoreInfo() {
             rccm: data.store_rccm || STORE_INFO.rccm || '',
             isf: data.store_isf || STORE_INFO.isf || '',
             nid: data.nid || STORE_INFO.nid || '',
-            homologation: data.store_homologation ?? STORE_INFO.homologation ?? false
+            homologation: data.store_homologation ?? STORE_INFO.homologation ?? false,
+            logo: data.store_logo ? (APP_URL + data.store_logo) : (STORE_INFO.logo || '')
         };
 
         
@@ -1444,6 +1446,7 @@ const posCart = {
         $('#preview-content').innerHTML = `
             <div class="receipt">
                 <div class="receipt-header">
+                    ${STORE_INFO.logo ? '<img src="' + STORE_INFO.logo + '" class="receipt-logo" alt="Logo">' : ''}
                     <div class="store-name">${STORE_INFO.name}</div>
                     <div class="store-info">
                         <div><strong>Point de vente :</strong> ${STORE_INFO.pdv}</div>
@@ -1846,6 +1849,7 @@ const posCart = {
             $('#receipt-content').innerHTML = `
                 <div class="receipt">
                     <div class="receipt-header">
+                        ${STORE_INFO.logo ? '<img src="' + STORE_INFO.logo + '" class="receipt-logo" alt="Logo">' : ''}
                         <div class="store-name">${STORE_INFO.name}</div>
                         <div class="store-info">
                             <div><strong>Point de vente :</strong> ${STORE_INFO.pdv }</div>
@@ -2600,6 +2604,7 @@ function renderServiceBillContent(data, sale) {
     html += '<div class="receipt-header">';
     // Bandeau PROFORMA
     html += '<div style="text-align:center; font-weight:800; font-size:24px; color:#000; margin-bottom:10px; border-bottom:2px solid #000; padding-bottom:5px;">DUPLICATA</div>';
+    if (STORE_INFO.logo) html += '<img src="' + STORE_INFO.logo + '" class="receipt-logo" alt="Logo">';
     html += '<div class="store-name">' + (info.store_name || STORE_INFO.name) + '</div>';
     html += '<div class="store-info">';
     
@@ -2902,6 +2907,7 @@ async function viewSaleDetails(saleId) {
         document.getElementById('sale-details-content').innerHTML =
             '<div class="receipt">' +
             '<div class="receipt-header">' +
+            (STORE_INFO.logo ? '<img src="' + STORE_INFO.logo + '" class="receipt-logo" alt="Logo">' : '') +
             '<div class="store-name">' + STORE_INFO.name + '</div>' +
             '<div class="store-info">' +
             '<div><strong>Point de vente :</strong> ' + STORE_INFO.pdv + '</div>' +
@@ -3889,6 +3895,7 @@ function _printReceiptContent(content) {
                minimum pour diviser la longueur du ticket imprime (papier
                thermique). */
             .receipt-header { text-align: center; border-bottom: 1px solid #000; padding-bottom: 2px; margin-bottom: 2px; }
+            .receipt-logo { max-width: 120px; max-height: 60px; margin: 0 auto 2px; display: block; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             .receipt-header .store-name { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.2px; margin-bottom: 1px; }
             .receipt-header .store-info { font-size: 8.5px; line-height: 1.1; color: #222; }
             .receipt-header .store-info > div { margin: 0; }
