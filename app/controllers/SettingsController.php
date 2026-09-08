@@ -3,6 +3,8 @@
 namespace App\Controllers;
 
 use App\Models\Settings;
+use App\Models\Shop;
+use App\Services\ImageProcessor;
 
 class SettingsController extends Controller
 {
@@ -39,6 +41,7 @@ class SettingsController extends Controller
                 'store_rccm'    => $shop['rccm'] ?? '',
                 'store_isf'     => $shop['isf'] ?? '',
                 'store_homologation' => !empty($shop['homologation']),
+                'store_logo'    => !empty($shop['logo']) ? '/' . $shop['logo'] : '',
 
                 // Informations POS
                 'shop_id'      => $shop['id'] ?? null,
@@ -177,6 +180,112 @@ class SettingsController extends Controller
         } catch (\Exception $e) {
             $this->status(500)->json(['error' => 'Erreur: ' . $e->getMessage()]);
         }
+    }
+
+    // POST /api/settings/logo - Uploader le logo du magasin (facture imprimée)
+    public function uploadLogo()
+    {
+        if (!$this->requireAdmin()) {
+            return;
+        }
+
+        $shopId = $this->getShopId();
+        if (!$shopId) {
+            $this->status(400)->json(['error' => 'Aucune boutique associée à ce compte']);
+            return;
+        }
+
+        $processedLogo = $this->processLogoImage($shopId);
+        if (!$processedLogo) {
+            $this->status(400)->json(['error' => 'Image invalide ou manquante (JPG, PNG, GIF, WebP - 5MB max)']);
+            return;
+        }
+
+        try {
+            $shopModel = new Shop();
+            $oldShop = $shopModel->findById($shopId);
+            $shopModel->update($shopId, ['logo' => $processedLogo]);
+
+            // Supprimer l'ancien logo s'il existait
+            if (!empty($oldShop['logo']) && strpos($oldShop['logo'], 'media/logo/') === 0) {
+                $oldPath = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'logos' . DIRECTORY_SEPARATOR . basename($oldShop['logo']);
+                if (is_file($oldPath)) {
+                    @unlink($oldPath);
+                }
+            }
+
+            $this->logAudit('update', 'store_logo', $shopId);
+            $this->json(['success' => true, 'logo' => '/' . $processedLogo]);
+        } catch (\Exception $e) {
+            $this->status(500)->json(['error' => 'Erreur: ' . $e->getMessage()]);
+        }
+    }
+
+    // POST /api/settings/logo/delete - Retirer le logo du magasin
+    public function deleteLogo()
+    {
+        if (!$this->requireAdmin()) {
+            return;
+        }
+
+        $shopId = $this->getShopId();
+        if (!$shopId) {
+            $this->status(400)->json(['error' => 'Aucune boutique associée à ce compte']);
+            return;
+        }
+
+        try {
+            $shopModel = new Shop();
+            $shop = $shopModel->findById($shopId);
+            if (!empty($shop['logo']) && strpos($shop['logo'], 'media/logo/') === 0) {
+                $oldPath = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'logos' . DIRECTORY_SEPARATOR . basename($shop['logo']);
+                if (is_file($oldPath)) {
+                    @unlink($oldPath);
+                }
+            }
+            $shopModel->update($shopId, ['logo' => null]);
+            $this->logAudit('update', 'store_logo', $shopId);
+            $this->json(['success' => true]);
+        } catch (\Exception $e) {
+            $this->status(500)->json(['error' => 'Erreur: ' . $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Valide, redimensionne/compresse et stocke le logo hors de public/.
+     * Retourne la référence relative à stocker en base ('media/logo/xxx.jpg') ou null.
+     */
+    private function processLogoImage(int $shopId): ?string
+    {
+        if (!isset($_FILES['logo']) || $_FILES['logo']['error'] !== UPLOAD_ERR_OK) {
+            return null;
+        }
+
+        $file = $_FILES['logo'];
+        $maxSize = 5 * 1024 * 1024; // 5MB avant compression
+        if ($file['size'] > $maxSize) {
+            return null;
+        }
+
+        if (!ImageProcessor::validate($file['tmp_name'])) {
+            return null;
+        }
+
+        $uploadDir = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'logos';
+        if (!is_dir($uploadDir)) {
+            mkdir($uploadDir, 0755, true);
+        }
+
+        $fileName = 'shop_' . $shopId . '_' . uniqid() . '.jpg';
+        $filePath = $uploadDir . DIRECTORY_SEPARATOR . $fileName;
+
+        // Logo plus petit qu'une photo produit : 400px de large suffit largement
+        // pour un rendu net sur ticket thermique comme sur facture A4.
+        if (!ImageProcessor::resizeAndSave($file['tmp_name'], $filePath, 400, 90)) {
+            return null;
+        }
+
+        return 'media/logo/' . $fileName;
     }
 
     // POST /api/settings/tax - Mettre à jour les paramètres TVA
