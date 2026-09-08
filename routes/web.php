@@ -35,6 +35,8 @@ Router::get('/facture-client/[i:id]', [\App\Controllers\InvoiceController::class
 // Médias protégés (photos de profil / produits stockées hors de public/)
 Router::get("/media/product/[*:filename]", [\App\Controllers\MediaController::class, 'product']);
 Router::get("/media/profile/[*:filename]", [\App\Controllers\MediaController::class, 'profile']);
+// Logo boutique : public (utilisé sur la facture imprimée et /facture, page sans session)
+Router::get("/media/logo/[*:filename]", [\App\Controllers\MediaController::class, 'logo']);
 
 // API routes for invoice actions
 Router::post('/api/facture/[i:id]/send', [\App\Controllers\InvoiceController::class, 'sendInvoice']);
