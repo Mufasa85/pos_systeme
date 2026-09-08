@@ -85,12 +85,12 @@
             <span class="shop-badge-inactive"><span class="shop-badge-dot"></span>Inactive</span>
           <?php endif; ?>
           <?php if (!empty($shop['homologation'])): ?>
-            <span class="shop-badge-homologuee" title="Boutique homologuée DGI (RCCM/licence en règle)">
+            <span class="shop-badge-homologuee" title="Boutique assujetti à la taxe de la DGI">
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
-              Homologuée
+              Assujetti à la taxe de la DGI
             </span>
           <?php else: ?>
-            <span class="shop-badge-non-homologuee">Non homologuée</span>
+            <span class="shop-badge-non-homologuee">Non assujetti à la taxe de la DGI</span>
           <?php endif; ?>
         </div>
         <div class="shop-card-code"><?= htmlspecialchars($shop['code']) ?></div>
@@ -233,8 +233,8 @@
         <label class="homologation-toggle" style="margin-bottom:.75rem;cursor:pointer">
           <input type="checkbox" id="shop-homologation">
           <span>
-            <strong style="font-size:.8rem;display:block">Boutique homologuée (DGI)</strong>
-            <span style="font-size:.72rem;color:var(--muted,#94a3b8)">À cocher si cette boutique possède une homologation valide (RCCM/licence). Cette information est transmise à la DGI lors de la validation des factures.</span>
+            <strong style="font-size:.8rem;display:block">Boutique assujetti à la taxe de la DGI</strong>
+            <span style="font-size:.72rem;color:var(--muted,#94a3b8)">À cocher si cette boutique est assujettie à la taxe de la DGI. Cette information est transmise à la O.S.A.T lors de la validation des factures.</span>
           </span>
         </label>
 
