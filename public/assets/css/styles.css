@@ -2363,6 +2363,12 @@ body {
   border: 1px solid #fecaca;
 }
 
+.expired-badge {
+  background: #fef3c7;
+  color: #b45309;
+  border: 1px solid #fcd34d;
+}
+
 /* ============================================
    THEME SELECTOR (Settings Page - Inline)
    ============================================ */
