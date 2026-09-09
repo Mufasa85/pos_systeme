@@ -23,6 +23,8 @@ Router::get('/categories', [PageController::class, 'categories']);
 Router::get('/taxes', [PageController::class, 'taxes']);
 Router::get('/parametres', [PageController::class, 'parametres']);
 Router::get('/analytics', [PageController::class, 'analytics']);
+Router::get('/rapports', [PageController::class, 'rapports']);
+Router::get('/rapport-ticket', [PageController::class, 'rapportTicket']);
 Router::get('/shops', [PageController::class, 'shops']);
 Router::get('/payroll', [PageController::class, 'payroll']);
 Router::get('/payroll/[:view]', [PageController::class, 'payroll']);
