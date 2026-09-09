@@ -226,6 +226,7 @@
             </svg>
             <span>Categories</span>
           </a>
+          <?php if ($storeHomologation ?? true): ?>
           <a href="/taxes" class="nav-item <?= $currentPage == 'taxes' ? 'active' : '' ?>">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <line x1="19" y1="5" x2="5" y2="19"></line>
@@ -234,6 +235,7 @@
             </svg>
             <span>Taxes</span>
           </a>
+          <?php endif; ?>
           <a href="/payroll" class="nav-item <?= $currentPage == 'payroll' ? 'active' : '' ?>">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
