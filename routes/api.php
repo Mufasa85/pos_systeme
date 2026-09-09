@@ -16,6 +16,7 @@ use App\Controllers\PayrollReportController;
 use App\Controllers\PayrollTimeClockController;
 use App\Controllers\ProductBatchController;
 use App\Controllers\ProductController;
+use App\Controllers\ReportController;
 use App\Controllers\SaleController;
 use App\Controllers\ServiceTypeController;
 use App\Controllers\SettingsController;
@@ -681,3 +682,12 @@ Router::get('/api/currency', function () {
         echo $response;
     }
 });
+
+// ── Rapports Fiscaux (Z/X/A) ────────────────────────────
+Router::get('/api/reports/z-report', [ReportController::class, 'generateZReport']);
+Router::get('/api/reports/x-report/daily', [ReportController::class, 'generateXReportDaily']);
+Router::get('/api/reports/x-report/periodic', [ReportController::class, 'generateXReportPeriodic']);
+Router::get('/api/reports/a-report', [ReportController::class, 'generateAReport']);
+Router::get('/api/reports/a-history', [ReportController::class, 'getAReportHistory']);
+Router::get('/api/reports/history', [ReportController::class, 'getReportHistory']);
+Router::get('/api/reports/print/[i:id]', [ReportController::class, 'printReport']);
