@@ -21,6 +21,7 @@ class Product
         }
         return $this->db->fetchAll("SELECT p.*, c.category AS categorie, t.taux AS tax_rate, t.etiquette AS tax_etiquette, s.nom AS shop_name,
                 COALESCE(SUM(pb.stock), 0) AS total_stock,
+                COALESCE(SUM(CASE WHEN pb.date_expiration IS NULL OR pb.date_expiration >= CURDATE() THEN pb.stock ELSE 0 END), 0) AS available_stock,
                 MIN(CASE WHEN pb.date_expiration IS NOT NULL AND pb.stock > 0 AND pb.date_expiration >= CURDATE() THEN pb.date_expiration END) AS nearest_expiration_date
             FROM produits p 
             INNER JOIN categories c ON p.category_id = c.id 
