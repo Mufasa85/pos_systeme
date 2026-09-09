@@ -777,4 +777,21 @@ class PageController extends Controller
         $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
         return $protocol . '://' . $host;
     }
+
+    public function rapports()
+    {
+        $data = ['page' => 'rapports'];
+        $this->render('rapports', $data);
+    }
+
+    public function rapportTicket()
+    {
+        if (!isset($_SESSION['user_id'])) {
+            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+            $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+            header('Location: ' . $protocol . '://' . $host . '/');
+            exit;
+        }
+        require_once dirname(__DIR__) . DIRECTORY_SEPARATOR . 'views/rapport-ticket.php';
+    }
 }
