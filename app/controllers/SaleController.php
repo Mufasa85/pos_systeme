@@ -71,6 +71,7 @@ class SaleController extends Controller
 
             $saleId = $saleModel->create([
                 'numero_facture' => $invoiceNum,
+                'invoice_type'   => $typeFacture,
                 'client_id'      => $clientId,
                 'sous_total_ht'  => $data['sous_total_ht'],
                 'tva'            => $data['tva'],
