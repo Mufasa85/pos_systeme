@@ -56,6 +56,16 @@ function getExonerationLabel(code) {
     return EXONERATION_TYPES[code] || code || 'Exonération inconnue';
 }
 
+// Libellés des services fournisseurs (recharges Électricité/Eau)
+const PROVIDER_SERVICE_LABELS = {
+    'ELECTRICITE': 'Électricité',
+    'EAU': 'Eau',
+};
+
+function getProviderServiceLabel(code) {
+    return PROVIDER_SERVICE_LABELS[code] || code || '';
+}
+
 // Taux de change USD (sera mis à jour depuis l'API)
 let USD_RATE = 0; // Valeur par défaut
 let ren = {}
@@ -2678,6 +2688,10 @@ function renderServiceBillContent(data, sale) {
     const clientAddress = info.client_address || (sale && sale.client_adresse) || '';
     const clientType = info.client_type || '';
     const clientNif = info.client_nif || '';
+    // Facture de recharge (paiement Électricité/Eau) : la DGI renvoie le
+    // service demandé et le numéro de compteur utilisé pour la recherche.
+    const providerService = info.providerService || (sale && sale.service) || '';
+    const numeroCompteur = info.deviceId || '';
 
     html += '<div style="border-top:1px dashed #ccc; margin-top:6px; padding-top:6px; text-align:left; font-size:15px; line-height:1.5;">';
     html += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>VENDEUR:</strong></span><span>' + vendeur + '</span></div>';
@@ -2686,6 +2700,10 @@ function renderServiceBillContent(data, sale) {
     if (clientNumero) html += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>NUM:</strong></span><span>' + formatPhoneNumber(clientNumero) + '</span></div>';
     if (clientAddress) html += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>ADRESSE:</strong></span><span>' + clientAddress + '</span></div>';
     if (clientType) html += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>TYPE:</strong></span><span>' + getClientTypeLabel(clientType) + '</span></div>';
+    if (providerService === 'ELECTRICITE' || providerService === 'EAU') {
+        html += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>SERVICE:</strong></span><span>' + getProviderServiceLabel(providerService) + '</span></div>';
+        if (numeroCompteur) html += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>N° COMPTEUR:</strong></span><span>' + numeroCompteur + '</span></div>';
+    }
     if (clientNif) html += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>NIF:</strong></span><span>' + clientNif + '</span></div>';
     html += '</div>';
     html += '</div>'; // fin receipt-header
@@ -2881,6 +2899,9 @@ async function viewSaleDetails(saleId) {
         const acheteurAddress = sale.client_adresse || '';
         const acheteurType = sale.client_type_code || '';
         const acheteurNif = sale.client_nif || '';
+        // Facture de recharge (Électricité/Eau) : seul le service est connu
+        // localement, le n° de compteur n'étant pas persisté hors DGI.
+        const acheteurService = sale.service || '';
         const vendeur = sale.nom_vendeur || 'N/A';
         const totalNumber = parseFloat(sale.total) || 0;
         const tvaNumber = parseFloat(sale.tva || 0);
@@ -2924,6 +2945,7 @@ async function viewSaleDetails(saleId) {
             (acheteurNumero ? '<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>NUM:</strong></span><span>' + formatPhoneNumber(acheteurNumero) + '</span></div>' : '') +
             (acheteurAddress ? '<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>ADRESSE:</strong></span><span>' + acheteurAddress + '</span></div>' : '') +
             (acheteurType ? '<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>TYPE:</strong></span><span>' + getClientTypeLabel(acheteurType) + '</span></div>' : '') +
+            ((acheteurService === 'ELECTRICITE' || acheteurService === 'EAU') ? '<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>SERVICE:</strong></span><span>' + getProviderServiceLabel(acheteurService) + '</span></div>' : '') +
             (acheteurNif ? '<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>NIF:</strong></span><span>' + acheteurNif + '</span></div>' : '') +
             '</div>';
 
