@@ -101,6 +101,16 @@ class PageController extends Controller
         } catch (\Exception $e) {
             $data['unreadNotifications'] = 0;
         }
+
+        // Pré-charger le cache d'accès aux recharges pour la sidebar
+        try {
+            $rechargeAccessService = new \App\Services\RechargeAccessService();
+            $rechargeAccessService->warmupCache();
+        } catch (\Exception $e) {
+            // Ne pas bloquer l'affichage si le warmup échoue
+            error_log('RechargeAccess warmup error: ' . $e->getMessage());
+        }
+
         extract($data);
         require_once dirname(__DIR__) . DIRECTORY_SEPARATOR . 'views/layout/header.php';
         require_once dirname(__DIR__) . DIRECTORY_SEPARATOR . 'views/' . $view . '.php';
@@ -252,6 +262,14 @@ class PageController extends Controller
 
     public function recharges()
     {
+        // Vérifier l'accès via l'API externe configurable
+        $accessService = new \App\Services\RechargeAccessService();
+        if (!$accessService->canAccess()) {
+            http_response_code(403);
+            require_once dirname(__DIR__) . DIRECTORY_SEPARATOR . 'views/403.php';
+            exit;
+        }
+
         $categoryModel = new \App\Models\Category();
         $shopId = $this->isSuperAdmin() ? null : $this->getShopId();
         $categories = $categoryModel->all($shopId);
