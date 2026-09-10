@@ -683,6 +683,30 @@ Router::get('/api/currency', function () {
     }
 });
 
+// ── Accès Recharges (vérification statut + reset cache) ─────
+Router::get('/api/recharge-access', function () {
+    if (!requireAuthenticatedSession()) {
+        return;
+    }
+    header('Content-Type: application/json');
+    $accessService = new \App\Services\RechargeAccessService();
+    echo json_encode([
+        'success' => true,
+        'allowed' => $accessService->canAccess(),
+    ]);
+});
+
+Router::post('/api/recharge-access/reset', function () {
+    if (!requireAuthenticatedSession()) {
+        return;
+    }
+    header('Content-Type: application/json');
+    \App\Services\RechargeAccessService::resetCache();
+    echo json_encode([
+        'success' => true,
+        'message' => 'Cache réinitialisé',
+    ]);
+});
 // ── Rapports Fiscaux (Z/X/A) ────────────────────────────
 Router::get('/api/reports/z-report', [ReportController::class, 'generateZReport']);
 Router::get('/api/reports/x-report/daily', [ReportController::class, 'generateXReportDaily']);
