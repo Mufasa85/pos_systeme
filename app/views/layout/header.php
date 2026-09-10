@@ -148,6 +148,14 @@
           </svg>
           <span><?= htmlspecialchars($serviceType ?? 'Caisse') ?></span>
         </a>
+        <?php
+        $showRecharges = false;
+        $rechargeCache = $_SESSION['recharge_access_cache'] ?? null;
+        if ($rechargeCache !== null && isset($rechargeCache['expires_at']) && $rechargeCache['expires_at'] > time()) {
+            $showRecharges = (bool) $rechargeCache['granted'];
+        }
+        ?>
+        <?php if ($showRecharges): ?>
         <a href="/recharges" class="nav-item <?= $currentPage == 'recharges' ? 'active' : '' ?>">
           <div class="nav-icon-split">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -159,6 +167,7 @@
           </div>
           <span>ELECTRICITE/EAU</span>
         </a>
+        <?php endif; ?>
         <a href="/produits" class="nav-item <?= $currentPage == 'produits' ? 'active' : '' ?>">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
