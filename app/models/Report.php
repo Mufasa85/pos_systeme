@@ -95,14 +95,14 @@ class Report
 
     public function getSalesByInvoiceType($shopId, $startDate, $endDate)
     {
-        $sql = 'SELECT COALESCE(v.type_vente, "product") as invoice_type,
+        $sql = 'SELECT COALESCE(v.invoice_type, "FV") as invoice_type,
                        COUNT(v.id) as invoice_count,
                        COALESCE(SUM(v.sous_total_ht), 0) as total_ht,
                        COALESCE(SUM(v.tva), 0) as total_tax,
                        COALESCE(SUM(v.total), 0) as total_ttc
                 FROM ventes v
                 WHERE v.date BETWEEN ? AND ? AND (? IS NULL OR v.shop_id = ?)
-                GROUP BY v.type_vente ORDER BY v.type_vente';
+                GROUP BY v.invoice_type ORDER BY v.invoice_type';
         return $this->db->fetchAll($sql, [$startDate, $endDate, $shopId, $shopId]);
     }
 
@@ -154,15 +154,15 @@ class Report
 
     public function getCreditNotes($shopId, $startDate, $endDate)
     {
-        $sql = 'SELECT v.type_vente as invoice_type,
+        $sql = 'SELECT v.invoice_type as invoice_type,
                        COUNT(v.id) as invoice_count,
                        COALESCE(SUM(v.sous_total_ht), 0) as total_ht,
                        COALESCE(SUM(v.tva), 0) as total_tax,
                        COALESCE(SUM(v.total), 0) as total_ttc
                 FROM ventes v
-                WHERE v.date BETWEEN ? AND ? AND v.type_vente NOT IN ("product", "bill_payment")
+                WHERE v.date BETWEEN ? AND ? AND v.invoice_type IN ("FA", "EA")
                   AND (? IS NULL OR v.shop_id = ?)
-                GROUP BY v.type_vente';
+                GROUP BY v.invoice_type';
         return $this->db->fetchAll($sql, [$startDate, $endDate, $shopId, $shopId]);
     }
 

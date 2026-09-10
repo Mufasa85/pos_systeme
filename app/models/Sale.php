@@ -15,10 +15,11 @@ class Sale
 
     public function create($data)
     {
-        $sql = 'INSERT INTO ventes (numero_facture, client_id, sous_total_ht, tva, total, payments, vendeur_id, shop_id, store_isf, date, dateDGI, qrCode, codeDEFDGI, counters, nim, comment, service) 
-                VALUES (:numero_facture, :client_id, :sous_total_ht, :tva, :total, :payments, :vendeur_id, :shop_id, :store_isf, :date, :dateDGI, :qrCode, :codeDEFDGI, :counters, :nim, :comment, :service)';
+        $sql = 'INSERT INTO ventes (numero_facture, invoice_type, client_id, sous_total_ht, tva, total, payments, vendeur_id, shop_id, store_isf, date, dateDGI, qrCode, codeDEFDGI, counters, nim, comment, service) 
+                VALUES (:numero_facture, :invoice_type, :client_id, :sous_total_ht, :tva, :total, :payments, :vendeur_id, :shop_id, :store_isf, :date, :dateDGI, :qrCode, :codeDEFDGI, :counters, :nim, :comment, :service)';
         $this->db->query($sql, [
             ':numero_facture' => $data['numero_facture'],
+            ':invoice_type'   => $data['invoice_type'] ?? 'FV',
             ':client_id'      => $data['client_id'] ?? null,
             ':sous_total_ht'  => $data['sous_total_ht'],
             ':tva'            => $data['tva'],
