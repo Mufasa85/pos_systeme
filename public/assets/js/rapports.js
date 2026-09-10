@@ -178,7 +178,7 @@ const ReportsManager = {
 
     number(v) { return new Intl.NumberFormat('fr-FR').format(v || 0); },
 
-    money(v) { return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'XOF' }).format(v || 0); },
+    money(v) { return new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(v || 0) + ' FC'; },
 
     print() {
         const w = window.open('/rapport-ticket', '_blank');
