@@ -225,7 +225,14 @@
           <span>Rapports</span>
         </a>
 
-        <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'vendeur'): ?>
+        <?php
+        $showPayroll = false;
+        $featureCache = $_SESSION['feature_access_cache'] ?? null;
+        if ($featureCache !== null && isset($featureCache['expires_at']) && $featureCache['expires_at'] > time()) {
+            $showPayroll = isset($featureCache['flags']['paie']) && $featureCache['flags']['paie'];
+        }
+        ?>
+        <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'vendeur' && $showPayroll): ?>
           <a href="/payroll/mypayslips" class="nav-item <?= $currentPage == 'payroll' ? 'active' : '' ?>">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
@@ -255,6 +262,7 @@
             <span>Taxes</span>
           </a>
           <?php endif; ?>
+          <?php if ($showPayroll): ?>
           <a href="/payroll" class="nav-item <?= $currentPage == 'payroll' ? 'active' : '' ?>">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
@@ -269,6 +277,7 @@
             </svg>
             <span>Parametres paie</span>
           </a>
+          <?php endif; ?>
           <a href="/parametres" class="nav-item <?= $currentPage == 'parametres' ? 'active' : '' ?>">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <circle cx="12" cy="12" r="3"></circle>
