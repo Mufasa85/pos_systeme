@@ -683,7 +683,7 @@ Router::get('/api/currency', function () {
     }
 });
 
-// ── Accès Recharges (vérification statut + reset cache) ─────
+// ── Accès fonctionnalités (vérification statut + reset cache) ──
 Router::get('/api/recharge-access', function () {
     if (!requireAuthenticatedSession()) {
         return;
@@ -691,12 +691,25 @@ Router::get('/api/recharge-access', function () {
     header('Content-Type: application/json');
     $accessService = new \App\Services\RechargeAccessService();
     echo json_encode([
-        'success' => true,
-        'allowed' => $accessService->canAccess(),
+        'success'          => true,
+        'allowed'          => $accessService->canAccess(),
+        'payroll_allowed'  => $accessService->canAccessPayroll(),
     ]);
 });
 
-Router::post('/api/recharge-access/reset', function () {
+Router::get('/api/payroll-access', function () {
+    if (!requireAuthenticatedSession()) {
+        return;
+    }
+    header('Content-Type: application/json');
+    $accessService = new \App\Services\RechargeAccessService();
+    echo json_encode([
+        'success' => true,
+        'allowed' => $accessService->canAccessPayroll(),
+    ]);
+});
+
+Router::post('/api/feature-access/reset', function () {
     if (!requireAuthenticatedSession()) {
         return;
     }
