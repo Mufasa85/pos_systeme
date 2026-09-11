@@ -2,66 +2,63 @@
 
 namespace App\Services;
 
-use App\Models\Settings;
+use App\Models\Shop;
+use App\Models\CompanyInfo;
 
 /**
- * Service de vérification d'accès à la page /recharges
- * via une API externe configurable.
+ * Service de vérification d'accès aux fonctionnalités
+ * via l'API OSAT : https://osat-energie.com/dgi/option_client/feedback.php?nif={nif}
  *
- * Le résultat est mis en cache en session avec un TTL configurable
- * pour éviter d'appeler l'API externe à chaque requête.
+ * Retourne les flags : snelregideso (recharges), paie (paie).
+ * Le résultat est mis en cache en session avec un TTL configurable.
  */
 class RechargeAccessService
 {
-    /** Durée de vie du cache en session (secondes) — 5 minutes par défaut */
     private int $cacheTtl;
+    private string $apiBaseUrl;
 
-    /** URL de l'API externe de vérification d'accès */
-    private string $apiUrl;
-
-    /** Clé de session pour le cache */
-    private const SESSION_KEY = 'recharge_access_cache';
+    private const SESSION_KEY = 'feature_access_cache';
+    private const SESSION_KEY_BC = 'recharge_access_cache'; // backward compat for header.php
 
     public function __construct(?int $cacheTtl = null)
     {
-        $this->cacheTtl = $cacheTtl ?? 300; // 5 minutes
-
-        // Charger l'URL depuis les paramètres (Settings) ou utiliser une valeur par défaut
-        $this->apiUrl = $this->loadApiUrl();
+        $this->cacheTtl = $cacheTtl ?? 300;
+        $this->apiBaseUrl = 'https://osat-energie.com/dgi/option_client/feedback.php';
     }
 
     /**
-     * Vérifie si l'utilisateur actuel a accès à la page /recharges.
-     * Utilise le cache session si disponible et encore valide.
+     * Vérifie l'accès à /recharges (flag snelregideso)
      */
     public function canAccess(): bool
     {
+        return $this->getFeatureFlag('snelregideso');
+    }
+
+    /**
+     * Vérifie l'accès à /payroll (flag paie)
+     */
+    public function canAccessPayroll(): bool
+    {
+        return $this->getFeatureFlag('paie');
+    }
+/**
+     * Récupère un flag depuis le cache ou depuis l'API.
+     */
+    private function getFeatureFlag(string $flagName): bool
+    {
         $this->ensureSessionStarted();
 
-        // Vérifier le cache session
         $cached = $_SESSION[self::SESSION_KEY] ?? null;
         if ($cached !== null && isset($cached['expires_at']) && $cached['expires_at'] > time()) {
-            return (bool) $cached['granted'];
+            return isset($cached['flags'][$flagName]) && $cached['flags'][$flagName];
         }
 
-        // Pas de cache valide → interroger l'API externe
-        return $this->checkFromApi();
+        $flags = $this->fetchFromApi();
+        return isset($flags[$flagName]) && $flags[$flagName];
     }
 
     /**
-     * Réinitialise le cache pour forcer une nouvelle vérification
-     * au prochain appel de canAccess().
-     */
-    public static function resetCache(): void
-    {
-        if (session_status() === PHP_SESSION_ACTIVE) {
-            unset($_SESSION[self::SESSION_KEY]);
-        }
-    }
-
-    /**
-     * Pré-charge le cache d'accès sans bloquer si déjà en cache.
-     * Utile pour le warmup dans le layout sans pénalité si déjà connu.
+     * Pré-charge le cache sans bloquer si déjà en cache.
      */
     public function warmupCache(): void
     {
@@ -69,69 +66,48 @@ class RechargeAccessService
 
         $cached = $_SESSION[self::SESSION_KEY] ?? null;
         if ($cached !== null && isset($cached['expires_at']) && $cached['expires_at'] > time()) {
-            return; // Cache encore valide, nothing to do
+            return;
         }
 
-        $this->checkFromApi();
+        $this->fetchFromApi();
     }
 
     /**
-     * Interroge l'API externe et met en cache le résultat.
+     * Réinitialise le cache (force une re-vérification au prochain appel).
      */
-    private function checkFromApi(): bool
+    public static function resetCache(): void
     {
-        $userId = $_SESSION['user_id'] ?? null;
-        $shopId = $_SESSION['shop_id'] ?? null;
-        $role = $_SESSION['role'] ?? 'vendeur';
-
-        $granted = $this->callExternalApi($userId, $shopId, $role);
-
-        // Mettre en cache
-        $_SESSION[self::SESSION_KEY] = [
-            'granted' => $granted,
-            'expires_at' => time() + $this->cacheTtl,
-            'checked_at' => time(),
-        ];
-
-        return $granted;
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            unset($_SESSION[self::SESSION_KEY]);
+            unset($_SESSION[self::SESSION_KEY_BC]);
+        }
     }
 
     /**
-     * Appelle l'API externe configurée pour vérifier les droits.
-     *
-     * @param int|null $userId
-     * @param int|null $shopId
-     * @param string   $role
-     * @return bool true si l'accès est autorisé, false sinon
+     * Appelle l'API externe et met en cache les flags.
+     * Retourne un tableau associatif des flags.
      */
-    private function callExternalApi(?int $userId, ?int $shopId, string $role): bool
+    private function fetchFromApi(): array
     {
-        // Si aucune URL configurée, on refuse l'accès par défaut (sécurité)
-        if (empty($this->apiUrl)) {
-            error_log('[RechargeAccessService] Aucune API URL configurée — accès refusé par défaut');
-            return false;
+        $nif = $this->getNif();
+
+        if (empty($nif)) {
+            error_log('[FeatureAccessService] Aucun NIF trouvé — accès refusé par défaut');
+            $this->storeCache(['snelregideso' => false, 'paie' => false]);
+            return ['snelregideso' => false, 'paie' => false];
         }
 
-        $payload = [
-            'user_id' => $userId,
-            'shop_id' => $shopId,
-            'role' => $role,
-        ];
+        $url = $this->apiBaseUrl . '?nif=' . urlencode($nif);
 
         try {
             $ch = curl_init();
             curl_setopt_array($ch, [
-                CURLOPT_URL => $this->apiUrl,
-                CURLOPT_POST => true,
-                CURLOPT_POSTFIELDS => json_encode($payload),
-                CURLOPT_HTTPHEADER => [
-                    'Content-Type: application/json',
-                    'Accept: application/json',
-                ],
+                CURLOPT_URL => $url,
                 CURLOPT_RETURNTRANSFER => true,
                 CURLOPT_TIMEOUT => 10,
                 CURLOPT_CONNECTTIMEOUT => 5,
                 CURLOPT_SSL_VERIFYPEER => false,
+                CURLOPT_HTTPHEADER => ['Accept: application/json'],
             ]);
 
             $response = curl_exec($ch);
@@ -140,68 +116,104 @@ class RechargeAccessService
             curl_close($ch);
 
             if ($response === false || empty($response)) {
-                error_log('[RechargeAccessService] Erreur connexion API: ' . $curlError . ' (HTTP ' . $httpCode . ')');
-                return false;
+                error_log('[FeatureAccessService] Erreur API: ' . $curlError . ' (HTTP ' . $httpCode . ')');
+                $this->storeCache(['snelregideso' => false, 'paie' => false]);
+                return ['snelregideso' => false, 'paie' => false];
             }
 
             $data = json_decode($response, true);
-            if (json_last_error() !== JSON_ERROR_NONE) {
-                error_log('[RechargeAccessService] Réponse API non-JSON reçue');
-                return false;
+            if (json_last_error() !== JSON_ERROR_NONE || empty($data['success'])) {
+                error_log('[FeatureAccessService] Réponse API invalide');
+                $this->storeCache(['snelregideso' => false, 'paie' => false]);
+                return ['snelregideso' => false, 'paie' => false];
             }
 
-            // Supporte plusieurs formats de réponse
-            if (isset($data['allowed'])) {
-                return (bool) $data['allowed'];
-            }
-            if (isset($data['data']['allowed'])) {
-                return (bool) $data['data']['allowed'];
-            }
-            if (isset($data['access'])) {
-                return (bool) $data['access'];
-            }
+            $payload = $data['data'] ?? [];
+            $flags = [
+                'snelregideso' => !empty($payload['snelregideso']),
+                'paie'         => !empty($payload['paie']),
+            ];
 
-            // Si le format est inconnu mais HTTP 200, on autorise
-            if ($httpCode === 200) {
-                error_log('[RechargeAccessService] Format de réponse API non reconnu, accès autorisé par défaut (HTTP 200)');
-                return true;
-            }
-
-            error_log('[RechargeAccessService] Réponse API inattendue (HTTP ' . $httpCode . ')');
-            return false;
+            $this->storeCache($flags);
+            return $flags;
 
         } catch (\Exception $e) {
-            error_log('[RechargeAccessService] Exception: ' . $e->getMessage());
-            return false;
+            error_log('[FeatureAccessService] Exception: ' . $e->getMessage());
+            $this->storeCache(['snelregideso' => false, 'paie' => false]);
+            return ['snelregideso' => false, 'paie' => false];
         }
     }
 
     /**
-     * Charge l'URL de l'API depuis les paramètres système.
-     * Cherche d'abord dans la table settings (clé 'recharge_access_api_url'),
-     * puis dans une variable d'environnement.
+     * Stocke les flags en session cache.
      */
-    private function loadApiUrl(): string
+    private function storeCache(array $flags): void
     {
-        // 1. Essayer depuis la table settings
+        $_SESSION[self::SESSION_KEY] = [
+            'flags'      => $flags,
+            'expires_at' => time() + $this->cacheTtl,
+            'checked_at' => time(),
+        ];
+
+        // Backward compat : maintient l'ancienne clé pour le header.php existant
+        $_SESSION[self::SESSION_KEY_BC] = [
+            'granted'    => $flags['snelregideso'] ?? false,
+            'expires_at' => time() + $this->cacheTtl,
+            'checked_at' => time(),
+        ];
+    }
+
+    /**
+     * Récupère le NIF depuis company_info (super_admin) ou depuis la boutique connectée.
+     *
+     * Le super_admin a toujours un shop_id en session (rattachement technique), mais ses
+     * informations d'entreprise réelles sont stockées dans company_info : il faut donc
+     * prioriser cette table pour son rôle plutôt que le NIF de la boutique.
+     */
+    private function getNif(): ?string
+    {
+        $role = $_SESSION['role'] ?? null;
+
+        // 1. Super admin : ses informations sont stockées dans company_info
+        if ($role === 'super_admin') {
+            try {
+                $companyInfo = new CompanyInfo();
+                $info = $companyInfo->get();
+                if ($info && !empty($info['isf'])) {
+                    return $info['isf'];
+                }
+            } catch (\Exception $e) {
+                error_log('[FeatureAccessService] Erreur chargement company_info: ' . $e->getMessage());
+            }
+        }
+
+        // 2. Essayer depuis la boutique
+        $shopId = $_SESSION['shop_id'] ?? null;
+        if ($shopId) {
+            try {
+                $shopModel = new Shop();
+                $shop = $shopModel->findById($shopId);
+                if ($shop && !empty($shop['isf'])) {
+                    return $shop['isf'];
+                }
+            } catch (\Exception $e) {
+                error_log('[FeatureAccessService] Erreur chargement shop: ' . $e->getMessage());
+            }
+        }
+
+        // 3. Fallback final : company_info (au cas où le rôle ne serait pas super_admin
+        // mais qu'aucune boutique valide n'est disponible)
         try {
-            $settingsModel = new Settings();
-            $url = $settingsModel->get('recharge_access_api_url');
-            if (!empty($url)) {
-                return $url;
+            $companyInfo = new CompanyInfo();
+            $info = $companyInfo->get();
+            if ($info && !empty($info['isf'])) {
+                return $info['isf'];
             }
         } catch (\Exception $e) {
-            // La table n'existe peut-être pas encore, ignorer
+            error_log('[FeatureAccessService] Erreur chargement company_info: ' . $e->getMessage());
         }
 
-        // 2. Essayer depuis une variable d'environnement
-        $envUrl = getenv('RECHARGE_ACCESS_API_URL');
-        if (!empty($envUrl)) {
-            return $envUrl;
-        }
-
-        // 3. Valeur par défaut (à configurer via l'interface Settings plus tard)
-        return '';
+        return null;
     }
 
     /**
