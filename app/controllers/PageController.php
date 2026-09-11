@@ -770,6 +770,14 @@ class PageController extends Controller
             exit;
         }
 
+        // Vérifier l'accès via l'API externe (flag paie)
+        $accessService = new \App\Services\RechargeAccessService();
+        if (!$accessService->canAccessPayroll()) {
+            http_response_code(403);
+            require_once dirname(__DIR__) . DIRECTORY_SEPARATOR . 'views/403.php';
+            exit;
+        }
+
         $isAdmin = $this->isAdmin() || $this->isSuperAdmin();
         $view = $params['view'] ?? 'index';
 
