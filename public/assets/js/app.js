@@ -1860,7 +1860,9 @@ const posCart = {
 
 
             // Construire les infos en une seule section
-            let infoSection = `<div style="border-top: 1px dashed #ccc; margin-top: 6px; padding-top: 6px; text-align: left; font-size: 15px; line-height: 1.5;">
+            // NB: font-size 11px pour rester uniforme avec la facture finale
+            // (/recharges) et l'aperçu /caisse (même police, même espacement).
+            let infoSection = `<div class="client-vendor-info" style="border-top: 1px dashed #ccc; margin-top: 6px; padding-top: 6px; text-align: left; font-size: 11px; line-height: 1.5;">
                                <div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>VENDEUR:</strong></span><span>${vendeur}</span></div>
                                ${acheteurNom ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>CLIENT:</strong></span><span>${acheteurNom}</span></div>` : ''}
                                ${acheteurNumero ? `<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>NUM:</strong></span><span>${formatPhoneNumber(acheteurNumero)}</span></div>` : ''}
@@ -2693,7 +2695,9 @@ function renderServiceBillContent(data, sale) {
     const providerService = info.providerService || (sale && sale.service) || '';
     const numeroCompteur = info.deviceId || '';
 
-    html += '<div style="border-top:1px dashed #ccc; margin-top:6px; padding-top:6px; text-align:left; font-size:15px; line-height:1.5;">';
+    // NB: font-size 11px pour rester uniforme avec la facture finale
+    // (/recharges) et l'aperçu /caisse (même police, même espacement).
+    html += '<div class="client-vendor-info" style="border-top:1px dashed #ccc; margin-top:6px; padding-top:6px; text-align:left; font-size:11px; line-height:1.5;">';
     html += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>VENDEUR:</strong></span><span>' + vendeur + '</span></div>';
     if (agentNumber) html += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>Numero Agent:</strong></span><span>' + agentNumber + '</span></div>';
     if (clientNom) html += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>CLIENT:</strong></span><span>' + clientNom + '</span></div>';
@@ -2939,7 +2943,9 @@ async function viewSaleDetails(saleId) {
         if (STORE_INFO.nid) storeExtraInfo += '<div>NID: ' + STORE_INFO.nid + '</div>';
 
         // Section vendeur/client (comme /caisse)
-        let infoSection = '<div style="border-top: 1px dashed #ccc; margin-top: 6px; padding-top: 6px; text-align: left; font-size: 15px; line-height: 1.5;">' +
+        // NB: font-size 11px pour rester uniforme avec la facture finale
+        // (/recharges) et l'aperçu /caisse (même police, même espacement).
+        let infoSection = '<div class="client-vendor-info" style="border-top: 1px dashed #ccc; margin-top: 6px; padding-top: 6px; text-align: left; font-size: 11px; line-height: 1.5;">' +
             '<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>VENDEUR:</strong></span><span>' + vendeur + '</span></div>' +
             (acheteurNom ? '<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>CLIENT:</strong></span><span>' + acheteurNom + '</span></div>' : '') +
             (acheteurNumero ? '<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>NUM:</strong></span><span>' + formatPhoneNumber(acheteurNumero) + '</span></div>' : '') +
