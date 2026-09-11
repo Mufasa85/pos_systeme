@@ -958,7 +958,7 @@
         // Recharger l'abonnement - redirection vers Mobile Money
         function reloadSubscription() {
           // Redirection vers la page de paiement Mobile Money
-          window.open('https://osat-energie.com/money.php', '_blank');
+          window.open('https://osat-energie.com/dgi/reabonnement/index.php', '_blank');
         }
 
         // Charger au démarrage
