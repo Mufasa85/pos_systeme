@@ -625,7 +625,9 @@ $isHomologueeLocal = !empty($storeInfo['homologation']);
 
             // Vendeur / Client
             var vendeur = info.sellerName || 'N/A';
-            html += '<div style="border-top:1px dashed #ccc; margin-top:6px; padding-top:6px; text-align:left; font-size:15px; line-height:1.5;">';
+            // NB: font-size 11px pour rester uniforme avec la facture finale
+            // (/recharges) et le duplicata /historique (même police, même espacement).
+            html += '<div class="client-vendor-info" style="border-top:1px dashed #ccc; margin-top:6px; padding-top:6px; text-align:left; font-size:11px; line-height:1.5;">';
             html += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>VENDEUR:</strong></span><span>' + esc(vendeur) + '</span></div>';
             if (info.client_name) html += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>CLIENT:</strong></span><span>' + esc(info.client_name) + '</span></div>';
             if (info.client_number) html += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>NUM:</strong></span><span>' + esc(phoneFmt(info.client_number)) + '</span></div>';
