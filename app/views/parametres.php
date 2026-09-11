@@ -461,6 +461,32 @@
               </button>
             </div>
           </div>
+
+          <!-- Cache d'accès aux fonctionnalités (Recharges / Paie) -->
+          <div class="card" style="padding: 1.5rem;">
+            <div class="card-header" style="margin-bottom: 1.5rem; padding: 0;">
+              <h3>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 8px; vertical-align: middle;">
+                  <polyline points="23 4 23 10 17 10"></polyline>
+                  <polyline points="1 20 1 14 7 14"></polyline>
+                  <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                </svg>
+                Accès Recharges &amp; Paie
+              </h3>
+              <p style="font-size: 0.85rem; color: var(--muted); margin-top: 0.25rem;">Réinitialise le cache d'accès aux pages Recharges (Électricité/Eau) et Paie. Utile après une mise à jour de votre abonnement.</p>
+            </div>
+            <div class="settings-form-container" style="background: var(--background); border-radius: var(--radius); padding: 1.25rem;">
+              <button type="button" id="btn-reset-feature-access" class="btn btn-secondary" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;" onclick="resetFeatureAccessCache()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="23 4 23 10 17 10"></polyline>
+                  <polyline points="1 20 1 14 7 14"></polyline>
+                  <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                </svg>
+                Réinitialiser l'accès Recharges / Paie
+              </button>
+              <span id="feature-access-reset-status" style="font-size: 0.85rem; color: var(--muted); display: inline-flex; align-items: center; margin-left: 0.5rem;"></span>
+            </div>
+          </div>
         </div>
 
         <!-- Apparence / Thème - Full Width Row -->
@@ -1172,6 +1198,42 @@ async function saveCompanyInfo() {
     }
   } catch (e) {
     console.error('Erreur sauvegarde company info:', e);
+    if (status) {
+      status.textContent = '✗ Erreur réseau';
+      status.style.color = '#DC2626';
+    }
+  } finally {
+    if (btn) btn.disabled = false;
+    setTimeout(() => { if (status) status.textContent = ''; }, 2500);
+  }
+}
+
+// Réinitialisation du cache d'accès Recharges / Paie
+async function resetFeatureAccessCache() {
+  const btn = document.getElementById('btn-reset-feature-access');
+  const status = document.getElementById('feature-access-reset-status');
+  if (btn) btn.disabled = true;
+  if (status) {
+    status.textContent = 'Réinitialisation...';
+    status.style.color = 'var(--muted)';
+  }
+
+  try {
+    const res = await fetch(APP_URL + '/api/feature-access/reset', { method: 'POST' });
+    const data = await res.json();
+    if (data.success) {
+      if (status) {
+        status.textContent = '✓ Cache réinitialisé';
+        status.style.color = '#16A34A';
+      }
+    } else {
+      if (status) {
+        status.textContent = '✗ ' + (data.error || 'Erreur');
+        status.style.color = '#DC2626';
+      }
+    }
+  } catch (e) {
+    console.error('Erreur reset feature access:', e);
     if (status) {
       status.textContent = '✗ Erreur réseau';
       status.style.color = '#DC2626';
