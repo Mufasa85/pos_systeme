@@ -807,6 +807,9 @@ class PageController extends Controller
     public function rapports()
     {
         $data = ['page' => 'rapports'];
+        if ($this->isSuperAdmin()) {
+            $data['shops'] = (new \App\Models\Shop())->getAll();
+        }
         $this->render('rapports', $data);
     }
 
