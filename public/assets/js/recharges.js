@@ -780,6 +780,10 @@ class BillPayment {
         // Remplir le modal
         const isAdmin = typeof CURRENT_USER !== 'undefined' && ['admin', 'super_admin'].includes(CURRENT_USER.role);
         if (isAdmin) {
+            // Verrouiller le type sur FV pour les magasins non assujetis a la TVA.
+            if (typeof lockInvoiceTypeIfNonAssujeti === 'function') {
+                lockInvoiceTypeIfNonAssujeti();
+            }
             document.getElementById('modal-invoice-type').value = invoiceType;
             document.getElementById('modal-invoice-ref').value = invoiceRef;
         }
@@ -1040,7 +1044,11 @@ class BillPayment {
     async confirmInvoiceInfoRecharge() {
         // Sauvegarder les valeurs du modal vers les champs du panier
         const isAdmin = typeof CURRENT_USER !== 'undefined' && ['admin', 'super_admin'].includes(CURRENT_USER.role);
-        const modalInvoiceType = isAdmin ? document.getElementById('modal-invoice-type')?.value || 'FV' : 'FV';
+        let modalInvoiceType = isAdmin ? document.getElementById('modal-invoice-type')?.value || 'FV' : 'FV';
+        // Garde-fou : un magasin non assujeti ne peut emettre que des factures FV.
+        if (typeof isShopAssujeti === 'function' && !isShopAssujeti()) {
+            modalInvoiceType = 'FV';
+        }
         const modalClientName = document.getElementById('modal-client-name')?.value || '';
         const modalClientNumber = document.getElementById('modal-client-tel1')?.value?.trim() || '';
         const modalClientType = document.getElementById('modal-client-type')?.value || '';

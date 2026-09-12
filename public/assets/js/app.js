@@ -4282,6 +4282,47 @@ function confirmAddPoids() {
 
 // ==================== INVOICE INFO MODAL ====================
 
+// Un magasin est "assujeti" (soumis a la TVA) lorsque store_homologation
+// est vrai (magasin homologue DGI). Les magasins non assujetis ne peuvent
+// emettre que des factures de type FV (facture de vente) : on verrouille
+// donc le selecteur de type du modal "Informations Facture" sur FV pour eux.
+function isShopAssujeti() {
+    return !!(STORE_INFO && STORE_INFO.homologation);
+}
+
+// Verrouille le selecteur de type de facture sur FV lorsque le magasin
+// n'est pas assujeti. Retourne true si le verrouillage a ete applique.
+function lockInvoiceTypeIfNonAssujeti() {
+    const select = document.getElementById('modal-invoice-type');
+    if (!select) return false;
+
+    if (isShopAssujeti()) {
+        // Magasin assujeti : on retablit toutes les options disponibles.
+        Array.from(select.options).forEach(opt => { opt.disabled = false; });
+        select.style.backgroundColor = '';
+        const note = document.getElementById('modal-invoice-type-note');
+        if (note) note.remove();
+        return false;
+    }
+
+    // Magasin non assujeti : seul FV est autorise.
+    Array.from(select.options).forEach(opt => {
+        opt.disabled = opt.value !== 'FV';
+    });
+    select.value = 'FV';
+    select.style.backgroundColor = '#f1f5f9';
+
+    // Petite note explicative sous le selecteur (une seule fois).
+    if (!document.getElementById('modal-invoice-type-note')) {
+        const note = document.createElement('div');
+        note.id = 'modal-invoice-type-note';
+        note.style.cssText = 'grid-column: 1 / -1; font-size: 0.7rem; color: #b45309; margin-top: 4px;';
+        note.textContent = "Ce magasin n'est pas assujeti a la TVA : seul le type FV est disponible.";
+        select.closest('div').appendChild(note);
+    }
+    return true;
+}
+
 // Ouvrir le modal d'informations facture
 function openInvoiceInfoModal() {
     const modal = $('#invoice-info-modal');
@@ -4310,6 +4351,8 @@ function openInvoiceInfoModal() {
 
     const isAdmin = typeof CURRENT_USER !== 'undefined' && ['admin', 'super_admin'].includes(CURRENT_USER.role);
     if (isAdmin) {
+        // Verrouiller le type sur FV pour les magasins non assujetis a la TVA.
+        lockInvoiceTypeIfNonAssujeti();
         document.getElementById('modal-invoice-type').value = invoiceType;
         document.getElementById('modal-invoice-ref').value = invoiceRef;
         initModalRefDocs();
@@ -4580,7 +4623,11 @@ function highlightModalField(fieldId) {
 // Confirmer les informations facture et passer au preview
 function confirmInvoiceInfo() {
     const isAdmin = typeof CURRENT_USER !== 'undefined' && ['admin', 'super_admin'].includes(CURRENT_USER.role);
-    const invoiceType = isAdmin ? document.getElementById('modal-invoice-type').value : 'FV';
+    let invoiceType = isAdmin ? document.getElementById('modal-invoice-type').value : 'FV';
+    // Garde-fou : un magasin non assujeti ne peut emettre que des factures FV.
+    if (!isShopAssujeti()) {
+        invoiceType = 'FV';
+    }
     const invoiceRefs = getModalRefDocs();
     const invoiceRef = invoiceRefs[0] || '';
     const clientName = document.getElementById('modal-client-name').value;
