@@ -13,12 +13,31 @@ class ReportController extends Controller
         $this->reportService = new ReportService();
     }
 
+    /**
+     * Détermine la boutique à utiliser pour la requête courante.
+     * - Un utilisateur "shop" (admin/vendeur) ne peut voir que les données de sa propre boutique.
+     * - Le super_admin peut voir toutes les boutiques (null = agrégation) ou filtrer via ?shop_id=.
+     */
+    private function resolveShopId()
+    {
+        if ($this->isSuperAdmin()) {
+            $shopId = $_GET['shop_id'] ?? null;
+            return ($shopId === null || $shopId === '') ? null : (int) $shopId;
+        }
+        return $this->getShopId();
+    }
+
     // GET /api/reports/z-report
     public function generateZReport()
     {
         if (!$this->requireAdmin()) return;
+        $shopId = $this->resolveShopId();
+        if ($this->isSuperAdmin() && $shopId === null) {
+            $this->status(400)->json(['success' => false, 'message' => 'Veuillez sélectionner une boutique pour générer un Z-rapport.']);
+            return;
+        }
         try {
-            $report = $this->reportService->generateZReport($this->getShopId());
+            $report = $this->reportService->generateZReport($shopId);
             $this->json(['success' => true, 'data' => $report,
                 'message' => 'Z-rapport généré. Période clôturée.']);
         } catch (\Exception $e) {
@@ -32,7 +51,7 @@ class ReportController extends Controller
         if (!$this->requireAuth()) return;
         try {
             $this->json(['success' => true,
-                'data' => $this->reportService->generateXReportDaily($this->getShopId())]);
+                'data' => $this->reportService->generateXReportDaily($this->resolveShopId())]);
         } catch (\Exception $e) {
             $this->status(500)->json(['success' => false, 'message' => $e->getMessage()]);
         }
@@ -51,7 +70,7 @@ class ReportController extends Controller
         try {
             $this->json(['success' => true,
                 'data' => $this->reportService->generateXReportPeriodic(
-                    $this->getShopId(), $from . ' 00:00:00', $to . ' 23:59:59')]);
+                    $this->resolveShopId(), $from . ' 00:00:00', $to . ' 23:59:59')]);
         } catch (\Exception $e) {
             $this->status(500)->json(['success' => false, 'message' => $e->getMessage()]);
         }
@@ -61,8 +80,13 @@ class ReportController extends Controller
     public function generateAReport()
     {
         if (!$this->requireAdmin()) return;
+        $shopId = $this->resolveShopId();
+        if ($this->isSuperAdmin() && $shopId === null) {
+            $this->status(400)->json(['success' => false, 'message' => 'Veuillez sélectionner une boutique pour générer un A-rapport.']);
+            return;
+        }
         try {
-            $report = $this->reportService->generateAReport($this->getShopId());
+            $report = $this->reportService->generateAReport($shopId);
             $this->json(['success' => true, 'data' => $report,
                 'message' => 'A-rapport généré. Période article clôturée.']);
         } catch (\Exception $e) {
@@ -74,12 +98,12 @@ class ReportController extends Controller
     public function getReportHistory()
     {
         if (!$this->requireAdmin()) return;
+        $shopId = $this->resolveShopId();
         $db = \App\Core\Database::getInstance();
-        $history = $db->fetchAll(
-            'SELECT zr.*, s.nom as shop_name FROM z_reports zr
-             LEFT JOIN shops s ON zr.shop_id = s.id
-             WHERE zr.shop_id = ? ORDER BY zr.issued_at DESC LIMIT 50',
-            [$this->getShopId()]);
+        $sql = 'SELECT zr.*, s.nom as shop_name FROM z_reports zr
+                LEFT JOIN shops s ON zr.shop_id = s.id
+                WHERE (? IS NULL OR zr.shop_id = ?) ORDER BY zr.issued_at DESC LIMIT 50';
+        $history = $db->fetchAll($sql, [$shopId, $shopId]);
         $this->json(['success' => true, 'data' => $history]);
     }
 
@@ -87,12 +111,12 @@ class ReportController extends Controller
     public function getAReportHistory()
     {
         if (!$this->requireAdmin()) return;
+        $shopId = $this->resolveShopId();
         $db = \App\Core\Database::getInstance();
-        $history = $db->fetchAll(
-            'SELECT ar.*, s.nom as shop_name FROM a_reports ar
-             LEFT JOIN shops s ON ar.shop_id = s.id
-             WHERE ar.shop_id = ? ORDER BY ar.issued_at DESC LIMIT 50',
-            [$this->getShopId()]);
+        $sql = 'SELECT ar.*, s.nom as shop_name FROM a_reports ar
+                LEFT JOIN shops s ON ar.shop_id = s.id
+                WHERE (? IS NULL OR ar.shop_id = ?) ORDER BY ar.issued_at DESC LIMIT 50';
+        $history = $db->fetchAll($sql, [$shopId, $shopId]);
         $this->json(['success' => true, 'data' => $history]);
     }
 
@@ -101,13 +125,17 @@ class ReportController extends Controller
     {
         if (!$this->requireAuth()) return;
         $db = \App\Core\Database::getInstance();
-        $zReport = $db->fetch('SELECT * FROM z_reports WHERE id = ? AND shop_id = ?',
-            [$params['id'], $this->getShopId()]);
+        if ($this->isSuperAdmin()) {
+            $zReport = $db->fetch('SELECT * FROM z_reports WHERE id = ?', [$params['id']]);
+        } else {
+            $zReport = $db->fetch('SELECT * FROM z_reports WHERE id = ? AND shop_id = ?',
+                [$params['id'], $this->getShopId()]);
+        }
         if (!$zReport) {
             $this->status(404)->json(['success' => false, 'message' => 'Rapport introuvable']);
             return;
         }
-        $report = $this->reportService->generate($this->getShopId(), 'Z',
+        $report = $this->reportService->generate($zReport['shop_id'], 'Z',
             $zReport['period_start'], $zReport['period_end']);
         $this->json(['success' => true, 'data' => $report]);
     }
