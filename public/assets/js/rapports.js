@@ -9,25 +9,43 @@ const ReportsManager = {
         document.getElementById('btn-a-report')?.addEventListener('click', () => this.generateA());
         document.getElementById('btn-x-daily')?.addEventListener('click', () => this.generateXD());
         document.getElementById('btn-x-periodic')?.addEventListener('click', () => this.generateXP());
+        document.getElementById('report-shop-filter')?.addEventListener('change', () => {
+            document.getElementById('report-content').innerHTML = `
+                <div class="rpt-empty-state">
+                    <p>Selectionnez un type de rapport pour afficher les resultats</p>
+                </div>`;
+            this.loadHistory();
+        });
+    },
+
+    // Boutique selectionnee (super_admin) : '' = toutes les boutiques
+    getShopId() {
+        return document.getElementById('report-shop-filter')?.value || '';
+    },
+
+    withShopParam(url) {
+        const shopId = this.getShopId();
+        if (!shopId) return url;
+        return url + (url.includes('?') ? '&' : '?') + 'shop_id=' + encodeURIComponent(shopId);
     },
 
     generateZ() {
         if (!confirm('Generer un Z-rapport va cloturer la periode. Continuer ?')) return;
-        this.fetch('/api/reports/z-report', 'Z-rapport');
+        this.fetch(this.withShopParam('/api/reports/z-report'), 'Z-rapport');
     },
 
     generateA() {
         if (!confirm('Generer un A-rapport va cloturer la periode articles. Continuer ?')) return;
-        this.fetch('/api/reports/a-report', 'A-rapport (detail articles)');
+        this.fetch(this.withShopParam('/api/reports/a-report'), 'A-rapport (detail articles)');
     },
 
-    generateXD() { this.fetch('/api/reports/x-report/daily', 'X-rapport quotidien'); },
+    generateXD() { this.fetch(this.withShopParam('/api/reports/x-report/daily'), 'X-rapport quotidien'); },
 
     generateXP() {
         const from = document.getElementById('report-from')?.value;
         const to = document.getElementById('report-to')?.value;
         if (!from || !to) { alert('Selectionnez une periode.'); return; }
-        this.fetch(`/api/reports/x-report/periodic?from=${from}&to=${to}`, 'X-rapport periodique');
+        this.fetch(this.withShopParam(`/api/reports/x-report/periodic?from=${from}&to=${to}`), 'X-rapport periodique');
     },
 
     fetch(url, label) {
@@ -238,7 +256,7 @@ const ReportsManager = {
     loadHistory() {
         const zList = document.getElementById('report-history-list');
         if (zList) {
-            fetch('/api/reports/history').then(r => r.json()).then(resp => {
+            fetch(this.withShopParam('/api/reports/history')).then(r => r.json()).then(resp => {
                 if (!resp.success) return;
                 this._histData.z = resp.data;
                 this._histPage.z = 1;
@@ -248,7 +266,7 @@ const ReportsManager = {
 
         const aList = document.getElementById('a-report-history-list');
         if (aList) {
-            fetch('/api/reports/a-history').then(r => r.json()).then(resp => {
+            fetch(this.withShopParam('/api/reports/a-history')).then(r => r.json()).then(resp => {
                 if (!resp.success) return;
                 this._histData.a = resp.data;
                 this._histPage.a = 1;
@@ -273,19 +291,23 @@ const ReportsManager = {
         const start = (page - 1) * perPage;
         const pageItems = data.slice(start, start + perPage);
 
+        const showShopCol = !!document.getElementById('report-shop-filter');
+        const shopCell = (row) => showShopCol ? `<td>${row.shop_name || '-'}</td>` : '';
+        const shopHeader = showShopCol ? '<th>Boutique</th>' : '';
+
         let html = '<table class="rpt-table">';
 
         if (type === 'z') {
-            html += '<thead><tr><th>#</th><th>Date</th><th>Periode</th><th style="text-align:right">TTC</th><th style="text-align:right">Factures</th></tr></thead><tbody>';
+            html += `<thead><tr><th>#</th>${shopHeader}<th>Date</th><th>Periode</th><th style="text-align:right">TTC</th><th style="text-align:right">Factures</th></tr></thead><tbody>`;
             pageItems.forEach(z => {
-                html += `<tr><td><strong>${z.counter}</strong></td><td>${z.issued_at}</td>
+                html += `<tr><td><strong>${z.counter}</strong></td>${shopCell(z)}<td>${z.issued_at}</td>
                     <td>${z.period_start}<br><span style="color:var(--muted);font-size:0.75rem">&rarr; ${z.period_end}</span></td>
                     <td style="text-align:right">${this.money(z.total_ttc)}</td><td style="text-align:right">${z.invoice_count}</td></tr>`;
             });
         } else {
-            html += '<thead><tr><th>#</th><th>Date</th><th>Periode</th><th style="text-align:right">Articles</th><th style="text-align:right">Qte</th><th style="text-align:right">Montant</th></tr></thead><tbody>';
+            html += `<thead><tr><th>#</th>${shopHeader}<th>Date</th><th>Periode</th><th style="text-align:right">Articles</th><th style="text-align:right">Qte</th><th style="text-align:right">Montant</th></tr></thead><tbody>`;
             pageItems.forEach(a => {
-                html += `<tr><td><strong>${a.counter}</strong></td><td>${a.issued_at}</td>
+                html += `<tr><td><strong>${a.counter}</strong></td>${shopCell(a)}<td>${a.issued_at}</td>
                     <td>${a.period_start}<br><span style="color:var(--muted);font-size:0.75rem">&rarr; ${a.period_end}</span></td>
                     <td style="text-align:right">${a.articles_count}</td>
                     <td style="text-align:right">${this.number(a.total_quantity_sold)}</td>
