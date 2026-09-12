@@ -12,11 +12,32 @@
     </div>
     <div>
       <h2 class="rpt-page-title">Rapports Fiscaux</h2>
+      <?php if (($_SESSION['role'] ?? '') !== 'super_admin'): ?>
       <p class="rpt-page-sub">
         Boutique : <strong><?= htmlspecialchars($storeName ?? 'N/A') ?></strong>
       </p>
+      <?php endif; ?>
     </div>
   </div>
+
+  <?php if (($_SESSION['role'] ?? '') === 'super_admin'): ?>
+  <div class="rpt-shop-filter-bar">
+    <label for="report-shop-filter">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+        <polyline points="9 22 9 12 15 12 15 22"></polyline>
+      </svg>
+      Boutique
+    </label>
+    <select id="report-shop-filter">
+      <option value="">Toutes les boutiques</option>
+      <?php foreach (($shops ?? []) as $sh): ?>
+        <option value="<?= $sh['id'] ?>"><?= htmlspecialchars($sh['nom']) ?> (<?= htmlspecialchars($sh['code']) ?>)</option>
+      <?php endforeach; ?>
+    </select>
+    <span class="rpt-shop-filter-hint">« Toutes les boutiques » affiche des données agrégées. Un Z/A-rapport doit être généré pour une boutique précise.</span>
+  </div>
+  <?php endif; ?>
 
   <!-- Action Cards -->
   <div class="rpt-cards-row">
@@ -170,6 +191,46 @@
   margin: 4px 0 0;
   font-size: 0.875rem;
   color: var(--muted);
+}
+
+/* ── Shop Filter Bar (super_admin) ──────────── */
+.rpt-shop-filter-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  padding: 14px 24px;
+  margin: 0 24px 20px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+}
+.rpt-shop-filter-bar label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--foreground);
+}
+.rpt-shop-filter-bar label svg { color: var(--primary); }
+.rpt-shop-filter-bar select {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: inherit;
+  font-size: 0.875rem;
+}
+.rpt-shop-filter-hint {
+  font-size: 0.75rem;
+  color: var(--muted);
+  flex-basis: 100%;
+}
+@media (min-width: 700px) {
+  .rpt-shop-filter-hint { flex-basis: auto; margin-left: auto; text-align: right; max-width: 360px; }
 }
 
 /* ── Action Cards ───────────────────────────── */
