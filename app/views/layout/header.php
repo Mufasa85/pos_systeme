@@ -63,6 +63,24 @@
   </script>
   <script src="/assets/js/service-bill-fetcher.js"></script>
   <script src="/assets/js/theme.js?v=1"></script>
+  <!-- PWA -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#1a1e64">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('/sw.js')
+          .then(function (registration) {
+            console.log('SW registered:', registration.scope);
+          })
+          .catch(function (err) {
+            console.error('SW registration failed', err);
+          });
+      });
+    }
+  </script>
 </head>
 
 <body>

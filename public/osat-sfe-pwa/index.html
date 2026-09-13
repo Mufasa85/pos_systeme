@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>OSAT SFE</title>
+
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#1a1e64" />
+
+  <!-- Icônes -->
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32x32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16x16.png" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+
+  <!-- iOS -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="OSAT SFE" />
+
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #0d0552;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      text-align: center;
+      padding: 24px;
+    }
+    .card {
+      background: #1a1e64;
+      border: 1px solid #3a4bb0;
+      border-radius: 16px;
+      padding: 40px 28px;
+      box-shadow: 0 8px 24px rgba(0, 0, 40, 0.4);
+      max-width: 360px;
+    }
+    img { width: 96px; height: 96px; margin-bottom: 16px; }
+    h1 { margin: 0 0 8px; font-size: 22px; color: #fff; }
+    p { margin: 0; color: #b8bfe8; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <img src="icons/icon-192x192.png" alt="Logo OSAT SFE" />
+    <h1>OSAT SFE</h1>
+    <p>Système de facturation SFE — prêt à être installé sur votre appareil.</p>
+  </div>
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').catch(console.error);
+      });
+    }
+  </script>
+</body>
+</html>

@@ -176,6 +176,24 @@ $companyName = $companyInfo['name'] ?? 'Mon Entreprise';
       box-shadow: 0 8px 25px rgba(48,233,254,0.3);
     }
   </style>
+  <!-- PWA -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#1a1e64">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('/sw.js')
+          .then(function (registration) {
+            console.log('SW registered:', registration.scope);
+          })
+          .catch(function (err) {
+            console.error('SW registration failed', err);
+          });
+      });
+    }
+  </script>
 </head>
 
 <body>
