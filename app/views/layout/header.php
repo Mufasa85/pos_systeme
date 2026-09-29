@@ -61,6 +61,58 @@
                             'shopId' => $_SESSION['shop_id'] ?? null,
                           ]) ?>;
   </script>
+
+  <!-- Réhydratation : poll le statut actif du shop côté serveur.
+       Si le super_admin désactive la boutique en cours de session, l'utilisateur
+       est automatiquement redirigé vers /logout?reason=shop_disabled. -->
+  <script>
+  (function () {
+    // super_admin : pas de shop, on ne poll pas
+    if (!CURRENT_USER || !CURRENT_USER.shopId) return;
+    // Si on est déjà sur la page de login, inutile
+    if (window.location.pathname === '/' || window.location.pathname === '/index.php') return;
+
+    let lastCheckAt = 0;
+    let isChecking = false;
+
+    async function pollShopActive() {
+      if (isChecking) return;
+      isChecking = true;
+      try {
+        const res = await fetch(APP_URL + '/api/shops/check-active', {
+          credentials: 'same-origin',
+          cache: 'no-store',
+        });
+        if (res.status === 401 || res.status === 403) {
+          // Session détruite côté serveur → redirection propre
+          window.location.href = '/?reason=session_expired';
+          return;
+        }
+        const data = await res.json();
+        if (data && data.success === true && data.active === false) {
+          // Boutique désactivée → on déconnecte
+          window.location.href = '/logout?reason=shop_disabled';
+        }
+      } catch (e) {
+        // Erreur réseau silencieuse : on ne déconnecte pas l'utilisateur
+      } finally {
+        isChecking = false;
+      }
+    }
+
+    // Première vérification rapide (5s après chargement)
+    setTimeout(pollShopActive, 5000);
+    // Puis toutes les 30 secondes
+    setInterval(pollShopActive, 30000);
+
+    // Vérifier aussi au retour de focus sur l'onglet (l'utilisateur revient après une pause)
+    document.addEventListener('visibilitychange', function () {
+      if (!document.hidden) {
+        pollShopActive();
+      }
+    });
+  })();
+  </script>
   <script src="/assets/js/service-bill-fetcher.js"></script>
   <script src="/assets/js/theme.js?v=1"></script>
   <!-- PWA -->
