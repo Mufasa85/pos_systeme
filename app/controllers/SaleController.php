@@ -16,6 +16,30 @@ class SaleController extends Controller
             return;
         }
 
+        // ⚠️ Protection boutique désactivée :
+        // requireAuth() → requireActiveShop() vérifie que le shop est actif.
+        // Si non, exit() avec 403. Aucun traitement ci-dessous ne s'exécute.
+        // Cette protection est automatique et s'applique à TOUTES les routes
+        // qui passent par requireAuth() (donc toutes les écritures de vente).
+        //
+        // On ajoute une vérification explicite supplémentaire (defense in depth)
+        // au cas où requireActiveShop serait modifié par erreur dans le futur :
+        if (!$this->isShopActive()) {
+            // Si on arrive ici, c'est que requireActiveShop n'a pas fait exit
+            // (ne devrait jamais arriver). On log et on bloque.
+            $this->logAudit('create', 'vente_blocked_shop_disabled', null, [
+                'shop_id' => $this->getShopId(),
+                'reason'  => 'shop_desactive',
+                'ip'      => $_SERVER['REMOTE_ADDR'] ?? null,
+            ]);
+            $this->status(403)->json([
+                'success' => false,
+                'error'   => 'shop_disabled',
+                'message' => 'Votre boutique a été désactivée. Vous ne pouvez pas émettre de factures.',
+            ]);
+            return;
+        }
+
         $data = json_decode(file_get_contents('php://input'), true);
         if (empty($data) || empty($data['articles'])) {
             $this->status(400)->json(['error' => 'Panier vide ou données invalides']);

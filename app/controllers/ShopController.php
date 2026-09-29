@@ -138,6 +138,16 @@ class ShopController extends Controller
             return;
         }
 
+        // Sécurité : impossible de supprimer une boutique encore active.
+        // L'utilisateur doit d'abord la désactiver via le formulaire d'édition.
+        if (!empty($shop['actif'])) {
+            $this->status(409)->json([
+                'error'   => 'shop_active',
+                'message' => 'Impossible de supprimer une boutique active. Désactivez-la d\'abord.',
+            ]);
+            return;
+        }
+
         $shopModel->delete($id);
         $this->logAudit('delete', 'shop', $id, ['nom' => $shop['nom']]);
         $this->json(['success' => true, 'message' => 'Boutique supprimée']);

@@ -19,6 +19,9 @@ class AuthController extends Controller
             header('Location: /dashboard');
             exit;
         }
+        // Si on arrive ici après une désactivation de boutique, exposer
+        // le flag à la vue login pour qu'elle affiche un message explicite.
+        $shopDisabledReason = ($_GET['reason'] ?? '') === 'shop_disabled';
         require_once dirname(__DIR__) . DIRECTORY_SEPARATOR . 'views/login.php';
     }
 
@@ -424,9 +427,30 @@ class AuthController extends Controller
 
     public function logout()
     {
-        $this->logAudit('logout', 'utilisateur', $_SESSION['user_id'] ?? null);
+        $reason = $_GET['reason'] ?? '';
+        $userId = $_SESSION['user_id'] ?? null;
+        $shopId = $_SESSION['shop_id'] ?? null;
+
+        $this->logAudit('logout', 'utilisateur', $userId, [
+            'reason' => $reason ?: 'manual',
+        ]);
+
+        // Si la déconnexion est causée par la désactivation du shop,
+        // on stocke un message flash en session pour l'afficher sur la page login.
+        if ($reason === 'shop_disabled' && $shopId) {
+            // On conserve temporairement l'ID pour le message, puis on détruit.
+            $_SESSION['flash_shop_disabled'] = true;
+        }
+
         session_destroy();
-        header('Location: /');
+
+        // Conserver le flag le temps d'afficher le message (cookie court)
+        if ($reason === 'shop_disabled') {
+            // Rediriger avec paramètre pour permettre l'affichage côté login
+            header('Location: /?reason=shop_disabled');
+        } else {
+            header('Location: /');
+        }
         exit;
     }
 

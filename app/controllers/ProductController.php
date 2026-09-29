@@ -13,7 +13,9 @@ class ProductController extends Controller
     {
         $productModel = new Product();
         $shopId = $this->isSuperAdmin() ? null : $this->getShopId();
-        $this->json($productModel->getAll($shopId));
+        // Super admin peut inclure les produits des boutiques désactivées via ?include_inactive=1
+        $includeInactive = $this->isSuperAdmin() && !empty($_GET['include_inactive']);
+        $this->json($productModel->getAll($shopId, $includeInactive));
     }
 
     public function find()

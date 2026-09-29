@@ -31,6 +31,10 @@ class PageController extends Controller
             exit;
         }
 
+        // Vérifier que la boutique de l'utilisateur est toujours active
+        // (si non, requireActiveShop() détruit la session et affiche la 403)
+        $this->requireActiveShop();
+
         $page = $view;
         // Charger le nom du magasin et le type de service pour toutes les pages
         $settingsModel = new Settings();
@@ -289,7 +293,9 @@ class PageController extends Controller
         $taxModel = new \App\Models\Tax();
 
         $shopId = $this->isSuperAdmin() ? null : $this->getShopId();
-        $produits = $productModel->getAll($shopId);
+        // Super admin peut voir les produits des boutiques désactivées via ?include_inactive=1
+        $includeInactive = $this->isSuperAdmin() && !empty($_GET['include_inactive']);
+        $produits = $productModel->getAll($shopId, $includeInactive);
         $categories = $categoryModel->all($shopId);
         $taxes = $taxModel->getAll();
 
@@ -305,6 +311,7 @@ class PageController extends Controller
             'categories' => $categories,
             'taxes' => $taxes,
             'shops' => $shops,
+            'includeInactive' => $includeInactive,
         ]);
     }
 

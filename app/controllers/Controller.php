@@ -72,6 +72,12 @@ class Controller
             return false;
         }
         $_SESSION['last_activity'] = time();
+
+        // Vérifier que le shop de l'utilisateur est toujours actif.
+        // Cette vérification protège TOUTES les routes (web + api) automatiquement.
+        // requireActiveShop() renvoie false seulement si shop OK, sinon exit() directement.
+        $this->requireActiveShop();
+
         return true;
     }
 
@@ -97,6 +103,99 @@ class Controller
             return false;
         }
         return true;
+    }
+
+    /**
+     * Vérifie que le shop de l'utilisateur connecté est toujours actif.
+     * - super_admin : jamais bloqué (pas lié à un shop)
+     * - utilisateur sans shop_id : autorisé
+     * - shop désactivé (actif = 0) ou introuvable : session détruite + 403
+     *
+     * Utilisé par les pages et API pour la « réhydratation » :
+     * même un utilisateur déjà connecté est expulsé si son shop est désactivé.
+     */
+    protected function requireActiveShop(): bool
+    {
+        // super_admin n'est rattaché à aucun shop, jamais bloqué
+        if ($this->isSuperAdmin()) {
+            return true;
+        }
+
+        $shopId = $this->getShopId();
+        if (!$shopId) {
+            return true; // pas de shop rattaché => pas de restriction
+        }
+
+        try {
+            $shop = (new \App\Models\Shop())->findById($shopId);
+        } catch (\Exception $e) {
+            error_log('requireActiveShop error: ' . $e->getMessage());
+            return true; // en cas d'erreur SQL, on n'expulse pas l'utilisateur
+        }
+
+        if (!$shop || empty($shop['actif'])) {
+            $userId = $_SESSION['user_id'] ?? null;
+            // audit avant destruction
+            try {
+                $audit = new \App\Models\AuditLog();
+                $audit->log($userId, $shopId, 'logout', 'shop_disabled', $shopId, [
+                    'reason' => 'shop_desactive_pendant_session',
+                ]);
+            } catch (\Exception $e) {
+                // pas bloquant
+            }
+
+            // destruction de session puis 403
+            $_SESSION = [];
+            if (session_status() === PHP_SESSION_ACTIVE) {
+                session_destroy();
+            }
+
+            http_response_code(403);
+            // Permettre à l'appelant API de recevoir du JSON
+            $uri = $_SERVER['REQUEST_URI'] ?? '';
+            if (strpos($uri, '/api/') === 0) {
+                header('Content-Type: application/json');
+                echo json_encode([
+                    'success' => false,
+                    'error'   => 'shop_disabled',
+                    'message' => 'Votre boutique a été désactivée. Contactez votre administrateur.',
+                ]);
+                exit;
+            }
+            require_once dirname(__DIR__) . DIRECTORY_SEPARATOR . 'views' . DIRECTORY_SEPARATOR . '403.php';
+            exit;
+        }
+
+        return true;
+    }
+
+    /**
+     * Variante "douce" de requireActiveShop().
+     * Renvoie false au lieu d'appeler exit() si le shop est désactivé.
+     * Le contrôleur appelant peut alors choisir :
+     *  - soit répondre avec un message JSON 403 explicite
+     *  - soit logger une tentative frauduleuse avant de bloquer
+     *
+     * Ne détruit PAS la session : l'utilisateur reste connecté pour pouvoir
+     * continuer à utiliser le front (le polling JS s'occupera de la déconnexion).
+     */
+    protected function isShopActive(): bool
+    {
+        if ($this->isSuperAdmin()) {
+            return true;
+        }
+        $shopId = $this->getShopId();
+        if (!$shopId) {
+            return true;
+        }
+        try {
+            $shop = (new \App\Models\Shop())->findById($shopId);
+        } catch (\Exception $e) {
+            error_log('isShopActive error: ' . $e->getMessage());
+            return true;
+        }
+        return $shop && !empty($shop['actif']);
     }
 
     // ── Audit log helper ────────────────────────────────────────
