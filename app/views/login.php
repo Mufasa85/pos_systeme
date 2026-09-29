@@ -229,6 +229,31 @@ $companyName = $companyInfo['name'] ?? 'Mon Entreprise';
       </div>
       <form id="login-form" class="login-form" action="/login" method="POST">
         <?= App\Core\Security::csrf_tokken(); ?>
+
+        <?php if (!empty($shopDisabledReason)): ?>
+          <div class="login-shop-disabled" role="alert" style="
+            background:#fee2e2;
+            border:1px solid #fecaca;
+            color:#991b1b;
+            padding:.75rem 1rem;
+            border-radius:8px;
+            margin-bottom:1rem;
+            font-size:.85rem;
+            display:flex;
+            align-items:flex-start;
+            gap:.5rem;
+          ">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;margin-top:1px">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="8" x2="12" y2="12"></line>
+              <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+            <div>
+              <strong style="display:block;margin-bottom:2px">Boutique désactivée</strong>
+              Votre boutique a été désactivée par le super administrateur. Vous ne pouvez plus accéder à l'application. Veuillez le contacter pour réactiver votre boutique.
+            </div>
+          </div>
+        <?php endif; ?>
         <div class="form-group">
           <label for="username">Nom d'utilisateur</label>
           <input type="text" id="username" name="username" placeholder="Entrez votre identifiant" required>
