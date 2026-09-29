@@ -27,6 +27,10 @@
                 <option value="<?= htmlspecialchars($shop['id']) ?>"><?= htmlspecialchars($shop['nom']) ?></option>
               <?php endforeach; ?>
             </select>
+            <label style="display:inline-flex;align-items:center;gap:.4rem;font-size:.85rem;color:var(--text-secondary,#475569);cursor:pointer">
+              <input type="checkbox" id="include-inactive-shops" <?= !empty($includeInactive) ? 'checked' : '' ?>>
+              Inclure boutiques inactives
+            </label>
           <?php endif; ?>
         </div>
         <div class="table-container">
@@ -75,7 +79,14 @@
                   </td>
                   <td style="padding:0.75rem;"><strong><?= number_format($p['prix'], 2) ?> Fc</strong></td>
                   <?php if (($_SESSION['role'] ?? '') === 'super_admin'): ?>
-                    <td style="padding:0.75rem;"><span class="badge badge-info"><?= htmlspecialchars($p['shop_name'] ?? 'N/A') ?></span></td>
+                    <td style="padding:0.75rem;">
+                      <span class="badge <?= empty($p['shop_actif']) ? 'badge-danger' : 'badge-info' ?>">
+                        <?= htmlspecialchars($p['shop_name'] ?? 'N/A') ?>
+                        <?php if (isset($p['shop_actif']) && empty($p['shop_actif'])): ?>
+                          <span style="font-size:.65rem;margin-left:.25rem;opacity:.85">(inactif)</span>
+                        <?php endif; ?>
+                      </span>
+                    </td>
                   <?php endif; ?>
                   <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin'): ?>
                     <td style="padding:0.75rem;">

@@ -132,9 +132,19 @@
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="16 3 21 8 8 21 3 21 3 16 16 3"/></svg>
         Modifier
       </button>
-      <button class="btn btn-small" onclick="deleteShop(<?= $shop['id'] ?>)" style="color:#e53e3e;border-color:#fecaca">
+      <?php
+        // Suppression uniquement autorisée pour les boutiques déjà désactivées.
+        // Une boutique active doit d'abord être désactivée avant d'être supprimée.
+        $canDelete = empty($shop['actif']);
+      ?>
+      <button class="btn btn-small"
+              <?= $canDelete
+                  ? 'onclick="deleteShop(' . (int)$shop['id'] . ')" style="color:#e53e3e;border-color:#fecaca"'
+                  : 'disabled title="Désactivez d\'abord la boutique avant de la supprimer" style="color:#94a3b8;border-color:#e2e8f0;cursor:not-allowed;opacity:.55;background:#f8fafc"'
+              ?>
+              aria-disabled="<?= $canDelete ? 'false' : 'true' ?>">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-        Supprimer
+        <?= $canDelete ? 'Supprimer' : 'Supprimer (désactiver d\'abord)' ?>
       </button>
     </div>
   </div>
@@ -374,8 +384,10 @@ async function deleteShop(id) {
     const result = await res.json();
     if (result.success) {
       window.location.reload();
+    } else if (result.error === 'shop_active' || (result.message && result.message.toLowerCase().includes('active'))) {
+      alert('Impossible de supprimer une boutique active. Désactivez-la d\'abord depuis le bouton Modifier.');
     } else {
-      alert(result.error || 'Erreur lors de la suppression');
+      alert(result.error || result.message || 'Erreur lors de la suppression');
     }
   } catch (err) {
     alert('Erreur réseau');

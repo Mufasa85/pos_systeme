@@ -56,6 +56,40 @@ Router::post('/api/shops/update/[i:id]', [ShopController::class, 'update']);
 Router::post('/api/shops/delete/[i:id]', [ShopController::class, 'delete']);
 Router::get('/api/shops/stats/[i:id]', [ShopController::class, 'stats']);
 
+// Vérification temps réel du statut actif du shop de l'utilisateur connecté.
+// Permet la « réhydratation » côté front : si le shop est désactivé pendant
+// la session, le client est redirigé vers /logout?reason=shop_disabled.
+Router::get('/api/shops/check-active', function () {
+    header('Content-Type: application/json');
+
+    if (!isset($_SESSION['user_id'])) {
+        http_response_code(401);
+        echo json_encode(['success' => false, 'error' => 'Non authentifié']);
+        return;
+    }
+
+    // super_admin n'est rattaché à aucun shop → toujours actif
+    if (($_SESSION['role'] ?? '') === 'super_admin') {
+        echo json_encode(['success' => true, 'active' => true, 'reason' => 'super_admin']);
+        return;
+    }
+
+    $shopId = $_SESSION['shop_id'] ?? null;
+    if (!$shopId) {
+        echo json_encode(['success' => true, 'active' => true, 'reason' => 'no_shop']);
+        return;
+    }
+
+    $shop = (new \App\Models\Shop())->findById($shopId);
+    $active = $shop && !empty($shop['actif']);
+    echo json_encode([
+        'success' => true,
+        'active'  => $active,
+        'shop_id' => $shopId,
+        'reason'  => $active ? null : 'shop_disabled',
+    ]);
+});
+
 // ── Service Types (super_admin/admin) ─────────────────────────
 Router::get('/api/service-types', [ServiceTypeController::class, 'index']);
 Router::post('/api/service-types', [ServiceTypeController::class, 'create']);
@@ -241,6 +275,41 @@ Router::post('/api/bill-payment', function () {
 
     if (!requireAuthenticatedSession()) {
         return;
+    }
+
+    // ⚠️ Protection boutique désactivée : un user dont le shop a été désactivé
+    // ne doit pas pouvoir consulter ni payer des factures de service.
+    if (($_SESSION['role'] ?? '') !== 'super_admin') {
+        $shopId = $_SESSION['shop_id'] ?? null;
+        if ($shopId) {
+            $shop = (new \App\Models\Shop())->findById($shopId);
+            if (!$shop || empty($shop['actif'])) {
+                // Audit : tentative d'accès au proxy paiement
+                try {
+                    (new \App\Models\AuditLog())->log(
+                        $_SESSION['user_id'] ?? null,
+                        $shopId,
+                        'access_blocked',
+                        'bill_payment',
+                        null,
+                        ['reason' => 'shop_desactive', 'ip' => $_SERVER['REMOTE_ADDR'] ?? null]
+                    );
+                } catch (\Exception $e) { /* noop */ }
+
+                // Destruction de session pour expulser l'utilisateur
+                $_SESSION = [];
+                if (session_status() === PHP_SESSION_ACTIVE) {
+                    session_destroy();
+                }
+                http_response_code(403);
+                echo json_encode([
+                    'success' => false,
+                    'error'   => 'shop_disabled',
+                    'message' => 'Votre boutique a été désactivée. Accès aux paiements de factures bloqué.',
+                ]);
+                exit;
+            }
+        }
     }
 
     $input = json_decode(file_get_contents('php://input'), true);
