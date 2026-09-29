@@ -21,6 +21,9 @@
         <!-- Receipt Header -->
         <div class="receipt-header">
             <div style="text-align: center; font-weight: 800; font-size: 24px; color: #000; margin-bottom: 10px; border-bottom: 2px solid #000; padding-bottom: 5px;">PRO FORMAT</div>
+            <?php if (!empty($storeData['logo'])): ?>
+                <img src="<?= htmlspecialchars($storeData['logo']) ?>" class="receipt-logo" alt="Logo">
+            <?php endif; ?>
             <div class="store-name">
                 <?= htmlspecialchars($storeData['name'] ?? 'SuperMarche Express') ?>
             </div>
