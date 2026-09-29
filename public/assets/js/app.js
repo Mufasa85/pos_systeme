@@ -1774,6 +1774,14 @@ const posCart = {
             const saleData = await saleRes.json();
 
             if (!saleData.success) {
+                // Cas particulier : boutique désactivée par le super_admin pendant
+                // la session → on déconnecte l'utilisateur immédiatement avec un
+                // message clair et on bloque toute autre action.
+                if (saleData.error === 'shop_disabled' || saleRes.status === 403) {
+                    alert(saleData.message || 'Votre boutique a été désactivée. Vous ne pouvez plus émettre de factures.');
+                    window.location.href = '/logout?reason=shop_disabled';
+                    return;
+                }
                 alert(saleData.error);
                 $('#confirm-sale').disabled = false;
                 $('#confirm-sale').innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> Valider la facture';
@@ -3847,6 +3855,21 @@ function initProductsTabs() {
             const search = filterInput ? filterInput.value : '';
             const category = categoryFilter ? categoryFilter.value : 'all';
             filterProductsTable(search, category, e.target.value);
+        });
+    }
+
+    // Toggle "Inclure boutiques inactives" : recharge la page en transmettant
+    // le flag au contrôleur qui rechargera les produits via le bon filtre SQL.
+    const includeInactiveToggle = $('#include-inactive-shops');
+    if (includeInactiveToggle) {
+        includeInactiveToggle.addEventListener('change', (e) => {
+            const url = new URL(window.location.href);
+            if (e.target.checked) {
+                url.searchParams.set('include_inactive', '1');
+            } else {
+                url.searchParams.delete('include_inactive');
+            }
+            window.location.href = url.toString();
         });
     }
 
