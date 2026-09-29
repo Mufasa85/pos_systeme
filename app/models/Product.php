@@ -11,34 +11,42 @@ class Product
         $this->db = \App\Core\Database::getInstance();
     }
 
-    public function getAll($shopId = null)
+    public function getAll($shopId = null, $includeInactiveShops = false)
     {
-        $where = '';
+        $where = [];
         $params = [];
         if ($shopId) {
-            $where = 'WHERE p.shop_id = ?';
+            $where[] = 'p.shop_id = ?';
             $params[] = $shopId;
         }
-        return $this->db->fetchAll("SELECT p.*, c.category AS categorie, t.taux AS tax_rate, t.etiquette AS tax_etiquette, s.nom AS shop_name,
+        // Filtrer par défaut les produits dont la boutique est désactivée.
+        // Les produits sans shop rattaché (shop_id NULL) restent visibles.
+        if (!$includeInactiveShops) {
+            $where[] = '(s.id IS NULL OR s.actif = 1)';
+        }
+        $whereSql = $where ? 'WHERE ' . implode(' AND ', $where) : '';
+        return $this->db->fetchAll("SELECT p.*, c.category AS categorie, t.taux AS tax_rate, t.etiquette AS tax_etiquette, s.nom AS shop_name, s.actif AS shop_actif,
                 COALESCE(SUM(pb.stock), 0) AS total_stock,
                 COALESCE(SUM(CASE WHEN pb.date_expiration IS NULL OR pb.date_expiration >= CURDATE() THEN pb.stock ELSE 0 END), 0) AS available_stock,
                 MIN(CASE WHEN pb.date_expiration IS NOT NULL AND pb.stock > 0 AND pb.date_expiration >= CURDATE() THEN pb.date_expiration END) AS nearest_expiration_date
-            FROM produits p 
-            INNER JOIN categories c ON p.category_id = c.id 
-            LEFT JOIN taxes t ON p.taxe_id = t.id 
-            LEFT JOIN shops s ON p.shop_id = s.id 
+            FROM produits p
+            INNER JOIN categories c ON p.category_id = c.id
+            LEFT JOIN taxes t ON p.taxe_id = t.id
+            LEFT JOIN shops s ON p.shop_id = s.id
             LEFT JOIN product_batches pb ON pb.product_id = p.id
-            $where
+            $whereSql
             GROUP BY p.id
             ORDER BY p.nom ASC", $params);
     }
 
     public function findByBarcode($barcode)
     {
-        $product = $this->db->fetch('SELECT p.*, t.taux AS tax_rate, t.etiquette AS tax_etiquette 
-            FROM produits p 
-            LEFT JOIN taxes t ON p.taxe_id = t.id 
-            WHERE p.code_barres = :code_barres', [':code_barres' => $barcode]);
+        $product = $this->db->fetch('SELECT p.*, t.taux AS tax_rate, t.etiquette AS tax_etiquette
+            FROM produits p
+            LEFT JOIN taxes t ON p.taxe_id = t.id
+            LEFT JOIN shops s ON p.shop_id = s.id
+            WHERE p.code_barres = :code_barres
+              AND (s.id IS NULL OR s.actif = 1)', [':code_barres' => $barcode]);
         if ($product) {
             $product = $this->enrichWithBatchInfo($product);
         }
@@ -47,10 +55,12 @@ class Product
 
     public function findById($id)
     {
-        $product = $this->db->fetch('SELECT p.*, t.taux AS tax_rate, t.etiquette AS tax_etiquette 
-            FROM produits p 
-            LEFT JOIN taxes t ON p.taxe_id = t.id 
-            WHERE p.id = :id', [':id' => $id]);
+        $product = $this->db->fetch('SELECT p.*, t.taux AS tax_rate, t.etiquette AS tax_etiquette
+            FROM produits p
+            LEFT JOIN taxes t ON p.taxe_id = t.id
+            LEFT JOIN shops s ON p.shop_id = s.id
+            WHERE p.id = :id
+              AND (s.id IS NULL OR s.actif = 1)', [':id' => $id]);
         if ($product) {
             $product = $this->enrichWithBatchInfo($product);
         }
