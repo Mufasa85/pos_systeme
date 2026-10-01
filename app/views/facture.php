@@ -33,6 +33,9 @@ $localQrData  = $sale['qrCode'] ?? '';
         <!-- Receipt Header -->
         <div class="receipt-header">
             <div style="text-align: center; font-weight: 800; font-size: 24px; color: #000; margin-bottom: 10px; border-bottom: 2px solid #000; padding-bottom: 5px;">PRO FORMAT</div>
+            <?php if (!empty($storeInfo['logo'])): ?>
+                <img src="<?= htmlspecialchars($storeInfo['logo']) ?>" class="receipt-logo" alt="Logo">
+            <?php endif; ?>
             <div class="store-name">
                 <?= htmlspecialchars($storeInfo['name'] ?? 'SuperMarche Express') ?>
             </div>
@@ -478,7 +481,9 @@ $clientNif = $sale['client_nif'] ?? '';
 
             // Vendeur / Client
             var vendeur = info.sellerName || (window.SALE_DATA && window.SALE_DATA.nom_vendeur) || 'N/A';
-            html += '<div style="border-top:1px dashed #ccc; margin-top:6px; padding-top:6px; text-align:left; font-size:15px; line-height:1.5;">';
+            // NB: font-size 11px pour rester uniforme avec la facture finale
+            // (/recharges) et le duplicata /historique (même police, même espacement).
+            html += '<div class="client-vendor-info" style="border-top:1px dashed #ccc; margin-top:6px; padding-top:6px; text-align:left; font-size:11px; line-height:1.5;">';
             html += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>VENDEUR:</strong></span><span>' + esc(vendeur) + '</span></div>';
             if (info.client_name) html += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>CLIENT:</strong></span><span>' + esc(info.client_name) + '</span></div>';
             if (info.client_number) html += '<div style="display:flex; justify-content:space-between; gap:10px;"><span><strong>NUM:</strong></span><span>' + esc(phoneFmt(info.client_number)) + '</span></div>';

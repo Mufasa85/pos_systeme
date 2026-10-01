@@ -45,6 +45,40 @@
     #shop-modal .modal-content div[style*="grid-template-columns:1fr 1fr"] { grid-template-columns: 1fr !important; }
     #shop-modal .modal-content div[style*="display:flex;gap:.75rem"] > .form-group { width: 100%; }
   }
+
+  /* Modal "Fonctionnalité non disponible" */
+  .feat-unavailable-overlay {
+    position: fixed; inset: 0; background: rgba(15,23,42,.55);
+    display: none; align-items: center; justify-content: center;
+    z-index: 9999; padding: 1rem; backdrop-filter: blur(2px);
+  }
+  .feat-unavailable-overlay.active { display: flex; }
+  .feat-unavailable-card {
+    background: #fff; border-radius: 14px; padding: 2rem 1.75rem;
+    max-width: 420px; width: 100%; text-align: center;
+    box-shadow: 0 20px 60px rgba(0,0,0,.25);
+    animation: featUnavailableIn .25s cubic-bezier(.16,1,.3,1);
+  }
+  @keyframes featUnavailableIn {
+    from { opacity: 0; transform: translateY(-12px) scale(.96); }
+    to   { opacity: 1; transform: translateY(0)    scale(1); }
+  }
+  .feat-unavailable-icon {
+    width: 64px; height: 64px; margin: 0 auto 1rem;
+    border-radius: 50%; background: #fef3c7;
+    display: flex; align-items: center; justify-content: center;
+    color: #d97706;
+  }
+  .feat-unavailable-title {
+    font-size: 1.15rem; font-weight: 700;
+    color: var(--text, #0f172a); margin-bottom: .5rem;
+  }
+  .feat-unavailable-msg {
+    font-size: .9rem; color: #475569; line-height: 1.55;
+    margin-bottom: 1.5rem;
+  }
+  .feat-unavailable-actions { display: flex; justify-content: center; }
+  .feat-unavailable-actions .btn { min-width: 130px; }
 </style>
 
 <div class="page-header">
@@ -133,18 +167,16 @@
         Modifier
       </button>
       <?php
-        // Suppression uniquement autorisée pour les boutiques déjà désactivées.
-        // Une boutique active doit d'abord être désactivée avant d'être supprimée.
-        $canDelete = empty($shop['actif']);
+        // Suppression : la fonctionnalité est volontairement désactivée pour
+        // protéger l'historique des ventes et la conformité. Tous les boutons
+        // ouvrent un modal "Fonctionnalité non disponible".
       ?>
       <button class="btn btn-small"
-              <?= $canDelete
-                  ? 'onclick="deleteShop(' . (int)$shop['id'] . ')" style="color:#e53e3e;border-color:#fecaca"'
-                  : 'disabled title="Désactivez d\'abord la boutique avant de la supprimer" style="color:#94a3b8;border-color:#e2e8f0;cursor:not-allowed;opacity:.55;background:#f8fafc"'
-              ?>
-              aria-disabled="<?= $canDelete ? 'false' : 'true' ?>">
+              onclick="showFeatureUnavailable(&quot;La suppression de boutique est temporairement désactivée pour préserver l’historique des ventes et la conformité comptable. Contactez le support si vous devez vraiment supprimer cette boutique.&quot;)"
+              title="Fonctionnalité non disponible"
+              style="color:#94a3b8;border-color:#e2e8f0;background:#f8fafc;cursor:pointer;opacity:.85">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-        <?= $canDelete ? 'Supprimer' : 'Supprimer (désactiver d\'abord)' ?>
+        Supprimer
       </button>
     </div>
   </div>
@@ -270,6 +302,27 @@
   </div>
 </div>
 
+<!-- Modal "Fonctionnalité non disponible" -->
+<div id="feature-unavailable-modal" class="feat-unavailable-overlay" role="dialog" aria-modal="true" aria-labelledby="feat-unavailable-title">
+  <div class="feat-unavailable-card">
+    <div class="feat-unavailable-icon" aria-hidden="true">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round">
+        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+        <circle cx="12" cy="16.5" r="1.25" fill="currentColor" stroke="none"></circle>
+        <line x1="12" y1="13" x2="12" y2="16.5"></line>
+      </svg>
+    </div>
+    <h3 id="feat-unavailable-title" class="feat-unavailable-title">Fonctionnalité non disponible</h3>
+    <p id="feat-unavailable-msg" class="feat-unavailable-msg">
+      Cette action n’est pas disponible pour le moment.
+    </p>
+    <div class="feat-unavailable-actions">
+      <button type="button" class="btn btn-primary" onclick="closeFeatureUnavailable()">OK, compris</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const SHOPS_API = window.location.origin + '/api/shops';
 const SERVICE_TYPES_API = window.location.origin + '/api/service-types';
@@ -378,19 +431,63 @@ async function saveShop(e) {
 loadServiceTypes();
 
 async function deleteShop(id) {
-  if (!confirm('Supprimer cette boutique ? Cette action est irréversible.')) return;
-  try {
-    const res = await fetch(`${SHOPS_API}/${id}`, { method: 'DELETE' });
-    const result = await res.json();
-    if (result.success) {
-      window.location.reload();
-    } else if (result.error === 'shop_active' || (result.message && result.message.toLowerCase().includes('active'))) {
-      alert('Impossible de supprimer une boutique active. Désactivez-la d\'abord depuis le bouton Modifier.');
-    } else {
-      alert(result.error || result.message || 'Erreur lors de la suppression');
-    }
-  } catch (err) {
-    alert('Erreur réseau');
+  // Fonctionnalité désactivée : on affiche systématiquement le modal
+  // "Fonctionnalité non disponible" pour expliquer que la suppression
+  // n'est pas accessible (sécurisation de l'historique des ventes).
+  showFeatureUnavailable(
+    "La suppression de boutique est temporairement désactivée pour préserver l’historique des ventes et la conformité comptable. Contactez le support si vous devez vraiment supprimer cette boutique."
+  );
+}
+
+/**
+ * Affiche le modal stylé "Fonctionnalité non disponible".
+ * @param {string} message Message personnalisé (optionnel)
+ */
+function showFeatureUnavailable(message) {
+  const msgEl = document.getElementById('feat-unavailable-msg');
+  if (msgEl && message) {
+    msgEl.textContent = message;
+  } else if (msgEl) {
+    msgEl.textContent = "Cette action n’est pas disponible pour le moment.";
+  }
+  const overlay = document.getElementById('feature-unavailable-modal');
+  if (overlay) {
+    overlay.classList.add('active');
+    // Focus sur le bouton OK pour l'accessibilité
+    setTimeout(() => {
+      const okBtn = overlay.querySelector('.btn-primary');
+      if (okBtn) okBtn.focus();
+    }, 50);
   }
 }
+
+/**
+ * Ferme le modal "Fonctionnalité non disponible".
+ */
+function closeFeatureUnavailable() {
+  const overlay = document.getElementById('feature-unavailable-modal');
+  if (overlay) {
+    overlay.classList.remove('active');
+  }
+}
+
+// Fermer le modal en cliquant sur l'overlay (en dehors de la carte)
+document.addEventListener('DOMContentLoaded', () => {
+  const overlay = document.getElementById('feature-unavailable-modal');
+  if (overlay) {
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) closeFeatureUnavailable();
+    });
+  }
+});
+
+// Fermer le modal avec la touche Escape
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    const overlay = document.getElementById('feature-unavailable-modal');
+    if (overlay && overlay.classList.contains('active')) {
+      closeFeatureUnavailable();
+    }
+  }
+});
 </script>
