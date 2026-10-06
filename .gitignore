@@ -13,3 +13,9 @@ playwright-report/
 test-results/
 e2e-report/
 screenshots/
+
+# Fichiers parasites Windows (créés par erreur via cmd / PowerShell)
+# `nul` est un nom de périphérique réservé sous Windows
+/nul
+nul
+/public/nul

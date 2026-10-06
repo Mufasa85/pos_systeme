@@ -2,12 +2,27 @@
   "root": true,
   "env": {
     "browser": true,
-    "es2021": true
+    "es2021": true,
+    "node": true
   },
+  "ignorePatterns": [
+    "node_modules/",
+    "vendor/",
+    ".git/",
+    "public/osat-sfe-pwa/",
+    "public/assets/",
+    "app/",
+    "docs/",
+    "e2e/test-results/",
+    "e2e/playwright-report/",
+    "front-end/dist/",
+    "*.sql",
+    "*.lock"
+  ],
   "globals": {
     "QRCodeStyling": "readonly"
   },
-  "extends": "eslint:recommended",
+  "extends": ["eslint:recommended", "prettier"],
   "parserOptions": {
     "ecmaVersion": 2021,
     "sourceType": "script"

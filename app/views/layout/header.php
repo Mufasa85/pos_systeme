@@ -123,12 +123,24 @@
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function () {
-        navigator.serviceWorker.register('/sw.js')
+        navigator.serviceWorker
+          .register('/sw.js', { scope: '/' })
           .then(function (registration) {
-            console.log('SW registered:', registration.scope);
+            console.log('[PWA] Service Worker registered, scope:', registration.scope);
+            // Forcer la prise en compte d'une nouvelle version
+            registration.addEventListener('updatefound', function () {
+              const newWorker = registration.installing;
+              if (!newWorker) return;
+              newWorker.addEventListener('statechange', function () {
+                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                  console.log('[PWA] Nouvelle version disponible, activation…');
+                  newWorker.postMessage('SKIP_WAITING');
+                }
+              });
+            });
           })
           .catch(function (err) {
-            console.error('SW registration failed', err);
+            console.error('[PWA] Service Worker registration failed:', err);
           });
       });
     }

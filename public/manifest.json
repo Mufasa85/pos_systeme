@@ -1,8 +1,9 @@
 {
-  "name": "POS - Système de caisse",
+  "name": "POS - Système de caisse SEF",
   "short_name": "POS",
   "description": "Système de caisse POS - ventes, recharges, factures",
-  "start_url": "/",
+  "id": "/?source=pwa",
+  "start_url": "/?source=pwa",
   "scope": "/",
   "display": "standalone",
   "background_color": "#0d0552",
@@ -10,6 +11,7 @@
   "orientation": "portrait-primary",
   "lang": "fr",
   "dir": "ltr",
+  "categories": ["business", "productivity", "finance"],
   "icons": [
     { "src": "/osat-sfe-pwa/icons/icon-72x72.png", "sizes": "72x72", "type": "image/png", "purpose": "any" },
     { "src": "/osat-sfe-pwa/icons/icon-96x96.png", "sizes": "96x96", "type": "image/png", "purpose": "any" },

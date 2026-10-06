@@ -3,5 +3,5 @@
 # Vérification du style PHP
 composer cs:check
 
-# Vérification ESLint
-npm run lint
+# ESLint + Prettier sur les fichiers en staging
+npx lint-staged

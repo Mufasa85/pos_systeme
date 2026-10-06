@@ -6,15 +6,25 @@
   "devDependencies": {
     "@playwright/test": "^1.46.0",
     "eslint": "^8.57.0",
+    "eslint-config-prettier": "^9.1.0",
     "husky": "^9.1.0",
-    "playwright": "^1.46.0"
+    "lint-staged": "^15.2.0",
+    "playwright": "^1.46.0",
+    "prettier": "^3.3.0"
   },
   "scripts": {
     "prepare": "husky",
     "lint": "eslint front-end e2e",
     "lint:fix": "eslint front-end e2e --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint-staged": "lint-staged",
     "test:e2e": "playwright test",
     "test:visual": "playwright test --project=visual",
     "test:ui": "playwright test --ui"
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx}": ["eslint --fix", "prettier --write"],
+    "*.{json,css,md,html,yml,yaml}": ["prettier --write"]
   }
 }

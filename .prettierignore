@@ -1,0 +1,14 @@
+node_modules/
+vendor/
+.git/
+package-lock.json
+composer.lock
+public/osat-sfe-pwa/
+public/assets/
+app/
+docs/
+e2e/test-results/
+e2e/playwright-report/
+front-end/dist/
+*.sql
+*.lock

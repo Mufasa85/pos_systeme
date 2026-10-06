@@ -175,6 +175,99 @@ $companyName = $companyInfo['name'] ?? 'Mon Entreprise';
       transform: translateY(-1px);
       box-shadow: 0 8px 25px rgba(48,233,254,0.3);
     }
+
+    /* ── Password field with toggle ── */
+    .password-field {
+      position: relative;
+      display: block;
+    }
+    .password-field input[type="password"],
+    .password-field input[type="text"] {
+      width: 100%;
+      padding-right: 3rem; /* réserve la place pour le bouton */
+    }
+    .password-toggle {
+      position: absolute;
+      top: 50%;
+      right: 0.5rem;
+      transform: translateY(-50%);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      padding: 0;
+      border: none;
+      background: transparent;
+      color: #6b7280;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: color .2s, background-color .2s;
+    }
+    .password-toggle:hover {
+      color: #0D0552;
+      background-color: rgba(48, 233, 254, 0.12);
+    }
+    .password-toggle:focus-visible {
+      outline: 2px solid #30E9FE;
+      outline-offset: 2px;
+      color: #0D0552;
+    }
+    .password-toggle:active {
+      transform: translateY(-50%) scale(0.95);
+    }
+    .password-toggle .icon-eye-off { display: none; }
+    .password-toggle.is-visible .icon-eye { display: none; }
+    .password-toggle.is-visible .icon-eye-off { display: block; }
+
+    /* ── Terms & conditions checkbox ── */
+    .terms-group {
+      margin-top: -0.25rem;
+      margin-bottom: 0.25rem;
+    }
+    .terms-label {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.55rem;
+      font-size: 0.85rem;
+      line-height: 1.4;
+      color: #374151;
+      cursor: pointer;
+      user-select: none;
+    }
+    .terms-label input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      margin-top: 2px;
+      flex-shrink: 0;
+      accent-color: #30E9FE;
+      cursor: pointer;
+    }
+    .terms-text { flex: 1; }
+    .terms-link {
+      color: #0891B2;
+      font-weight: 500;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+    .terms-link:hover {
+      color: #0D0552;
+    }
+    .terms-link:focus-visible {
+      outline: 2px solid #30E9FE;
+      outline-offset: 2px;
+      border-radius: 2px;
+    }
+    /* Bouton "Se connecter" désactivé tant que la case n'est pas cochée */
+    .btn-primary[disabled] {
+      opacity: 0.55;
+      cursor: not-allowed;
+      filter: grayscale(0.25);
+    }
+    .btn-primary[disabled]:hover {
+      transform: none;
+      box-shadow: none;
+    }
   </style>
   <!-- PWA -->
   <link rel="manifest" href="/manifest.json">
@@ -184,12 +277,23 @@ $companyName = $companyInfo['name'] ?? 'Mon Entreprise';
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function () {
-        navigator.serviceWorker.register('/sw.js')
+        navigator.serviceWorker
+          .register('/sw.js', { scope: '/' })
           .then(function (registration) {
-            console.log('SW registered:', registration.scope);
+            console.log('[PWA] Service Worker registered, scope:', registration.scope);
+            registration.addEventListener('updatefound', function () {
+              const newWorker = registration.installing;
+              if (!newWorker) return;
+              newWorker.addEventListener('statechange', function () {
+                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                  console.log('[PWA] Nouvelle version disponible, activation…');
+                  newWorker.postMessage('SKIP_WAITING');
+                }
+              });
+            });
           })
           .catch(function (err) {
-            console.error('SW registration failed', err);
+            console.error('[PWA] Service Worker registration failed:', err);
           });
       });
     }
@@ -260,10 +364,36 @@ $companyName = $companyInfo['name'] ?? 'Mon Entreprise';
         </div>
         <div class="form-group">
           <label for="password">Mot de passe</label>
-          <input type="password" id="password" name="password" placeholder="Entrez votre mot de passe" required>
+          <div class="password-field">
+            <input type="password" id="password" name="password" placeholder="Entrez votre mot de passe" autocomplete="current-password" required>
+            <button type="button" id="toggle-password" class="password-toggle" aria-label="Afficher le mot de passe" aria-pressed="false" title="Afficher / masquer le mot de passe">
+              <!-- Icône œil (par défaut : mot de passe masqué) -->
+              <svg class="icon-eye" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+              </svg>
+              <!-- Icône œil barré (mot de passe visible) -->
+              <svg class="icon-eye-off" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                <line x1="1" y1="1" x2="23" y2="23"></line>
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div class="form-group terms-group">
+          <label class="terms-label" for="accept-terms">
+            <input type="checkbox" id="accept-terms" name="accept_terms" required>
+            <span class="terms-text">
+              J'accepte les
+              <a href="https://osat-energie.com/dgi/terme_et_condition/index.php"
+                 target="_blank"
+                 rel="noopener noreferrer"
+                 class="terms-link">termes et conditions</a>
+            </span>
+          </label>
         </div>
         <div id="login-error" class="login-error"></div>
-        <button type="submit" class="btn btn-primary btn-full">
+        <button type="submit" id="login-submit" class="btn btn-primary btn-full" disabled aria-disabled="true">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
             <polyline points="10 17 15 12 10 7"></polyline>
@@ -288,8 +418,66 @@ $companyName = $companyInfo['name'] ?? 'Mon Entreprise';
     });
 
     const APP_URL = window.location.origin;
+
+    // ── Activation du bouton selon acceptation des termes ──
+    (function () {
+      const termsCheckbox = document.getElementById('accept-terms');
+      const submitBtn = document.getElementById('login-submit');
+      const errorBox = document.getElementById('login-error');
+      if (!termsCheckbox || !submitBtn) return;
+
+      const syncSubmitState = () => {
+        const accepted = termsCheckbox.checked;
+        submitBtn.disabled = !accepted;
+        submitBtn.setAttribute('aria-disabled', accepted ? 'false' : 'true');
+      };
+      syncSubmitState();
+      termsCheckbox.addEventListener('change', () => {
+        syncSubmitState();
+        // Si l'utilisateur coche après une erreur, on l'efface
+        if (errorBox && errorBox.textContent) {
+          errorBox.textContent = '';
+        }
+      });
+    })();
+
+    // ── Afficher / masquer le mot de passe ──
+    (function () {
+      const pwdInput = document.getElementById('password');
+      const toggleBtn = document.getElementById('toggle-password');
+      if (!pwdInput || !toggleBtn) return;
+
+      toggleBtn.addEventListener('click', function () {
+        const isHidden = pwdInput.getAttribute('type') === 'password';
+        pwdInput.setAttribute('type', isHidden ? 'text' : 'password');
+        toggleBtn.classList.toggle('is-visible', isHidden);
+        toggleBtn.setAttribute('aria-pressed', isHidden ? 'true' : 'false');
+        toggleBtn.setAttribute(
+          'aria-label',
+          isHidden ? 'Masquer le mot de passe' : 'Afficher le mot de passe'
+        );
+        // Garder le focus sur le champ après le clic
+        pwdInput.focus();
+        // Placer le curseur en fin de texte
+        const len = pwdInput.value.length;
+        try { pwdInput.setSelectionRange(len, len); } catch (e) { /* noop */ }
+      });
+    })();
+
     document.getElementById('login-form').addEventListener('submit', async (e) => {
       e.preventDefault();
+
+      // Garde-fou : exiger l'acceptation des termes avant l'envoi
+      const termsCheckbox = document.getElementById('accept-terms');
+      const errorBox = document.getElementById('login-error');
+      if (termsCheckbox && !termsCheckbox.checked) {
+        if (errorBox) {
+          errorBox.textContent = "Vous devez accepter les termes et conditions pour vous connecter.";
+        }
+        termsCheckbox.focus();
+        return;
+      }
+
       const fd = new FormData(e.target);
 
       try {

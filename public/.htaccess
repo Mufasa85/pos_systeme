@@ -6,3 +6,30 @@ RewriteCond %{REQUEST_FILENAME} !-d
 
 # Route vers index.php pour les routes de l'application
 RewriteRule ^(.*)$ index.php?url=$1 [L,QSA]
+
+# ============================================================
+# PWA — Service Worker, Manifest et icônes
+# Sans ces en-têtes, Chrome refuse l'installation sur Hostinger
+# ============================================================
+
+# MIME type correct pour le manifest (sinon Chrome le rejette)
+<FilesMatch "manifest\.json$">
+    ForceType application/manifest+json
+    Header set Content-Type "application/manifest+json"
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+    Header set Access-Control-Allow-Origin "*"
+</FilesMatch>
+
+# Service Worker : jamais mis en cache, autorisé sur tout le scope
+<FilesMatch "sw\.js$">
+    ForceType application/javascript
+    Header set Content-Type "application/javascript"
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+    Header set Service-Worker-Allowed "/"
+    Header set Access-Control-Allow-Origin "*"
+</FilesMatch>
+
+# Icônes PWA : cache long mais avec revalidation
+<FilesMatch "\.(png|ico|svg)$">
+    Header set Cache-Control "public, max-age=604800, must-revalidate"
+</FilesMatch>

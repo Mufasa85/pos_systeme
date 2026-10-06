@@ -1,7 +1,8 @@
-const CACHE_VERSION = 'v1';  // ceasar a chaque version modifiée avant d'envoyer au CT modife en v2,v3 comme avec le asset.js c'est pour le cache mec ...
+const CACHE_VERSION = 'v3';  // ceasar a chaque version modifiée avant d'envoyer au CT modife en v2,v3 comme avec le asset.js c'est pour le cache mec ...
 const CACHE_NAME = `pos-cache-${CACHE_VERSION}`;
 
-// Nettoyage des anciens caches et prise de contrôle immédiate
+// Installation rapide — on n'a rien à pré-cacher (Hostinger bloque parfois
+// les chemins absolus lors de l'install, on fait confiance au runtime).
 self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
@@ -10,7 +11,13 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches
       .keys()
-      .then((keys) => Promise.all(keys.map((key) => caches.delete(key))))
+      .then((keys) =>
+        Promise.all(
+          keys
+            .filter((key) => key !== CACHE_NAME)
+            .map((key) => caches.delete(key))
+        )
+      )
       .then(() => self.clients.claim())
   );
 });
@@ -133,5 +140,12 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(networkFirst(request));
   } else if (isStaticAsset(request, url)) {
     event.respondWith(cacheFirst(request));
+  }
+});
+
+// Permet à la page de forcer la mise à jour du SW
+self.addEventListener('message', (event) => {
+  if (event.data === 'SKIP_WAITING') {
+    self.skipWaiting();
   }
 });
