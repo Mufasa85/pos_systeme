@@ -2836,10 +2836,17 @@ function renderServiceBillContent(data, sale) {
     html += '</div>'; // fin receipt-totals
 
     // ----- Bloc sécurité DGI -----
+    // IMPORTANT : le style de ce bloc (background vert + bordure verte)
+    // est utilisé par paper-type.js pour détecter le bloc DGI lors de la
+    // transformation du ticket en facture A4 (cf. recherche des couleurs
+    // `e8f5e9` / `4caf50` dans public/assets/js/paper-type.js). Tout
+    // changement de style ici DOIT être reporté dans paper-type.js pour
+    // que les éléments DGI continuent à être regroupés correctement dans
+    // la zone "Éléments de sécurité" de la preview A4.
     if (isHomologuee && (info.codeDEFDGI || info.counters || info.nim)) {
-        html += '<div style="border:2px solid #000; border-radius:8px; padding:10px; margin:10px 0; text-align:center;">';
-        html += '<div style="color:#000; font-weight:bold; font-size:13px;">--- Elements de securite de la facture normalisee ---</div>';
-        html += '<div style="font-size:13px; color:#000; margin-top:4px;">';
+        html += '<div style="background: #e8f5e9; border: 1px solid #4caf50; border-radius: 8px; padding: 10px; margin: 10px 0; text-align: center;">';
+        html += '<div style="color: #2e7d32; font-weight: bold; font-size: 11px;">--- Elements de securite de la facture normalisee ---</div>';
+        html += '<div style="font-size: 12px; color: #555; margin-top: 4px;">';
         if (info.codeDEFDGI) html += 'CODE DEF/DGI: ' + info.codeDEFDGI;
         if (info.nim) html += '<br> DEF NID : ' + info.nim;
         if (info.counters) html += '<br> DEF Compteurs: ' + info.counters;

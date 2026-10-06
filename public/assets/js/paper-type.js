@@ -570,6 +570,11 @@
             '.inv-top-row { display: flex; justify-content: space-between; gap: 16px; border-bottom: 3px solid #000; padding-bottom: 14px; margin-bottom: 16px; align-items: stretch; }\n' +
             '.inv-top-row .store-block, .inv-top-row .client-block { flex: 1 1 48%; padding: 10px 14px; border: 1px solid #ddd; border-radius: 6px; background: #fff; }\n' +
             '.inv-top-row .client-block { background: #fafafa; }\n' +
+            // Logo du magasin : reduit a 1/4 de la taille affichee dans les
+            // autres formats (qui plafonnent a max-width 160px / max-height
+            // 90px via styles.css). En A4 on force donc 40px / 22.5px pour
+            // qu'il ne prenne pas toute la largeur du bloc store-block.
+            '.inv-top-row .store-block .receipt-logo { max-width: 40px !important; max-height: 22.5px !important; width: auto !important; height: auto !important; margin: 0 auto 4px !important; display: block !important; object-fit: contain !important; }\n' +
             '.inv-top-row .store-block .store-name { font-size: 18px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: #111; margin-bottom: 6px; }\n' +
             '.inv-top-row .store-block .store-info { display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: #444; line-height: 1.6; }\n' +
             '.inv-top-row .store-block .store-info > div { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }\n' +
