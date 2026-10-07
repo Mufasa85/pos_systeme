@@ -9,7 +9,8 @@
 
 
   <!-- Favicon & Icons -->
-  <link rel="icon" type="image/svg+xml" href="/assets/img/favicon.ico">
+  <link rel="icon" type="image/svg+xml" href="/assets/img/favicon.svg">
+  <link rel="icon" type="image/x-icon" href="/assets/img/favicon.ico">
   <link rel="icon" type="image/png" sizes="32x32" href="/assets/img/favicon-32x32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="/assets/img/favicon-16x16.png">
   <link rel="apple-touch-icon" href="/assets/img/apple-touch-icon.png">
@@ -38,8 +39,8 @@
   <meta name="twitter:image" content="/assets/img/og-image.png">
 
   <!-- Theme Color -->
-  <meta name="theme-color" content="#0B5E88">
-  <meta name="msapplication-TileColor" content="#0B5E88">
+  <meta name="theme-color" content="#1a1e64">
+  <meta name="msapplication-TileColor" content="#1a1e64">
   <meta name="msapplication-config" content="/assets/img/browserconfig.xml">
 
   <link rel="stylesheet" href="/assets/css/styles.css?v=208999999999999">
@@ -232,11 +233,11 @@
         </a>
         <?php
         $showRecharges = false;
-        $rechargeCache = $_SESSION['recharge_access_cache'] ?? null;
-        if ($rechargeCache !== null && isset($rechargeCache['expires_at']) && $rechargeCache['expires_at'] > time()) {
-            $showRecharges = (bool) $rechargeCache['granted'];
-        }
-        ?>
+  $rechargeCache = $_SESSION['recharge_access_cache'] ?? null;
+  if ($rechargeCache !== null && isset($rechargeCache['expires_at']) && $rechargeCache['expires_at'] > time()) {
+      $showRecharges = (bool) $rechargeCache['granted'];
+  }
+  ?>
         <?php if ($showRecharges): ?>
         <a href="/recharges" class="nav-item <?= $currentPage == 'recharges' ? 'active' : '' ?>">
           <div class="nav-icon-split">
@@ -308,12 +309,12 @@
         </a>
 
         <?php
-        $showPayroll = false;
-        $featureCache = $_SESSION['feature_access_cache'] ?? null;
-        if ($featureCache !== null && isset($featureCache['expires_at']) && $featureCache['expires_at'] > time()) {
-            $showPayroll = isset($featureCache['flags']['paie']) && $featureCache['flags']['paie'];
-        }
-        ?>
+  $showPayroll = false;
+  $featureCache = $_SESSION['feature_access_cache'] ?? null;
+  if ($featureCache !== null && isset($featureCache['expires_at']) && $featureCache['expires_at'] > time()) {
+      $showPayroll = isset($featureCache['flags']['paie']) && $featureCache['flags']['paie'];
+  }
+  ?>
         <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'vendeur' && $showPayroll): ?>
           <a href="/payroll/mypayslips" class="nav-item <?= $currentPage == 'payroll' ? 'active' : '' ?>">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -390,7 +391,7 @@
           <div class="user-details">
             <span class="user-name" id="user-name"><?= htmlspecialchars($_SESSION['nom_complet'] ?? '') ?></span>
             <span class="user-role" id="user-role"><?php
-        $r = $_SESSION['role'] ?? '';
+  $r = $_SESSION['role'] ?? '';
   echo $r === 'super_admin' ? 'Super Admin' : ($r === 'admin' ? 'Administrateur' : 'Vendeur');
   ?></span>
           </div>

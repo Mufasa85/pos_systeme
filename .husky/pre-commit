@@ -1,7 +1,15 @@
 #!/usr/bin/env sh
 
-# Vérification du style PHP
-composer cs:check
+# Récupère les fichiers PHP staged (added/copied/modified)
+# Limite la verif aux fichiers en cours de commit pour eviter le timeout
+# sur Windows quand le projet contient beaucoup de fichiers PHP
+PHP_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '\.php$' || true)
+
+if [ -n "$PHP_FILES" ]; then
+  echo "[husky] Vérification du style PHP sur $(echo "$PHP_FILES" | wc -l) fichier(s) staged..."
+  # shellcheck disable=SC2086
+  vendor/bin/php-cs-fixer fix --dry-run --diff --verbose $PHP_FILES || exit 1
+fi
 
 # ESLint + Prettier sur les fichiers en staging
 npx lint-staged
