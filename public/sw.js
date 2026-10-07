@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v6';  // ceasar a chaque version modifiée avant d'envoyer au CT modife en v2,v3,v4,v5,v6 comme avec le asset.js c'est pour le cache mec ...
+const CACHE_VERSION = 'v7';  // ceasar a chaque version modifiée avant d'envoyer au CT modife en v2,v3,v4,v5,v6,v7 comme avec le asset.js c'est pour le cache mec ...
 const CACHE_NAME = `pos-cache-${CACHE_VERSION}`;
 
 // Installation rapide — on n'a rien à pré-cacher (Hostinger bloque parfois
@@ -54,6 +54,17 @@ function isStaticAsset(request, url) {
     staticPaths.some((path) => url.pathname.startsWith(path)) ||
     staticExts.some((ext) => url.pathname.endsWith(ext))
   );
+}
+
+// Les icônes du manifest doivent toujours venir du réseau pour prendre
+// en compte immédiatement les changements de logo après un déploiement.
+function isPwaIcon(request, url) {
+  const iconPaths = [
+    '/assets/img/favicon',
+    '/assets/img/apple-touch-icon',
+    '/assets/img/android-chrome',
+  ];
+  return iconPaths.some((path) => url.pathname.startsWith(path));
 }
 
 function networkFirst(request) {
@@ -137,6 +148,10 @@ self.addEventListener('fetch', (event) => {
   }
 
   if (isPageOrApi(request, url)) {
+    event.respondWith(networkFirst(request));
+  } else if (isPwaIcon(request, url)) {
+    // Les icônes PWA : toujours network-first pour refléter
+    // immédiatement les changements de logo côté serveur.
     event.respondWith(networkFirst(request));
   } else if (isStaticAsset(request, url)) {
     event.respondWith(cacheFirst(request));
