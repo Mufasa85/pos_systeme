@@ -1,4 +1,4 @@
-// Banner console
+﻿// Banner console
 console.log('%cPowered by', 'color: #00bcd4; font-size: 14px; font-weight: bold; font-family: monospace;');
 console.log('%c' + String.raw`
  ██████   ██████   █████  ████████
@@ -56,9 +56,9 @@ function getExonerationLabel(code) {
     return EXONERATION_TYPES[code] || code || 'Exonération inconnue';
 }
 
-// Libellés des services fournisseurs (recharges Électricité/Eau)
+// Libellés des services fournisseurs (recharges Electricité/Eau)
 const PROVIDER_SERVICE_LABELS = {
-    'ELECTRICITE': 'Électricité',
+    'ELECTRICITE': 'Electricité',
     'EAU': 'Eau',
 };
 
@@ -231,7 +231,7 @@ async function loadStoreInfo() {
             logo: data.store_logo ? (APP_URL + data.store_logo) : (STORE_INFO.logo || '')
         };
 
-        
+
     } catch (e) {
         console.warn('Impossible de charger les informations du magasin:', e.message);
     }
@@ -509,7 +509,7 @@ const posCart = {
         let lastPage = 0;
         pages.forEach(i => {
             if (i - lastPage > 1) {
-                html += '<span class="page-ellipsis">…</span>';
+                html += '<span class="page-ellipsis">â€¦</span>';
             }
             html += '<button type="button" class="page-btn' + (i === this.currentPage ? ' active' : '') + '" onclick="posCart.goToPage(' + i + ')">' + i + '</button>';
             lastPage = i;
@@ -651,7 +651,7 @@ const posCart = {
                 <line x1="12" y1="8" x2="12" y2="12"></line>
                 <line x1="12" y1="16" x2="12.01" y2="16"></line>
             </svg>
-            <span>⚠️ Stock épuisé: ${productName}</span>
+            <span>âš ï¸ Stock épuisé: ${productName}</span>
         `;
 
         notification.style.display = 'flex';
@@ -797,7 +797,7 @@ const posCart = {
                     <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
                     <polyline points="22 4 12 14.01 9 11.01"></polyline>
                 </svg>
-                <span>${client.nom} <span style="opacity: 0.7;">• ${client.code_client}</span></span>
+                <span>${client.nom} <span style="opacity: 0.7;">â€¢ ${client.code_client}</span></span>
             `;
             clientNumberSection.appendChild(display);
         }
@@ -922,7 +922,7 @@ const posCart = {
             const totalUsd = this.currentTotals.total / USD_RATE;
             const totalUsdEl = $('#total-usd');
             if (totalUsdEl) {
-                totalUsdEl.textContent = '≈ $' + totalUsd.toFixed(2) + ' USD';
+                totalUsdEl.textContent = 'â‰ˆ $' + totalUsd.toFixed(2) + ' USD';
             }
         }
     },
@@ -979,7 +979,7 @@ const posCart = {
 
                 store_phone: STORE_INFO.phone,
                 store_address: STORE_INFO.address,
-                store_pdv : STORE_INFO.pdv,
+                store_pdv: STORE_INFO.pdv,
                 store_email: STORE_INFO.email || '',
                 store_ice: STORE_INFO.ice,
                 store_isf: STORE_INFO.isf,
@@ -996,7 +996,7 @@ const posCart = {
                 invoice_ref: invoiceRefs[0] || '',
                 ref_facture: refFacture,
                 exoneration: exoneration,
-               // payment_type: paymentType,
+                // payment_type: paymentType,
                 payments: payments,
                 rate: (typeof USD_RATE !== 'undefined') ? USD_RATE : 0,
                 articles: this.items.map(item => {
@@ -1462,7 +1462,7 @@ const posCart = {
                     <td colspan="2"><span class="item-name"> ${item.nom}<span class="item-tax-badge">${taxLabel}</span>${prodService}<small style="color:var(--success);font-weight:600;">${discountLabel}</small><small style="color:#b45309;font-weight:600;">${specificTaxLabel}</small></span></td>
                 </tr>
                 <tr class="item-detail-row">
-                    <td class="item-qty">${qtyDisplay} × ${formatCurrency(itemPrice)} </td>
+                    <td class="item-qty">${qtyDisplay} Ã— ${formatCurrency(itemPrice)} </td>
                     <td class="item-total">${truncateDecimals(itemTotalHT).toFixed(3)} Fc</td>
                 </tr>
             `;
@@ -1662,7 +1662,7 @@ const posCart = {
             restUsd = restFc / TAUX_CHANGE;
         }
 
-        // Éviter les erreurs de précision flottante (ex: 0.30000000000000004)
+        // Eviter les erreurs de précision flottante (ex: 0.30000000000000004)
         restFc = Math.round(restFc * 100) / 100;
         restUsd = Math.round(restUsd * 100) / 100;
 
@@ -1693,7 +1693,7 @@ const posCart = {
             resultDiv.style.display = 'block';
             resultDiv.style.background = '#e8f5e9';
             resultDiv.style.border = '2px solid #4caf50';
-            changeLabel.textContent = 'MONNAIE À RENDRE';
+            changeLabel.textContent = 'MONNAIE Ã€ RENDRE';
             changeLabel.style.color = '#2e7d32';
             changeFcEl.textContent = formatCurrency(Math.abs(restFc));
             changeFcEl.style.color = '#2e7d32';
@@ -1725,16 +1725,16 @@ const posCart = {
                 $('#confirm-sale').innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> Valider la facture';
                 return;
             }
-            if(dgiResponse.data.codeDEFDGI === "Nul" ) {
+            if (dgiResponse.data.codeDEFDGI === "Nul") {
                 alert("Imposible de valider cette facture de ****, elle a deja ete ...")
-              //  $('#receipt-modal').classList.add('active');
-               $('#confirm-sale').disabled = false;
-            // Reinitialiser le bouton
-            $('#confirm-sale').innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> Valider la facture';
+                //  $('#receipt-modal').classList.add('active');
+                $('#confirm-sale').disabled = false;
+                // Reinitialiser le bouton
+                $('#confirm-sale').innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> Valider la facture';
 
                 return
             }
-           
+
             // Etape 2: Sauvegarder la vente
             // Si la facture N'est PAS FA ou EA, on envoie les quantités et
             // les totaux en négatif au backend (cohérent avec la DGI)
@@ -1775,7 +1775,7 @@ const posCart = {
 
             if (!saleData.success) {
                 // Cas particulier : boutique désactivée par le super_admin pendant
-                // la session → on déconnecte l'utilisateur immédiatement avec un
+                // la session â†’ on déconnecte l'utilisateur immédiatement avec un
                 // message clair et on bloque toute autre action.
                 if (saleData.error === 'shop_disabled' || saleRes.status === 403) {
                     alert(saleData.message || 'Votre boutique a été désactivée. Vous ne pouvez plus émettre de factures.');
@@ -1800,7 +1800,7 @@ const posCart = {
             };
 
             // Métadonnées pour l'envoi SMS depuis le modal d'impression
-           
+
             // Si la DGI renvoie homologation:false, le magasin n'est pas
             // homologué : on masque l'ISF et le bloc "Eléments de sécurité"
             // de la facture normalisée (par défaut on les affiche).
@@ -1911,7 +1911,7 @@ const posCart = {
                         <td colspan="2"><span class="item-name">${item.nom}<span class="item-tax-badge">${taxLabel}</span>${prodService}<small style="color:var(--success);font-weight:600;">${discountLabel}</small><small style="color:#b45309;font-weight:600;">${specificTaxLabel}</small></span></td>
                     </tr>
                     <tr class="item-detail-row">
-                        <td class="item-qty">${formatQty(itemQty, isPoidsItem)} × ${formatCurrency(itemPrice)} </td>
+                        <td class="item-qty">${formatQty(itemQty, isPoidsItem)} Ã— ${formatCurrency(itemPrice)} </td>
                         <td class="item-total">${truncateDecimals(itemTotalHT).toFixed(3)} Fc</td>
                     </tr>
                 `;
@@ -1925,7 +1925,7 @@ const posCart = {
                         ${STORE_INFO.logo ? '<img src="' + STORE_INFO.logo + '" class="receipt-logo" alt="Logo">' : ''}
                         <div class="store-name">${STORE_INFO.name}</div>
                         <div class="store-info">
-                            <div><strong>Point de vente :</strong> ${STORE_INFO.pdv }</div>
+                            <div><strong>Point de vente :</strong> ${STORE_INFO.pdv}</div>
                             <div>Adresse : ${STORE_INFO.address}</div>
                             <div>Tel: ${STORE_INFO.phone}</div>
                             ${STORE_INFO.email ? `<div>Email: ${STORE_INFO.email}</div>` : ''}
@@ -2493,7 +2493,7 @@ function deleteCategory(id) {
 const SERVICE_BILL_API_URL = APP_URL + '/api/service-bill';
 
 async function fetchServiceBillData(invoice_number, store_isf) {
-    
+
     try {
         const url = SERVICE_BILL_API_URL
             + '?store_isf=' + encodeURIComponent(store_isf || '')
@@ -2626,7 +2626,7 @@ function getTaxSpecificLabelForArticle(article) {
     const str = String(value).trim();
     if (str === '') return '';
     if (str.indexOf('%') !== -1) {
-        return ' <span style="color:#b45309;font-weight:700;">[TS]</span> ' + str ;
+        return ' <span style="color:#b45309;font-weight:700;">[TS]</span> ' + str;
     }
     const num = parseFloat(str);
     if (isNaN(num) || num <= 0) return '';
@@ -2680,7 +2680,7 @@ function renderServiceBillContent(data, sale) {
     if (STORE_INFO.logo) html += '<img src="' + STORE_INFO.logo + '" class="receipt-logo" alt="Logo">';
     html += '<div class="store-name">' + (info.store_name || STORE_INFO.name) + '</div>';
     html += '<div class="store-info">';
-    
+
     html += '<div><strong>Point de vente :</strong> ' + (info.pdv || STORE_INFO.pdv) + '</div>';
     html += '<div>Addresse : ' + (info.store_address || STORE_INFO.address) + '</div>';
     html += '<div>Tel: ' + (info.store_phone || STORE_INFO.phone) + '</div>';
@@ -2698,7 +2698,7 @@ function renderServiceBillContent(data, sale) {
     const clientAddress = info.client_address || (sale && sale.client_adresse) || '';
     const clientType = info.client_type || '';
     const clientNif = info.client_nif || '';
-    // Facture de recharge (paiement Électricité/Eau) : la DGI renvoie le
+    // Facture de recharge (paiement Electricité/Eau) : la DGI renvoie le
     // service demandé et le numéro de compteur utilisé pour la recherche.
     const providerService = info.providerService || (sale && sale.service) || '';
     const numeroCompteur = info.deviceId || '';
@@ -2749,7 +2749,7 @@ function renderServiceBillContent(data, sale) {
             html += '<td colspan="2"><span class="item-name">' + (article.name || 'Article') + '<span class="item-tax-badge">' + taxLabel + '</span>' + prodService + '<small style="color:var(--success);font-weight:600;">' + discountLabel + '</small><small style="color:#b45309;font-weight:600;">' + specificTaxLabel + '</small></span></td>';
             html += '</tr>';
             html += '<tr class="item-detail-row">';
-            html += '<td class="item-qty">' + quantity + ' × ' + price.toFixed(2) + ' Fc</td>';
+            html += '<td class="item-qty">' + quantity + ' Ã— ' + price.toFixed(2) + ' Fc</td>';
             html += '<td class="item-total">' + articleTotal.toFixed(2) + ' Fc</td>';
             html += '</tr>';
         });
@@ -2799,7 +2799,7 @@ function renderServiceBillContent(data, sale) {
             paymentList.forEach(p => {
                 const label = getPaymentTypeLabel(p.name) || p.name || 'Paiement';
                 const amount = parseFloat(p.amount) || 0;
-                const curCode ='Fc';
+                const curCode = 'Fc';
                 html += '<div class="receipt-total-row" style="font-size:11px; color:#555;">'
                     + '<span>' + label + ':</span><span>' + amount.toFixed(2) + ' ' + curCode + '</span>'
                     + '</div>';
@@ -2842,7 +2842,7 @@ function renderServiceBillContent(data, sale) {
     // `e8f5e9` / `4caf50` dans public/assets/js/paper-type.js). Tout
     // changement de style ici DOIT être reporté dans paper-type.js pour
     // que les éléments DGI continuent à être regroupés correctement dans
-    // la zone "Éléments de sécurité" de la preview A4.
+    // la zone "Eléments de sécurité" de la preview A4.
     if (isHomologuee && (info.codeDEFDGI || info.counters || info.nim)) {
         html += '<div style="background: #e8f5e9; border: 1px solid #4caf50; border-radius: 8px; padding: 10px; margin: 10px 0; text-align: center;">';
         html += '<div style="color: #2e7d32; font-weight: bold; font-size: 11px;">--- Elements de securite de la facture normalisee ---</div>';
@@ -2908,140 +2908,45 @@ async function viewSaleDetails(saleId) {
             isf: STORE_INFO.isf || ''
         };
 
+        // Réautoriser le bouton Imprimer au cas où il aurait été désactivé
+        // lors d'un précédent échec (cf. branche else ci-dessous).
+        const printBtnSale = document.getElementById('print-sale-btn');
+        if (printBtnSale) {
+            printBtnSale.disabled = false;
+            printBtnSale.style.opacity = '';
+            printBtnSale.style.cursor = '';
+        }
         document.getElementById('print-sale-btn').onclick = () => printSaleReceipt(saleId);
     } else {
-        // Repli local : l'API DGI est indisponible (facture non retrouvée,
-        // erreur réseau, etc.) — on reconstruit le duplicata à partir des
-        // données locales. Design unifié avec /caisse (même structure)
-        const acheteurNom = sale.nom_client || '';
-        const acheteurNumero = sale.client_numero || '';
-        const acheteurAddress = sale.client_adresse || '';
-        const acheteurType = sale.client_type_code || '';
-        const acheteurNif = sale.client_nif || '';
-        // Facture de recharge (Électricité/Eau) : seul le service est connu
-        // localement, le n° de compteur n'étant pas persisté hors DGI.
-        const acheteurService = sale.service || '';
-        const vendeur = sale.nom_vendeur || 'N/A';
-        const totalNumber = parseFloat(sale.total) || 0;
-        const tvaNumber = parseFloat(sale.tva || 0);
-
-        // Items en tableau (comme /caisse)
-        let itemsHtml = '<table class="receipt-table"><thead><tr><th>Article</th><th style="text-align:right">Total HT</th></tr></thead><tbody>';
-        data.details.forEach(item => {
-            const itemPrice = parseFloat(item.prix) || 0;
-            const itemQty = parseFloat(item.quantite) || 0;
-            // Utilise le même calcul que le panier (HT + taxe spécifique + TVA
-            // sur la taxe spécifique) pour rester cohérent avec la facture
-            // enregistrée DGI, y compris quand le magasin n'est pas homologué
-            // (store_homologation = 0), cas où l'on ne passe pas par
-            // renderServiceBillContent faute de codeDEFDGI/counters/nim.
-            const itemCalc = posCart.calculateItemTTC(item, itemQty);
-            const itemTotalHT = itemCalc.lineHT;
-            const taxRate = parseFloat(item.tax_rate || 0);
-            const taxLabel = item.tax_etiquette || (taxRate > 0 ? 'TVA ' + taxRate + '%' : 'Exonere');
-            const prodService = item.prod_service ? '<span class="item-prod-service">[' + item.prod_service + ']</span>' : '';
-            const discountLabel = item.remise_value > 0
-                ? (item.remise_type === 'CDF'
-                    ? ' - ' + parseFloat(item.remise_value).toFixed(2) + ' remise'
-                    : ' - ' + item.remise_value + '% remise')
-                : '';
-            const specificTaxLabel = posCart.getSpecificTaxLabel(item);
-            itemsHtml += '<tr class="item-name-row"><td colspan="2"><span class="item-name">' + (item.produit_nom || 'Produit') + '<span class="item-tax-badge">' + taxLabel + '</span>' + prodService + '<small style="color:var(--success);font-weight:600;">' + discountLabel + '</small><small style="color:#b45309;font-weight:600;">' + specificTaxLabel + '</small></span></td></tr>' +
-                '<tr class="item-detail-row"><td class="item-qty">' + itemQty + ' × ' + itemPrice.toFixed(2) + ' Fc</td><td class="item-total">' + itemTotalHT.toFixed(2) + ' Fc</td></tr>';
-        });
-        itemsHtml += '</tbody></table>';
-
-        // Store extra info
-        let storeExtraInfo = '';
-        if (STORE_INFO.rccm) storeExtraInfo += '<div>RCCM: ' + STORE_INFO.rccm + '</div>';
-        if (STORE_INFO.isf) storeExtraInfo += '<div>Numero Impot: ' + STORE_INFO.isf + '</div>';
-        if (STORE_INFO.nid) storeExtraInfo += '<div>NID: ' + STORE_INFO.nid + '</div>';
-
-        // Section vendeur/client (comme /caisse)
-        // NB: font-size 11px pour rester uniforme avec la facture finale
-        // (/recharges) et l'aperçu /caisse (même police, même espacement).
-        let infoSection = '<div class="client-vendor-info" style="border-top: 1px dashed #ccc; margin-top: 6px; padding-top: 6px; text-align: left; font-size: 11px; line-height: 1.5;">' +
-            '<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>VENDEUR:</strong></span><span>' + vendeur + '</span></div>' +
-            (acheteurNom ? '<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>CLIENT:</strong></span><span>' + acheteurNom + '</span></div>' : '') +
-            (acheteurNumero ? '<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>NUM:</strong></span><span>' + formatPhoneNumber(acheteurNumero) + '</span></div>' : '') +
-            (acheteurAddress ? '<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>ADRESSE:</strong></span><span>' + acheteurAddress + '</span></div>' : '') +
-            (acheteurType ? '<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>TYPE:</strong></span><span>' + getClientTypeLabel(acheteurType) + '</span></div>' : '') +
-            ((acheteurService === 'ELECTRICITE' || acheteurService === 'EAU') ? '<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>SERVICE:</strong></span><span>' + getProviderServiceLabel(acheteurService) + '</span></div>' : '') +
-            (acheteurNif ? '<div style="display: flex; justify-content: space-between; gap: 10px;"><span><strong>NIF:</strong></span><span>' + acheteurNif + '</span></div>' : '') +
+        // Échec du fetch DGI : on ne reconstruit plus le duplicata à partir
+        // des données locales (les blocs TVA/ISF/QR DGI/Compteurs risquaient
+        // d'être incohérents ou incomplets sans la version enrichie). On
+        // affiche un message d'erreur clair et on désactive l'impression
+        // puisqu'il n'y a rien à imprimer.
+        const errorHtml = '<div style="text-align: center; padding: 60px 20px; color: #c62828;">' +
+            '<svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#c62828" stroke-width="1.5" style="margin: 0 auto 16px; display: block;">' +
+            '<circle cx="12" cy="12" r="10"></circle>' +
+            '<line x1="12" y1="8" x2="12" y2="13"></line>' +
+            '<circle cx="12" cy="16.5" r="0.8" fill="#c62828"></circle>' +
+            '</svg>' +
+            '<div style="font-size: 16px; font-weight: 600; margin-bottom: 8px; color: #b71c1c;">Impossible de joindre les serveurs</div>' +
+            '<div style="font-size: 13px; color: #555; max-width: 420px; margin: 0 auto; line-height: 1.5;">' +
+            'Le duplicata de la facture n°' + (sale.numero_facture || '') + ' n\u2019a pas pu être récupéré depuis le service DGI. ' +
+            'Vérifiez votre connexion internet puis réessayez.' +
+            '</div>' +
             '</div>';
 
-        // Si le magasin n'est pas homologué DGI (store_homologation = 0), on
-        // masque le "Total TVA" et le bloc ISF, comme pour la facture DGI
-        // enrichie (renderServiceBillContent).
-        const isHomologuee = !(STORE_INFO.homologation === 0 || STORE_INFO.homologation === '0' || STORE_INFO.homologation === false);
+        document.getElementById('sale-details-content').innerHTML = errorHtml;
 
-        // Paiement + ISF (comme /caisse)
-        const amountInWords = posCart.numberToFrenchWords ? posCart.numberToFrenchWords(totalNumber) : '';
-        const remiseLine = (sale.remise != null && parseFloat(sale.remise) !== 0)
-            ? '<div class="receipt-total-row" style="font-size: 11px; color: #555"><span>Remise :</span><span>' + parseFloat(sale.remise).toFixed(2) + ' Fc</span></div>'
-            : '';
-        const paymentInfoHtml =
-            remiseLine +
-            '<div class="receipt-total-row" style="font-size: 11px; color: #555"><span>TAUX DU JOUR :</span><span>' + (typeof USD_RATE !== 'undefined' ? USD_RATE : '-') + ' Fc/USD</span></div>' +
-            '<div class="receipt-total-row" style="font-size: 11px; color: #555"><span>Equivalent en USD :</span><span>' + (USD_RATE ? (totalNumber / USD_RATE).toFixed(2) + ' $' : '-') + '</span></div>' +
-            '<div class="receipt-total-row" style="font-size: 11px; color: #555;"><span>Nombre d\'article(s):</span><span>' + (data.details.reduce((s, i) => s + parseFloat(i.quantite || 0), 0)).toFixed(2) + '</span></div>' +
-            (amountInWords ? '<div style="text-align: center; font-size: 12px; color: #888; font-style: italic; margin-top: 2px;">Arrêté la présente facture à la somme de ' + amountInWords + ' congolais toutes taxes comprises</div>' : '') +
-            (isHomologuee && STORE_INFO.isf ? '<div style="margin: 10px 0; font-size: 11px; color: #333; border: 1px dashed #ccc; padding: 8px; border-radius: 4px; text-align: center;">ISF : ' + STORE_INFO.isf + '</div>' : '');
-
-        // Bloc DGI
-        let dgiInfoHtml = '';
-        if (sale.counters) {
-            dgiInfoHtml = '<div style="background: #e8f5e9; border: 1px solid #4caf50; border-radius: 8px; padding: 10px; margin: 10px 0; text-align: center;"><div style="color: #2e7d32; font-weight: bold; font-size: 11px;">--- Éléments de sécurité de la facture normalisée ---</div><div style="font-size: 12px; color: #555; margin-top: 4px;">';
-            if (sale.codeDEFDGI) dgiInfoHtml += 'CODE DEF/DGI: ' + sale.codeDEFDGI;
-            if (sale.nim) dgiInfoHtml += '<br> DEF NID : ' + sale.nim;
-            if (sale.counters) dgiInfoHtml += '<br> DEF Compteurs: ' + sale.counters;
-            if (sale.dateDGI) dgiInfoHtml += '<br> DEF Heure : ' + sale.dateDGI;
-            dgiInfoHtml += '</div></div>';
+        // Désactiver le bouton Imprimer : il n'y a rien à imprimer tant que
+        // la facture n'a pas pu être récupérée depuis la DGI.
+        const printBtnSale = document.getElementById('print-sale-btn');
+        if (printBtnSale) {
+            printBtnSale.disabled = true;
+            printBtnSale.style.opacity = '0.4';
+            printBtnSale.style.cursor = 'not-allowed';
+            printBtnSale.onclick = (e) => { e.preventDefault(); e.stopImmediatePropagation(); return false; };
         }
-
-        // Assemblage final - MÊME STRUCTURE que /caisse
-        document.getElementById('sale-details-content').innerHTML =
-            '<div class="receipt">' +
-            '<div class="receipt-header">' +
-            (STORE_INFO.logo ? '<img src="' + STORE_INFO.logo + '" class="receipt-logo" alt="Logo">' : '') +
-            '<div class="store-name">' + STORE_INFO.name + '</div>' +
-            '<div class="store-info">' +
-            '<div><strong>Point de vente :</strong> ' + STORE_INFO.pdv + '</div>' +
-            '<div>Adresse : ' + STORE_INFO.address + '</div>' +
-            '<div>Tel: ' + STORE_INFO.phone + '</div>' +
-            (STORE_INFO.email ? '<div>Email: ' + STORE_INFO.email + '</div>' : '') +
-            '<div>ID Nat: ' + STORE_INFO.ice + '</div>' +
-            storeExtraInfo +
-            '</div>' +
-            infoSection +
-            '</div>' +
-            '<div class="receipt-meta" style="justify-content: center; font-size: 14px; font-weight: 555;">' + getInvoiceTypeLabel(sale.type_facture) + '</div>' +
-            '<div class="receipt-items">' + itemsHtml + '</div>' +
-            '<div class="receipt-totals">' +
-            (isHomologuee ? '<div class="receipt-total-row"><span>Total TVA:</span><span>' + tvaNumber.toFixed(2) + ' Fc</span></div>' : '') +
-            '<div class="receipt-total-row grand-total"><span>TOTAL TTC:</span><span>' + totalNumber.toFixed(2) + ' Fc</span></div>' +
-            paymentInfoHtml +
-            '</div>' +
-            dgiInfoHtml +
-            '<div class="receipt-footer">' +
-            '<div id="history-qrcode-container" class="qrcode-container"></div>' +
-            '<div class="thank-you">FACTURE n°' + (sale.numero_facture || '') + '</div>' +
-            (sale.dateDGI ? '<div style="font-size: 10px; color: #666; margin-top: 4px;">Date : ' + sale.dateDGI + '</div>' : '') +
-            '<div class="thank-you">Merci de votre visite!</div>' +
-            '<div style="margin-top: 5px; font-size: 9px; font-style: italic;">---Powered By Osat---</div>' +
-            '</div>' +
-            '</div>';
-
-        posCart.generateDGIQRCode(sale.qrCode || sale.numero_facture, 'history-qrcode-container');
-
-        // Métadonnées pour l'envoi SMS depuis le modal d'impression
-        window._currentReceiptMetadata = {
-            phone: sale.client_numero,
-            invoiceNumber: sale.numero_facture,
-            isf: STORE_INFO.isf || ''
-        };
-
-        document.getElementById('print-sale-btn').onclick = () => printSaleReceipt(saleId);
         document.getElementById('sale-details-modal').classList.add('active');
     }
 }
@@ -3099,7 +3004,7 @@ function renderProductBatches(batches) {
 
     batches.forEach(batch => {
         let expColor = '';
-        let expText = '—';
+        let expText = 'â€”';
         if (batch.date_expiration) {
             const expDate = new Date(batch.date_expiration);
             const diffDays = Math.floor((expDate - today) / (1000 * 60 * 60 * 24));
@@ -3107,7 +3012,7 @@ function renderProductBatches(batches) {
             expText = new Date(batch.date_expiration).toLocaleDateString('fr-FR') + (diffDays < 0 ? ' (p&eacute;rim&eacute;)' : ' (' + diffDays + 'j)');
         }
         html += '<tr>';
-        html += '<td style="padding:0.5rem; border-bottom:1px solid #eee;">' + (batch.batch_number || '—') + '</td>';
+        html += '<td style="padding:0.5rem; border-bottom:1px solid #eee;">' + (batch.batch_number || 'â€”') + '</td>';
         html += '<td style="text-align:center; padding:0.5rem; border-bottom:1px solid #eee;">' + parseFloat(batch.stock).toFixed(2) + '</td>';
         html += '<td style="padding:0.5rem; border-bottom:1px solid #eee; color:' + expColor + '">' + expText + '</td>';
         html += '<td style="text-align:center; padding:0.5rem; border-bottom:1px solid #eee;">';
@@ -3429,8 +3334,8 @@ function onInlineProductFound(product, barcode) {
         if (resultEl) {
             resultEl.className = 'scanner-status error';
             resultEl.textContent = isExpired
-                ? '✗ ' + product.nom + ' : produit périmé'
-                : '✗ ' + product.nom + ' : rupture de stock';
+                ? 'âœ— ' + product.nom + ' : produit périmé'
+                : 'âœ— ' + product.nom + ' : rupture de stock';
             resultEl.style.display = 'block';
         }
         setTimeout(() => {
@@ -3445,7 +3350,7 @@ function onInlineProductFound(product, barcode) {
     const resultEl = document.getElementById('scanner-result');
     if (resultEl) {
         resultEl.className = 'scanner-status success';
-        resultEl.textContent = '✓ ' + product.nom + ' ajouté !';
+        resultEl.textContent = 'âœ“ ' + product.nom + ' ajouté !';
         resultEl.style.display = 'block';
     }
 
@@ -3468,7 +3373,7 @@ function onInlineProductFound(product, barcode) {
 function onInlineProductNotFound(barcode) {
     const resultEl = document.getElementById('scanner-result');
     resultEl.className = 'scanner-status error';
-    resultEl.textContent = '✗ Code-barres introuvable dans la base';
+    resultEl.textContent = 'âœ— Code-barres introuvable dans la base';
     resultEl.style.display = 'block';
 
     setTimeout(() => {
@@ -4470,7 +4375,7 @@ function addModalPaymentLine(type = 'ESPECES', amount = 0) {
             <label style="font-size: 0.7rem; color: #166534; display: block; margin-bottom: 4px;">Montant</label>
             <input type="number" class="modal-payment-amount client-number-input" step="0.01" min="0" placeholder="0.00" value="${amount > 0 ? amount.toFixed(2) : ''}" style="width: 100%;" oninput="calculateModalPayments()">
         </div>
-        <button type="button" onclick="removeModalPaymentLine(this)" style="background: #fee2e2; color: #dc2626; border: none; border-radius: 6px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1rem;">×</button>
+        <button type="button" onclick="removeModalPaymentLine(this)" style="background: #fee2e2; color: #dc2626; border: none; border-radius: 6px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1rem;">Ã—</button>
     `;
     list.appendChild(line);
     updateModalPaymentRemoveButtons();
@@ -4570,7 +4475,7 @@ function addModalRefDocLine(value = '') {
     line.style.cssText = 'display: flex; gap: 8px; align-items: center;';
     line.innerHTML = `
         <input type="text" class="modal-ref-doc-input client-number-input" placeholder="Réf..." value="${value}" style="width: 100%;" oninput="syncRefDocsCount()">
-        <button type="button" onclick="removeModalRefDocLine(this)" style="background: #fee2e2; color: #dc2626; border: none; border-radius: 6px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1rem;">×</button>
+        <button type="button" onclick="removeModalRefDocLine(this)" style="background: #fee2e2; color: #dc2626; border: none; border-radius: 6px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1rem;">Ã—</button>
     `;
     list.appendChild(line);
     updateAddRefDocButton();
@@ -4919,3 +4824,6 @@ function showModalClientMessage(message, type) {
 
     setTimeout(() => { messageDiv.style.display = 'none'; }, 3000);
 }
+
+
+
