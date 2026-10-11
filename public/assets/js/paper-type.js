@@ -363,14 +363,25 @@
             if (m) dgiFields.nim = m[1].trim();
             m = dgiText.match(/DEF\s*Compteurs\s*[:\-]?\s*([^\n<]+?)(?=\s*(?:DEF|ISF|$))/i);
             if (m) dgiFields.counters = m[1].trim();
-            m = dgiText.match(/DEF\s*Heure\s*[:\-]?\s*([^\n<]+?)(?=\s*ISF|$)/i);
+            // DEF Heure : on capture tout jusqu'au prochain séparateur connu
+            // (DEF/ISF/fin de chaîne) sans s'arrêter sur la 1re majuscule,
+            // pour ne pas tronquer une date type "10/10/2026 13:45".
+            m = dgiText.match(/DEF\s*Heure\s*[:\-]?\s*([^\n<]+?)(?=\s*(?:ISF|$))/i);
             if (m) dgiFields.date = m[1].trim();
             m = dgiText.match(/ISF\s*[:\-]?\s*([^\n<]+?)$/i);
             if (m) dgiFields.isf = m[1].trim();
         }
 
+        // Fallback ISF : l'ISF peut être rendu en dehors du bloc DGI vert
+        // (par ex. dans un <div style="border:1px solid #000"> séparé,
+        // juste avant le bloc DGI dans le receipt-totals). On le cherche
+        // alors dans tout le contenu textuel du receipt-totals, avec une
+        // regex qui s'arrête aux séparateurs logiques (point-virgule, saut
+        // de ligne, ou un autre label DGI connu) et non pas à la première
+        // majuscule rencontrée (qui tronque la valeur).
+        console.log(dgiFields)
         if (!dgiFields.isf && totalsEl) {
-            var isfInTotals = totalsEl.textContent.match(/ISF\s*[:\-]?\s*([^\n<]+?)(?=\s*(?:[A-Z][a-z]|$))/i);
+            var isfInTotals = totalsEl.textContent.match(/ISF\s*[:\-]?\s*([^\n<;]+?)(?=\s*(?:CODE\s*DEF|DEF\s*NID|DEF\s*Compteurs|DEF\s*Heure|$))/i);
             if (isfInTotals) dgiFields.isf = isfInTotals[1].trim();
         }
 
@@ -521,7 +532,7 @@
                         return;
                     }
 
-                    
+
                     var isGrand = row.classList.contains('grand-total');
                     var style = isGrand
                         ? 'font-weight:700;font-size:14px;border-top:2px solid #333;'
@@ -657,6 +668,10 @@
             (dgiFields.nim ? '      <tr><td><strong>DEF NID :</strong></td><td>' + dgiFields.nim + '</td></tr>\n' : '') +
             (dgiFields.counters ? '      <tr><td><strong>DEF Compteurs :</strong></td><td>' + dgiFields.counters + '</td></tr>\n' : '') +
             (dgiFields.date ? '      <tr><td><strong>DEF Heure :</strong></td><td>' + dgiFields.date + '</td></tr>\n' : '') +
+            // ISF : on l'affiche toujours dans la zone "Éléments de sécurité"
+            // de la facture normalisée A4 (qu'il provienne du bloc DGI
+            // détecté ou du bloc ISF séparé en dehors du bloc vert DGI).
+            (dgiFields.isf ? '      <tr><td><strong>ISF :</strong></td><td>' + dgiFields.isf + '</td></tr>\n' : '') +
 
             (!dgiFields.codeDEF && !dgiFields.nim && !dgiFields.counters && !dgiFields.date && !dgiFields.isf ? '      <tr><td colspan="2">Aucune information DGI disponible.</td></tr>\n' : '') +
             '    </table>\n' +
