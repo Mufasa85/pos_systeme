@@ -418,6 +418,10 @@ class AuthController extends Controller
         $_SESSION['agent_code'] = $user['agent_code'] ?? '';
         $_SESSION['email'] = $user['email'] ?? '';
         $_SESSION['telephone'] = $user['telephone'] ?? '';
+        // Rôle hôtel (séparé du rôle applicatif) — null si pas de rôle assigné.
+        // super_admin et admin ont un accès total hôtel via resolveHotelRole()
+        // (cf. PageController) même si hotel_role est NULL.
+        $_SESSION['hotel_role'] = $user['hotel_role'] ?? null;
         $_SESSION['last_activity'] = time();
 
         $this->logAudit('login', 'utilisateur', $user['id']);

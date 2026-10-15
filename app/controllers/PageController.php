@@ -362,6 +362,211 @@ class PageController extends Controller
         $this->render('mon-profil', ['currentUser' => $currentUser]);
     }
 
+    // ============================================================================
+    // Module Hôtel (PMS) — méthodes ajoutées le 2026-10-15
+    // Référence : docs/PLAN_HOTEL_V1.md
+    // ============================================================================
+
+    /**
+     * Routeur /hotel : redirige selon le rôle hôtel effectif de l'utilisateur.
+     * - super_admin            → /hotel/tableau-bord
+     * - admin (manager auto)   → /hotel/tableau-bord
+     * - manager explicite      → /hotel/tableau-bord
+     * - receptionniste         → /hotel/reception
+     * - gouvernante            → /hotel/etages
+     * - sans rôle hôtel        → /hotel/reception par défaut
+     */
+    public function hotel()
+    {
+        $hr = $this->resolveHotelRole();
+        $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+        $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+
+        if (in_array($hr, ['super_admin', 'admin', 'manager'], true)) {
+            header('Location: ' . $protocol . '://' . $host . '/hotel/tableau-bord');
+        } elseif ($hr === 'gouvernante') {
+            header('Location: ' . $protocol . '://' . $host . '/hotel/etages');
+        } else {
+            // receptionniste ou fallback
+            header('Location: ' . $protocol . '://' . $host . '/hotel/reception');
+        }
+        exit;
+    }
+
+    /**
+     * Vue principale du réceptionniste : grille des chambres + check-in/out.
+     * Sprint 2 remplira cette page. Sprint 1 = squelette.
+     */
+    public function hotelReception()
+    {
+        $this->requireHotelAccess(['super_admin', 'admin', 'manager', 'receptionniste']);
+        $this->render('hotel-reception', []);
+    }
+
+    /**
+     * Vue mobile de la gouvernante : liste des chambres à nettoyer.
+     * Sprint 3 remplira cette page. Sprint 1 = squelette.
+     */
+    public function hotelEtages()
+    {
+        $this->requireHotelAccess(['super_admin', 'admin', 'manager', 'gouvernante', 'receptionniste']);
+        $this->render('hotel-etages', []);
+    }
+
+    /**
+     * Tableau de bord du manager : KPI du jour, séjours, housekeeping.
+     * Sprint 4 remplira cette page. Sprint 1 = squelette.
+     */
+    public function hotelDashboard()
+    {
+        $this->requireHotelAccess(['super_admin', 'admin', 'manager']);
+        $this->render('hotel-tableau-bord', []);
+    }
+
+    /**
+     * Page "Gestion des rôles hôtel" : le manager assigne chaque
+     * vendeur de SA boutique à un rôle métier hôtel (manager /
+     * réceptionniste / gouvernante) ou aucun. Super_admin a accès
+     * à toutes les boutiques via le sélecteur en haut.
+     */
+    public function hotelRoles()
+    {
+        $this->requireHotelAccess(['super_admin', 'admin', 'manager']);
+        $userModel = new User();
+        $sessionRole = $_SESSION['role'] ?? '';
+        $sessionShopId = (int)($_SESSION['shop_id'] ?? 0);
+
+        // Boutique ciblée : super_admin peut switcher via ?shop_id=,
+        // admin/manager est figé sur sa boutique.
+        if ($sessionRole === 'super_admin') {
+            $targetShopId = isset($_GET['shop_id']) && $_GET['shop_id'] !== ''
+                ? (int)$_GET['shop_id']
+                : $sessionShopId;
+            // Si super_admin n'a pas de boutique par défaut, on prend
+                            // la première boutique avec utilisateurs hôtel.
+                            if (!$targetShopId) {
+                                $first = $userModel->firstShopIdWithUsers();
+                                $targetShopId = (int)($first ?? 0);
+                            }
+        } else {
+            $targetShopId = $sessionShopId;
+        }
+
+        $hotelUsers = $targetShopId ? $userModel->allForShopWithHotelRole($targetShopId) : [];
+
+        $this->render('hotel-roles', [
+            'hotelUsers'      => $hotelUsers,
+            'targetShopId'    => $targetShopId,
+            'allShops'        => $this->isSuperAdmin() ? $this->listAllShops() : [],
+            'currentShopName' => $this->resolveShopName($targetShopId),
+        ]);
+    }
+
+    /**
+     * POST /api/hotel/role/update : met à jour le rôle hôtel d'un user.
+     * Vérifie que :
+     * - le caller est super_admin OU manager de la boutique
+     * - l'user cible appartient à la boutique (scope multi-tenant)
+     */
+    public function apiHotelUpdateRole()
+    {
+        if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
+            header('HTTP/1.1 405 Method Not Allowed');
+            return;
+        }
+        $hr = $this->resolveHotelRole();
+        if (!in_array($hr, ['super_admin', 'admin', 'manager'], true)) {
+            header('HTTP/1.1 403 Forbidden');
+            echo json_encode(['success' => false, 'message' => 'Accès refusé']);
+            return;
+        }
+
+        $userId = (int)($_POST['user_id'] ?? 0);
+        $newRole = $_POST['hotel_role'] ?? null;
+        if ($newRole === '' || $newRole === 'null') $newRole = null;
+
+        $sessionShopId = (int)($_SESSION['shop_id'] ?? 0);
+        if (!$sessionShopId) {
+            // super_admin sans boutique active : on lit le shop_id du user ciblé
+            // si on dispose de l'id, sinon 403.
+            header('HTTP/1.1 400 Bad Request');
+            echo json_encode(['success' => false, 'message' => 'Boutique non déterminée']);
+            return;
+        }
+
+        $userModel = new User();
+        $ok = $userModel->setHotelRole($userId, $newRole, $sessionShopId);
+        header('Content-Type: application/json');
+        echo json_encode([
+            'success' => $ok,
+            'message' => $ok ? 'Rôle hôtel mis à jour' : 'Refusé (hors scope ou rôle invalide)',
+        ]);
+    }
+
+    /**
+     * Résout le rôle hôtel effectif d'un utilisateur pour cette session.
+     * Priorité :
+     *   - super_admin (rôle app)  → 'super_admin'
+     *   - admin (rôle app)        → 'manager' (auto-promu pour sa boutique)
+     *   - vendeur + hotel_role    → renvoie hotel_role
+     *   - sinon                   → 'aucun'
+     */
+    private function resolveHotelRole(): string
+    {
+        $app = $_SESSION['role'] ?? '';
+        $hotel = $_SESSION['hotel_role'] ?? null;
+
+        if ($app === 'super_admin') return 'super_admin';
+        if ($app === 'admin')       return 'manager';
+
+        if (in_array($hotel, ['manager', 'receptionniste', 'gouvernante'], true)) {
+            return $hotel;
+        }
+        return 'aucun';
+    }
+
+    /**
+     * Vérifie que l'utilisateur courant a accès au module hôtel
+     * avec un rôle effectif qui matche la liste autorisée.
+     */
+    private function requireHotelAccess(array $allowedRoles)
+    {
+        $hr = $this->resolveHotelRole();
+        if (!in_array($hr, $allowedRoles, true)) {
+            $_SESSION['flash_error'] = "Accès au module hôtel non autorisé pour votre rôle.";
+            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+            $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+            header('Location: ' . $protocol . '://' . $host . '/dashboard');
+            exit;
+        }
+    }
+
+    /**
+     * Liste toutes les boutiques (super_admin uniquement).
+     */
+    private function listAllShops(): array
+    {
+        if (!$this->isSuperAdmin()) return [];
+        try {
+            $shopModel = new \App\Models\Shop();
+            return $shopModel->all() ?? [];
+        } catch (\Throwable $e) {
+            return [];
+        }
+    }
+
+    private function resolveShopName(int $shopId): string
+    {
+        if (!$shopId) return '—';
+        try {
+            $shopModel = new \App\Models\Shop();
+            $shop = $shopModel->findById($shopId);
+            return $shop['nom'] ?? "Boutique #$shopId";
+        } catch (\Throwable $e) {
+            return "Boutique #$shopId";
+        }
+        }
+
     public function historique()
     {
         $saleModel = new Sale();
