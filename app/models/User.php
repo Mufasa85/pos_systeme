@@ -37,6 +37,60 @@ class User
         return $this->db->fetchAll('SELECT u.*, s.nom AS shop_name FROM utilisateurs u LEFT JOIN shops s ON u.shop_id = s.id WHERE u.shop_id = ? ORDER BY u.nom_complet ASC', [$shopId]);
     }
 
+    /**
+     * Liste des utilisateurs d'une boutique avec leur rôle hôtel.
+     * Utilisé par /hotel/roles pour le manager.
+     */
+    public function allForShopWithHotelRole(int $shopId)
+    {
+        return $this->db->fetchAll(
+            "SELECT u.id, u.nom_utilisateur, u.nom_complet, u.role, u.actif, u.hotel_role,
+                    s.nom AS shop_name
+             FROM utilisateurs u
+             LEFT JOIN shops s ON u.shop_id = s.id
+             WHERE u.shop_id = :sid
+               AND u.role != 'super_admin'
+             ORDER BY u.nom_complet ASC",
+            [':sid' => $shopId]
+        );
+    }
+
+    /**
+     * Première boutique ayant au moins un utilisateur (pour le cas super_admin
+     * sans boutique par défaut → on choisit la première boutique avec users).
+     */
+    public function firstShopIdWithUsers(): ?int
+    {
+        $row = $this->db->fetch(
+            'SELECT shop_id FROM utilisateurs WHERE shop_id IS NOT NULL ORDER BY shop_id ASC LIMIT 1'
+        );
+        return $row ? (int)$row['shop_id'] : null;
+    }
+
+    /**
+     * Met à jour uniquement le rôle hôtel d'un utilisateur.
+     * Vérifie que l'utilisateur appartient bien à la boutique scope (sécurité multi-tenant).
+     */
+    public function setHotelRole(int $userId, ?string $hotelRole, int $expectedShopId): bool
+    {
+        $row = $this->db->fetch(
+            'SELECT shop_id FROM utilisateurs WHERE id = :id',
+            [':id' => $userId]
+        );
+        if (!$row) return false;
+        if ($row['shop_id'] === null) return false; // super_admin exclu
+        if ((int)$row['shop_id'] !== $expectedShopId) return false;
+
+        $allowed = [null, 'manager', 'receptionniste', 'gouvernante'];
+        if (!in_array($hotelRole, $allowed, true)) return false;
+
+        $this->db->query(
+            'UPDATE utilisateurs SET hotel_role = :hr WHERE id = :id',
+            [':hr' => $hotelRole, ':id' => $userId]
+        );
+        return true;
+    }
+
     public function delete($id)
     {
         $this->db->query('DELETE FROM utilisateurs WHERE id = ?', [$id]);
@@ -52,8 +106,8 @@ class User
     {
         $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
 
-        $sql = 'INSERT INTO utilisateurs 
-                (nom_utilisateur, mot_de_passe, nom_complet, role, shop_id, actif, agent_code, email, telephone) 
+        $sql = 'INSERT INTO utilisateurs
+                (nom_utilisateur, mot_de_passe, nom_complet, role, shop_id, actif, agent_code, email, telephone)
                 VALUES (:username, :password, :fullname, :role, :shop_id, :actif, :agent_code, :email, :telephone)';
 
         return $this->db->query($sql, [
@@ -91,6 +145,10 @@ class User
             $fields[] = 'role = :role';
             $params[':role'] = $data['role'];
         }
+        if (isset($data['hotel_role'])) {
+            $fields[] = 'hotel_role = :hotel_role';
+            $params[':hotel_role'] = $data['hotel_role'];
+        }
         if (isset($data['actif'])) {
             $fields[] = 'actif = :actif';
             $params[':actif'] = $data['actif'];
@@ -122,7 +180,7 @@ class User
 
         if (empty($fields)) {
             error_log("User model update - no fields to update for id: $id");
-            return false; // rien à mettre à jour
+            return false;
         }
 
         $sql = 'UPDATE utilisateurs SET ' . implode(', ', $fields) . ' WHERE id = :id';
@@ -132,7 +190,7 @@ class User
         try {
             $this->db->execute($sql, $params);
             error_log('User model update - executed successfully');
-            return true; // Succès si pas d'exception
+            return true;
         } catch (\Exception $e) {
             error_log('User model update - error: ' . $e->getMessage());
             return false;
