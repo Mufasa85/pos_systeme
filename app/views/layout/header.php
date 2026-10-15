@@ -231,6 +231,80 @@
           </svg>
           <span><?= htmlspecialchars($serviceType ?? 'Caisse') ?></span>
         </a>
+
+        <?php
+            // Module Hôtel — visible pour manager, réceptionniste, gouvernante
+            // Ajouté 2026-10-15 — référence : docs/PLAN_HOTEL_V1.md
+            // 2026-10-15 : transformé en dropdown — chaque rôle voit les sous-pages
+            // auxquelles il a réellement accès (PageController::requireHotelAccess).
+            $hotelRoles = ['admin', 'super_admin', 'receptionniste', 'gouvernante'];
+            $currentUserRole = $_SESSION['role'] ?? '';
+            $showHotel = in_array($currentUserRole, $hotelRoles, true);
+            // Permissions par sous-page (alignées sur PageController::requireHotelAccess)
+            $hotelDashboardAllowed = ['admin', 'super_admin'];
+            $hotelReceptionAllowed = ['admin', 'super_admin', 'receptionniste'];
+            $hotelEtagesAllowed    = ['admin', 'super_admin', 'gouvernante', 'receptionniste'];
+            ?>
+            <?php if ($showHotel): ?>
+            <div class="nav-dropdown <?= str_starts_with($currentPage ?? '', 'hotel') ? 'open' : '' ?>" id="hotel-dropdown">
+              <button type="button" class="nav-item nav-dropdown-trigger <?= str_starts_with($currentPage ?? '', 'hotel') ? 'active' : '' ?>" aria-haspopup="true" aria-expanded="false">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M3 21V8l9-5 9 5v13"></path>
+                  <path d="M9 21V12h6v9"></path>
+                  <line x1="3" y1="21" x2="21" y1="21"></line>
+                </svg>
+                <span>Hôtel</span>
+                <svg class="nav-dropdown-caret" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+              </button>
+              <div class="nav-dropdown-menu" role="menu">
+                <?php if (in_array($currentUserRole, $hotelDashboardAllowed, true)): ?>
+                  <a href="/hotel/tableau-bord" class="nav-dropdown-item <?= ($currentPage ?? '') === 'hotel-tableau-bord' ? 'active' : '' ?>" role="menuitem">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <rect x="3" y="3" width="7" height="7"></rect>
+                      <rect x="14" y="3" width="7" height="7"></rect>
+                      <rect x="14" y="14" width="7" height="7"></rect>
+                      <rect x="3" y="14" width="7" height="7"></rect>
+                    </svg>
+                    <span>Tableau de bord</span>
+                  </a>
+                <?php endif; ?>
+                    <?php if (in_array($currentUserRole, $hotelReceptionAllowed, true)): ?>
+                      <a href="/hotel/reception" class="nav-dropdown-item <?= ($currentPage ?? '') === 'hotel-reception' ? 'active' : '' ?>" role="menuitem">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                          <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                        </svg>
+                        <span>Réception</span>
+                      </a>
+                    <?php endif; ?>
+                    <?php if (in_array($currentUserRole, $hotelEtagesAllowed, true)): ?>
+                                  <a href="/hotel/etages" class="nav-dropdown-item <?= ($currentPage ?? '') === 'hotel-etages' ? 'active' : '' ?>" role="menuitem">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                      <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+                                      <line x1="3" y1="9" x2="21" y1="9"></line>
+                                      <line x1="3" y1="15" x2="21" y1="15"></line>
+                                      <line x1="9" y1="3" x2="9" y1="21"></line>
+                                      <line x1="15" y1="3" x2="15" y1="21"></line>
+                                    </svg>
+                                    <span>Étages (Housekeeping)</span>
+                                  </a>
+                                <?php endif; ?>
+                                <?php if (in_array($currentUserRole, $hotelDashboardAllowed, true)): ?>
+                                  <a href="/hotel/roles" class="nav-dropdown-item <?= ($currentPage ?? '') === 'hotel-roles' ? 'active' : '' ?>" role="menuitem">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                      <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                                      <circle cx="8.5" cy="7" r="4"></circle>
+                                      <path d="M20 8v6"></path>
+                                      <path d="M23 11h-6"></path>
+                                    </svg>
+                                    <span>Gestion des rôles</span>
+                                  </a>
+                                <?php endif; ?>
+                  </div>
+                </div>
+                <?php endif; ?>
         <?php
         $showRecharges = false;
   $rechargeCache = $_SESSION['recharge_access_cache'] ?? null;
@@ -480,10 +554,105 @@
         .notif-item .notif-msg { color: var(--muted, #64748b); font-size: .78rem; }
         .notif-item .notif-time { color: var(--muted, #94a3b8); font-size: .7rem; margin-top: 2px; }
         .notif-empty { padding: 24px; text-align: center; color: var(--muted, #94a3b8); font-size: .85rem; }
-      </style>
+                /* Dropdown Hôtel — menu déroulant des sous-pages selon le rôle */
+                .nav-dropdown { position: relative; }
+                .nav-dropdown-trigger {
+                  width: 100%;
+                  background: transparent;
+                  border: 0;
+                  cursor: pointer;
+                  color: inherit;
+                  font: inherit;
+                  text-align: left;
+                  padding: 0;
+                }
+                .nav-dropdown-caret {
+                  margin-left: auto;
+                  transition: transform .2s;
+                  flex-shrink: 0;
+                }
+                .nav-dropdown.open .nav-dropdown-caret { transform: rotate(180deg); }
+                        .nav-dropdown-menu {
+                          display: flex;
+                          flex-direction: column;
+                          gap: 2px;
+                          margin-top: 0;
+                          margin-left: 12px;
+                          padding-left: 14px;
+                          border-left: 2px solid var(--border, #e2e8f0);
+                          overflow: hidden;
+                          max-height: 0;
+                          opacity: 0;
+                          transform: translateY(-6px);
+                          pointer-events: none;
+                          transition:
+                            max-height .25s ease,
+                            opacity .2s ease,
+                            transform .2s ease,
+                            margin-top .2s ease;
+                        }
+                        .nav-dropdown.open .nav-dropdown-menu {
+                          max-height: 240px;
+                          opacity: 1;
+                          transform: translateY(0);
+                          margin-top: 4px;
+                          pointer-events: auto;
+                        }
+                .nav-dropdown-item {
+                  display: flex;
+                  align-items: center;
+                  gap: 10px;
+                  padding: .55rem .75rem;
+                  border-radius: 8px;
+                  color: var(--text, inherit);
+                  text-decoration: none;
+                  font-size: .85rem;
+                  transition: background .15s;
+                }
+                .nav-dropdown-item:hover { background: var(--hover-bg, rgba(0,0,0,.05)); }
+                .nav-dropdown-item.active {
+                  background: var(--primary-tint, rgba(11,94,136,.08));
+                  color: var(--primary, #0B5E88);
+                  font-weight: 600;
+                }
+                .nav-dropdown-item svg { flex-shrink: 0; }
+                      </style>
 
-      <script>
-      (function() {
+                      <script>
+                      (function() {
+                        const dropdown = document.getElementById('hotel-dropdown');
+                        if (!dropdown) return;
+                        const trigger = dropdown.querySelector('.nav-dropdown-trigger');
+
+                        function setOpen(open) {
+                          dropdown.classList.toggle('open', open);
+                          trigger.setAttribute('aria-expanded', open ? 'true' : 'false');
+                        }
+
+                        trigger.addEventListener('click', function(e) {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  setOpen(!dropdown.classList.contains('open'));
+                                });
+
+                        // Auto-ouvre si on est sur une sous-page hôtel
+                        if (dropdown.querySelector('.nav-dropdown-item.active')) {
+                          setOpen(true);
+                        }
+
+                        // Fermer en cliquant ailleurs
+                        document.addEventListener('click', function(e) {
+                          if (!dropdown.contains(e.target)) setOpen(false);
+                        });
+                        // Fermer avec Escape
+                        document.addEventListener('keydown', function(e) {
+                          if (e.key === 'Escape') setOpen(false);
+                        });
+                      })();
+                      </script>
+
+                      <script>
+                      (function() {
         const badge = document.getElementById('notif-badge-mobile');
         const dropdown = document.getElementById('notif-dropdown');
         const listEl = document.getElementById('notif-dropdown-list');
