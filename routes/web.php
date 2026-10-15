@@ -19,6 +19,18 @@ Router::get('/utilisateurs', [PageController::class, 'utilisateurs']);
 Router::get('/otp-codes', [PageController::class, 'otpCodes']);
 Router::get('/mon-profil', [PageController::class, 'monProfil']);
 Router::get('/historique', [PageController::class, 'historique']);
+
+// ============================================================================
+// Module Hôtel (PMS) — ajouté 2026-10-15
+// Référence : docs/PLAN_HOTEL_V1.md
+// ============================================================================
+Router::get('/hotel', [PageController::class, 'hotel']);
+Router::get('/hotel/reception', [PageController::class, 'hotelReception']);
+Router::get('/hotel/etages', [PageController::class, 'hotelEtages']);
+Router::get('/hotel/tableau-bord', [PageController::class, 'hotelDashboard']);
+// Gestion des rôles hôtel (manager / réceptionniste / gouvernante) — ajouté 2026-10-15
+Router::get('/hotel/roles', [PageController::class, 'hotelRoles']);
+Router::post('/api/hotel/role/update', [PageController::class, 'apiHotelUpdateRole']);
 Router::get('/categories', [PageController::class, 'categories']);
 Router::get('/taxes', [PageController::class, 'taxes']);
 Router::get('/parametres', [PageController::class, 'parametres']);
