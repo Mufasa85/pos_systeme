@@ -1,6 +1,8 @@
 <?php
 
 use App\Controllers\AuthController;
+use App\Controllers\HotelChambreController;
+use App\Controllers\HotelReservationController;
 use App\Controllers\PageController;
 use App\Core\Router;
 
@@ -31,6 +33,24 @@ Router::get('/hotel/tableau-bord', [PageController::class, 'hotelDashboard']);
 // Gestion des rôles hôtel (manager / réceptionniste / gouvernante) — ajouté 2026-10-15
 Router::get('/hotel/roles', [PageController::class, 'hotelRoles']);
 Router::post('/api/hotel/role/update', [PageController::class, 'apiHotelUpdateRole']);
+// Calendrier + Chambres — sous-pages hôtel
+Router::get('/hotel/calendrier', [PageController::class, 'hotelCalendrier']);
+Router::get('/hotel/chambres', [PageController::class, 'hotelChambres']);
+// Réservations hôtel — page + API JSON — ajouté 2026-10-15
+Router::get('/hotel/reservations', [PageController::class, 'hotelReservations']);
+Router::get('/api/hotel/reservations', [HotelReservationController::class, 'index']);
+Router::get('/api/hotel/reservations/available-rooms', [HotelReservationController::class, 'availableRooms']);
+Router::get('/api/hotel/reservations/[i:id]', [HotelReservationController::class, 'show']);
+Router::post('/api/hotel/reservations', [HotelReservationController::class, 'store']);
+Router::put('/api/hotel/reservations/[i:id]', [HotelReservationController::class, 'update']);
+Router::post('/api/hotel/reservations/[i:id]/cancel', [HotelReservationController::class, 'cancel']);
+Router::get('/api/hotel/guests/search', [HotelReservationController::class, 'searchGuests']);
+// Chambres hôtel — page + API CRUD — ajouté 2026-10-16
+Router::get('/api/hotel/chambres', [HotelChambreController::class, 'index']);
+Router::get('/api/hotel/chambres/[i:id]', [HotelChambreController::class, 'show']);
+Router::post('/api/hotel/chambres', [HotelChambreController::class, 'store']);
+Router::put('/api/hotel/chambres/[i:id]', [HotelChambreController::class, 'update']);
+Router::post('/api/hotel/chambres/[i:id]/etat', [HotelChambreController::class, 'setEtat']);
 Router::get('/categories', [PageController::class, 'categories']);
 Router::get('/taxes', [PageController::class, 'taxes']);
 Router::get('/parametres', [PageController::class, 'parametres']);
