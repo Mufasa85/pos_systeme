@@ -424,6 +424,28 @@ class PageController extends Controller
     }
 
     /**
+     * Calendrier manager — vue jour/semaine/mois des séjours.
+     * Réservé aux managers (et super_admin). Réceptionniste et gouvernante
+     * n'y ont pas accès — ils utilisent leurs pages dédiées.
+     */
+    public function hotelCalendrier()
+    {
+        $this->requireHotelAccess(['super_admin', 'manager']);
+        $this->render('hotel-calendrier', []);
+    }
+
+    /**
+     * Gestion des chambres — état, prix, type, notes.
+     * Visible par tous les rôles hôtel (manager, réceptionniste, gouvernante).
+     * Les permissions fines (qui peut modifier l'état) seront ajoutées au sprint contenu.
+     */
+    public function hotelChambres()
+    {
+        $this->requireHotelAccess(['super_admin', 'manager', 'receptionniste', 'gouvernante']);
+        $this->render('hotel-chambres', []);
+    }
+
+    /**
      * Page "Gestion des rôles hôtel" : le manager assigne chaque
      * vendeur de SA boutique à un rôle métier hôtel (manager /
      * réceptionniste / gouvernante) ou aucun. Super_admin a accès

@@ -233,81 +233,132 @@
         </a>
 
         <?php
-            // Module Hôtel — visible pour manager, réceptionniste, gouvernante
-            // Ajouté 2026-10-15 — référence : docs/PLAN_HOTEL_V1.md
-            // 2026-10-15 : transformé en dropdown — chaque rôle voit les sous-pages
-            // auxquelles il a réellement accès (PageController::requireHotelAccess).
-            $hotelRoles = ['admin', 'super_admin', 'receptionniste', 'gouvernante'];
-            $currentUserRole = $_SESSION['role'] ?? '';
-            $showHotel = in_array($currentUserRole, $hotelRoles, true);
-            // Permissions par sous-page (alignées sur PageController::requireHotelAccess)
-            $hotelDashboardAllowed = ['admin', 'super_admin'];
-            $hotelReceptionAllowed = ['admin', 'super_admin', 'receptionniste'];
-            $hotelEtagesAllowed    = ['admin', 'super_admin', 'gouvernante', 'receptionniste'];
-            ?>
-            <?php if ($showHotel): ?>
-            <div class="nav-dropdown <?= str_starts_with($currentPage ?? '', 'hotel') ? 'open' : '' ?>" id="hotel-dropdown">
-              <button type="button" class="nav-item nav-dropdown-trigger <?= str_starts_with($currentPage ?? '', 'hotel') ? 'active' : '' ?>" aria-haspopup="true" aria-expanded="false">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M3 21V8l9-5 9 5v13"></path>
-                  <path d="M9 21V12h6v9"></path>
-                  <line x1="3" y1="21" x2="21" y1="21"></line>
+        // Module Hôtel — sous-menu dropdown visible dès qu'un user a un accès hôtel.
+        // 2026-10-15 : refonte — chaque item est filtré par rôle effectif.
+        // Rôles effectif = "résolu" par PageController::resolveHotelRole() :
+        //   - super_admin (rôle app)  → super_admin  (accès total à toutes les sous-pages)
+        //   - admin (rôle app)        → manager      (auto, sans assignation explicite)
+        //   - vendeur + hotel_role    → manager | receptionniste | gouvernante | aucun
+        // Permissions des sous-pages :
+        //   - Tableau de bord : super_admin, admin (=manager), manager explicite
+        //   - Calendrier     : super_admin, admin (=manager), manager explicite
+        //   - Réception      : super_admin, admin, manager, réceptionniste
+        //   - Étages         : super_admin, admin, manager, réceptionniste, gouvernante
+        //   - Chambres       : tous les rôles hôtel (même gouvernante peut consulter)
+        //   - Gestion rôles  : super_admin, admin (=manager), manager explicite
+        $appRole = $_SESSION['role'] ?? '';
+        $hotelRole = $_SESSION['hotel_role'] ?? null;
+
+        // Rôle effectif (mêmes règles que PageController::resolveHotelRole)
+        if ($appRole === 'super_admin')      $effectiveHotelRole = 'super_admin';
+        elseif ($appRole === 'admin')        $effectiveHotelRole = 'manager';
+        elseif (in_array($hotelRole, ['manager','receptionniste','gouvernante'], true)) $effectiveHotelRole = $hotelRole;
+        else                                  $effectiveHotelRole = 'aucun';
+
+        $showHotel = ($effectiveHotelRole !== 'aucun');
+
+        // Permissions par sous-page (alignées sur PageController::requireHotelAccess)
+        $canDashboard = in_array($effectiveHotelRole, ['super_admin','manager'], true);
+        $canCalendar  = in_array($effectiveHotelRole, ['super_admin','manager'], true);
+        $canReception = in_array($effectiveHotelRole, ['super_admin','manager','receptionniste'], true);
+        $canEtages    = in_array($effectiveHotelRole, ['super_admin','manager','receptionniste','gouvernante'], true);
+        $canChambres  = $showHotel; // tous rôles hôtel
+        $canManageRoles = in_array($effectiveHotelRole, ['super_admin','manager'], true);
+
+        $currentPage = $currentPage ?? '';
+        $isHotelPage = str_starts_with($currentPage, 'hotel');
+        ?>
+
+        <?php if ($showHotel): ?>
+        <div class="nav-dropdown <?= $isHotelPage ? 'open' : '' ?>" id="hotel-dropdown">
+          <button type="button" class="nav-item nav-dropdown-trigger <?= $isHotelPage ? 'active' : '' ?>" aria-haspopup="true" aria-expanded="false">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 21V8l9-5 9 5v13"></path>
+              <path d="M9 21V12h6v9"></path>
+              <line x1="3" y1="21" x2="21" y1="21"></line>
+            </svg>
+            <span>Hôtel</span>
+            <svg class="nav-dropdown-caret" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+          </button>
+          <div class="nav-dropdown-menu" role="menu">
+            <?php if ($canDashboard): ?>
+              <a href="/hotel/tableau-bord" class="nav-dropdown-item <?= $currentPage === 'hotel-tableau-bord' ? 'active' : '' ?>" role="menuitem">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="3" width="7" height="7"></rect>
+                  <rect x="14" y="3" width="7" height="7"></rect>
+                  <rect x="14" y="14" width="7" height="7"></rect>
+                  <rect x="3" y="14" width="7" height="7"></rect>
                 </svg>
-                <span>Hôtel</span>
-                <svg class="nav-dropdown-caret" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <polyline points="6 9 12 15 18 9"></polyline>
+                <span>Tableau de bord</span>
+              </a>
+            <?php endif; ?>
+
+            <?php if ($canCalendar): ?>
+              <a href="/hotel/calendrier" class="nav-dropdown-item <?= $currentPage === 'hotel-calendrier' ? 'active' : '' ?>" role="menuitem">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="4" width="18" height="18" rx="2"></rect>
+                  <line x1="16" y1="2" x2="16" y1="6"></line>
+                  <line x1="8" y1="2" x2="8" y1="6"></line>
+                  <line x1="3" y1="10" x2="21" y1="10"></line>
                 </svg>
-              </button>
-              <div class="nav-dropdown-menu" role="menu">
-                <?php if (in_array($currentUserRole, $hotelDashboardAllowed, true)): ?>
-                  <a href="/hotel/tableau-bord" class="nav-dropdown-item <?= ($currentPage ?? '') === 'hotel-tableau-bord' ? 'active' : '' ?>" role="menuitem">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <rect x="3" y="3" width="7" height="7"></rect>
-                      <rect x="14" y="3" width="7" height="7"></rect>
-                      <rect x="14" y="14" width="7" height="7"></rect>
-                      <rect x="3" y="14" width="7" height="7"></rect>
-                    </svg>
-                    <span>Tableau de bord</span>
-                  </a>
-                <?php endif; ?>
-                    <?php if (in_array($currentUserRole, $hotelReceptionAllowed, true)): ?>
-                      <a href="/hotel/reception" class="nav-dropdown-item <?= ($currentPage ?? '') === 'hotel-reception' ? 'active' : '' ?>" role="menuitem">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-                          <polyline points="9 22 9 12 15 12 15 22"></polyline>
-                        </svg>
-                        <span>Réception</span>
-                      </a>
+                <span>Calendrier</span>
+              </a>
+            <?php endif; ?>
+
+            <?php if ($canReception): ?>
+              <a href="/hotel/reception" class="nav-dropdown-item <?= $currentPage === 'hotel-reception' ? 'active' : '' ?>" role="menuitem">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                  <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                </svg>
+                <span>Réception</span>
+              </a>
+            <?php endif; ?>
+
+            <?php if ($canEtages): ?>
+              <a href="/hotel/etages" class="nav-dropdown-item <?= $currentPage === 'hotel-etages' ? 'active' : '' ?>" role="menuitem">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+                  <line x1="3" y1="9" x2="21" y1="9"></line>
+                  <line x1="3" y1="15" x2="21" y1="15"></line>
+                  <line x1="9" y1="3" x2="9" y1="21"></line>
+                  <line x1="15" y1="3" x2="15" y1="21"></line>
+                </svg>
+                <span>Étages (Housekeeping)</span>
+              </a>
+            <?php endif; ?>
+
+            <?php if ($canChambres): ?>
+              <a href="/hotel/chambres" class="nav-dropdown-item <?= $currentPage === 'hotel-chambres' ? 'active' : '' ?>" role="menuitem">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M2 17v-5a3 3 0 0 1 3-3h14a3 3 0 0 1 3 3v5"></path>
+                  <path d="M2 17h20"></path>
+                  <path d="M6 9V5a3 3 0 0 1 3-3h6a3 3 0 0 1 3 3v4"></path>
+                  <circle cx="12" cy="13" r="1.5"></circle>
+                </svg>
+                <span>Chambres</span>
+              </a>
+            <?php endif; ?>
+
+            <?php if ($canManageRoles): ?>
+              <a href="/hotel/roles" class="nav-dropdown-item <?= $currentPage === 'hotel-roles' ? 'active' : '' ?>" role="menuitem">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="8.5" cy="7" r="4"></circle>
+                  <path d="M20 8v6"></path>
+                  <path d="M23 11h-6"></path>
+                </svg>
+                <span>Gestion des rôles</span>
+              </a>
+            <?php endif; ?>
+                      </div>
+                    </div>
                     <?php endif; ?>
-                    <?php if (in_array($currentUserRole, $hotelEtagesAllowed, true)): ?>
-                                  <a href="/hotel/etages" class="nav-dropdown-item <?= ($currentPage ?? '') === 'hotel-etages' ? 'active' : '' ?>" role="menuitem">
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                      <rect x="3" y="3" width="18" height="18" rx="2"></rect>
-                                      <line x1="3" y1="9" x2="21" y1="9"></line>
-                                      <line x1="3" y1="15" x2="21" y1="15"></line>
-                                      <line x1="9" y1="3" x2="9" y1="21"></line>
-                                      <line x1="15" y1="3" x2="15" y1="21"></line>
-                                    </svg>
-                                    <span>Étages (Housekeeping)</span>
-                                  </a>
-                                <?php endif; ?>
-                                <?php if (in_array($currentUserRole, $hotelDashboardAllowed, true)): ?>
-                                  <a href="/hotel/roles" class="nav-dropdown-item <?= ($currentPage ?? '') === 'hotel-roles' ? 'active' : '' ?>" role="menuitem">
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                      <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                                      <circle cx="8.5" cy="7" r="4"></circle>
-                                      <path d="M20 8v6"></path>
-                                      <path d="M23 11h-6"></path>
-                                    </svg>
-                                    <span>Gestion des rôles</span>
-                                  </a>
-                                <?php endif; ?>
-                  </div>
-                </div>
-                <?php endif; ?>
-        <?php
-        $showRecharges = false;
-  $rechargeCache = $_SESSION['recharge_access_cache'] ?? null;
+                    <?php
+                    $showRecharges = false;
+                    $rechargeCache = $_SESSION['recharge_access_cache'] ?? null;
   if ($rechargeCache !== null && isset($rechargeCache['expires_at']) && $rechargeCache['expires_at'] > time()) {
       $showRecharges = (bool) $rechargeCache['granted'];
   }
