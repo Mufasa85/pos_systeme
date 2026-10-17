@@ -258,7 +258,7 @@
       });
     }
     const $emit = $('hotel-ft-emit');
-    if ($emit) $emit.addEventListener('click', openPreviewModal);
+    if ($emit) $emit.addEventListener('click', openHotelInvoiceInfoModal);
     const $back = $('hotel-ft-back');
     if ($back) $back.addEventListener('click', () => {
       currentSejourId = null;
@@ -372,68 +372,429 @@
     return html + '</div>';
   }
 
-  // ETAPE 1/3 : panel paiement (équivalent invoice-info-modal de /recharges)
-  function openPreviewModal() {
-    if (!previewData) return;
-    if (paiements.length === 0) paiements.push({ mode: 'cash', montant: computeSoldeCourant() });
-    renderPaiements();
-    var panel = $('hotel-ft-payments-panel');
-    if (!panel) { console.error('[hotel-ft] panel paiements absent'); return; }
-    panel.style.display = 'flex';
-    document.body.style.overflow = 'hidden';
-    var close = $('hotel-ft-payments-panel-close');
-    if (close) close.onclick = closePreviewModal;
-    var cancel = $('hotel-ft-payments-panel-cancel');
-    if (cancel) cancel.onclick = closePreviewModal;
-    var confirm = $('hotel-ft-payments-panel-confirm');
-    if (confirm) {
-      confirm.onclick = function() {
-        var errBox = $('hotel-ft-preview-error');
-        var solde = computeSoldeCourant();
-        var total = getTotalPaiements();
-        if (Math.abs(total - solde) > 0.01) {
-          if (errBox) {
-            errBox.textContent = 'La somme des paiements (' + fmtFc(total) + ') doit couvrir le solde dû (' + fmtFc(solde) + ').';
-            errBox.style.display = '';
-          }
-          return;
-        }
-        if (errBox) errBox.style.display = 'none';
-        closePreviewModal();
-        // ETAPE 2/3 : modal preview global
-        showHotelPreviewTicket();
-      };
+
+  // ===============================================================
+  // PANEL PAIEMENT/REFS — équivalent invoice-info-modal de /caisse
+  //   Mêmes ids de DOM que /caisse, mêmes handlers, mêmes règles de
+  //   validation (PHONE_NUMBER_REGEX, type client PP/PM/PL/PC/AO,
+  //   ref obligatoire pour AO, NIF obligatoire sauf PP, etc.).
+  // ===============================================================
+
+  // Mapping mode hôtel (UI) → nomenclature DGI (cf. PAY_MODE_DGI).
+  // Paiements UI: 'cash' | 'mobile_money' | 'carte' | 'autre'
+  // Paiements DGI: 'ESPECES' | 'MOBILEMONEY' | 'CARTEBANCAIRE' | 'AUTRE'
+
+  function addHotelModalPaymentLine(type, amount) {
+    if (typeof type === 'undefined') type = 'ESPECES';
+    if (typeof amount === 'undefined') amount = 0;
+    var list = $('modal-payments-list');
+    if (!list) return;
+    var maxLines = 6;
+    if (list.children.length >= maxLines) return;
+    var line = document.createElement('div');
+    line.className = 'modal-payment-line';
+    line.style.cssText = 'display: grid; grid-template-columns: 1fr 100px 28px; gap: 8px; align-items: end;';
+    line.innerHTML =
+        '<div>' +
+        '  <label style="font-size: 0.7rem; color: #166534; display: block; margin-bottom: 4px;">Type</label>' +
+        '  <select class="modal-payment-type client-number-input" style="width: 100%; background: #fff;" onchange="hotelCalculateModalPayments()">' +
+        '    <option value="ESPECES"' + (type === 'ESPECES' ? ' selected' : '') + '>Espèces</option>' +
+        '    <option value="MOBILEMONEY"' + (type === 'MOBILEMONEY' ? ' selected' : '') + '>Mobile Money</option>' +
+        '    <option value="CARTEBANCAIRE"' + (type === 'CARTEBANCAIRE' ? ' selected' : '') + '>Carte Bancaire</option>' +
+        '    <option value="VIREMENT"' + (type === 'VIREMENT' ? ' selected' : '') + '>Virement</option>' +
+        '    <option value="CREDIT"' + (type === 'CREDIT' ? ' selected' : '') + '>Crédit</option>' +
+        '    <option value="CHEQUES"' + (type === 'CHEQUES' ? ' selected' : '') + '>Chèques</option>' +
+        '    <option value="AUTRE"' + (type === 'AUTRE' ? ' selected' : '') + '>Autres</option>' +
+        '  </select>' +
+        '</div>' +
+        '<div>' +
+        '  <label style="font-size: 0.7rem; color: #166534; display: block; margin-bottom: 4px;">Montant</label>' +
+        '  <input type="number" class="modal-payment-amount client-number-input" step="0.01" min="0" placeholder="0.00" value="' + (amount > 0 ? amount.toFixed(2) : '') + '" style="width: 100%;" oninput="hotelCalculateModalPayments()">' +
+        '</div>' +
+        '<button type="button" onclick="removeHotelModalPaymentLine(this)" style="background: #fee2e2; color: #dc2626; border: none; border-radius: 6px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1rem;">×</button>';
+    list.appendChild(line);
+    hotelUpdateModalPaymentRemoveButtons();
+    var addBtn = $('add-payment-line-btn');
+    if (addBtn) addBtn.style.display = list.children.length >= maxLines ? 'none' : 'flex';
+    hotelCalculateModalPayments();
+  }
+
+  function removeHotelModalPaymentLine(btn) {
+    var line = btn.closest('.modal-payment-line');
+    if (line) line.remove();
+    hotelUpdateModalPaymentRemoveButtons();
+    var list = $('modal-payments-list');
+    var addBtn = $('add-payment-line-btn');
+    if (addBtn && list) addBtn.style.display = list.children.length >= 6 ? 'none' : 'flex';
+    hotelCalculateModalPayments();
+  }
+
+  function hotelUpdateModalPaymentRemoveButtons() {
+    var lines = document.querySelectorAll('.modal-payment-line');
+    lines.forEach(function(line) {
+      var btn = line.querySelector('button');
+      if (btn) btn.style.display = lines.length > 1 ? 'flex' : 'none';
+    });
+  }
+
+  function hotelCalculateModalPayments() {
+    var lines = document.querySelectorAll('.modal-payment-line');
+    var total = 0;
+    var payments = [];
+    lines.forEach(function(line) {
+      var type = line.querySelector('.modal-payment-type') ? line.querySelector('.modal-payment-type').value : 'ESPECES';
+      var amount = parseFloat(line.querySelector('.modal-payment-amount') ? line.querySelector('.modal-payment-amount').value : 0) || 0;
+      total += amount;
+      payments.push({ type: type, amount: amount });
+    });
+    var cartTotal = computeSoldeCourant();
+    var diff = total - cartTotal;
+    var summary = $('modal-payment-summary');
+    var summaryLabel = $('modal-payment-summary-label');
+    var summaryAmount = $('modal-payment-summary-amount');
+    if (summary && summaryLabel && summaryAmount) {
+      if (Math.abs(diff) < 0.001) {
+        summary.style.display = 'none';
+      } else if (diff < 0) {
+        summary.style.display = 'block';
+        summaryLabel.textContent = 'Reste à payer :';
+        summaryLabel.style.color = '#c62828';
+        summaryAmount.textContent = Math.abs(diff).toFixed(2) + ' Fc';
+        summaryAmount.style.color = '#c62828';
+      } else {
+        summary.style.display = 'block';
+        summaryLabel.textContent = 'Monnaie à rendre :';
+        summaryLabel.style.color = '#166534';
+        summaryAmount.textContent = diff.toFixed(2) + ' Fc';
+        summaryAmount.style.color = '#0B5E88';
+      }
     }
-    var addBtn = $('hotel-ft-pmt-add');
-    if (addBtn) {
-      addBtn.onclick = function() {
-        var mode = $('hotel-ft-pmt-mode').value;
-        var montant = parseFloat($('hotel-ft-pmt-montant').value);
-        if (!(montant > 0)) return;
-        paiements.push({ mode, montant });
-        $('hotel-ft-pmt-montant').value = '';
-        renderPaiements();
-      };
+    var hiddenType = $('modal-payment-type');
+    if (hiddenType && payments.length > 0) hiddenType.value = payments[0].type;
+    return payments;
+  }
+
+  function getHotelModalPayments() {
+    var lines = document.querySelectorAll('.modal-payment-line');
+    var payments = [];
+    lines.forEach(function(line) {
+      var type = line.querySelector('.modal-payment-type') ? line.querySelector('.modal-payment-type').value : 'ESPECES';
+      var amount = parseFloat(line.querySelector('.modal-payment-amount') ? line.querySelector('.modal-payment-amount').value : 0) || 0;
+      if (amount > 0) payments.push({ type: type, amount: amount });
+    });
+    return payments;
+  }
+
+  // ── REF DOCS (jusqu'à 8) — pattern /caisse
+  function addHotelRefDocLine(value) {
+    if (typeof value === 'undefined') value = '';
+    var list = $('modal-ref-docs-list');
+    if (!list) return;
+    var maxLines = 8;
+    var mainInput = $('modal-invoice-ref');
+    var totalLines = (mainInput ? 1 : 0) + list.children.length;
+    if (totalLines >= maxLines) return;
+    var line = document.createElement('div');
+    line.className = 'modal-ref-doc-line';
+    line.style.cssText = 'display: flex; gap: 8px; align-items: center;';
+    line.innerHTML =
+        '<input type="text" class="modal-ref-doc-input client-number-input" placeholder="Réf..." value="' + value + '" style="width: 100%;" oninput="syncHotelRefDocsCount()">' +
+        '<button type="button" onclick="removeHotelRefDocLine(this)" style="background: #fee2e2; color: #dc2626; border: none; border-radius: 6px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1rem;">×</button>';
+    list.appendChild(line);
+    hotelUpdateAddRefDocButton();
+    syncHotelRefDocsCount();
+  }
+
+  function removeHotelRefDocLine(btn) {
+    var line = btn.closest('.modal-ref-doc-line');
+    if (line) line.remove();
+    hotelUpdateAddRefDocButton();
+    syncHotelRefDocsCount();
+  }
+
+  function hotelUpdateAddRefDocButton() {
+    var list = $('modal-ref-docs-list');
+    var btn = $('add-ref-doc-btn');
+    var mainInput = $('modal-invoice-ref');
+    if (!list || !btn) return;
+    var maxLines = 8;
+    var totalLines = (mainInput ? 1 : 0) + list.children.length;
+    btn.style.display = totalLines >= maxLines ? 'none' : 'flex';
+  }
+
+  function syncHotelRefDocsCount() {
+    var list = $('modal-ref-docs-list');
+    var countInput = $('modal-ref-docs-count');
+    var mainInput = $('modal-invoice-ref');
+    if (countInput) {
+      var totalLines = (mainInput ? 1 : 0) + (list ? list.children.length : 0);
+      countInput.value = totalLines;
     }
   }
-  function closePreviewModal() {
-    var panel = $('hotel-ft-payments-panel');
-    if (panel) panel.style.display = 'none';
+
+  function getHotelModalRefDocs() {
+    var refs = [];
+    var mainInput = $('modal-invoice-ref');
+    if (mainInput && mainInput.value && mainInput.value.trim()) refs.push(mainInput.value.trim());
+    var list = $('modal-ref-docs-list');
+    if (list) {
+      list.querySelectorAll('.modal-ref-doc-input').forEach(function(input) {
+        if (input.value && input.value.trim()) refs.push(input.value.trim());
+      });
+    }
+    return refs;
+  }
+
+  // Highlight un champ en rouge (style /caisse)
+  function hotelHighlightModalField(fieldId) {
+    var el = $('hotel-' + fieldId) || $(fieldId);
+    if (!el) return;
+    var originalBoxShadow = el.style.boxShadow;
+    var originalBorderColor = el.style.borderColor;
+    el.style.boxShadow = '0 0 0 3px rgba(220, 38, 38, 0.5)';
+    el.style.borderColor = '#dc2626';
+    var clear = function() {
+      el.style.boxShadow = originalBoxShadow;
+      el.style.borderColor = originalBorderColor;
+      el.removeEventListener('input', clear);
+      el.removeEventListener('change', clear);
+      el.removeEventListener('focus', clear);
+    };
+    el.addEventListener('input', clear, { once: true });
+    el.addEventListener('change', clear, { once: true });
+    el.addEventListener('focus', clear, { once: true });
+    el.focus();
+  }
+
+  // Charge les types de clients dans #modal-client-type (appels API)
+  async function hotelLoadClientTypes() {
+    var typeSelect = $('modal-client-type');
+    if (!typeSelect) return;
+    try {
+      var res = await fetch(APP_URL + '/api/client/types');
+      var types = await res.json();
+      if (Array.isArray(types) && types.length > 0) {
+        typeSelect.innerHTML = '';
+        var defOpt = document.createElement('option');
+        defOpt.value = '';
+        defOpt.textContent = 'Type client';
+        typeSelect.appendChild(defOpt);
+        types.forEach(function(t) {
+          var o = document.createElement('option');
+          o.value = t.id;
+          o.textContent = (t.code || '') + ' - ' + (t.description || t.name || '');
+          o.dataset.code = t.code || '';
+          typeSelect.appendChild(o);
+        });
+      }
+    } catch (e) {
+      console.warn('[hotel-ft] loadClientTypes:', e);
+    }
+  }
+
+  // ===============================================================
+  // OUVERTURE + VALIDATION DU PANEL INFO FACTURE (ÉTAPE 1/3)
+  //   Le seul point de divergence avec /caisse : le client est pré-rempli
+  //   avec les infos du GUEST (previewData.sejour.guest) au lieu d'être
+  //   saisi par l'utilisateur.
+  // ===============================================================
+
+  async function openHotelInvoiceInfoModal() {
+    var modal = $('invoice-info-modal');
+    if (!modal) { console.error('[hotel-ft] invoice-info-modal absent'); return; }
+    if (!previewData) { console.error('[hotel-ft] previewData manquant'); return; }
+
+    var s = previewData.sejour;
+
+    // Pré-remplir la liste des extras manuels (lecture seule — déjà saisis dans le bloc principal)
+    var exWrap = $('hotel-ft-preview-extras');
+    if (exWrap) {
+      if (extrasManuels.length === 0) {
+        exWrap.innerHTML = '<div style="font-size:.85rem;color:var(--muted);font-style:italic;">Aucun extra manuel ajouté.</div>';
+      } else {
+        var rows = extrasManuels.map(function(x) {
+          return '<tr><td>' + escapeHtml(x.description) + '</td><td class="num">' + fmtFc(x.montant) + '</td></tr>';
+        }).join('');
+        exWrap.innerHTML = '<table class="hotel-ft-table"><thead><tr><th>Description</th><th class="num">Montant</th></tr></thead><tbody>' + rows + '</tbody></table>';
+      }
+    }
+
+    // Type de facture par défaut : HB (Hotel Bill)
+    var invoiceTypeSelect = $('modal-invoice-type');
+    if (invoiceTypeSelect && (!invoiceTypeSelect.value || invoiceTypeSelect.value === 'FV')) {
+      // défaut : HB si boutique assujetie, FV sinon (cohérence avec /caisse)
+      var isAssujeti = !!(typeof STORE_INFO !== 'undefined' && STORE_INFO && STORE_INFO.homologation);
+      invoiceTypeSelect.value = isAssujeti ? 'HB' : 'FV';
+    }
+
+    // Références documents (vide au départ — max 8 cf. /caisse)
+    var refList = $('modal-ref-docs-list');
+    if (refList) refList.innerHTML = '';
+    syncHotelRefDocsCount();
+    hotelUpdateAddRefDocButton();
+
+    // Modes de paiement : 1 ligne pré-remplie avec le solde dû en Espèces
+    var solde = computeSoldeCourant();
+    paiements = [{ mode: 'cash', montant: solde }];
+    // On travaille avec les paiements DGI (la conversion cash→ESPECES est faite plus tard)
+    $('modal-payments-list').innerHTML = '';
+    addHotelModalPaymentLine('ESPECES', solde);
+    // Stocke le mapping pour la conversion finale (UI → DGI)
+    paiements = [{ mode: 'cash', dgiType: 'ESPECES', montant: solde }];
+
+    // ─── Pré-remplissage info client (guest) ──────────────────────────
+    $('modal-client-name').value = ((s.guest.prenom || '') + ' ' + (s.guest.nom || '')).trim();
+    $('modal-client-number').value = (s.guest.telephone || '').replace(/[^0-9]/g, '');
+    $('modal-client-nif').value = '';
+    $('modal-client-address').value = '';
+    $('modal-checkout').value = (typeof $('hotel-ft-checkout') !== 'undefined' && $('hotel-ft-checkout') && $('hotel-ft-checkout').checked) ? '1' : '0';
+
+    // Type de client par défaut : PP (personne physique)
+    // Si on a un code client POS lié, on tente de mapper : PM/PC/PL/AO (cf. /caisse)
+    var clientTypeCode = 'PP';
+    if (s.client && s.client.code_client) {
+      var head = (s.client.code_client || '').toUpperCase().slice(0, 2);
+      if (['PM', 'PC', 'PL', 'AO'].indexOf(head) >= 0) clientTypeCode = head;
+    }
+
+    // Charge les types de clients et sélectionne celui du guest
+    await hotelLoadClientTypes();
+    var typeSelect = $('modal-client-type');
+    if (typeSelect && clientTypeCode) {
+      var matchedOpt = null;
+      for (var i = 0; i < typeSelect.options.length; i++) {
+        var o = typeSelect.options[i];
+        if ((o.dataset && o.dataset.code || '').toUpperCase() === clientTypeCode) { matchedOpt = o; break; }
+      }
+      if (matchedOpt) {
+        typeSelect.value = matchedOpt.value;
+      } else {
+        // fallback : on tente un match par texte
+        for (var j = 0; j < typeSelect.options.length; j++) {
+          if (typeSelect.options[j].textContent.toUpperCase().indexOf(clientTypeCode) === 0) {
+            typeSelect.value = typeSelect.options[j].value;
+            break;
+          }
+        }
+      }
+    }
+
+    // Affichage
+    modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeHotelInvoiceInfoModal() {
+    var modal = $('invoice-info-modal');
+    if (modal) modal.classList.remove('active');
     document.body.style.overflow = '';
   }
 
-  // ETAPE 2/3 : injecte le ticket récap dans #preview-modal (global)
+  // Validation des champs + constitution de paiements[] (mode UI 'cash' etc.)
+  // puis bascule vers le modal preview global. Cette fonction est le
+  // miroir de confirmInvoiceInfo() de app.js, adaptée à l'hôtel.
+  function confirmHotelInvoiceInfo() {
+    var errBox = $('modal-invoice-error');
+    if (errBox) { errBox.style.display = 'none'; errBox.textContent = ''; }
+
+    // 1. Type de facture — on remplit la variable globale invoiceType
+    var isAdmin = typeof CURRENT_USER !== 'undefined' && CURRENT_USER !== null && ['admin', 'super_admin'].indexOf(CURRENT_USER.role) >= 0;
+    var isAssujeti = !!(typeof STORE_INFO !== 'undefined' && STORE_INFO && STORE_INFO.homologation);
+    var invoiceType = $('modal-invoice-type') && isAdmin ? ($('modal-invoice-type').value || 'HB') : (isAssujeti ? 'HB' : 'FV');
+    if (!isAssujeti) invoiceType = 'FV';
+    window.hotelInvoiceType = invoiceType;
+
+    // REF FACTURE + EXONÉRATION (RAM/RRR/RAN/COR) — pattern /caisse
+    window.hotelRefFacture   = ($('modal-invoice-num') && $('modal-invoice-num').value) ? $('modal-invoice-num').value.trim() : '';
+    window.hotelExoneration = ($('modal-exoneration') && $('modal-exoneration').value) ? $('modal-exoneration').value : '';
+
+    var invoiceRefs = getHotelModalRefDocs();
+    var invoiceRef = invoiceRefs[0] || '';
+
+    var clientName = $('modal-client-name') ? $('modal-client-name').value : '';
+    var clientNumber = $('modal-client-number') ? ($('modal-client-number').value || '').trim() : '';
+    var clientTypeId = $('modal-client-type') ? ($('modal-client-type').value || '') : '';
+    var clientNif = $('modal-client-nif') ? $('modal-client-nif').value : '';
+    var clientAddress = $('modal-client-address') ? $('modal-client-address').value : '';
+
+    // 2. Validation téléphone (PHONE_NUMBER_REGEX = /^0[89]\d{8}$/, déclaré
+    //    const en haut de app.js → global au scope du script, PAS sur window).
+    if (clientNumber && !PHONE_NUMBER_REGEX.test(clientNumber)) {
+      alert('Le numéro de téléphone doit respecter le format 08xxxxxxxx ou 09xxxxxxxx.');
+      hotelHighlightModalField('modal-client-number');
+      return;
+    }
+
+    // 3. Code type client (extrait depuis le texte "PP - Particulier")
+    var clientTypeText = '';
+    var typeSel = $('modal-client-type');
+    if (typeSel && typeSel.selectedIndex >= 0) {
+      clientTypeText = (typeSel.options[typeSel.selectedIndex].textContent || '').trim();
+    }
+    var clientTypeCode = (clientTypeText.split(' - ')[0] || '').trim().toUpperCase();
+
+    // 4. Adresse obligatoire si PM/PL/PC/AO
+    if (['PM', 'PL', 'PC', 'AO'].indexOf(clientTypeCode) >= 0 && !clientAddress.trim()) {
+      alert("L'adresse est obligatoire pour ce type de client.");
+      hotelHighlightModalField('modal-client-address');
+      return;
+    }
+    // 5. NIF obligatoire sauf PP
+    if (clientTypeCode !== 'PP' && clientTypeCode !== '' && !clientNif.trim()) {
+      alert("Le NIF est obligatoire pour ce type de client.");
+      hotelHighlightModalField('modal-client-nif');
+      return;
+    }
+    // 6. Pour AO : au moins 1 référence document non vide
+    if (clientTypeCode === 'AO' && (invoiceRefs.length === 0 || invoiceRefs.every(function(r) { return !r.trim(); }))) {
+      alert("La référence document est obligatoire pour les ambassades et organisations internationales.");
+      hotelHighlightModalField('modal-invoice-ref');
+      return;
+    }
+
+    // 7. Paiements : on récupère depuis #modal-payments-list (format DGI)
+    var dgiPayments = getHotelModalPayments();
+    var totalSolde = computeSoldeCourant();
+    var dgiTotal = dgiPayments.reduce(function(s, p) { return s + p.amount; }, 0);
+    if (dgiPayments.length === 0 || dgiTotal < totalSolde - 0.001) {
+      alert('Le montant total des paiements est insuffisant par rapport au solde de la facture (' + fmtFc(totalSolde) + ').');
+      var firstAmt = document.querySelector('#modal-payments-list .modal-payment-amount');
+      if (firstAmt) firstAmt.focus();
+      return;
+    }
+
+    // 8. Mémorise les paiements pour processEmission (mapping DGI->UI)
+    paiements = dgiPayments.map(function(p) {
+      var uiMode = 'cash';
+      if (p.type === 'MOBILEMONEY') uiMode = 'mobile_money';
+      else if (p.type === 'CARTEBANCAIRE') uiMode = 'carte';
+      else if (p.type === 'AUTRE') uiMode = 'autre';
+      return { mode: uiMode, dgiType: p.type, montant: p.amount };
+    });
+
+    // 9. Ferme le panel, ouvre le preview
+    closeHotelInvoiceInfoModal();
+    showHotelPreviewTicket();
+  }
+
+  // ===============================================================
+  // ETAPE 2/3 : MODAL PREVIEW TICKET (global #preview-modal)
+  // Réutilise les helpers buildHotelReceipt* posés plus haut dans le fichier.
+  // Réécrit le footer du modal preview pour pointer sur nos handlers.
+  // ===============================================================
   function showHotelPreviewTicket() {
     var s = previewData.sejour;
     var n = previewData.nuits;
     var e = previewData.extras;
-    var total = previewData.total_final + extrasManuels.reduce(function(a, x) { return a + x.montant; }, 0);
+    var total = computeSoldeCourant();
+
     var itemsHtml = buildHotelReceiptItems(n, e, extrasManuels);
     var infoSection = buildHotelReceiptInfoSection();
-    var totalsHtml = buildHotelReceiptTotals(total);
+    var totalsHtml  = buildHotelReceiptTotals(total);
     var paymentsHtml = buildHotelReceiptPayments();
     var typeLabel = 'Facture Hôtel — Régime type B (HB)';
     var now = new Date().toLocaleString('fr-FR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+
     var previewHtml =
       '<div class="receipt"><div class="receipt-header">' +
         (STORE_INFO.logo ? '<img src="' + STORE_INFO.logo + '" class="receipt-logo" alt="Logo">' : '') +
@@ -449,6 +810,8 @@
         '</div>' + infoSection +
       '</div>' +
       '<div class="receipt-meta" style="justify-content:center; font-size:14px; font-weight:600;">' + typeLabel + '</div>' +
+      (window.hotelRefFacture ? '<div style="text-align:center; font-size:12px; color:#666;">Réf : ' + escapeHtml(window.hotelRefFacture) + '</div>' : '') +
+      (window.hotelExoneration ? '<div style="text-align:center; font-size:11px; color:#888; font-style:italic;">Exonération : ' + escapeHtml(getExonerationLabel(window.hotelExoneration)) + '</div>' : '') +
       '<div class="receipt-items">' + itemsHtml + '</div>' +
       '<div class="receipt-totals">' + totalsHtml + paymentsHtml + '</div>' +
       '<div class="receipt-footer">' +
@@ -457,9 +820,10 @@
         '<div class="thank-you">Merci de votre séjour !</div>' +
         '<div style="margin-top:5px; font-size:9px; font-style:italic;">---Powered By Osat---</div>' +
       '</div></div>';
+
     var previewContent = $('preview-content');
     if (previewContent) previewContent.innerHTML = previewHtml;
-    // Réécrit le footer du modal preview global pour nos boutons
+
     var previewFooter = document.querySelector('#preview-modal .modal-actions');
     if (previewFooter) {
       previewFooter.innerHTML =
@@ -484,17 +848,21 @@
     if (modal) { modal.classList.add('active'); document.body.style.overflow = 'hidden'; }
   }
 
-  // ETAPE 3/3 : DGI puis POST backend puis ouverture du #receipt-modal global
+  // ===============================================================
+  // ETAPE 3/3 : VALIDATION DGI -> POST BACKEND -> MODAL RECEIPT
+  // ===============================================================
   async function processEmission() {
     if (typeof showLoading === 'function') showLoading('Validation DGI…');
     else if ($('hotel-ft-overlay-loader')) $('hotel-ft-overlay-loader').style.display = 'flex';
+
     var dgiInvoiceNum = 'FAC-' + Date.now();
     try {
       var invRes = await fetch(APP_URL + '/api/vente/next-invoice');
       var invData = await invRes.json();
       if (invData && invData.invoice_number) dgiInvoiceNum = invData.invoice_number;
     } catch (_) {}
-    var dgiPayload = buildDgiPayload(dgiInvoiceNum, DGI_INVOICE_TYPE);
+
+    var dgiPayload = buildDgiPayload(dgiInvoiceNum, 'FV');
     var dgiResp = await postToDgi(dgiPayload);
     if (!dgiResp || !dgiResp.success) {
       var msg = (dgiResp && dgiResp.message) || 'Échec validation DGI';
@@ -567,13 +935,13 @@
     });
     var total = articles.reduce(function(acc, a) { return acc + (parseFloat(a.price) || 0) * (parseFloat(a.quantity) || 1); }, 0);
     var sellerName = (typeof CURRENT_USER !== 'undefined' && CURRENT_USER.fullName) ? CURRENT_USER.fullName : (STORE_INFO.name || '');
-    var agentCode = (typeof CURRENT_USER !== 'undefined' && CURRENT_USER.agentCode) ? CURRENT_USER.agentCode : '';
+    var agentCode  = (typeof CURRENT_USER !== 'undefined' && CURRENT_USER.agentCode) ? CURRENT_USER.agentCode : '';
     var clientTypeCode = 'PP';
     if (s.client && s.client.code_client) {
       var head = (s.client.code_client || '').toUpperCase().slice(0, 2);
-      if (['PM','PC','PL','AO'].indexOf(head) >= 0) clientTypeCode = head;
+      if (['PM', 'PC', 'PL', 'AO'].indexOf(head) >= 0) clientTypeCode = head;
     }
-    var payments = paiements.map(function(p) { return { type: PAY_MODE_DGI[p.mode] || 'AUTRE', amount: parseFloat(p.montant) || 0 }; });
+    var dgiPayments = (paiements || []).map(function(p) { return { type: p.dgiType || 'ESPECES', amount: parseFloat(p.montant) || 0 }; });
     return {
       store_phone: (STORE_INFO.phone || ''),
       store_address: (STORE_INFO.address || ''),
@@ -597,10 +965,10 @@
       invoice_type: invoiceType,
       invoice_refs: [],
       invoice_ref: '',
-      ref_facture: '',
-      exoneration: '',
+      ref_facture: (typeof window.hotelRefFacture === 'string') ? window.hotelRefFacture : '',
+      exoneration: (typeof window.hotelExoneration === 'string') ? window.hotelExoneration : '',
       articles: articles,
-      payments: payments,
+      payments: dgiPayments,
       rate: (typeof USD_RATE !== 'undefined') ? USD_RATE : 0,
       providerService: '',
     };
@@ -611,8 +979,8 @@
     var payload = {
       sejour_id: currentSejourId,
       extras_manuels: extrasManuels,
-      paiements: paiements,
-      check_out: $('hotel-ft-checkout') ? $('hotel-ft-checkout').checked : false,
+      paiements: (paiements || []).map(function(p) { return { mode: p.mode, montant: parseFloat(p.montant) || 0 }; }),
+      check_out: ($('hotel-ft-checkout') && $('hotel-ft-checkout').checked) ? true : false,
       dgi_data: {
         dateDGI: dgiData.dateDGI || null,
         qrCode: dgiData.qrCode || '',
@@ -636,7 +1004,6 @@
     openReceiptModal(r.data, dgiResp);
   }
 
-  // ETAPE FINALE : ouvre #receipt-modal (global) avec le ticket DGI signé + QR code
   function openReceiptModal(saleData, dgiResp) {
     var s = previewData.sejour;
     var n = previewData.nuits;
@@ -647,14 +1014,15 @@
 
     var itemsHtml = buildHotelReceiptItems(n, e, extrasManuels);
     var infoSection = buildHotelReceiptInfoSection();
-    var totalsHtml = buildHotelReceiptTotals(total);
+    var totalsHtml  = buildHotelReceiptTotals(total);
     var paymentsHtml = buildHotelReceiptPayments();
     var typeLabel = 'Facture Hôtel — Régime type B (HB)';
     var now = new Date().toLocaleString('fr-FR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
 
     var dgiInfoHtml = '';
     if (isHomologuee && dgiData && (dgiData.codeDEFDGI || dgiData.counters || dgiData.nim)) {
-      dgiInfoHtml = '<div style="background:#e8f5e9; border:1px solid #4caf50; border-radius:8px; padding:10px; margin:10px 0; text-align:center;">' +
+      dgiInfoHtml =
+        '<div style="background:#e8f5e9; border:1px solid #4caf50; border-radius:8px; padding:10px; margin:10px 0; text-align:center;">' +
         '<div style="color:#2e7d32; font-weight:bold; font-size:11px;">--- Elements de securite de la facture normalisee ---</div>' +
         '<div style="font-size:11px; color:#555; margin-top:4px;">' +
         (dgiData.codeDEFDGI ? 'CODE DEF/DGI: ' + escapeHtml(dgiData.codeDEFDGI) : '') +
@@ -679,6 +1047,8 @@
         '</div>' + infoSection +
       '</div>' +
       '<div class="receipt-meta" style="justify-content:center; font-size:14px; font-weight:600;">' + typeLabel + '</div>' +
+      (window.hotelRefFacture ? '<div style="text-align:center; font-size:12px; color:#666;">Réf : ' + escapeHtml(window.hotelRefFacture) + '</div>' : '') +
+      (window.hotelExoneration ? '<div style="text-align:center; font-size:11px; color:#888; font-style:italic;">Exonération : ' + escapeHtml(getExonerationLabel(window.hotelExoneration)) + '</div>' : '') +
       '<div class="receipt-items">' + itemsHtml + '</div>' +
       '<div class="receipt-totals">' + totalsHtml + paymentsHtml +
         (isHomologuee && STORE_INFO.isf ? '<div style="margin:10px 0; font-size:11px; color:#333; border:1px dashed #ccc; padding:8px; border-radius:4px; text-align:center;">ISF : ' + escapeHtml(dgiData.isf || STORE_INFO.isf) + '</div>' : '') +
@@ -697,13 +1067,10 @@
     var modal = $('receipt-modal');
     if (modal) { modal.classList.add('active'); document.body.style.overflow = 'hidden'; }
 
-    // QR code DGI (réutilise posCart.generateDGIQRCode depuis app.js)
     var qrContent = (dgiData && dgiData.qrCode) ? dgiData.qrCode : (saleData.numero_facture || '');
     if (typeof posCart !== 'undefined' && posCart.generateDGIQRCode && qrContent) {
       setTimeout(function() { posCart.generateDGIQRCode(qrContent, 'hotel-ft-qrcode-container'); }, 80);
     }
-
-    // Bouton Imprimer : utilise _printReceiptContent (helper global app.js)
     var printBtn = $('print-receipt');
     if (printBtn) {
       printBtn.onclick = function() {
@@ -734,48 +1101,21 @@
   // Init
   var urlSejourId = parseInt(new URL(window.location.href).searchParams.get('sejour_id') || '0', 10);
   if (urlSejourId > 0) loadSejour(urlSejourId);
+
+  // EXPOSITION GLOBALE (window.*) — requise car les onclick="..." du
+  // markup PHP appellent ces fonctions. Doit rester DANS la closure
+  // IIFE pour que les noms soient en scope.
+  if (typeof window !== 'undefined') {
+    window.openHotelInvoiceInfoModal = openHotelInvoiceInfoModal;
+    window.closeHotelInvoiceInfoModal = closeHotelInvoiceInfoModal;
+    window.confirmHotelInvoiceInfo    = confirmHotelInvoiceInfo;
+    window.addHotelModalPaymentLine   = addHotelModalPaymentLine;
+    window.removeHotelModalPaymentLine= removeHotelModalPaymentLine;
+    window.addHotelRefDocLine         = addHotelRefDocLine;
+    window.removeHotelRefDocLine      = removeHotelRefDocLine;
+    window.syncHotelRefDocsCount      = syncHotelRefDocsCount;
+    window.cancelExistingFacture      = cancelExistingFacture;
+    window.closeReceiptModal          = closeReceiptModal;
+  }
 })();
 
-  function renderPaiements() {
-    var list = $('hotel-ft-payments-list');
-    if (!list) return;
-    if (paiements.length === 0) {
-      list.innerHTML = '<div style="grid-column:1/-1;font-size:.82rem;color:var(--muted);font-style:italic;">Aucun paiement saisi.</div>';
-      return;
-    }
-    list.innerHTML = paiements.map(function(p, i) {
-      return '<div>' + escapeHtml(paymentLabel(p.mode)) + '</div>'
-           + '<div>' + fmtFc(p.montant) + '</div>'
-           + '<div><button type="button" class="btn btn-ghost btn-small" data-rm-pmt="' + i + '">×</button></div>';
-    }).join('');
-    list.querySelectorAll('[data-rm-pmt]').forEach(function(b) {
-      b.addEventListener('click', function() {
-        var i = parseInt(b.dataset.rmPmt, 10);
-        paiements.splice(i, 1);
-        renderPaiements();
-      });
-    });
-    var solde = computeSoldeCourant();
-    var total = getTotalPaiements();
-    var summary = $('hotel-ft-preview-summary');
-    var sumLabel = $('hotel-ft-preview-summary-label');
-    var sumAmount = $('hotel-ft-preview-summary-amount');
-    if (summary && sumLabel && sumAmount) {
-      var diff = total - solde;
-      if (Math.abs(diff) < 0.001) {
-        summary.style.display = 'none';
-      } else if (diff < 0) {
-        summary.style.display = 'block';
-        sumLabel.textContent = 'Reste à payer :';
-        sumLabel.style.color = '#c62828';
-        sumAmount.textContent = Math.abs(diff).toFixed(2) + ' Fc';
-        sumAmount.style.color = '#c62828';
-      } else {
-        summary.style.display = 'block';
-        sumLabel.textContent = 'Monnaie à rendre :';
-        sumLabel.style.color = '#166534';
-        sumAmount.textContent = diff.toFixed(2) + ' Fc';
-        sumAmount.style.color = '#0B5E88';
-      }
-    }
-  }
