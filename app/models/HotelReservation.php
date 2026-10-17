@@ -220,4 +220,131 @@ class HotelReservation
     {
         return $this->db->fetchAll('SELECT id, numero, type, prix_base, etat FROM hotel_chambres ORDER BY numero ASC');
     }
+
+    // ========================================================================
+    // Page Réception — agrégats pour la grille live + timeline
+    // ========================================================================
+
+    /**
+     * Toutes les chambres avec, s'il existe, le séjour en cours (en_cours) qui les occupe.
+     * Jointure LEFT pour garder les chambres vides.
+     */
+    public function chambresAvecSejourActif(): array
+    {
+        return $this->db->fetchAll(
+            "SELECT c.id AS chambre_id, c.numero, c.type, c.prix_base, c.etat,
+                    s.id AS sejour_id, s.date_arrivee, s.date_depart_prevue, s.prix_par_nuit, s.statut,
+                    g.id AS guest_id, g.nom AS guest_nom, g.prenom AS guest_prenom, g.telephone AS guest_tel
+             FROM hotel_chambres c
+             LEFT JOIN hotel_sejours s
+               ON s.chambre_id = c.id
+              AND s.statut = 'en_cours'
+             LEFT JOIN hotel_guests g ON g.id = s.guest_id
+             ORDER BY c.numero ASC"
+        );
+    }
+
+    /**
+     * Timeline du jour : 3 listes (arrivées / en_cours / départs).
+     * - arrivées  : séjours 'reserve'  qui commencent aujourd'hui
+     * - en_cours  : séjours 'en_cours' actuellement
+     * - départs   : séjours 'en_cours' dont la date_depart_prevue = aujourd'hui
+     */
+    public function sejoursAujourdhui(): array
+    {
+        $today = date('Y-m-d');
+        $now   = date('Y-m-d H:i:s');
+
+        $arrivals = $this->db->fetchAll(
+            "SELECT s.*, g.nom AS guest_nom, g.prenom AS guest_prenom, g.telephone AS guest_tel,
+                    c.numero AS chambre_numero, c.type AS chambre_type
+             FROM hotel_sejours s
+             INNER JOIN hotel_guests g ON g.id = s.guest_id
+             INNER JOIN hotel_chambres c ON c.id = s.chambre_id
+             WHERE s.statut = 'reserve'
+               AND DATE(s.date_arrivee) = :today
+             ORDER BY s.date_arrivee ASC",
+            [':today' => $today]
+        );
+
+        $inProgress = $this->db->fetchAll(
+            "SELECT s.*, g.nom AS guest_nom, g.prenom AS guest_prenom, g.telephone AS guest_tel,
+                    c.numero AS chambre_numero, c.type AS chambre_type
+             FROM hotel_sejours s
+             INNER JOIN hotel_guests g ON g.id = s.guest_id
+             INNER JOIN hotel_chambres c ON c.id = s.chambre_id
+             WHERE s.statut = 'en_cours'
+             ORDER BY s.date_arrivee ASC",
+            []
+        );
+
+        $departures = $this->db->fetchAll(
+            "SELECT s.*, g.nom AS guest_nom, g.prenom AS guest_prenom, g.telephone AS guest_tel,
+                    c.numero AS chambre_numero, c.type AS chambre_type
+             FROM hotel_sejours s
+             INNER JOIN hotel_guests g ON g.id = s.guest_id
+             INNER JOIN hotel_chambres c ON c.id = s.chambre_id
+             WHERE s.statut = 'en_cours'
+               AND s.date_depart_prevue = :today
+             ORDER BY s.date_arrivee ASC",
+            [':today' => $today]
+        );
+
+        return [
+            'arrivals'   => $arrivals,
+            'inProgress' => $inProgress,
+            'departures' => $departures,
+            'today'      => $today,
+        ];
+    }
+
+    // ========================================================================
+    // Mutations check-in / check-out
+    // ========================================================================
+
+    /**
+     * Check-in : passe le séjour de 'reserve' à 'en_cours'.
+     * Renvoie l'id du séjour. Lève RuntimeException si pas en 'reserve'.
+     */
+    public function checkIn(int $sejourId, int $userId): array
+    {
+        $sejour = $this->findById($sejourId);
+        if (!$sejour) {
+            throw new \RuntimeException('Séjour introuvable.');
+        }
+        if ($sejour['statut'] !== 'reserve') {
+            throw new \RuntimeException('Ce séjour n\'est pas en état "réservé" (statut actuel : ' . $sejour['statut'] . ').');
+        }
+        $this->db->query(
+            "UPDATE hotel_sejours
+             SET statut = 'en_cours', user_id = :uid, version = version + 1
+             WHERE id = :id AND statut = 'reserve'",
+            [':uid' => $userId, ':id' => $sejourId]
+        );
+        return $this->findById($sejourId);
+    }
+
+    /**
+     * Check-out : passe le séjour de 'en_cours' à 'termine' + remplit date_depart_reelle.
+     */
+    public function checkOut(int $sejourId, int $userId): array
+    {
+        $sejour = $this->findById($sejourId);
+        if (!$sejour) {
+            throw new \RuntimeException('Séjour introuvable.');
+        }
+        if ($sejour['statut'] !== 'en_cours') {
+            throw new \RuntimeException('Ce séjour n\'est pas en cours (statut actuel : ' . $sejour['statut'] . ').');
+        }
+        $this->db->query(
+            "UPDATE hotel_sejours
+             SET statut = 'termine',
+                 date_depart_reelle = NOW(),
+                 user_id = :uid,
+                 version = version + 1
+             WHERE id = :id AND statut = 'en_cours'",
+            [':uid' => $userId, ':id' => $sejourId]
+        );
+        return $this->findById($sejourId);
+    }
 }

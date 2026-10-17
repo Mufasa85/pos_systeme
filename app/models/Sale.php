@@ -14,31 +14,32 @@ class Sale
     }
 
     public function create($data)
-    {
-        $sql = 'INSERT INTO ventes (numero_facture, invoice_type, client_id, sous_total_ht, tva, total, payments, vendeur_id, shop_id, store_isf, date, dateDGI, qrCode, codeDEFDGI, counters, nim, comment, service) 
-                VALUES (:numero_facture, :invoice_type, :client_id, :sous_total_ht, :tva, :total, :payments, :vendeur_id, :shop_id, :store_isf, :date, :dateDGI, :qrCode, :codeDEFDGI, :counters, :nim, :comment, :service)';
-        $this->db->query($sql, [
-            ':numero_facture' => $data['numero_facture'],
-            ':invoice_type'   => $data['invoice_type'] ?? 'FV',
-            ':client_id'      => $data['client_id'] ?? null,
-            ':sous_total_ht'  => $data['sous_total_ht'],
-            ':tva'            => $data['tva'],
-            ':total'          => $data['total'],
-            ':payments'       => isset($data['payments']) ? json_encode($data['payments']) : null,
-            ':vendeur_id'     => $data['vendeur_id'],
-            ':shop_id'        => $data['shop_id'] ?? null,
-            ':store_isf'      => $data['store_isf'] ?? null,
-            ':date'           => $data['date'],
-            ':dateDGI'        => $data['dateDGI'] ?? null,
-            ':qrCode'         => $data['qrCode'] ?? null,
-            ':codeDEFDGI'     => $data['codeDEFDGI'] ?? null,
-            ':counters'       => $data['counters'] ?? null,
-            ':nim'            => $data['nim'] ?? null,
-            ':comment'        => $data['comment'] ?? null,
-            ':service'        => $data['service'] ?? null,
-        ]);
-        return $this->db->getConnection()->lastInsertId();
-    }
+        {
+            $sql = 'INSERT INTO ventes (numero_facture, invoice_type, client_id, sejour_id, sous_total_ht, tva, total, payments, vendeur_id, shop_id, store_isf, date, dateDGI, qrCode, codeDEFDGI, counters, nim, comment, service) 
+                    VALUES (:numero_facture, :invoice_type, :client_id, :sejour_id, :sous_total_ht, :tva, :total, :payments, :vendeur_id, :shop_id, :store_isf, :date, :dateDGI, :qrCode, :codeDEFDGI, :counters, :nim, :comment, :service)';
+            $this->db->query($sql, [
+                ':numero_facture' => $data['numero_facture'],
+                ':invoice_type'   => $data['invoice_type'] ?? 'FV',
+                ':client_id'      => $data['client_id'] ?? null,
+                ':sejour_id'      => $data['sejour_id'] ?? null,
+                ':sous_total_ht'  => $data['sous_total_ht'],
+                ':tva'            => $data['tva'],
+                ':total'          => $data['total'],
+                ':payments'       => isset($data['payments']) ? json_encode($data['payments']) : null,
+                ':vendeur_id'     => $data['vendeur_id'],
+                ':shop_id'        => $data['shop_id'] ?? null,
+                ':store_isf'      => $data['store_isf'] ?? null,
+                ':date'           => $data['date'],
+                ':dateDGI'        => $data['dateDGI'] ?? null,
+                ':qrCode'         => $data['qrCode'] ?? null,
+                ':codeDEFDGI'     => $data['codeDEFDGI'] ?? null,
+                ':counters'       => $data['counters'] ?? null,
+                ':nim'            => $data['nim'] ?? null,
+                ':comment'        => $data['comment'] ?? null,
+                ':service'        => $data['service'] ?? null,
+            ]);
+            return $this->db->getConnection()->lastInsertId();
+        }
 
     public function getAllSales($shopId = null)
     {
