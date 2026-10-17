@@ -261,8 +261,10 @@
         $canDashboard = in_array($effectiveHotelRole, ['super_admin','manager'], true);
         $canCalendar  = in_array($effectiveHotelRole, ['super_admin','manager'], true);
         $canReception = in_array($effectiveHotelRole, ['super_admin','manager','receptionniste'], true);
+        $canReservations = in_array($effectiveHotelRole, ['super_admin','manager','receptionniste'], true);
         $canEtages    = in_array($effectiveHotelRole, ['super_admin','manager','receptionniste','gouvernante'], true);
         $canChambres  = $showHotel; // tous rôles hôtel
+        $canGuests    = $showHotel; // tous rôles hôtel
         $canManageRoles = in_array($effectiveHotelRole, ['super_admin','manager'], true);
 
         $currentPage = $currentPage ?? '';
@@ -307,6 +309,19 @@
               </a>
             <?php endif; ?>
 
+            <?php if ($canReservations): ?>
+              <a href="/hotel/reservations" class="nav-dropdown-item <?= $currentPage === 'hotel-reservations' ? 'active' : '' ?>" role="menuitem">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="4" width="18" height="18" rx="2"></rect>
+                  <line x1="16" y1="2" x2="16" y1="6"></line>
+                  <line x1="8" y1="2" x2="8" y1="6"></line>
+                  <line x1="3" y1="10" x2="21" y1="10"></line>
+                  <path d="M8 14h2M8 18h2M14 14h2M14 18h2"></path>
+                </svg>
+                <span>Réservations</span>
+              </a>
+            <?php endif; ?>
+
             <?php if ($canReception): ?>
               <a href="/hotel/reception" class="nav-dropdown-item <?= $currentPage === 'hotel-reception' ? 'active' : '' ?>" role="menuitem">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -339,6 +354,18 @@
                   <circle cx="12" cy="13" r="1.5"></circle>
                 </svg>
                 <span>Chambres</span>
+              </a>
+            <?php endif; ?>
+
+            <?php if ($canGuests): ?>
+              <a href="/hotel/guests" class="nav-dropdown-item <?= $currentPage === 'hotel-guests' ? 'active' : '' ?>" role="menuitem">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="8.5" cy="7" r="4"></circle>
+                  <path d="M20 8v6"></path>
+                  <path d="M23 11h-6"></path>
+                </svg>
+                <span>Guests</span>
               </a>
             <?php endif; ?>
 
@@ -623,32 +650,32 @@
                   flex-shrink: 0;
                 }
                 .nav-dropdown.open .nav-dropdown-caret { transform: rotate(180deg); }
-                        .nav-dropdown-menu {
-                          display: flex;
-                          flex-direction: column;
-                          gap: 2px;
-                          margin-top: 0;
-                          margin-left: 12px;
-                          padding-left: 14px;
-                          border-left: 2px solid var(--border, #e2e8f0);
-                          overflow: hidden;
-                          max-height: 0;
-                          opacity: 0;
-                          transform: translateY(-6px);
-                          pointer-events: none;
-                          transition:
-                            max-height .25s ease,
-                            opacity .2s ease,
-                            transform .2s ease,
-                            margin-top .2s ease;
-                        }
-                        .nav-dropdown.open .nav-dropdown-menu {
-                          max-height: 240px;
-                          opacity: 1;
-                          transform: translateY(0);
-                          margin-top: 4px;
-                          pointer-events: auto;
-                        }
+        .nav-dropdown-menu {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+          margin-top: 0;
+          margin-left: 12px;
+          padding-left: 14px;
+          border-left: 2px solid var(--border, #e2e8f0);
+          overflow: hidden;
+          max-height: 0;
+          opacity: 0;
+          transform: translateY(-6px);
+          pointer-events: none;
+          transition:
+            max-height .35s ease,
+            opacity .2s ease,
+            transform .2s ease,
+            margin-top .2s ease;
+        }
+        .nav-dropdown.open .nav-dropdown-menu {
+          max-height: 600px;
+          opacity: 1;
+          transform: translateY(0);
+          margin-top: 4px;
+          pointer-events: auto;
+        }
                 .nav-dropdown-item {
                   display: flex;
                   align-items: center;
