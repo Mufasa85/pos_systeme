@@ -2,6 +2,9 @@
 
 use App\Controllers\AuthController;
 use App\Controllers\HotelChambreController;
+use App\Controllers\HotelFactureController;
+use App\Controllers\HotelGuestController;
+use App\Controllers\HotelReceptionController;
 use App\Controllers\HotelReservationController;
 use App\Controllers\PageController;
 use App\Core\Router;
@@ -51,6 +54,27 @@ Router::get('/api/hotel/chambres/[i:id]', [HotelChambreController::class, 'show'
 Router::post('/api/hotel/chambres', [HotelChambreController::class, 'store']);
 Router::put('/api/hotel/chambres/[i:id]', [HotelChambreController::class, 'update']);
 Router::post('/api/hotel/chambres/[i:id]/etat', [HotelChambreController::class, 'setEtat']);
+// Réception live — ajouté 2026-10-16
+Router::get('/api/hotel/reception/board', [HotelReceptionController::class, 'board']);
+Router::post('/api/hotel/reservations/[i:id]/check-in',  [HotelReceptionController::class, 'checkIn']);
+Router::post('/api/hotel/reservations/[i:id]/check-out', [HotelReceptionController::class, 'checkOut']);
+Router::post('/api/hotel/reception/rooms/[i:id]/cleaning-done', [HotelReceptionController::class, 'cleaningDone']);
+Router::post('/api/hotel/reception/rooms/[i:id]/out-of-service', [HotelReceptionController::class, 'outOfService']);
+// Guests hôtel — page + API CRUD — ajouté 2026-10-16
+Router::get('/hotel/guests', [PageController::class, 'hotelGuests']);
+Router::get('/api/hotel/guests', [HotelGuestController::class, 'index']);
+Router::get('/api/hotel/guests/[i:id]', [HotelGuestController::class, 'show']);
+Router::post('/api/hotel/guests', [HotelGuestController::class, 'store']);
+Router::put('/api/hotel/guests/[i:id]', [HotelGuestController::class, 'update']);
+// Lien client POS ↔ guest (ajouté 2026-10-17)
+Router::post('/api/hotel/guests/[i:id]/link-client', [HotelGuestController::class, 'linkClient']);
+Router::get('/api/hotel/clients/search', [HotelGuestController::class, 'searchClients']);
+// Facturation hôtel — page + API CRUD — ajouté 2026-10-17
+Router::get('/hotel/facturation', [PageController::class, 'hotelFacturation']);
+Router::get('/api/hotel/factures/preview', [HotelFactureController::class, 'preview']);
+Router::post('/api/hotel/factures', [HotelFactureController::class, 'store']);
+Router::get('/api/hotel/factures/[i:id]', [HotelFactureController::class, 'show']);
+Router::post('/api/hotel/factures/[i:id]/cancel', [HotelFactureController::class, 'cancel']);
 Router::get('/categories', [PageController::class, 'categories']);
 Router::get('/taxes', [PageController::class, 'taxes']);
 Router::get('/parametres', [PageController::class, 'parametres']);
