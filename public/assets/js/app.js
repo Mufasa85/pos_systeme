@@ -3626,10 +3626,27 @@ function initSidebar() {
         });
     }
 
+    // Fermer la sidebar mobile sur clic d'un lien, SAUF pour le trigger du
+    // dropdown Hôtel (sinon le menu se ferme immédiatement sur mobile).
+    // Pour les liens enfants du dropdown on ferme la sidebar manuellement
+    // après l'ouverture de la cible.
     $$('.nav-item').forEach(item => {
+        if (item.classList.contains('nav-dropdown-trigger')) return;
         item.addEventListener('click', () => {
-            $('#sidebar').classList.remove('open');
-            sidebarOverlay.classList.remove('active');
+            const sidebar = $('#sidebar');
+            const overlay = sidebarOverlay;
+            if (sidebar) sidebar.classList.remove('open');
+            if (overlay) overlay.classList.remove('active');
+        });
+    });
+
+    // Dropdown Hôtel : clic sur un sous-item ferme la sidebar.
+    $$('.nav-dropdown-item').forEach(item => {
+        item.addEventListener('click', () => {
+            const sidebar = $('#sidebar');
+            const overlay = sidebarOverlay;
+            if (sidebar) sidebar.classList.remove('open');
+            if (overlay) overlay.classList.remove('active');
         });
     });
 }

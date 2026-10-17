@@ -642,7 +642,8 @@
                   color: inherit;
                   font: inherit;
                   text-align: left;
-                  padding: 0;
+                  /* padding hérité de .nav-item (.75rem 1rem) pour rester
+                     aligné avec les autres options de la sidebar. */
                 }
                 .nav-dropdown-caret {
                   margin-left: auto;
