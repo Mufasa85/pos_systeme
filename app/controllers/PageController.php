@@ -446,6 +446,52 @@ class PageController extends Controller
     }
 
     /**
+     * Page Réservations hôtel — manager + réceptionniste (et super_admin).
+     * La page ne charge que la coquille HTML — le contenu vient de
+     * fetch() vers /api/hotel/reservations (HotelReservationController).
+     */
+    public function hotelReservations()
+    {
+        $appRole  = $_SESSION['role'] ?? '';
+        $hotelRole = $_SESSION['hotel_role'] ?? null;
+        $allowed =
+            $appRole === 'super_admin'
+            || $appRole === 'admin'  // = manager auto
+            || in_array($hotelRole, ['manager', 'receptionniste'], true);
+        if (!$allowed) {
+            $_SESSION['flash_error'] = 'Accès réservé au manager et à la réceptionniste.';
+            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+            $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+            header('Location: ' . $protocol . '://' . $host . '/dashboard');
+            exit;
+        }
+        $this->render('hotel-reservations', []);
+    }
+
+    /**
+     * Page Guests hôtel — manager + réceptionniste (et super_admin).
+     * Lecture pour tous les rôles hôtel, écriture pour manager seulement
+     * (géré par le contrôleur API).
+     */
+    public function hotelGuests()
+    {
+        $appRole  = $_SESSION['role'] ?? '';
+        $hotelRole = $_SESSION['hotel_role'] ?? null;
+        $allowed =
+            $appRole === 'super_admin'
+            || $appRole === 'admin'  // = manager auto
+            || in_array($hotelRole, ['manager', 'receptionniste', 'gouvernante'], true);
+        if (!$allowed) {
+            $_SESSION['flash_error'] = 'Accès réservé au personnel hôtel.';
+            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+            $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+            header('Location: ' . $protocol . '://' . $host . '/dashboard');
+            exit;
+        }
+        $this->render('hotel-guests', []);
+    }
+
+    /**
      * Page "Gestion des rôles hôtel" : le manager assigne chaque
      * vendeur de SA boutique à un rôle métier hôtel (manager /
      * réceptionniste / gouvernante) ou aucun. Super_admin a accès
@@ -571,7 +617,7 @@ class PageController extends Controller
         if (!$this->isSuperAdmin()) return [];
         try {
             $shopModel = new \App\Models\Shop();
-            return $shopModel->all() ?? [];
+            return $shopModel->getAll() ?? [];
         } catch (\Throwable $e) {
             return [];
         }
@@ -595,6 +641,16 @@ class PageController extends Controller
         $shopId = $this->isSuperAdmin() ? null : $this->getShopId();
         $ventes = $saleModel->getAllSales($shopId);
         $this->render('historique', ['ventes' => $ventes]);
+    }
+
+    /**
+     * Page de facturation hôtel.
+     * Le séjour à facturer est passé en query param : /hotel/facturation?sejour_id=X
+     * (sinon on affiche un sélecteur de séjour).
+     */
+    public function hotelFacturation()
+    {
+        $this->render('hotel-facturation', []);
     }
 
     public function analytics()

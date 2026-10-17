@@ -11,7 +11,7 @@ use App\Models\SaleDetail;
 class SaleController extends Controller
 {
     public function create()
-    {
+{
         if (!$this->requireAuth()) {
             return;
         }
@@ -41,27 +41,58 @@ class SaleController extends Controller
         }
 
         $data = json_decode(file_get_contents('php://input'), true);
-        if (empty($data) || empty($data['articles'])) {
-            $this->status(400)->json(['error' => 'Panier vide ou données invalides']);
-            return;
-        }
+                if (empty($data) || empty($data['articles'])) {
+                    $this->status(400)->json(['error' => 'Panier vide ou données invalides']);
+                    return;
+                }
 
-        $saleModel = new Sale();
-        $detailModel = new SaleDetail();
-        $productModel = new Product();
+                $saleModel = new Sale();
+                $detailModel = new SaleDetail();
+                $productModel = new Product();
 
-        // Si pas de client_id, utiliser null (pas de client sélectionné)
-        // Pour les recharges, on n'a pas besoin de client dans la table clients
-        $clientId = $data['client_id'] ?? null;
+                // Si pas de client_id, utiliser null (pas de client sélectionné)
+                // Pour les recharges, on n'a pas besoin de client dans la table clients
+                $clientId = $data['client_id'] ?? null;
 
-        // Logique de négation (cohérent avec le frontend):
-        // Si la facture N'est PAS FA ou EA, les quantités et les totaux
-        // sont négatifs. Le SQL `stock - :quantite` ajoutera au stock
-        // quand :quantite est négatif (ce qui correspond aux avoirs/annulations).
-        $typeFacture = $data['type_facture'] ?? 'FV';
-        $shouldNegate = $typeFacture !== 'FA' && $typeFacture !== 'EA';
+                // Logique de négation (cohérent avec le frontend):
+                // Si la facture N'est PAS FA ou EA, les quantités et les totaux
+                // sont négatifs. Le SQL `stock - :quantite` ajoutera au stock
+                // quand :quantite est négatif (ce qui correspond aux avoirs/annulations).
+                $typeFacture = $data['type_facture'] ?? 'FV';
+                $shouldNegate = $typeFacture !== 'FA' && $typeFacture !== 'EA';
 
-        try {
+                // ── Pont hôtel : imputation d'un extra à un séjour ─────────────
+                // Si la caisse envoie sejour_id, on force invoice_type='EX' (extra
+                // hôtelier) et on vérifie que le séjour existe et n'est pas clôturé.
+                // On récupère aussi le client_id lié au guest si non fourni.
+                $sejourId = isset($data['sejour_id']) && $data['sejour_id'] !== '' ? (int)$data['sejour_id'] : null;
+                if ($sejourId !== null) {
+                    $sejour = \App\Core\Database::getInstance()->fetch(
+                        'SELECT id, guest_id, statut, date_arrivee FROM hotel_sejours WHERE id = :id',
+                        [':id' => $sejourId]
+                    );
+                    if (!$sejour) {
+                        $this->status(422)->json(['error' => 'Séjour introuvable']);
+                        return;
+                    }
+                    if (in_array($sejour['statut'], ['termine', 'annule'], true)) {
+                        $this->status(422)->json(['error' => 'Séjour clôturé — impossible d\'ajouter un extra']);
+                        return;
+                    }
+                    // Forcer le type EX (extra hôtel)
+                    $typeFacture = 'EX';
+                    // Si pas de client POS fourni, on remonte au client lié au guest
+                    // (la facture extra sera imputée au même client que la facture finale)
+                    if (!$clientId) {
+                        $guestRow = \App\Core\Database::getInstance()->fetch(
+                            'SELECT client_id FROM hotel_guests WHERE id = :gid',
+                            [':gid' => (int)$sejour['guest_id']]
+                        );
+                        $clientId = $guestRow && !empty($guestRow['client_id']) ? (int)$guestRow['client_id'] : null;
+                    }
+                }
+
+                try {
             $db = \App\Core\Database::getInstance()->getConnection();
             $db->beginTransaction();
 
@@ -94,25 +125,26 @@ class SaleController extends Controller
             }
 
             $saleId = $saleModel->create([
-                'numero_facture' => $invoiceNum,
-                'invoice_type'   => $typeFacture,
-                'client_id'      => $clientId,
-                'sous_total_ht'  => $data['sous_total_ht'],
-                'tva'            => $data['tva'],
-                'total'          => $data['total'],
-                'payments'       => $data['payments'] ?? null,
-                'vendeur_id'     => $_SESSION['user_id'],
-                'shop_id'        => $shopId,
-                'store_isf'      => $storeIsf !== '' ? $storeIsf : null,
-                'date'           => date('Y-m-d H:i:s'),
-                'dateDGI'        => $dgiData['dateDGI'] ?? null,
-                'qrCode'         => $dgiData['qrCode'] ?? null,
-                'codeDEFDGI'     => $dgiData['codeDEFDGI'] ?? null,
-                'counters'       => $dgiData['counters'] ?? null,
-                'nim'            => $dgiData['nim'] ?? null,
-                'comment'        => $dgiData['comment'] ?? null,
-                'service'        => $data['providerService'] ?? null,
-            ]);
+                            'numero_facture' => $invoiceNum,
+                            'invoice_type'   => $typeFacture,
+                            'client_id'      => $clientId,
+                            'sejour_id'      => $sejourId,
+                            'sous_total_ht'  => $data['sous_total_ht'],
+                            'tva'            => $data['tva'],
+                            'total'          => $data['total'],
+                            'payments'       => $data['payments'] ?? null,
+                            'vendeur_id'     => $_SESSION['user_id'],
+                            'shop_id'        => $shopId,
+                            'store_isf'      => $storeIsf !== '' ? $storeIsf : null,
+                            'date'           => date('Y-m-d H:i:s'),
+                            'dateDGI'        => $dgiData['dateDGI'] ?? null,
+                            'qrCode'         => $dgiData['qrCode'] ?? null,
+                            'codeDEFDGI'     => $dgiData['codeDEFDGI'] ?? null,
+                            'counters'       => $dgiData['counters'] ?? null,
+                            'nim'            => $dgiData['nim'] ?? null,
+                            'comment'        => $dgiData['comment'] ?? null,
+                            'service'        => $data['providerService'] ?? null,
+                        ]);
 
             // Si providerService existe (recharges), ne pas enregistrer dans details_vente
             $isRecharge = !empty($data['providerService']);
