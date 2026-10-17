@@ -713,16 +713,36 @@ const posCart = {
         this.renderCart();
     },
 
-    clearCart() {
-        this.items = [];
-        this.clientNumber = '';
-        this.currentClient = null;
-        const clientInput = $('#client-number');
-        if (clientInput) clientInput.value = '';
-        const clientDisplay = $('#client-name-display');
-        if (clientDisplay) clientDisplay.remove();
-        this.renderCart();
-    },
+        clearCart() {
+                this.items = [];
+                this.clientNumber = '';
+                this.currentClient = null;
+                this.currentSejour = null;
+                const clientInput = $('#client-number');
+                if (clientInput) clientInput.value = '';
+                const clientDisplay = $('#client-name-display');
+                if (clientDisplay) clientDisplay.remove();
+                this.renderCart();
+            },
+
+            /**
+             * Sélectionne un séjour hôtelier pour imputer la prochaine vente comme extra.
+             * Appelée depuis le bouton "Imputer à un séjour" dans l'UI de la caisse.
+             */
+            setCurrentSejour(sejour) {
+                this.currentSejour = sejour;
+                // Affiche un petit indicateur visuel si l'UI existe
+                const ind = $('#cart-sejour-indicator');
+                if (ind) {
+                    if (sejour) {
+                        const txt = `Imputé au séjour #${sejour.id} — ${sejour.chambre_numero || ''} (${sejour.guest_nom || ''})`;
+                        ind.textContent = txt;
+                        ind.style.display = '';
+                    } else {
+                        ind.style.display = 'none';
+                    }
+                }
+            },
 
     toggleCalcMode(enabled) {
         this.calcMode = enabled;
@@ -1750,6 +1770,7 @@ const posCart = {
                         quantite: item.quantite * saveSign
                     })),
                     client_id: this.currentClient ? this.currentClient.id : null,
+                    sejour_id: this.currentSejour ? this.currentSejour.id : null,
                     sous_total_ht: this.currentTotals.sous_total_ht * saveSign,
                     tva: this.currentTotals.tva * saveSign,
                     total: this.currentTotals.total * saveSign,
