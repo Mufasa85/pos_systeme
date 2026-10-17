@@ -57,21 +57,15 @@ class HotelFactureController extends Controller
     }
 
     /**
-     * Génère un numero_facture unique pour les factures hôtel.
-     * Format : HB-YYYYMMDD-XXXX (XXXX = compteur quotidien, padded à 4).
-     * Robuste : on prend MAX+1 dans la table ventes pour le jour.
+     * Génère le numero_facture officiel pour la facture hôtel.
+     * Délègue à Sale::generateInvoiceNumber() pour rester sur le compteur
+     * annuel officiel (format `AAAA/xxxxxx`) partagé avec /caisse. C'est
+     * important pour l'export comptable et les exports DGI multi-boutique :
+     * la facture hôtel est une vente comme une autre dans `ventes`.
      */
     private function generateNumeroFacture(): string
     {
-        $today = date('Ymd');
-        $prefix = 'HB-' . $today . '-';
-        $db = \App\Core\Database::getInstance();
-        $row = $db->fetch(
-            "SELECT COUNT(*) AS c FROM ventes WHERE numero_facture LIKE :p",
-            [':p' => $prefix . '%']
-        );
-        $next = (int)($row['c'] ?? 0) + 1;
-        return $prefix . str_pad((string)$next, 4, '0', STR_PAD_LEFT);
+        return (new \App\Models\Sale())->generateInvoiceNumber();
     }
 
     /**
@@ -359,9 +353,31 @@ class HotelFactureController extends Controller
             $storeIsf = !empty($companyInfo['isf']) ? trim((string)$companyInfo['isf']) : null;
         }
 
+        // dgi_data fourni par le front (validation DGI déjà faite côté client)
+        // On le persiste dans ventes pour permettre la réimpression / duplicata
+        // via /api/service-bill (cf. facture.php + InvoiceController existant).
+        $dgiData = isset($input['dgi_data']) && is_array($input['dgi_data']) ? $input['dgi_data'] : [];
+
         // ── Transaction ──
         $pdo = $db->getConnection();
         try {
+            // ── Garde-fou : pas de double facture active pour un même séjour
+            // (UNIQUE (sejour_id) sur hotel_factures) — on refuse avec un
+            // message clair au lieu de laisser MySQL crasher en 1062.
+            $existing = $db->fetch(
+                "SELECT id, numero_facture, statut FROM hotel_factures
+                 WHERE sejour_id = :sid AND statut != 'annulee'
+                 LIMIT 1",
+                [':sid' => $sejourId]
+            );
+            if ($existing) {
+                $this->jsonOut([
+                    'success'  => false,
+                    'message'  => 'Une facture existe déjà pour ce séjour : ' . $existing['numero_facture']
+                                 . '. Annulez-la avant d\'en émettre une nouvelle.',
+                ], 409);
+            }
+
             $pdo->beginTransaction();
 
             $numeroFacture = $this->generateNumeroFacture();
@@ -381,8 +397,14 @@ class HotelFactureController extends Controller
                 'shop_id'        => $shopId,
                 'store_isf'      => $storeIsf,
                 'date'           => date('Y-m-d H:i:s'),
-                'comment'        => 'Facture hôtel séjour #' . $sejourId . ($input['notes'] ? ' — ' . $input['notes'] : ''),
+                'comment'        => 'Facture hôtel séjour #' . $sejourId . (!empty($input['notes']) ? ' — ' . $input['notes'] : ''),
                 'service'        => null,
+                // --- Champs DGI (persistés pour permettre duplicata & impression A4) ---
+                'dateDGI'    => $dgiData['dateDGI'] ?? null,
+                'qrCode'     => $dgiData['qrCode'] ?? null,
+                'codeDEFDGI' => $dgiData['codeDEFDGI'] ?? null,
+                'counters'   => $dgiData['counters'] ?? null,
+                'nim'        => $dgiData['nim'] ?? null,
             ]);
 
             // 2. INSERT hotel_factures
