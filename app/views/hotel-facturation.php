@@ -84,46 +84,130 @@ $page = 'hotel-facturation';
 <!-- Le contenu est injecté via JS dans #preview-content et #receipt-content. -->
 <!-- ================================================================== -->
 
-<!-- Bloc pour le multi-paiements (info facture) avant preview -->
-<div id="hotel-ft-payments-panel" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; z-index:9999; background:rgba(0,0,0,.45); align-items:center; justify-content:center;">
-  <div style="background:#fff; border-radius:12px; max-width:560px; width:100%; max-height:90vh; overflow-y:auto; box-shadow:0 8px 28px rgba(0,0,0,.3);">
-    <div class="modal-header" style="padding:14px 18px; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
-      <h3 style="margin:0; font-size:1.05rem;">
+<!-- Modal Informations Facture — pattern identique à /caisse et /recharges.
+     Pré-rempli avec les infos du guest. Voir openHotelInvoiceInfoModal() -->
+<div id="invoice-info-modal" class="modal">
+  <div class="modal-content" style="max-width: 500px; padding: 0; overflow: auto;">
+    <div class="modal-header">
+      <h3>
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 8px;">
           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
           <polyline points="14 2 14 8 20 8"></polyline>
         </svg>
-        Informations Facture — Hôtel
+        Informations Facture
       </h3>
-      <button class="close-modal" id="hotel-ft-payments-panel-close" type="button" style="background:none;border:none;font-size:1.5rem;cursor:pointer;line-height:1;">&times;</button>
+      <button class="close-modal" onclick="closeHotelInvoiceInfoModal()">&times;</button>
     </div>
-    <div style="padding: 1.25rem;">
-      <h4 class="hotel-ft-section-title">Extras manuels ajoutés</h4>
+    <div style="padding: 1.5rem;">
+      <!-- Type + Réf Document -->
+      <div style="display: grid; grid-template-columns: 80px 1fr; gap: 12px; margin-bottom: 0.75rem; align-items: flex-end;">
+        <div>
+          <label for="modal-invoice-type" style="font-size: 0.7rem; font-weight: 600; color: #64748b; display: block; margin-bottom: 4px;">TYPE</label>
+          <select id="modal-invoice-type" class="client-number-input" style="width: 100%; padding: 6px 8px; font-size: 0.8rem;">
+            <option value="HB">HB</option>
+            <option value="FV">FV</option>
+            <option value="EV">EV</option>
+            <option value="FT">FT</option>
+            <option value="FA">FA</option>
+            <option value="EA">EA</option>
+            <option value="ET">ET</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size: 0.7rem; font-weight: 600; color: #64748b; display: block; margin-bottom: 4px;">RÉF DOCUMENT</label>
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px;">
+            <input type="text" id="modal-invoice-ref" class="client-number-input" placeholder="Réf..." style="width: 100%;" oninput="syncHotelRefDocsCount()">
+            <button id="add-ref-doc-btn" type="button" onclick="addHotelRefDocLine()" style="background: #0B5E88; color: #fff; border: none; border-radius: 6px; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1rem; line-height: 1;">+</button>
+          </div>
+          <div id="modal-ref-docs-list" style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem;"></div>
+          <input type="hidden" id="modal-ref-docs-count" value="1">
+        </div>
+      </div>
+
+      <!-- REF FACTURE + EXONÉRATION (pattern /caisse, intégrés à la grille type/réf) -->
+      <div style="display: grid; grid-template-columns: 1fr 110px; gap: 12px; margin-bottom: 0.75rem; margin-top: 0.5rem; align-items: flex-end;">
+        <div>
+          <label for="modal-invoice-num" style="font-size: 0.7rem; font-weight: 600; color: #64748b; display: block; margin-bottom: 4px;">REF FACTURE</label>
+          <input type="text" id="modal-invoice-num" class="client-number-input" placeholder="Réf facture (optionnel)" style="width: 100%; padding: 6px 8px; font-size: 0.8rem;">
+        </div>
+        <div>
+          <label for="modal-exoneration" style="font-size: 0.7rem; font-weight: 600; color: #64748b; display: block; margin-bottom: 4px;">EXONÉRATION</label>
+          <select id="modal-exoneration" class="client-number-input" style="width: 100%; padding: 6px 8px; font-size: 0.8rem;">
+            <option value="">—</option>
+            <option value="RAM">RAM — Avoir suite reprise</option>
+            <option value="RRR">RRR — Remise, Ristourne, Rabais</option>
+            <option value="RAN">RAN — Annulation</option>
+            <option value="COR">COR — Correction</option>
+          </select>
+        </div>
+      </div>
+      <h4 class="hotel-ft-section-title">Extras manuels ajoutés au séjour</h4>
       <div id="hotel-ft-preview-extras"></div>
 
-      <h4 class="hotel-ft-section-title" style="margin-top: 1rem;">Modes de paiement (encaissement final)</h4>
-      <div class="hotel-ft-payments" id="hotel-ft-payments-list"></div>
-      <div class="hotel-ft-extras-add" style="margin-top: .5rem;">
-        <select id="hotel-ft-pmt-mode">
-          <option value="cash">Espèces</option>
-          <option value="mobile_money">Mobile Money</option>
-          <option value="carte">Carte</option>
-          <option value="autre">Autre</option>
-        </select>
-        <input type="number" id="hotel-ft-pmt-montant" placeholder="Montant FC" min="0" step="0.01">
-        <button type="button" class="btn btn-ghost btn-small" id="hotel-ft-pmt-add">+ Ajouter</button>
-      </div>
-      <div id="hotel-ft-preview-summary" style="margin-top: .65rem; padding: .5rem; background: #f8fafc; border-radius: 8px; text-align: center; font-weight: 600; display: none;">
-        <span id="hotel-ft-preview-summary-label"></span>
-        <span id="hotel-ft-preview-summary-amount" style="font-size: 1.05rem;"></span>
+      <!-- Mode de Paiement (multi-lignes — pattern /caisse) -->
+      <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 1rem; margin-bottom: 1rem; margin-top: 1rem;">
+        <div style="font-size: 0.75rem; font-weight: 600; color: #166534; margin-bottom: 0.75rem; text-transform: uppercase; display: flex; align-items: center; justify-content: space-between; gap: 6px;">
+          <span style="display: flex; align-items: center; gap: 6px;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
+              <line x1="1" y1="10" x2="23" y2="10"></line>
+            </svg>
+            Mode de Paiement (encaissement final)
+          </span>
+          <button id="add-payment-line-btn" type="button" onclick="addHotelModalPaymentLine()" style="background: #0B5E88; color: #fff; border: none; border-radius: 6px; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1rem; line-height: 1;">+</button>
+        </div>
+        <div id="modal-payments-list" style="display: flex; flex-direction: column; gap: 0.5rem;"></div>
+        <div id="modal-payment-summary" style="margin-top: 0.75rem; padding: 0.5rem; background: #fff; border-radius: 8px; text-align: center; font-weight: 600; display: none;">
+          <span id="modal-payment-summary-label" style="color: #166534;"></span>
+          <span id="modal-payment-summary-amount" style="color: #0B5E88; font-size: 1.1rem;"></span>
+        </div>
+        <input type="hidden" id="modal-payment-type" value="ESPECES">
       </div>
 
-      <div id="hotel-ft-preview-error" class="hotel-ft-banner warn" style="margin-top: .85rem; display: none;"></div>
+      <!-- Info Client (pré-rempli par JS depuis previewData.sejour.guest) -->
+      <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 1rem; margin-bottom: 1rem;">
+        <div style="font-size: 0.75rem; font-weight: 600; color: #64748b; margin-bottom: 0.75rem; text-transform: uppercase; display: flex; align-items: center; gap: 6px;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+            <circle cx="12" cy="7" r="4"></circle>
+          </svg>
+          Informations Client (Guest)
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+          <div>
+            <label for="modal-client-name" style="font-size: 0.7rem; color: #94a3b8; display: block; margin-bottom: 2px;">Nom complet</label>
+            <input type="text" id="modal-client-name" class="client-number-input" placeholder="Nom du guest" style="width: 100%;">
+          </div>
+          <div>
+            <label for="modal-client-number" style="font-size: 0.7rem; color: #94a3b8; display: block; margin-bottom: 2px;">Téléphone</label>
+            <input type="text" id="modal-client-number" class="client-number-input" placeholder="08xxxxxxxx" maxlength="10" style="width: 100%;">
+          </div>
+          <div>
+            <label for="modal-client-type" style="font-size: 0.7rem; color: #94a3b8; display: block; margin-bottom: 2px;">Type client</label>
+            <select id="modal-client-type" class="client-number-input" style="width: 100%; padding: 6px 8px;">
+              <option value="">Type client</option>
+            </select>
+          </div>
+          <div>
+            <label for="modal-client-nif" style="font-size: 0.7rem; color: #94a3b8; display: block; margin-bottom: 2px;">NIF</label>
+            <input type="text" id="modal-client-nif" class="client-number-input" placeholder="NIF (optionnel si PP)" style="width: 100%;">
+          </div>
+          <div style="grid-column: 1 / -1;">
+            <label for="modal-client-address" style="font-size: 0.7rem; color: #94a3b8; display: block; margin-bottom: 2px;">Adresse</label>
+            <input type="text" id="modal-client-address" class="client-number-input" placeholder="Adresse (obligatoire si PM/PL/PC/AO)" style="width: 100%;">
+          </div>
+        </div>
+        <input type="hidden" id="modal-checkout" value="0">
+      </div>
+
+      <!-- Message d'erreur -->
+      <div id="modal-invoice-error" class="hotel-ft-banner warn" style="margin-top: 0.85rem; display: none;"></div>
     </div>
-    <div style="padding: 14px 18px; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 8px;">
-      <button type="button" class="btn btn-secondary" id="hotel-ft-payments-panel-cancel">Annuler</button>
-      <button type="button" id="hotel-ft-payments-panel-confirm" class="btn btn-primary">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+
+    <div class="modal-actions">
+      <button type="button" class="btn btn-secondary" onclick="closeHotelInvoiceInfoModal()">Annuler</button>
+      <button type="button" class="btn btn-primary" onclick="confirmHotelInvoiceInfo()">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;">
           <polyline points="20 6 9 17 4 12"></polyline>
         </svg>
         Prévisualiser la facture
@@ -145,4 +229,4 @@ $page = 'hotel-facturation';
 
 <!-- app.js fournit STORE_INFO, _printReceiptContent, posCart.generateDGIQRCode, posCart.numberToFrenchWords, getPaymentTypeLabel -->
 <script src="/assets/js/app.js"></script>
-<script src="/assets/js/hotel-facturation.js"></script>
+<script src="/assets/js/hotel-facturation.js?v=2"></script>

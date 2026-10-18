@@ -87,13 +87,14 @@ $page = 'hotel-chambres';
             <th>Numéro</th>
             <th>Type</th>
             <th style="text-align:right;">Prix / nuit</th>
+            <th style="text-align:right;">Taxe spéc. / nuit</th>
             <th>État</th>
             <th>Notes</th>
             <th style="text-align:right;">Actions</th>
           </tr>
         </thead>
         <tbody id="hotel-rooms-tbody">
-          <tr><td colspan="6" class="hotel-rooms-empty">Chargement…</td></tr>
+          <tr><td colspan="7" class="hotel-rooms-empty">Chargement…</td></tr>
         </tbody>
       </table>
     </div>
@@ -146,6 +147,28 @@ $page = 'hotel-chambres';
       <div class="form-group">
         <label for="room-notes">Notes</label>
         <textarea id="room-notes" name="notes" class="form-input" rows="4"></textarea>
+      </div>
+      <!--
+        Taxe spécifique — calquée sur le pattern produit (cf. posCart.saveProduct
+        / ProductController). S'applique PAR NUITÉE lors de la facturation hôtel.
+        - type : '%' (pourcentage du prix de la nuit) ou 'CDF' (montant fixe / nuit)
+        - value : numérique ≥ 0 (CDF borné par le prix de la nuit côté JS)
+      -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;">
+        <div class="form-group">
+          <label for="room-taxe-specifique-type">Taxe spécifique (type)</label>
+          <select id="room-taxe-specifique-type" name="taxe_specifique_type" class="form-input">
+            <option value="%">% (pourcentage)</option>
+            <option value="CDF">CDF (montant fixe)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="room-taxe-specifique-value">Taxe spécifique (valeur)</label>
+          <input type="number" step="0.01" min="0" id="room-taxe-specifique-value" name="taxe_specifique_value" class="form-input" value="0">
+          <div style="font-size:.75rem;color:var(--muted);margin-top:4px;">
+            Appliquée par nuitée lors de la facturation.
+          </div>
+        </div>
       </div>
     </form>
   </div>
