@@ -330,7 +330,7 @@
     return '<div class="client-vendor-info" style="border-top:1px dashed #ccc; margin-top:6px; padding-top:6px; text-align:left; font-size:11px; line-height:1.5;">'
       + '<div style="display:flex;justify-content:space-between;gap:10px;"><span><strong>VENDEUR:</strong></span><span>' + escapeHtml(sellerName) + '</span></div>'
       + (agentCode ? '<div style="display:flex;justify-content:space-between;gap:10px;"><span><strong>NUM AGENT:</strong></span><span>' + escapeHtml(agentCode) + '</span></div>' : '')
-      + '<div style="display:flex;justify-content:space-between;gap:10px;"><span><strong>CLIENT:</strong></span><span>' + escapeHtml(((s.guest.prenom||`)+' '+(s.guest.nom||`)).trim()) + '</span></div>'
+      + '<div style="display:flex;justify-content:space-between;gap:10px;"><span><strong>CLIENT:</strong></span><span>' + escapeHtml(((s.guest.prenom || '') + ' ' + (s.guest.nom || '')).trim()) + '</span></div>'
       + (s.guest.telephone ? '<div style="display:flex;justify-content:space-between;gap:10px;"><span><strong>TEL:</strong></span><span>' + escapeHtml(s.guest.telephone) + '</span></div>' : '')
       + (s.client ? '<div style="display:flex;justify-content:space-between;gap:10px;"><span><strong>CODE CLIENT:</strong></span><span>' + escapeHtml(s.client.code_client) + '</span></div>' : '')
       + '<div style="display:flex;justify-content:space-between;gap:10px;"><span><strong>SEJOUR:</strong></span><span>#' + s.id + ' — Chambre ' + escapeHtml(s.chambre.numero) + '</span></div>'
@@ -782,11 +782,24 @@
   // Réutilise les helpers buildHotelReceipt* posés plus haut dans le fichier.
   // Réécrit le footer du modal preview pour pointer sur nos handlers.
   // ===============================================================
-  function showHotelPreviewTicket() {
+  async function showHotelPreviewTicket() {
     var s = previewData.sejour;
     var n = previewData.nuits;
     var e = previewData.extras;
     var total = computeSoldeCourant();
+
+    // Récupère le VRAI n° de facture depuis la base (même pattern que
+    // app.js:showPreview() pour /caisse) — sinon la preview affiche "(à
+    // valider)" et il faut attendre la confirmation. On rend tout le ticket
+    // APRÈS la résolution de la promesse pour que le n° soit visible
+    // dès l'ouverture de la preview.
+    var previewInvoiceNum = 'HB-' + Date.now();
+    try {
+      var invRes = await fetch(APP_URL + '/api/vente/next-invoice');
+      var invData = await invRes.json();
+      if (invData && invData.invoice_number) previewInvoiceNum = invData.invoice_number;
+    } catch (_) { /* tolé rant : on garde le placeholder */ }
+    window.hotelPreviewInvoiceNum = previewInvoiceNum;
 
     var itemsHtml = buildHotelReceiptItems(n, e, extrasManuels);
     var infoSection = buildHotelReceiptInfoSection();
@@ -805,6 +818,7 @@
           '<div>Tel: ' + escapeHtml(STORE_INFO.phone || '') + '</div>' +
           (STORE_INFO.email ? '<div>Email: ' + escapeHtml(STORE_INFO.email) + '</div>' : '') +
           '<div>ID Nat: ' + escapeHtml(STORE_INFO.ice || '') + '</div>' +
+          (STORE_INFO.nid ? '<div>NID: ' + escapeHtml(STORE_INFO.nid) + '</div>' : '') +
           (STORE_INFO.rccm ? '<div>RCCM: ' + escapeHtml(STORE_INFO.rccm) + '</div>' : '') +
           (STORE_INFO.isf ? '<div>Numero Impot: ' + escapeHtml(STORE_INFO.isf) + '</div>' : '') +
         '</div>' + infoSection +
@@ -815,7 +829,7 @@
       '<div class="receipt-items">' + itemsHtml + '</div>' +
       '<div class="receipt-totals">' + totalsHtml + paymentsHtml + '</div>' +
       '<div class="receipt-footer">' +
-        '<div class="barcode">FACTURE n° (à valider)</div>' +
+        '<div class="barcode">FACTURE n°' + escapeHtml(previewInvoiceNum) + '</div>' +
         '<div style="font-size:11px; color:#333; margin-top:4px;">Date : ' + now + '</div>' +
         '<div class="thank-you">Merci de votre séjour !</div>' +
         '<div style="margin-top:5px; font-size:9px; font-style:italic;">---Powered By Osat---</div>' +
@@ -1004,6 +1018,106 @@
     openReceiptModal(r.data, dgiResp);
   }
 
+
+  // ===============================================================
+  // TAX BREAKDOWN POST-DGI
+  // Réutilise le format retourné par l'API DGI dans dgiResponse.data :
+  //   data.ht_tva = JSON string {"data":{"ha":{"haa":...,"hab":...,"hac":...,"hap":...},
+  //                                  "va":{"vaa":...,"vab":...,"vac":...,"vap":...},
+  //                                  "ts":{"tsa":...,"tsb":...,"tsc":...,"tsp":...}}}
+  //   data.ts     = idem niveau top
+  // On boucle sur les catégories présentes et on rend HT/TS/TVA par
+  // catégorie, comme dans renderServiceBillContent() de app.js.
+  // ===============================================================
+  function parseHtTva(dgiData) {
+    var haData = {}, vaData = {}, tsData = {}, tsDataFromGroup = {};
+    if (!dgiData) return { ha: {}, va: {}, ts: {}, tsGroup: {} };
+    // Top-level ts (chaine JSON ou objet deja parse)
+    try {
+      if (dgiData.ts) {
+        tsData = typeof dgiData.ts === 'string' ? JSON.parse(dgiData.ts) : dgiData.ts;
+      }
+    } catch (e) {}
+    // ht_tva_group : wrapper 3 niveaux {success, message, data:{ha,va,ts}}
+    // (fallback sur ht_tva au cas ou certains proxies DGI exposent l'autre cle)
+    var rawGroup = dgiData.ht_tva_group || dgiData.ht_tva;
+    try {
+      if (rawGroup) {
+        var parsed = typeof rawGroup === 'string' ? JSON.parse(rawGroup) : rawGroup;
+        // parsed peut etre {data: {ha, va, ts}} OU {success, message, data: {ha, va, ts}}
+        var inner = (parsed && parsed.data && parsed.data.ha) ? parsed.data : parsed;
+        haData = (inner && inner.ha) || {};
+        vaData = (inner && inner.va) || {};
+        tsDataFromGroup = (inner && inner.ts) || {};
+      }
+    } catch (e) {}
+    // Le TS du top-level prend le pas sur celui du groupe (le plus exhaustif),
+    // sinon on garde celui du groupe.
+    var finalTs = (tsData && Object.keys(tsData).length) ? tsData : tsDataFromGroup;
+    return { ha: haData, va: vaData, ts: finalTs };
+  }
+
+  // Catégories DGI (A=exonéré, B=16, C=5, F=16 marché public ext, ...).
+  // On n'affiche QUE celles qui ont une valeur non nulle.
+  var HOTEL_TAX_CATEGORIES = [
+    { key: 'haa', label: 'A', tax: 0,  description: 'EXONERE ET HORS CHAMP',                     ts: 'tsa' },
+    { key: 'hab', label: 'B', tax: 16, description: 'Taxable',                                    ts: 'tsb' },
+    { key: 'hac', label: 'C', tax: 5,  description: 'Taxable',                                    ts: 'tsc' },
+    { key: 'had', label: 'D', tax: 0,  description: 'Regimes derogatoires TVA',                  ts: 'tsd' },
+    { key: 'hae', label: 'E', tax: 0,  description: 'Exportation et operation assimilees',       ts: 'tse' },
+    { key: 'haf', label: 'F', tax: 16, description: 'TVA marche public a financement exterieur', ts: 'tsf' },
+    { key: 'hag', label: 'G', tax: 5,  description: 'TVA marche public a financement exterieur', ts: 'tsg' },
+    { key: 'hap', label: 'P', tax: 1,  description: 'TVA marche public a financement exterieur', ts: 'tsp' },
+  ];
+
+  function buildHotelReceiptTaxBreakdown(dgiData) {
+    if (!dgiData) return '';
+    var parsed = parseHtTva(dgiData);
+    var ha = parsed.ha, va = parsed.va, ts = parsed.ts;
+    var html = '';
+    var totalTva = 0;
+    HOTEL_TAX_CATEGORIES.forEach(function(cat) {
+      var ht  = parseFloat(ha[cat.key]) || 0;
+      // la TVA s'appelle vaa/vab/vac/... — on récupère la lettre de fin
+      var vaKey = 'va' + cat.key.slice(-1);
+      var vat = parseFloat(va[vaKey]) || 0;
+      var tsValue = parseFloat(ts[cat.ts]) || 0;
+      if (Math.abs(ht) > 0 || Math.abs(vat) > 0 || Math.abs(tsValue) > 0) {
+        var htLabel = cat.tax === 0 ? 'TOTAL' : 'HT';
+        var rateTxt = cat.tax === 0 ? '' : (' ' + cat.tax + ' %');
+        html += '<div class="receipt-total-row" style="font-size:11px; color:#333; padding-left:10px;">'
+              + '<span>' + htLabel + '[' + cat.label + '] ' + cat.description + rateTxt + ' :</span>'
+              + '<span>' + ht.toFixed(2) + ' Fc</span>'
+              + '</div>';
+        if (Math.abs(tsValue) > 0) {
+          html += '<div class="receipt-total-row" style="font-size:11px; color:#666; padding-left:10px;">'
+                + '<span>TS[' + cat.label + '] ' + cat.description + rateTxt + ' :</span>'
+                + '<span>' + tsValue.toFixed(2) + ' Fc</span>'
+                + '</div>';
+        }
+        if (Math.abs(vat) > 0) {
+          html += '<div class="receipt-total-row" style="font-size:11px; color:#666; padding-left:10px;">'
+                + '<span>TVA[' + cat.label + '] ' + cat.description + rateTxt + ' :</span>'
+                + '<span>' + vat.toFixed(2) + ' Fc</span>'
+                + '</div>';
+          totalTva += vat;
+        }
+      }
+    });
+    if (totalTva > 0.01) {
+      html += '<div class="receipt-total-row" style="font-size:11px; color:#000; font-weight:600; margin-top:6px; padding-top:6px; border-top:1px dashed #ccc;">'
+            + '<span>Total TVA :</span>'
+            + '<span>' + totalTva.toFixed(2) + ' Fc</span>'
+            + '</div>';
+    }
+    return html;
+  }
+
+  function countHotelArticles(n, e, manuels) {
+    return (n && n.lignes ? n.lignes.length : 0)
+         + (e && e.lignes ? e.lignes.length : 0)
+         + (manuels ? manuels.length : 0);
+  }
   function openReceiptModal(saleData, dgiResp) {
     var s = previewData.sejour;
     var n = previewData.nuits;
@@ -1042,6 +1156,7 @@
           '<div>Tel: ' + escapeHtml(STORE_INFO.phone || '') + '</div>' +
           (STORE_INFO.email ? '<div>Email: ' + escapeHtml(STORE_INFO.email) + '</div>' : '') +
           '<div>ID Nat: ' + escapeHtml(STORE_INFO.ice || '') + '</div>' +
+          (STORE_INFO.nid ? '<div>NID: ' + escapeHtml(STORE_INFO.nid) + '</div>' : '') +
           (STORE_INFO.rccm ? '<div>RCCM: ' + escapeHtml(STORE_INFO.rccm) + '</div>' : '') +
           (STORE_INFO.isf ? '<div>Numero Impot: ' + escapeHtml(STORE_INFO.isf) + '</div>' : '') +
         '</div>' + infoSection +
@@ -1050,8 +1165,9 @@
       (window.hotelRefFacture ? '<div style="text-align:center; font-size:12px; color:#666;">Réf : ' + escapeHtml(window.hotelRefFacture) + '</div>' : '') +
       (window.hotelExoneration ? '<div style="text-align:center; font-size:11px; color:#888; font-style:italic;">Exonération : ' + escapeHtml(getExonerationLabel(window.hotelExoneration)) + '</div>' : '') +
       '<div class="receipt-items">' + itemsHtml + '</div>' +
-      '<div class="receipt-totals">' + totalsHtml + paymentsHtml +
+      '<div class="receipt-totals">' + totalsHtml + paymentsHtml + buildHotelReceiptTaxBreakdown(dgiData) +
         (isHomologuee && STORE_INFO.isf ? '<div style="margin:10px 0; font-size:11px; color:#333; border:1px dashed #ccc; padding:8px; border-radius:4px; text-align:center;">ISF : ' + escapeHtml(dgiData.isf || STORE_INFO.isf) + '</div>' : '') +
+      '<div class="receipt-total-row" style="font-size:11px; color:#000; font-weight:600;"><span>Nombre d\'article(s) :</span><span>' + countHotelArticles(n, e, extrasManuels) + '</span></div>' +
       '</div>' +
       dgiInfoHtml +
       '<div class="receipt-footer">' +
