@@ -43,6 +43,74 @@
     pageAlert.textContent = msg;
     pageAlert.style.display = '';
   }
+
+  // ── Calcul TS / TVA par produit (aligné sur posCart.calculateItemTTC dans app.js) ──
+  // Calcule pour UN produit : prix HT, TS unitaire, TVA (sur prix + sur TS), TTC.
+  // La TVA type B de l'hôtel n'est pas collectée (cf. facturation hôtel),
+  // mais on calcule ici la valeur THÉORIQUE pour pouvoir l'afficher dans le
+  // détail (info utilisateur / DGI). Le régime B est ensuite géré côté UI
+  // (TVA non collectée, montant facturé = HT + TS).
+  function computeItemTTC(item) {
+    var price = parseFloat(item.prix_unitaire) || 0;
+    var qty = parseFloat(item.quantite) || 1;
+    var taxRate = parseFloat(item.tax_rate) || 0;
+    var rType = item.remise_type || '%';
+    var rValue = parseFloat(item.remise_value) || 0;
+    var tsType = item.taxe_specifique_type || '%';
+    var tsValue = parseFloat(item.taxe_specifique_value) || 0;
+
+    // Remise sur le prix unitaire (alignement app.js)
+    var remise = rType === 'CDF' ? rValue : price * (rValue / 100);
+    var prixHtNet = Math.max(0, price - remise);
+
+    // TS unitaire (alignement posCart.calculateSpecificTaxUnit dans app.js)
+    var tsUnit = tsType === 'CDF' ? tsValue : prixHtNet * (tsValue / 100);
+
+    // TVA sur (prix HT net + TS) — même formule que posCart.calculateItemTTC.
+    var vatOnPrice = prixHtNet * (taxRate / 100);
+    var vatOnTS = tsUnit * (taxRate / 100);
+
+    var lineHT = prixHtNet * qty + tsUnit * qty;
+    var lineTTC = lineHT + (vatOnPrice + vatOnTS) * qty;
+
+    return {
+      prix_ht_net_unitaire: prixHtNet,
+      ts_unitaire: tsUnit,
+      line_ht: lineHT,
+      line_ts: tsUnit * qty,
+      line_vat_price: vatOnPrice * qty,
+      line_vat_ts: vatOnTS * qty,
+      line_vat_total: (vatOnPrice + vatOnTS) * qty,
+      line_ttc: lineTTC,
+      quantite: qty,
+      tax_rate: taxRate
+    };
+  }
+
+  // Agrège les totaux pour TOUS les extras d'un séjour (toutes lignes confondues).
+  // Renvoie : { total_ht, total_ts, total_tva, total_ttc } (par catégorie de TVA).
+  function computeExtrasTotals(extrasLignes) {
+    var lines = extrasLignes || [];
+    var totalHT = 0, totalTS = 0, totalVAT = 0, totalTTC = 0;
+    var byRate = {}; // { '16': { ht, ts, vat, ttc }, ... }
+
+    lines.forEach(function (ligne) {
+      (ligne.produits || []).forEach(function (p) {
+        var calc = computeItemTTC(p);
+        totalHT  += calc.line_ht;
+        totalTS  += calc.line_ts;
+        totalVAT += calc.line_vat_total;
+        totalTTC += calc.line_ttc;
+        var r = String(calc.tax_rate || 0);
+        if (!byRate[r]) byRate[r] = { ht: 0, ts: 0, vat: 0, ttc: 0 };
+        byRate[r].ht  += calc.line_ht;
+        byRate[r].ts  += calc.line_ts;
+        byRate[r].vat += calc.line_vat_total;
+        byRate[r].ttc += calc.line_ttc;
+      });
+    });
+    return { total_ht: totalHT, total_ts: totalTS, total_tva: totalVAT, total_ttc: totalTTC, by_rate: byRate };
+  }
   function escapeHtml(s) {
     return String(s == null ? '' : s)
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -62,8 +130,22 @@
       { credentials: 'same-origin', headers: { 'Accept': 'application/json' } },
       opts || {}
     ));
-    let data = null; try { data = await res.json(); } catch (e) {}
-    return { ok: res.ok, status: res.status, data };
+    let data = null;
+    let parseError = null;
+    try {
+      data = await res.json();
+    } catch (e) {
+      // Réponse reçue mais non-JSON : c'est soit une page HTML d'erreur PHP
+      // (PDOException non interceptée, fatal error, etc.), soit un 502/504
+      // du proxy. On capture l'info pour ne plus afficher "Erreur 200"
+      // quand le vrai problème est une exception backend.
+      parseError = e && e.message ? e.message : 'Réponse non-JSON';
+    }
+    // Si le serveur a renvoyé un body non-JSON (ex: page HTML d'erreur fatale
+    // PHP qui passe parfois avec status 200 sous WAMP/XAMPP), on force ok=false
+    // pour que les callers affichent un message utile au lieu de "Erreur 200".
+    const ok = res.ok && data !== null && data && typeof data === 'object' && !parseError;
+    return { ok, status: res.status, data, parseError };
   }
 
   // Mapping modes de paiement UI hôtel → nomenclature DGI
@@ -141,7 +223,19 @@
 
     const r = await jsonFetch('/api/hotel/factures/preview?sejour_id=' + sejourId);
     if (!r.ok || !r.data || !r.data.success) {
-      const msg = (r.data && r.data.message) || ('Erreur ' + r.status);
+      // Ordre de préférence du message :
+      //  1. message métier du backend (r.data.message)
+      //  2. indication de réponse non-JSON (typiquement: page HTML d'erreur
+      //     fatale PHP renvoyée avec status 200 — ne plus écrire "Erreur 200")
+      //  3. statut HTTP seul en fallback
+      let msg;
+      if (r.data && r.data.message) {
+        msg = r.data.message;
+      } else if (r.parseError) {
+        msg = 'Réponse serveur invalide (non-JSON). Vérifiez les logs PHP — probable exception PDO/fatale côté backend.';
+      } else {
+        msg = 'Erreur ' + r.status;
+      }
       if (bloc) bloc.innerHTML = '<div class="hotel-ft-banner warn">' + escapeHtml(msg) + '</div>';
       return;
     }
@@ -171,24 +265,104 @@
     const remiseRow = n.remise_montant > 0
       ? '<tr><td>Remise séjour (' + n.remise_pct + '%)</td><td class="num" style="color:#991b1b;">− ' + fmtFc(n.remise_montant) + '</td></tr>'
       : '';
-    const extrasRows = (e.lignes || []).map(x => '<tr><td>' + fmtDate(x.date) + '</td><td>' + escapeHtml(x.description) + '</td><td class="num">' + fmtFc(x.montant) + '</td></tr>').join('');
-    const extrasTable = (e.lignes || []).length === 0
+
+    // Calcul détaillé des extras (qte × prix_unitaire × TS × TVA).
+    const extrasTotals = computeExtrasTotals(e.lignes);
+    const extrasDetailRows = [];
+    (e.lignes || []).forEach(function (x) {
+      var dateCell = '<td>' + fmtDate(x.date) + '</td>';
+      var descCell = '<td>' + escapeHtml(x.description) + '</td>';
+      if (x.produits && x.produits.length > 0) {
+        var prodsHtml = '<table style="width:100%;font-size:.75rem;margin-top:.25rem;color:#475569;">';
+        x.produits.forEach(function (p) {
+          var calc = computeItemTTC(p);
+          var tsLabel = (p.taxe_specifique_value && p.taxe_specifique_value > 0)
+            ? ' <span style="color:#b45309;font-weight:600;">TS ' + (p.taxe_specifique_type === 'CDF'
+                ? fmtFc(p.taxe_specifique_value)
+                : p.taxe_specifique_value + '%')
+              + '</span>'
+            : '';
+          var tvaLabel = (p.tax_rate && p.tax_rate > 0)
+            ? ' <span style="color:#1e40af;">TVA ' + p.tax_rate + '%</span>'
+            : '';
+          var remiseLabel = (p.remise_value && p.remise_value > 0)
+            ? ' <span style="color:#16a34a;">−' + (p.remise_type === 'CDF'
+                ? ' ' + fmtFc(p.remise_value)
+                : p.remise_value + '%')
+              + '</span>'
+            : '';
+          prodsHtml += '<tr>'
+            + '<td style="padding:1px 4px 1px 16px;">› ' + escapeHtml(p.nom || 'Produit') + '</td>'
+            + '<td style="padding:1px 4px;text-align:right;">'
+            +   formatQty(calc.quantite, false) + ' × ' + fmtFc(p.prix_unitaire || 0)
+            +   tsLabel + remiseLabel
+            +   '<br><span style="color:#0B5E88;">HT ' + fmtFc(calc.line_ht) + '</span>'
+            +   tvaLabel
+            + '</td>'
+            + '</tr>';
+        });
+        prodsHtml += '</table>';
+        extrasDetailRows.push(
+          '<tr>' + dateCell + '<td>' + escapeHtml(x.description)
+          + '<div style="font-size:.72rem;color:#94a3b8;">'
+          + (x.numero ? 'Vente ' + escapeHtml(x.numero) : 'Extras caisse')
+          + '</div>' + prodsHtml + '</td>'
+          + '<td class="num" style="vertical-align:top;">' + fmtFc(x.montant) + '</td></tr>'
+        );
+      } else {
+        extrasDetailRows.push(
+          '<tr>' + dateCell + descCell + '<td class="num">' + fmtFc(x.montant) + '</td></tr>'
+        );
+      }
+    });
+    const extrasTable = extrasDetailRows.length === 0
       ? '<div style="font-size:.82rem;color:var(--muted);font-style:italic;">Aucun extra saisi depuis la caisse pour ce séjour.</div>'
-      : '<table class="hotel-ft-table"><thead><tr><th>Date</th><th>Description</th><th class="num">Montant</th></tr></thead><tbody>' + extrasRows + '</tbody></table>';
+      : '<table class="hotel-ft-table"><thead><tr><th>Date</th><th>Description</th><th class="num">Montant</th></tr></thead><tbody>'
+        + extrasDetailRows.join('') + '</tbody></table>';
     const acomptesRows = (previewData.acomptes || []).map(a => '<tr><td>' + fmtDate(a.date) + '</td><td>' + escapeHtml(a.mode) + '</td><td class="num">' + fmtFc(a.montant) + '</td></tr>').join('');
     const acomptesTable = (previewData.acomptes || []).length === 0
       ? '<div style="font-size:.82rem;color:var(--muted);font-style:italic;">Aucun acompte.</div>'
       : '<table class="hotel-ft-table"><thead><tr><th>Date</th><th>Mode</th><th class="num">Montant</th></tr></thead><tbody>' + acomptesRows + '</tbody></table>';
 
+    // Bloc détail taxes extras (par catégorie de TVA)
+    var extrasTaxDetail = '';
+    Object.keys(extrasTotals.by_rate || {}).forEach(function (rate) {
+      var b = extrasTotals.by_rate[rate];
+      if (b.ht > 0 || b.ts > 0 || b.vat > 0) {
+        extrasTaxDetail += '<div class="row" style="font-size:.78rem;color:#475569;padding-left:1rem;">'
+          + '<span>HT extras (TVA ' + rate + '%)</span><span>' + fmtFc(b.ht) + '</span></div>';
+        if (b.ts > 0) {
+          extrasTaxDetail += '<div class="row" style="font-size:.78rem;color:#b45309;padding-left:1rem;">'
+            + '<span>TS extras (TVA ' + rate + '%)</span><span>' + fmtFc(b.ts) + '</span></div>';
+        }
+        if (b.vat > 0) {
+          extrasTaxDetail += '<div class="row" style="font-size:.78rem;color:#1e40af;padding-left:1rem;">'
+            + '<span>TVA extras (' + rate + '%)</span><span>' + fmtFc(b.vat) + '</span></div>';
+        }
+      }
+    });
+
+    // Totaux RÉELS chambre + extras (régime B hôtelier : TVA collectée = 0)
+    const totalNuitesAvecTS = parseFloat(n.total_avec_ts) || 0;
+    const totalExtrasHT = extrasTotals.total_ht || 0;
+    const totalExtrasTS = extrasTotals.total_ts || 0;
+    const totalExtrasTVATheorique = extrasTotals.total_tva || 0;
+    const totalFinalB = totalNuitesAvecTS + totalExtrasHT + totalExtrasTS;
+    const totalFinalAvecTVA = totalFinalB + totalExtrasTVATheorique;
+
     const totalsAndEmit = alreadyFactured ? '' : `
       <div class="hotel-ft-totals">
-        <div class="row"><span>Total nuits (après remise)</span><span>${fmtFc(n.total_ht)}</span></div>
-        <div class="row"><span>Total extras</span><span>${fmtFc(e.total_ht)}</span></div>
-        <div class="row"><span>Total brut</span><span>${fmtFc(previewData.total_brut)}</span></div>
-        <div class="row"><span>TVA (${previewData.tva.type})</span><span>${fmtFc(previewData.tva.montant)}</span></div>
-        <div class="row total"><span>Total final</span><span>${fmtFc(previewData.total_final)}</span></div>
+        <div class="row"><span>Total nuits (HT après remise)</span><span>${fmtFc(n.total_ht)}</span></div>
+        ${n.taxe_specifique_total > 0 ? `<div class="row" style="color:#b45309;"><span>TS chambre (${n.taxe_specifique_type === 'CDF' ? fmtFc(n.taxe_specifique_value) : n.taxe_specifique_value + '%'})</span><span>${fmtFc(n.taxe_specifique_total)}</span></div>` : ''}
+        <div class="row"><span>Sous-total nuits + TS chambre</span><span>${fmtFc(totalNuitesAvecTS)}</span></div>
+        <div class="row"><span>Total extras HT</span><span>${fmtFc(totalExtrasHT)}</span></div>
+        ${totalExtrasTS > 0 ? `<div class="row" style="color:#b45309;"><span>TS extras</span><span>${fmtFc(totalExtrasTS)}</span></div>` : ''}
+        ${extrasTaxDetail}
+        <div class="row"><span>TVA théorique extras (régime B : non collectée)</span><span style="color:#1e40af;">${fmtFc(totalExtrasTVATheorique)}</span></div>
+        <div class="row total"><span>Total final (HT + TS, TVA non collectée)</span><span>${fmtFc(totalFinalB)}</span></div>
+        ${totalExtrasTVATheorique > 0 ? `<div class="row" style="font-size:.78rem;color:#94a3b8;"><span>Si TVA collectée (pour info)</span><span>${fmtFc(totalFinalAvecTVA)}</span></div>` : ''}
         <div class="row"><span>Acomptes déjà versés</span><span>− ${fmtFc(previewData.acompte_total)}</span></div>
-        <div class="row total"><span>Solde dû</span><span>${fmtFc(previewData.solde_du)}</span></div>
+        <div class="row total"><span>Solde dû</span><span>${fmtFc(totalFinalB - (previewData.acompte_total || 0))}</span></div>
       </div>
       <div style="margin-top:1rem;">
         <label style="display:flex;align-items:center;gap:.5rem;font-size:.85rem;">
@@ -599,6 +773,106 @@
   //   saisi par l'utilisateur.
   // ===============================================================
 
+  // ── CALCUL TTC LIGNE PRODUIT (mirroir de posCart.calculateItemTTC côté caisse)
+  // Reprend exactement la même logique que public/assets/js/app.js lignes 834-862
+  // pour que les calculs TS/TVA soient cohérents entre la facture hôtel et la
+  // facture POS. Champs du payload : prix_unitaire, quantite, tax_rate,
+  // taxe_specifique_type, taxe_specifique_value. (La remise ligne est appliquée
+  // côté backend lors de la création de la vente — le prix_unitaire stocké est
+  // déjà le prix effectivement facturé ; on n'a donc pas à la redéduire ici.)
+  function calcItemTTCMirror(p) {
+    var price   = parseFloat(p.prix_unitaire) || 0;
+    var qty     = parseFloat(p.quantite) || 0;
+    var taxRate = parseFloat(p.tax_rate) || 0;
+    // TS unitaire : 'CDF' → valeur fixe ; '%' → % du prix unitaire
+    var specificTaxUnit = (p.taxe_specifique_type === 'CDF')
+      ? (parseFloat(p.taxe_specifique_value) || 0)
+      : price * ((parseFloat(p.taxe_specifique_value) || 0) / 100);
+    var vatOnPriceUnit       = price * (taxRate / 100);
+    var vatOnSpecificTaxUnit = specificTaxUnit * (taxRate / 100);
+    return {
+      lineTTC: (price * qty) + (specificTaxUnit + vatOnPriceUnit + vatOnSpecificTaxUnit) * qty
+    };
+  }
+
+  // Rendu des extras caisse (produits détaillés) + extras manuels dans le bloc
+  // #hotel-ft-preview-extras. Les extras caisse viennent de
+  // previewData.extras.lignes (enrichi par HotelFactureController::preview
+  // avec le détail produit_id/nom/quantite/prix_unitaire/TS).
+  function renderPreviewExtras() {
+    var exWrap = $('hotel-ft-preview-extras');
+    if (!exWrap) return;
+
+    var lignes = (previewData && previewData.extras && Array.isArray(previewData.extras.lignes))
+      ? previewData.extras.lignes
+      : [];
+
+    var html = '';
+
+    // 1) Extras caisse : une card par vente, liste de produits dépliable
+    if (lignes.length > 0) {
+      html += '<div style="font-size:.75rem;font-weight:600;color:var(--muted);text-transform:uppercase;margin-bottom:.35rem;">Extras consommés (caisse)</div>';
+      lignes.forEach(function(vente, idx) {
+        var produits = vente.produits || [];
+        var totalCalcule = 0;
+        var rowsHtml = produits.map(function(p) {
+          var tot = calcItemTTCMirror(p).lineTTC;
+          totalCalcule += tot;
+          var qtyStr = (p.quantite === Math.floor(p.quantite))
+            ? String(p.quantite)
+            : p.quantite.toFixed(3);
+          // Libellé TS pour information (cohérent avec la caisse)
+          var tsLbl = '';
+          if ((parseFloat(p.taxe_specifique_value) || 0) > 0) {
+            tsLbl = p.taxe_specifique_type === 'CDF'
+              ? ' (+ TS ' + fmtFc(p.taxe_specifique_value) + ')'
+              : ' (+ TS ' + p.taxe_specifique_value + '%)';
+          }
+          return '<tr>'
+            + '<td>' + escapeHtml(p.nom) + tsLbl + '</td>'
+            + '<td class="num">' + qtyStr + '</td>'
+            + '<td class="num">' + fmtFc(p.prix_unitaire) + '</td>'
+            + '<td class="num">' + fmtFc(tot) + '</td>'
+            + '</tr>';
+        }).join('');
+
+        html += '<details style="margin-bottom:.5rem;border:1px solid var(--border,#e2e8f0);border-radius:8px;background:#f8fafc;"' + (idx === 0 ? ' open' : '') + '>'
+          + '<summary style="padding:.5rem .65rem;cursor:pointer;font-size:.85rem;display:flex;justify-content:space-between;align-items:center;gap:.5rem;">'
+          +   '<span><strong>' + escapeHtml(vente.numero || ('Vente #' + vente.vente_id)) + '</strong>'
+          +     ' <span style="color:var(--muted);font-size:.75rem;">· ' + escapeHtml(vente.date || '') + '</span>'
+          +   '</span>'
+          +   '<span style="font-weight:700;color:#0B5E88;">' + fmtFc(vente.montant) + '</span>'
+          + '</summary>'
+          + (produits.length > 0
+              ? '<div style="padding:.25rem .65rem .65rem .65rem;">'
+                + '<table class="hotel-ft-table" style="font-size:.78rem;">'
+                +   '<thead><tr><th>Produit</th><th class="num">Qté</th><th class="num">PU</th><th class="num">Total</th></tr></thead>'
+                +   '<tbody>' + rowsHtml + '</tbody>'
+                +   '<tfoot><tr><td colspan="3" style="text-align:right;font-weight:600;">Sous-total vente</td><td class="num" style="font-weight:700;">' + fmtFc(totalCalcule) + '</td></tr></tfoot>'
+                + '</table>'
+                + '</div>'
+              : '<div style="padding:.25rem .65rem .65rem .65rem;font-style:italic;color:var(--muted);font-size:.78rem;">Aucun détail produit (vente legacy).</div>')
+          + '</details>';
+      });
+    }
+
+    // 2) Extras manuels : conservés à leur place, format inchangé
+    if (extrasManuels.length > 0) {
+      html += '<div style="font-size:.75rem;font-weight:600;color:var(--muted);text-transform:uppercase;margin:.75rem 0 .35rem 0;">Extras manuels (saisis ici)</div>';
+      var rowsM = extrasManuels.map(function(x) {
+        return '<tr><td>' + escapeHtml(x.description) + '</td><td class="num">' + fmtFc(x.montant) + '</td></tr>';
+      }).join('');
+      html += '<table class="hotel-ft-table"><thead><tr><th>Description</th><th class="num">Montant</th></tr></thead><tbody>' + rowsM + '</tbody></table>';
+    }
+
+    // 3) Aucun extra du tout
+    if (!html) {
+      html = '<div style="font-size:.85rem;color:var(--muted);font-style:italic;">Aucun extra enregistré pour ce séjour.</div>';
+    }
+
+    exWrap.innerHTML = html;
+  }
+
   async function openHotelInvoiceInfoModal() {
     var modal = $('invoice-info-modal');
     if (!modal) { console.error('[hotel-ft] invoice-info-modal absent'); return; }
@@ -606,18 +880,9 @@
 
     var s = previewData.sejour;
 
-    // Pré-remplir la liste des extras manuels (lecture seule — déjà saisis dans le bloc principal)
-    var exWrap = $('hotel-ft-preview-extras');
-    if (exWrap) {
-      if (extrasManuels.length === 0) {
-        exWrap.innerHTML = '<div style="font-size:.85rem;color:var(--muted);font-style:italic;">Aucun extra manuel ajouté.</div>';
-      } else {
-        var rows = extrasManuels.map(function(x) {
-          return '<tr><td>' + escapeHtml(x.description) + '</td><td class="num">' + fmtFc(x.montant) + '</td></tr>';
-        }).join('');
-        exWrap.innerHTML = '<table class="hotel-ft-table"><thead><tr><th>Description</th><th class="num">Montant</th></tr></thead><tbody>' + rows + '</tbody></table>';
-      }
-    }
+    // Rendu détaillé des extras caisse (produits détaillés via renderPreviewExtras)
+    // + extras manuels dans le bloc #hotel-ft-preview-extras.
+    renderPreviewExtras();
 
     // Type de facture par défaut : HB (Hotel Bill)
     var invoiceTypeSelect = $('modal-invoice-type');

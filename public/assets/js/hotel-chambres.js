@@ -82,6 +82,16 @@
     return `<span class="badge hotel-etat-${label.v}">${label.label}</span>`;
   }
 
+  // Libellé TS calqué sur getSpecificTaxLabel() dans app.js (ligne ~1029).
+  // Retourne "" quand la TS n'est pas définie (value <= 0) : pas de bruit visuel.
+  function tsLabel(row) {
+    const t = row.taxe_specifique_type || '%';
+    const v = parseFloat(row.taxe_specifique_value);
+    if (!Number.isFinite(v) || v <= 0) return '';
+    if (t === 'CDF') return `<span style="color:#b45309;font-weight:700;">[TS]</span> ${fmtMoney(v)} Fc`;
+    return `<span style="color:#b45309;font-weight:700;">[TS]</span> ${v}%`;
+  }
+
   function etatOptions(row) {
     const disabled = readOnly ? 'disabled' : '';
     return ETATS.map(e =>
@@ -93,7 +103,7 @@
     showAlert(null);
     const r = await jsonFetch('/api/hotel/chambres');
     if (!r.ok || !r.data || !r.data.success) {
-      tbody.innerHTML = '<tr><td colspan="6" class="hotel-rooms-empty">Erreur de chargement.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="7" class="hotel-rooms-empty">Erreur de chargement.</td></tr>';
       showAlert((r.data && r.data.message) || 'Erreur de chargement', 'error');
       return;
     }
@@ -103,7 +113,7 @@
 
     const rows = r.data.data || [];
     if (rows.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="6" class="hotel-rooms-empty">Aucune chambre.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="7" class="hotel-rooms-empty">Aucune chambre.</td></tr>';
       return;
     }
 
@@ -111,7 +121,8 @@
       <tr data-id="${row.id}">
         <td style="font-weight:600;">N° ${escapeHtml(String(row.numero))}</td>
         <td>${badge(row.type)}</td>
-        <td style="text-align:right;">${fmtMoney(row.prix_base)}</td>
+        <td style="text-align:right;">${fmtMoney(row.prix_base)} Fc</td>
+        <td style="text-align:right;font-size:.85rem;white-space:nowrap;">${tsLabel(row) || '<span style="color:var(--muted);">—</span>'}</td>
         <td>
           <span class="hotel-etat-current">
             ${etatBadge(ETATS.find(e => e.v === row.etat) || { v: row.etat, label: row.etat })}
@@ -175,6 +186,12 @@
     currentId = null;
     drawerMsg(null);
     drawerTitle.textContent = 'Nouvelle chambre';
+    // Réinit des champs taxe spécifique aux défauts produit ('%' et 0),
+    // calqué sur posCart.saveProduct() (cf. gestion produit).
+    const tsType = document.getElementById('room-taxe-specifique-type');
+    const tsValue = document.getElementById('room-taxe-specifique-value');
+    if (tsType)  tsType.value = '%';
+    if (tsValue) tsValue.value = '0';
   }
 
   async function openDrawerForCreate() {
@@ -196,6 +213,13 @@
     document.getElementById('room-prix').value = row.prix_base;
     document.getElementById('room-etat').value = row.etat;
     document.getElementById('room-notes').value = row.notes || '';
+    // Pré-remplir la TS depuis l'API (colonnes ajoutées par
+    // migrations/2026_10_18_hotel_room_specific_tax.sql).
+    const tsType = document.getElementById('room-taxe-specifique-type');
+    const tsValue = document.getElementById('room-taxe-specifique-value');
+    if (tsType)  tsType.value  = row.taxe_specifique_type || '%';
+    if (tsValue) tsValue.value = (row.taxe_specifique_value !== null && row.taxe_specifique_value !== undefined)
+      ? row.taxe_specifique_value : 0;
     drawerTitle.textContent = 'Modifier la chambre N° ' + row.numero;
     open();
   }
@@ -211,12 +235,38 @@
     drawerMsg(null);
     saveBtn.disabled = true;
 
+    const priceValue = parseFloat(document.getElementById('room-prix').value || 0);
+    if (!Number.isFinite(priceValue) || priceValue <= 0) {
+      drawerMsg('Le prix de la chambre doit être supérieur à 0 pour enregistrer.', 'error');
+      saveBtn.disabled = false;
+      return;
+    }
+
+    // ── Validation de la taxe spécifique (calquée sur posCart.saveProduct) ──
+    // Bornes appliquées côté front, identique au pattern produit :
+    //  - %      : ∈ [0, 100]
+    //  - CDF    : ∈ [0, prix_base]   (une TS fixe > prix n'a pas de sens)
+    const taxeSpecifiqueType  = document.getElementById('room-taxe-specifique-type').value || '%';
+    const taxeSpecifiqueValue = parseFloat(document.getElementById('room-taxe-specifique-value').value) || 0;
+    if (taxeSpecifiqueType === '%' && (taxeSpecifiqueValue < 0 || taxeSpecifiqueValue > 100)) {
+      drawerMsg('La taxe spécifique en pourcentage doit être comprise entre 0 et 100.', 'error');
+      saveBtn.disabled = false;
+      return;
+    }
+    if (taxeSpecifiqueType === 'CDF' && (taxeSpecifiqueValue < 0 || taxeSpecifiqueValue > priceValue)) {
+      drawerMsg('La taxe spécifique en montant fixe doit être comprise entre 0 et le prix de la chambre.', 'error');
+      saveBtn.disabled = false;
+      return;
+    }
+
     const payload = {
       numero: document.getElementById('room-numero').value.trim(),
       type: document.getElementById('room-type').value,
-      prix_base: parseFloat(document.getElementById('room-prix').value || 0),
+      prix_base: priceValue,
       etat: document.getElementById('room-etat').value,
       notes: document.getElementById('room-notes').value || null,
+      taxe_specifique_type:  taxeSpecifiqueType,
+      taxe_specifique_value: taxeSpecifiqueValue,
     };
 
     let url = '/api/hotel/chambres';
