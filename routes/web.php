@@ -2,6 +2,8 @@
 
 use App\Controllers\AuthController;
 use App\Controllers\HotelChambreController;
+use App\Controllers\HotelEtagesController;
+use App\Controllers\HotelExtrasController;
 use App\Controllers\HotelFactureController;
 use App\Controllers\HotelGuestController;
 use App\Controllers\HotelReceptionController;
@@ -38,6 +40,7 @@ Router::get('/hotel/roles', [PageController::class, 'hotelRoles']);
 Router::post('/api/hotel/role/update', [PageController::class, 'apiHotelUpdateRole']);
 // Calendrier + Chambres — sous-pages hôtel
 Router::get('/hotel/calendrier', [PageController::class, 'hotelCalendrier']);
+Router::get('/api/hotel/calendrier', [PageController::class, 'apiHotelCalendrier']);
 Router::get('/hotel/chambres', [PageController::class, 'hotelChambres']);
 // Réservations hôtel — page + API JSON — ajouté 2026-10-15
 Router::get('/hotel/reservations', [PageController::class, 'hotelReservations']);
@@ -60,15 +63,25 @@ Router::post('/api/hotel/reservations/[i:id]/check-in',  [HotelReceptionControll
 Router::post('/api/hotel/reservations/[i:id]/check-out', [HotelReceptionController::class, 'checkOut']);
 Router::post('/api/hotel/reception/rooms/[i:id]/cleaning-done', [HotelReceptionController::class, 'cleaningDone']);
 Router::post('/api/hotel/reception/rooms/[i:id]/out-of-service', [HotelReceptionController::class, 'outOfService']);
+// Gouvernante — vue mobile /hotel/etages (Sprint 3)
+Router::get('/api/hotel/etages/board',                    [HotelEtagesController::class, 'board']);
+Router::post('/api/hotel/housekeeping/[i:id]/claim',      [HotelEtagesController::class, 'claim']);
+Router::post('/api/hotel/housekeeping/[i:id]/done',       [HotelEtagesController::class, 'done']);
+Router::post('/api/hotel/housekeeping/[i:id]/issue',      [HotelEtagesController::class, 'issue']);
 // Guests hôtel — page + API CRUD — ajouté 2026-10-16
 Router::get('/hotel/guests', [PageController::class, 'hotelGuests']);
 Router::get('/api/hotel/guests', [HotelGuestController::class, 'index']);
 Router::get('/api/hotel/guests/[i:id]', [HotelGuestController::class, 'show']);
 Router::post('/api/hotel/guests', [HotelGuestController::class, 'store']);
 Router::put('/api/hotel/guests/[i:id]', [HotelGuestController::class, 'update']);
-// Lien client POS ↔ guest (ajouté 2026-10-17)
+// Liaison client POS ↔ guest (ajouté 2026-10-17)
 Router::post('/api/hotel/guests/[i:id]/link-client', [HotelGuestController::class, 'linkClient']);
 Router::get('/api/hotel/clients/search', [HotelGuestController::class, 'searchClients']);
+// Pont caisse POS ↔ hôtel : séjours en_cours pour le picker d'imputation d'un extra (Sprint 5 — ajouté 2026-10-18)
+Router::get('/api/hotel/sejours/en-cours', [HotelExtrasController::class, 'enCours']);
+// Imputation immédiate du panier sur un séjour (clic sur "Extras" → sélection séjour).
+// Crée les lignes dans `hotel_extras` à la sélection, pas seulement à la validation finale.
+Router::post('/api/hotel/sejours/[i:id]/extras-from-cart', [HotelExtrasController::class, 'extrasFromCart']);
 // Facturation hôtel — page + API CRUD — ajouté 2026-10-17
 Router::get('/hotel/facturation', [PageController::class, 'hotelFacturation']);
 Router::get('/api/hotel/factures/preview', [HotelFactureController::class, 'preview']);
