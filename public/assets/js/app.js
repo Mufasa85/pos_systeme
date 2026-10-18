@@ -728,21 +728,31 @@ const posCart = {
             /**
              * Sélectionne un séjour hôtelier pour imputer la prochaine vente comme extra.
              * Appelée depuis le bouton "Imputer à un séjour" dans l'UI de la caisse.
+             *
+             * Comportement : on stocke le séjour dans this.currentSejour, puis on
+             * affiche un toast en haut de la page (showCaisseToast) plutôt qu'un
+             * bloc persistant dans le panier (ancien #cart-sejour-indicator qui
+             * était juste au-dessus de "Valider la vente"). Pour annuler, on
+             * re-passe null et un second toast s'affiche.
              */
             setCurrentSejour(sejour) {
-                this.currentSejour = sejour;
-                // Affiche un petit indicateur visuel si l'UI existe
-                const ind = $('#cart-sejour-indicator');
-                if (ind) {
-                    if (sejour) {
-                        const txt = `Imputé au séjour #${sejour.id} — ${sejour.chambre_numero || ''} (${sejour.guest_nom || ''})`;
-                        ind.textContent = txt;
-                        ind.style.display = '';
-                    } else {
-                        ind.style.display = 'none';
-                    }
-                }
-            },
+                            this.currentSejour = sejour;
+                            if (typeof showCaisseToast === 'function') {
+                                if (sejour) {
+                                    const chambre = sejour.chambre_numero || '?';
+                                    const client  = (sejour.guest_prenom ? sejour.guest_prenom + ' ' : '') + (sejour.guest_nom || '');
+                                    const line = `Séjour imputé sur la chambre ${chambre} — ${client.trim() || 'client'} (séjour #${sejour.id})`;
+                                    showCaisseToast(line, 'info');
+                                } else {
+                                    showCaisseToast('Séjour désélectionné', 'info');
+                                }
+                            }
+                            // Compat descendante : si l'ancien indicateur existe
+                            // encore dans le DOM, on le masque pour éviter qu'il
+                            // reste visible.
+                            const ind = $('#cart-sejour-indicator');
+                            if (ind) ind.style.display = 'none';
+                        },
 
     toggleCalcMode(enabled) {
         this.calcMode = enabled;
@@ -1735,81 +1745,91 @@ const posCart = {
         $('#confirm-sale').innerHTML = '<span class="spinner"></span> Traitement...';
 
         try {
-            // Etape 1: Appeler l'API DGI
-            const dgiResponse = await this.validateWithDGI();
-            this.dgiResponse = dgiResponse;
+            // Sprint 5 — Pont hôtel : si la vente est imputée à un séjour,
+            // on NE PASSE PAS par la DGI (pas d'encaissement, pas de facture
+            // fiscale : c'est un extra interne rattaché à la note de la
+            // chambre). Le backend SaleController::create force
+            // invoice_type='EX' et insère automatiquement la ligne
+            // hotel_extras associée. On simule juste une réponse DGI "vide"
+            // pour ne pas casser le flux en aval.
+            const isHotelExtra = !!(this.currentSejour && this.currentSejour.id);
+            let dgiResponse;
+            if (isHotelExtra) {
+                dgiResponse = { success: true, data: { codeDEFDGI: null, qrCode: null, nim: null, counters: null, dateDGI: null, isf: null }, comment: null };
+            } else {
+                // Etape 1: Appeler l'API DGI
+                dgiResponse = await this.validateWithDGI();
+                this.dgiResponse = dgiResponse;
 
-            if (!dgiResponse.success) {
-                alert('Erreur DGI: ' + (dgiResponse.message || 'Impossible de valider la facture'));
-                $('#confirm-sale').disabled = false;
-                $('#confirm-sale').innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> Valider la facture';
-                return;
-            }
-            if (dgiResponse.data.codeDEFDGI === "Nul") {
-                alert("Imposible de valider cette facture de ****, elle a deja ete ...")
-                //  $('#receipt-modal').classList.add('active');
-                $('#confirm-sale').disabled = false;
-                // Reinitialiser le bouton
-                $('#confirm-sale').innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> Valider la facture';
-
-                return
+                if (!dgiResponse.success) {
+                    alert('Erreur DGI: ' + (dgiResponse.message || 'Impossible de valider la facture'));
+                    $('#confirm-sale').disabled = false;
+                    $('#confirm-sale').innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> Valider la facture';
+                    return;
+                }
+                if (dgiResponse.data && dgiResponse.data.codeDEFDGI === "Nul") {
+                    alert("Imposible de valider cette facture de ****, elle a deja ete ...")
+                    $('#confirm-sale').disabled = false;
+                    $('#confirm-sale').innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> Valider la facture';
+                    return;
+                }
             }
 
             // Etape 2: Sauvegarder la vente
-            // Si la facture N'est PAS FA ou EA, on envoie les quantités et
-            // les totaux en négatif au backend (cohérent avec la DGI)
-            const saveTypeFacture = document.getElementById('invoice-type')?.value || 'FV';
-            const saveShouldNegate = saveTypeFacture === 'FA' || saveTypeFacture === 'EA';
-            const saveSign = saveShouldNegate ? -1 : 1;
-            const saleRes = await fetch(APP_URL + '/api/vente', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    articles: this.items.map(item => ({
-                        ...item,
-                        quantite: item.quantite * saveSign
-                    })),
-                    client_id: this.currentClient ? this.currentClient.id : null,
-                    sejour_id: this.currentSejour ? this.currentSejour.id : null,
-                    sous_total_ht: this.currentTotals.sous_total_ht * saveSign,
-                    tva: this.currentTotals.tva * saveSign,
-                    total: this.currentTotals.total * saveSign,
-                    type_facture: saveTypeFacture,
-                    // ISF réellement utilisé pour l'enregistrement DGI : c'est la
-                    // clé de recherche de la facture, il doit être figé tel quel.
-                    store_isf: STORE_INFO.isf || '',
-                    payments: this.currentPayments?.length > 0 ? this.currentPayments : [{ type: (document.getElementById('modal-payment-type') || document.getElementById('payment-type'))?.value || 'ESPECES', amount: this.currentTotals.total }],
-                    dgi_data: {
-                        dateDGI: dgiResponse.data ? dgiResponse.data.dateDGI : null,
-                        qrCode: dgiResponse.data ? dgiResponse.data.qrCode : '',
-                        codeDEFDGI: dgiResponse.data ? dgiResponse.data.codeDEFDGI : '',
-                        counters: dgiResponse.data ? dgiResponse.data.counters : null,
-                        nim: dgiResponse.data ? dgiResponse.data.nim : null,
-                        total: dgiResponse.data ? dgiResponse.data.total : null,
-                        vtotal: dgiResponse.data ? dgiResponse.data.vtotal : null,
-                        isf: dgiResponse.data ? dgiResponse.data.isf : null,
-                        comment: dgiResponse.comment || (dgiResponse.data ? dgiResponse.data.comment : null)
-                    }
-                })
-            });
-            const saleData = await saleRes.json();
-
-            if (!saleData.success) {
-                // Cas particulier : boutique désactivée par le super_admin pendant
-                // la session â†’ on déconnecte l'utilisateur immédiatement avec un
-                // message clair et on bloque toute autre action.
-                if (saleData.error === 'shop_disabled' || saleRes.status === 403) {
-                    alert(saleData.message || 'Votre boutique a été désactivée. Vous ne pouvez plus émettre de factures.');
-                    window.location.href = '/logout?reason=shop_disabled';
-                    return;
+        // Si la facture N'est PAS FA ou EA, on envoie les quantités et
+        // les totaux en négatif au backend (cohérent avec la DGI)
+        const saveTypeFacture = document.getElementById('invoice-type')?.value || 'FV';
+        const saveShouldNegate = saveTypeFacture === 'FA' || saveTypeFacture === 'EA';
+        const saveSign = saveShouldNegate ? -1 : 1;
+        const saleRes = await fetch(APP_URL + '/api/vente', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                articles: this.items.map(item => ({
+                    ...item,
+                    quantite: item.quantite * saveSign
+                })),
+                client_id: this.currentClient ? this.currentClient.id : null,
+                sejour_id: this.currentSejour ? this.currentSejour.id : null,
+                sous_total_ht: this.currentTotals.sous_total_ht * saveSign,
+                tva: this.currentTotals.tva * saveSign,
+                total: this.currentTotals.total * saveSign,
+                type_facture: saveTypeFacture,
+                // ISF réellement utilisé pour l'enregistrement DGI : c'est la
+                // clé de recherche de la facture, il doit être figé tel quel.
+                store_isf: STORE_INFO.isf || '',
+                payments: this.currentPayments?.length > 0 ? this.currentPayments : [{ type: (document.getElementById('modal-payment-type') || document.getElementById('payment-type'))?.value || 'ESPECES', amount: this.currentTotals.total }],
+                dgi_data: {
+                    dateDGI: dgiResponse.data ? dgiResponse.data.dateDGI : null,
+                    qrCode: dgiResponse.data ? dgiResponse.data.qrCode : '',
+                    codeDEFDGI: dgiResponse.data ? dgiResponse.data.codeDEFDGI : '',
+                    counters: dgiResponse.data ? dgiResponse.data.counters : null,
+                    nim: dgiResponse.data ? dgiResponse.data.nim : null,
+                    total: dgiResponse.data ? dgiResponse.data.total : null,
+                    vtotal: dgiResponse.data ? dgiResponse.data.vtotal : null,
+                    isf: dgiResponse.data ? dgiResponse.data.isf : null,
+                    comment: dgiResponse.comment || (dgiResponse.data ? dgiResponse.data.comment : null)
                 }
-                alert(saleData.error);
-                $('#confirm-sale').disabled = false;
-                $('#confirm-sale').innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> Valider la facture';
+            })
+        });
+        const saleData = await saleRes.json();
+
+        if (!saleData.success) {
+            // Cas particulier : boutique désactivée par le super_admin pendant
+            // la session â†’ on déconnecte l'utilisateur immédiatement avec un
+            // message clair et on bloque toute autre action.
+            if (saleData.error === 'shop_disabled' || saleRes.status === 403) {
+                alert(saleData.message || 'Votre boutique a été désactivée. Vous ne pouvez plus émettre de factures.');
+                window.location.href = '/logout?reason=shop_disabled';
                 return;
             }
+            alert(saleData.error);
+            $('#confirm-sale').disabled = false;
+            $('#confirm-sale').innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> Valider la facture';
+            return;
+        }
 
-            // Fermer le modal de prévisualisation
+        // Fermer le modal de prévisualisation
             this.closePreview();
 
             // Stocker les donnees de vente
@@ -3183,6 +3203,284 @@ function closePaymentModal() {
         posCart.paymentAmount = 0;
         posCart.paymentStatus = 'pending';
     }
+}
+
+// ==================== TOAST NOTIFICATIONS (page /caisse) ====================
+// Affiche un toast éphémère en haut de la page (/caisse). Remplace l'ancien
+// bloc persistant "Séjour sélectionné" qui était rendu dans le panier juste
+// au-dessus du bouton "Valider la vente".
+//
+// Usage :
+//   showCaisseToast('Séjour imputé sur la chambre 12 — M. Dupont', 'info');
+//   showCaisseToast('Séjour désélectionné',                  'info');
+//   showCaisseToast('Erreur réseau',                          'error');
+//
+// Types supportés : 'info' (défaut), 'success', 'error'. Le toast disparaît
+// automatiquement après `duration` ms (défaut 3000) ou au clic sur la croix.
+
+function showCaisseToast(message, type, duration) {
+    const container = document.getElementById('caisse-toast-container');
+    if (!container) return; // pas sur /caisse
+
+    type = type || 'info';
+    duration = (typeof duration === 'number' && duration > 0) ? duration : 3000;
+
+    // Icônes SVG inline (légères, pas de dépendance externe)
+    const icons = {
+        info:    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>',
+        success: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>',
+        error:   '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>',
+    };
+
+    const el = document.createElement('div');
+    el.className = 'caisse-toast ' + (type === 'success' ? 'success' : type === 'error' ? 'error' : 'info');
+    el.setAttribute('role', type === 'error' ? 'alert' : 'status');
+    el.innerHTML =
+        '<span class="toast-icon">' + (icons[type] || icons.info) + '</span>' +
+        '<span class="toast-text"></span>' +
+        '<button type="button" class="toast-close" aria-label="Fermer">&times;</button>';
+    // Sécurité XSS : on force le texte via textContent
+    el.querySelector('.toast-text').textContent = String(message);
+
+    container.appendChild(el);
+    // Déclenche l'animation d'apparition au prochain frame
+    requestAnimationFrame(function () { el.classList.add('show'); });
+
+    function dismiss() {
+        el.classList.remove('show');
+        // Retire l'élément après la transition CSS pour ne pas bloquer les
+        // animations des toasts suivants.
+        setTimeout(function () {
+            if (el && el.parentNode) el.parentNode.removeChild(el);
+        }, 220);
+    }
+
+    el.querySelector('.toast-close').addEventListener('click', dismiss);
+    setTimeout(dismiss, duration);
+}
+
+// ==================== SEJOUR PICKER (Sprint 5 — imputation d'un extra) ====================
+// Ouvre le modal qui liste les séjours statut='en_cours' et permet au caissier
+// d'en sélectionner un. La vente est ensuite envoyée avec sejour_id → le backend
+// (SaleController::create) crée la ligne hotel_extras correspondante.
+// Aucune DGI n'est émise : pas d'encaissement, le client paiera au check-out.
+
+async function openSejourPicker() {
+    const modal = $('#sejour-picker-modal');
+    const list  = $('#sejour-picker-list');
+    const empty = $('#sejour-picker-empty');
+    const err   = $('#sejour-picker-error');
+    if (!modal || !list) {
+        console.warn('[sejour-picker] modal introuvable dans le DOM');
+        return;
+    }
+
+    // Reset UI
+    list.innerHTML = '<div style="padding:1rem;text-align:center;color:#94a3b8;font-size:0.85rem;">Chargement des séjours en cours…</div>';
+    if (empty) empty.style.display = 'none';
+    if (err)   { err.style.display = 'none'; err.textContent = ''; }
+    // Force l'affichage : on ajoute 'active' ET on pose un display inline
+    // pour court-circuiter toute spécificité CSS ou ancêtre en display:none
+    // qui pourrait masquer le modal (bug rencontré : modal niché ou CSS
+    // .modal { display:none } plus spécifique que .modal.active).
+    modal.classList.add('active');
+    modal.style.display = 'flex';
+
+    try {
+        const res  = await fetch(APP_URL + '/api/hotel/sejours/en-cours');
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+            throw new Error(data.message || ('HTTP ' + res.status));
+        }
+        const sejours = data.data || [];
+        if (sejours.length === 0) {
+            list.innerHTML = '';
+            if (empty) empty.style.display = 'block';
+            return;
+        }
+        // Génération de la liste
+        list.innerHTML = sejours.map(function (s) {
+            const chambre = escapeHtml(String(s.chambre_numero || '?'));
+            const nom     = escapeHtml(((s.guest_prenom ? s.guest_prenom + ' ' : '') + (s.guest_nom || '')).trim() || 'Client');
+            const tel     = s.guest_telephone ? escapeHtml(s.guest_telephone) : '';
+            const type    = s.chambre_type === 'double' ? '🛏️🛏️ Double' : '🛏️ Simple';
+            // data-sejour-id permet de retrouver l'objet sejour au clic.
+            const safe = JSON.stringify(s).replace(/"/g, '&quot;');
+            return ''
+                + '<button type="button" class="sejour-picker-row" data-sejour="' + safe + '" '
+                +   'style="text-align:left;padding:0.75rem;border:1px solid var(--border,#e2e8f0);border-radius:10px;background:var(--card,#fff);cursor:pointer;transition:all 0.15s;" '
+                +   'onmouseenter="this.style.background=\'#f1f5f9\'" onmouseleave="this.style.background=\'var(--card,#fff)\'">'
+                +   '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">'
+                +     '<div style="font-weight:700;color:#0B5E88;">Chambre ' + chambre + '</div>'
+                +     '<div style="font-size:0.7rem;color:#64748b;">' + type + '</div>'
+                +   '</div>'
+                +   '<div style="margin-top:0.25rem;font-size:0.9rem;color:#1a1a2e;">' + nom + '</div>'
+                +   (tel ? '<div style="margin-top:0.15rem;font-size:0.75rem;color:#64748b;">📞 ' + tel + '</div>' : '')
+                + '</button>';
+        }).join('');
+        // Bind clic
+        list.querySelectorAll('.sejour-picker-row').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                const sejour = JSON.parse(btn.getAttribute('data-sejour'));
+                // Imputation IMMÉDIATE des produits du panier sur le séjour.
+                // On envoie un POST à l'endpoint hôtel qui crée les lignes dans
+                // `hotel_extras` à la sélection (pas seulement à la validation
+                // finale). Si le panier est vide, on retombe sur l'ancien
+                // comportement (juste mémoriser le séjour pour la vente à venir).
+                imputeCartToSejour(sejour, function () {
+                    closeSejourPicker();
+                });
+            });
+        });
+    } catch (e) {
+        list.innerHTML = '';
+        if (err) {
+            err.textContent = 'Erreur chargement séjours : ' + (e.message || e);
+            err.style.display = 'block';
+        }
+    }
+}
+
+function closeSejourPicker() {
+    const modal = $('#sejour-picker-modal');
+    if (modal) {
+        modal.classList.remove('active');
+        modal.style.display = '';  // retire le display:flex inline posé par openSejourPicker
+    }
+}
+
+/**
+ * Imputation immédiate des produits du panier sur un séjour hôtelier.
+ *
+ * Appelée quand le caissier sélectionne un séjour dans le picker "Extras".
+ * Envoie un POST à /api/hotel/sejours/{id}/extras-from-cart avec la liste
+ * des produits du panier. Le backend crée une ligne par produit dans
+ * `hotel_extras` (vente_id=NULL ; sera rempli par SaleController::create).
+ *
+ * Si le panier est vide : on retombe sur l'ancien comportement — on
+ * mémorise juste le séjour pour la prochaine vente via setCurrentSejour.
+ *
+ * Comportement UX :
+ *   - Sur succès : affiche un toast "X produits imputés au séjour de la
+ *     chambre Y (Total : Z Fc)", vide le panier, désactive le bouton
+ *     "Extras" (le séjour est déjà imputé), puis appelle onDone().
+ *   - Sur erreur : affiche un toast d'erreur, NE ferme PAS le modal pour
+ *     laisser l'utilisateur corriger ou annuler.
+ */
+async function imputeCartToSejour(sejour, onDone) {
+    onDone = typeof onDone === 'function' ? onDone : function () {};
+
+    const items = (posCart && posCart.items) ? posCart.items : [];
+
+    // 1. Mémoriser le séjour dans tous les cas (utile pour la vente finale
+    //    à venir : SaleController::create enverra sejour_id et liera la vente).
+    if (posCart && typeof posCart.setCurrentSejour === 'function') {
+        posCart.setCurrentSejour(sejour);
+    }
+
+    // 2. Si le panier est vide → rien à imputer, on sort proprement.
+    if (!items.length) {
+        if (typeof showCaisseToast === 'function') {
+            showCaisseToast(
+                'Séjour de la chambre ' + (sejour.chambre_numero || '?') +
+                ' sélectionné. Ajoutez des produits puis cliquez Extras pour les imputer.',
+                'info'
+            );
+        }
+        onDone();
+        return;
+    }
+
+    // 3. Sinon → POST vers le nouvel endpoint API.
+    const payload = {
+        articles: items.map(function (it) {
+            return {
+                produit_id:              it.produit_id,
+                nom:                     it.nom || '',
+                quantite:                Number(it.quantite) || 0,
+                prix:                    Number(it.prix)     || 0,
+                // Snapshots TS / TVA / remise du produit (au moment de l'extra).
+                // Côté backend on retombe sur produits/taxes si manquants, mais
+                // on les envoie quand même depuis la caisse pour éviter une
+                // jointure SQL par ligne.
+                taxe_specifique_type:    it.taxe_specifique_type || '%',
+                taxe_specifique_value:   Number(it.taxe_specifique_value) || 0,
+                remise_type:              it.remise_type || '%',
+                remise_value:             Number(it.remise_value) || 0,
+                tax_rate:                 Number(it.tax_rate) || 0,
+            };
+        }),
+    };
+
+    const url = (typeof APP_URL !== 'undefined' ? APP_URL : '')
+              + '/api/hotel/sejours/' + encodeURIComponent(sejour.id)
+              + '/extras-from-cart';
+
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify(payload),
+        });
+
+        let data = null;
+        try { data = await response.json(); } catch (_) { /* pas JSON */ }
+
+        if (response.ok && data && data.success) {
+            const chambre = sejour.chambre_numero || '?';
+            const totalLabel = typeof formatCurrency === 'function'
+                ? formatCurrency(data.total)
+                : (data.total + ' Fc');
+            if (typeof showCaisseToast === 'function') {
+                showCaisseToast(
+                    data.count + ' extra(s) imputé(s) au séjour chambre ' + chambre +
+                    ' (Total : ' + totalLabel + ')',
+                    'success'
+                );
+            }
+            // Vider le panier — les produits sont désormais sur la note du séjour.
+            if (posCart && typeof posCart.clearCart === 'function') {
+                posCart.clearCart();
+            }
+            // Désactiver le bouton "Extras" tant qu'on n'a pas retiré le séjour courant
+            const btn = document.getElementById('btn-imputer-sejour');
+            if (btn) {
+                btn.disabled = true;
+                btn.title = 'Séjour déjà imputé — réinitialisez la caisse pour changer';
+            }
+            onDone();
+        } else {
+            const msg = (data && data.message) ? data.message : ('HTTP ' + response.status);
+            if (typeof showCaisseToast === 'function') {
+                showCaisseToast('Erreur : ' + msg, 'error');
+            }
+            // On ne ferme PAS le modal pour que le caissier puisse réessayer ou
+            // choisir un autre séjour. Mais on reset le séjour mémorisé pour
+            // éviter un état incohérent.
+            if (posCart && typeof posCart.setCurrentSejour === 'function') {
+                posCart.setCurrentSejour(null);
+            }
+        }
+    } catch (e) {
+        if (typeof showCaisseToast === 'function') {
+            showCaisseToast('Erreur réseau : ' + (e.message || e), 'error');
+        }
+        if (posCart && typeof posCart.setCurrentSejour === 'function') {
+            posCart.setCurrentSejour(null);
+        }
+    }
+}
+
+// Petite fonction utilitaire d'échappement HTML (le fichier n'en exporte pas une stable).
+function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
 }
 
 function confirmPayment() {
