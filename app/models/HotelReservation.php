@@ -245,6 +245,36 @@ class HotelReservation
     }
 
     /**
+     * Séjours (tous statuts visibles : reserve / en_cours / termine / annule /
+     * no_show) qui chevauchent la plage [$dateFrom, $dateTo] au sens calendrier :
+     *   date_arrivee (DATETIME) < dateTo 00:00:00
+     *   ET date_depart_prevue (DATE) >= dateFrom
+     * Utilisé par le calendrier manager pour rendre la grille sur une semaine.
+     * On garde aussi les séjours terminés/annulés/no_show pour donner du contexte
+     * (un manager doit voir qu'une chambre est "fraîchement libérée" même si le
+     * séjour est passé à 'termine').
+     */
+    public function sejoursSurPlage(string $dateFrom, string $dateTo): array
+    {
+        return $this->db->fetchAll(
+            "SELECT s.id, s.chambre_id, s.guest_id, s.date_arrivee, s.date_depart_prevue,
+                    s.date_depart_reelle, s.statut, s.prix_par_nuit, s.remise_pct, s.notes,
+                    g.nom AS guest_nom, g.prenom AS guest_prenom, g.telephone AS guest_tel,
+                    c.numero AS chambre_numero, c.type AS chambre_type, c.prix_base AS chambre_prix_base
+             FROM hotel_sejours s
+             INNER JOIN hotel_guests   g ON g.id = s.guest_id
+             INNER JOIN hotel_chambres c ON c.id = s.chambre_id
+             WHERE s.date_arrivee < :end_dt
+               AND s.date_depart_prevue >= :start_date
+             ORDER BY c.numero ASC, s.date_arrivee ASC",
+            [
+                ':end_dt'     => $dateTo . ' 23:59:59',
+                ':start_date' => $dateFrom,
+            ]
+        );
+    }
+
+    /**
      * Timeline du jour : 3 listes (arrivées / en_cours / départs).
      * - arrivées  : séjours 'reserve'  qui commencent aujourd'hui
      * - en_cours  : séjours 'en_cours' actuellement
