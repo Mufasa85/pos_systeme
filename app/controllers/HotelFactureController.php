@@ -57,6 +57,25 @@ class HotelFactureController extends Controller
     }
 
     /**
+     * Calcule la taxe spécifique unitaire d'une chambre, alignée sur
+     * posCart.calculateSpecificTaxUnit() (cf. app.js ligne ~1015) :
+     *   - type 'CDF' : retourne la valeur fixe (par nuitée)
+     *   - type '%'   : retourne prix_nuit × (value / 100)
+     *   - type/value invalide ou vide : retourne 0 (pas de TS)
+     *
+     * Utilisée par preview() ET store() pour que les deux vues s'accordent
+     * au centime près (le serveur ne fait pas confiance au client, cf. note
+     * dans store() sur le recalcul).
+     */
+    private function computeTaxeSpecifiqueUnit(?string $type, $value, float $prixNuit): float
+    {
+        $type = (string)$type;
+        $val  = (float)$value;
+        if (!in_array($type, ['%', 'CDF'], true) || $val <= 0) return 0.0;
+        return $type === 'CDF' ? $val : $prixNuit * ($val / 100);
+    }
+
+    /**
      * Génère le numero_facture officiel pour la facture hôtel.
      * Délègue à Sale::generateInvoiceNumber() pour rester sur le compteur
      * annuel officiel (format `AAAA/xxxxxx`) partagé avec /caisse. C'est
@@ -80,6 +99,35 @@ class HotelFactureController extends Controller
         $sejourId = (int)($_GET['sejour_id'] ?? 0);
         if ($sejourId <= 0) $this->jsonOut(['success' => false, 'message' => 'sejour_id requis'], 422);
 
+        // ── Garde-fou global (Sprint 6 — 2026-10-18) ──────────────────────────
+        // Toute PDOException (ex: colonne manquante) sortait en page HTML
+        // d'erreur fatale PHP (status 200 par défaut sous certains setups),
+        // ce qui faisait apparaître "Erreur 200" côté UI. On intercepte ici
+        // pour renvoyer un JSON propre avec un status 500 et un message
+        // lisible. Le log_error() aide au diagnostic côté serveur.
+        try {
+            $this->buildPreviewData($sejourId);
+        } catch (\Throwable $e) {
+            error_log('[hotel-fac preview] ' . $e->getMessage() . ' @ ' . $e->getFile() . ':' . $e->getLine());
+            $this->jsonOut([
+                'success' => false,
+                'message' => 'Erreur lors du calcul de la prévisualisation : ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Construit le payload de prévisualisation pour un séjour donné.
+     * Méthode extraite de preview() pour pouvoir l'envelopper dans un
+     * try/catch global (cf. note dans preview()). Renvoie via jsonOut()
+     * (donc exit) en cas de succès.
+     *
+     * Throw n'importe quel \Throwable pour les erreurs attendues :
+     * PDOException, RuntimeException, etc. Le caller (preview()) traduit
+     * en JSON 500 lisible.
+     */
+    private function buildPreviewData(int $sejourId): void
+    {
         $db = \App\Core\Database::getInstance();
 
         // Séjour + guest + client + chambre
@@ -88,6 +136,8 @@ class HotelFactureController extends Controller
                     g.id AS guest_id, g.nom AS guest_nom, g.prenom AS guest_prenom,
                     g.telephone AS guest_tel, g.client_id AS guest_client_id,
                     c.id AS chambre_id, c.numero AS chambre_numero, c.type AS chambre_type, c.prix_base AS chambre_prix_base,
+                    c.taxe_specifique_type  AS chambre_taxe_specifique_type,
+                    c.taxe_specifique_value AS chambre_taxe_specifique_value,
                     cl.code_client AS client_code, cl.nom_client AS client_nom
              FROM hotel_sejours s
              INNER JOIN hotel_guests g ON g.id = s.guest_id
@@ -115,44 +165,202 @@ class HotelFactureController extends Controller
         $prixParNuit = (float)$sejour['prix_par_nuit'];
         $remisePct   = (float)$sejour['remise_pct'];
 
+        // Taxe spécifique chambre (Sprint 6 — 2026-10-18) : alignée sur le
+        // pattern produit (cf. posCart.calculateSpecificTaxUnit). On lit
+        // explicitement les colonnes de la chambre liée au séjour — le séjour
+        // ne stocke pas la TS car celle-ci est une caractéristique de la
+        // chambre (pas du séjour client).
+        $tsType  = $sejour['chambre_taxe_specifique_type']  ?? null;
+        $tsValue = $sejour['chambre_taxe_specifique_value'] ?? null;
+        // Si le SELECT ci-dessus n'a pas ramené les colonnes (jointure plus
+        // haut), on retombe sur un fetch direct. En pratique la jointure
+        // l'a ramené — c'est juste une sécurité.
+        if ($tsType === null || $tsValue === null) {
+            $chRow = $db->fetch(
+                'SELECT taxe_specifique_type, taxe_specifique_value
+                 FROM hotel_chambres WHERE id = :cid',
+                [':cid' => (int)$sejour['chambre_id']]
+            );
+            if ($chRow) {
+                $tsType  = $chRow['taxe_specifique_type'];
+                $tsValue = $chRow['taxe_specifique_value'];
+            }
+        }
+
         $nuits = [];
         $totalNuits = 0.0;
+        $totalTaxeSpecifique = 0.0;
         for ($d = clone $start; $d < $end; $d->modify('+1 day')) {
+            // TS appliquée par nuitée, sur le prix de la nuit (avant remise)
+            $unitTs = $this->computeTaxeSpecifiqueUnit($tsType, $tsValue, $prixParNuit);
             $nuits[] = [
-                'date'  => $d->format('Y-m-d'),
-                'prix'  => $prixParNuit,
+                'date'        => $d->format('Y-m-d'),
+                'prix'        => $prixParNuit,
+                'ts_unitaire' => round($unitTs, 2),
             ];
             $totalNuits += $prixParNuit;
+            $totalTaxeSpecifique += $unitTs;
         }
+        $totalTaxeSpecifique = round($totalTaxeSpecifique, 2);
         $remiseNuits = round($totalNuits * $remisePct / 100, 2);
+        // La TS ne subit PAS la remise pct du séjour (alignement intentionnel :
+        // la remise % est une négociation commerciale sur le prix de la nuit,
+        // pas sur les taxes associées — cohérent avec les pratiques hôtelières).
         $totalNuitsApresRemise = round($totalNuits - $remiseNuits, 2);
+        // Total séjour = prix nuit net + TS (toutes deux dans `nuits` côté UI).
+        $totalNuitsAvecTS = round($totalNuitsApresRemise + $totalTaxeSpecifique, 2);
 
-        // Extras : ventes avec sejour_id=X et invoice_type='EX' (et statut actif)
+        // Extras : on lit DEUX sources pour rester compatible avec les deux flux
+        // d'imputation :
+        //   1. `ventes` filtrées par sejour_id + invoice_type='EX' (flux historique :
+        //      la vente POS passe par SaleController::create qui force EX).
+        //   2. `hotel_extras` (flux Sprint 5 — l'extra est créé à la sélection du
+        //      séjour dans le picker via POST /api/hotel/sejours/[id]/extras-from-cart,
+        //      SANS vente POS. vente_id IS NULL pour ces lignes).
+        //
+        // Pour la source 2 on regroupe par date pour faire une "card" par jour (à
+        // défaut d'une vraie vente). Best-effort : on extrait "Nx Nom" de la
+        // description pour retrouver qté/nom côté UI.
+        //
+        // NOTE — Réparation 2026-10-18 : la requête lisait `p.tax_rate` qui
+        // n'existe PAS dans `produits`. Le taux vit dans `taxes.taux` via la
+        // FK `produits.taxe_id`. La requête foire avec une PDOException qui
+        // n'était pas interceptée → l'UI recevait un status 200 avec page
+        // HTML d'erreur PHP → message "Erreur 200" incompréhensible pour
+        // l'utilisateur. Voir HotelFactureController::preview() try/catch
+        // plus bas pour la protection ajoutée.
         $extrasRows = $db->fetchAll(
             "SELECT v.id AS vente_id, v.date, v.total, v.numero_facture,
-                    GROUP_CONCAT(d.produit_id, '|', d.quantite, '|', d.prix SEPARATOR ';') AS lignes
+                    d.produit_id, d.quantite AS d_quantite, d.prix AS d_prix,
+                    d.remise_type AS d_remise_type, d.remise_value AS d_remise_value,
+                    d.taxe_specifique_type AS d_ts_type, d.taxe_specifique_value AS d_ts_value,
+                    p.nom AS produit_nom,
+                    t.taux AS produit_tax_rate
              FROM ventes v
-             LEFT JOIN details_vente d ON d.vente_id = v.id
+             INNER JOIN details_vente d ON d.vente_id = v.id
+             LEFT JOIN produits p ON p.id = d.produit_id
+             LEFT JOIN taxes   t ON t.id = p.taxe_id
              WHERE v.sejour_id = :sid AND v.invoice_type = 'EX'
-             GROUP BY v.id
-             ORDER BY v.date ASC",
+             ORDER BY v.date ASC, d.id ASC",
             [':sid' => $sejourId]
         );
-        $extras = [];
-        $totalExtras = 0.0;
+        // Source 2 — hotel_extras créés via le picker "Extras" de la caisse.
+        // On récupère les snapshots TS/TVA stockés sur la ligne (Sprint 6 —
+        // 2026-10-18) pour pouvoir recalculer HT/TS/TVA sans dépendre d'un
+        // parsing fragile de la description. Jointure LEFT sur produits/taxes
+        // pour les lignes legacy (produit_id NULL).
+        $hotelExtrasRows = $db->fetchAll(
+            "SELECT he.id, he.description, he.montant, he.date_consommation, he.vente_id,
+                    he.produit_id, he.quantite, he.prix_unitaire,
+                    he.remise_type, he.remise_value,
+                    he.taxe_specifique_type, he.taxe_specifique_value,
+                    he.tax_rate,
+                    p.nom AS produit_nom,
+                    t.taux AS produit_tax_rate_db
+             FROM hotel_extras he
+             LEFT JOIN produits p ON p.id = he.produit_id
+             LEFT JOIN taxes   t ON t.id = p.taxe_id
+             WHERE he.sejour_id = :sid
+             ORDER BY he.date_consommation ASC, he.id ASC",
+            [':sid' => $sejourId]
+        );
+        // Regroupement côté PHP par vente, pour préserver l'ordre chronologique
+        // et donner à l'UI une structure facile à rendre (une card par vente,
+        // liste de produits à l'intérieur).
+        $extrasParVente = [];
         foreach ($extrasRows as $row) {
-            // On ne récupère pas les noms de produits ici (jointure supplémentaire possible)
-            // — on remonte le montant global et l'id vente, l'UI pourra faire des lookups.
-            $montant = (float)$row['total'];
-            $extras[] = [
-                'vente_id'       => (int)$row['vente_id'],
-                'numero'         => $row['numero_facture'],
-                'date'           => $row['date'],
-                'montant'        => $montant,
-                'description'    => 'Extra #' . $row['vente_id'] . ' — ' . $row['numero_facture'],
+            $vid = (int)$row['vente_id'];
+            if (!isset($extrasParVente[$vid])) {
+                $extrasParVente[$vid] = [
+                    'vente_id'    => $vid,
+                    'numero'      => (string)$row['numero_facture'],
+                    'date'        => (string)$row['date'],
+                    'montant'     => (float)$row['total'],
+                    'description' => 'Extra #' . $vid . ' — ' . $row['numero_facture'],
+                    'produits'    => [],
+                ];
+            }
+            $extrasParVente[$vid]['produits'][] = [
+                'produit_id'           => (int)$row['produit_id'],
+                'nom'                  => (string)($row['produit_nom'] ?? ('Produit #' . (int)$row['produit_id'])),
+                'quantite'             => (float)$row['d_quantite'],
+                'prix_unitaire'        => (float)$row['d_prix'],
+                'remise_type'          => (string)($row['d_remise_type'] ?? '%'),
+                'remise_value'         => (float)($row['d_remise_value'] ?? 0),
+                'taxe_specifique_type' => (string)($row['d_ts_type'] ?? '%'),
+                'taxe_specifique_value'=> (float)($row['d_ts_value'] ?? 0),
+                'tax_rate'             => (float)($row['produit_tax_rate'] ?? 0),
             ];
-            $totalExtras += $montant;
         }
+        // Regroupement des hotel_extras créés via le picker (source 2).
+        // Pour les lignes avec vente_id IS NULL, on les apparie en un seul
+        // "groupe picker" par date (granularité à la journée). Avec les
+        // snapshots TS/TVA/remise de la migration 2026_10_18, on n'a plus
+        // besoin de parser la description : on lit directement les colonnes
+        // produit_id, quantite, prix_unitaire, tax_rate, taxe_specifique_*.
+        // Fallback sur parsing de la description UNIQUEMENT pour les lignes
+        // legacy où produit_id est NULL.
+        foreach ($hotelExtrasRows as $row) {
+            $dateKey = substr((string)$row['date_consommation'], 0, 10);
+            $vid = (int)($row['vente_id'] ?? 0);
+            $key = $vid > 0 ? (string)$vid : ('picker-' . $dateKey . '-' . $row['id']);
+            if (!isset($extrasParVente[$key])) {
+                $extrasParVente[$key] = [
+                    'vente_id'    => $vid > 0 ? $vid : null,
+                    'numero'      => $vid > 0 ? '' : 'Extras caisse',
+                    'date'        => (string)$row['date_consommation'],
+                    'montant'     => 0.0,
+                    'description' => $vid > 0
+                        ? ('Extra #' . $vid)
+                        : 'Extras saisis depuis la caisse',
+                    'produits'    => [],
+                ];
+            }
+            // Snapshot : qte, prix_unitaire, TS, remise, taux TVA
+            $produitId    = (int)($row['produit_id'] ?? 0);
+            $qty          = isset($row['quantite']) && $row['quantite'] !== null ? (float)$row['quantite'] : null;
+            $prixUnit     = isset($row['prix_unitaire']) && $row['prix_unitaire'] !== null ? (float)$row['prix_unitaire'] : null;
+            $tsType       = $row['taxe_specifique_type'] ?? '%';
+            $tsValue      = (float)($row['taxe_specifique_value'] ?? 0);
+            $rType        = $row['remise_type'] ?? '%';
+            $rValue       = (float)($row['remise_value'] ?? 0);
+            $taxRate      = (float)($row['tax_rate'] ?? $row['produit_tax_rate_db'] ?? 0);
+            $nom          = (string)($row['produit_nom'] ?? '');
+            if ($nom === '') {
+                // Legacy : on retombe sur le parsing de la description
+                $desc = (string)$row['description'];
+                $cleanDesc = preg_replace('/^Ch\.\s*\S+\s*[—–-]\s*/u', '', $desc) ?: $desc;
+                $qtyParsed = null;
+                if (preg_match('/^(\d+)\s*[x×]\s*(.+)$/u', $cleanDesc, $m)) {
+                    $qtyParsed = (int)$m[1];
+                    $nom = trim($m[2]);
+                }
+                if ($qty === null) $qty = (float)($qtyParsed ?? 1);
+                if ($prixUnit === null) $prixUnit = (float)$row['montant'] / max(1, (float)($qty ?? 1));
+            } else {
+                if ($qty === null) $qty = 1;
+                if ($prixUnit === null) $prixUnit = (float)$row['montant'] / max(1, (float)$qty);
+            }
+
+            $extrasParVente[$key]['produits'][] = [
+                'produit_id'           => $produitId,
+                'nom'                  => $nom,
+                'quantite'             => $qty,
+                'prix_unitaire'        => $prixUnit,
+                'remise_type'          => $rType,
+                'remise_value'         => $rValue,
+                'taxe_specifique_type' => $tsType,
+                'taxe_specifique_value'=> $tsValue,
+                'tax_rate'             => $taxRate,
+            ];
+            $extrasParVente[$key]['montant'] += (float)$row['montant'];
+        }
+        // Tri chronologique pour l'affichage
+        uasort($extrasParVente, function ($a, $b) {
+            return strcmp((string)$a['date'], (string)$b['date']);
+        });
+        $extras = array_values($extrasParVente);
+        $totalExtras = array_sum(array_column($extras, 'montant'));
 
         // Acomptes
         $acomptesRows = $db->fetchAll(
@@ -168,7 +376,11 @@ class HotelFactureController extends Controller
         $acompteTotal = array_sum(array_column($acomptes, 'montant'));
 
         // Totaux globaux
-        $totalBrut     = round($totalNuitsApresRemise + $totalExtras, 2);
+        // total_final intègre les nuits (avec TS) + extras.
+        // Note : avec la TS, l'ancien "total_ht" (= nuitsAprèsRemise) reste
+        // exposé tel quel ; le nouveau `total_avec_ts` est la somme à
+        // facturer côté "nuits". L'UI additionne : nuits.total_avec_ts + extras.
+        $totalBrut     = round($totalNuitsAvecTS + $totalExtras, 2);
         $tvaMontant    = 0.0; // Type B : TVA non collectée
         $totalFinal    = $totalBrut;
         $soldeDu       = round($totalFinal - $acompteTotal, 2);
@@ -199,11 +411,15 @@ class HotelFactureController extends Controller
                 ],
             ],
             'nuits' => [
-                'total_ht'  => $totalNuitsApresRemise,
-                'remise_pct'=> $remisePct,
-                'remise_montant' => $remiseNuits,
-                'lignes'    => $nuits,
-                'nb_nuits'  => $nbNuits,
+                'total_ht'           => $totalNuitsApresRemise,
+                'taxe_specifique_total' => $totalTaxeSpecifique,
+                'total_avec_ts'      => $totalNuitsAvecTS,
+                'remise_pct'         => $remisePct,
+                'remise_montant'     => $remiseNuits,
+                'lignes'             => $nuits,
+                'nb_nuits'           => $nbNuits,
+                'taxe_specifique_type'  => $tsType,
+                'taxe_specifique_value' => (float)$tsValue,
             ],
             'extras' => [
                 'total_ht'  => round($totalExtras, 2),
@@ -291,6 +507,21 @@ class HotelFactureController extends Controller
         $remiseMontantNuits = round($totalNuitsBrut * $remisePct / 100, 2);
         $totalNuitsNet = round($totalNuitsBrut - $remiseMontantNuits, 2);
 
+        // Taxe spécifique chambre (Sprint 6 — 2026-10-18) :
+        // on lit explicitement la TS de la chambre (pas stockée sur le séjour,
+        // c'est une propriété de la chambre) et on calcule le total une fois
+        // pour toutes les nuits. Aligné sur computeTaxeSpecifiqueUnit() utilisé
+        // par preview() — voir la note dans cette méthode.
+        $chRow = $db->fetch(
+            'SELECT taxe_specifique_type, taxe_specifique_value
+             FROM hotel_chambres WHERE id = :cid',
+            [':cid' => (int)$sejour['chambre_id']]
+        );
+        $chTsType  = $chRow['taxe_specifique_type']  ?? '%';
+        $chTsValue = $chRow['taxe_specifique_value'] ?? 0;
+        $unitTs = $this->computeTaxeSpecifiqueUnit($chTsType, $chTsValue, $prixParNuit);
+        $totalTaxeSpecifique = round($unitTs * $nbNuits, 2);
+
         // Extras saisis en caisse
         $extrasRows = $db->fetchAll(
             "SELECT id, total FROM ventes WHERE sejour_id = :sid AND invoice_type = 'EX'",
@@ -315,7 +546,9 @@ class HotelFactureController extends Controller
         }
 
         $totalExtras = round($totalExtrasCaisse + $totalExtrasManuels, 2);
-        $totalFinal = round($totalNuitsNet + $totalExtras, 2);
+        // Total = nuits (après remise) + TS chambre + extras. La TS n'est PAS
+        // affectée par la remise pct (cf. commentaire identique dans preview()).
+        $totalFinal = round($totalNuitsNet + $totalTaxeSpecifique + $totalExtras, 2);
         $tvaMontant = 0.0; // type B
 
         // Acomptes
@@ -406,6 +639,33 @@ class HotelFactureController extends Controller
                 'counters'   => $dgiData['counters'] ?? null,
                 'nim'        => $dgiData['nim'] ?? null,
             ]);
+
+            // 1bis. INSERT details_vente — une ligne par nuitée (Sprint 6 — 2026-10-18).
+            //
+            // Objectif : la TS chambre est portée au niveau détail, comme la TS
+            // produit l'est déjà sur la caisse POS (cf. app.js calculateItemTTC).
+            // C'est ce qui permet à la vue facture.php (calculant $specificTaxUnit
+            // par ligne, voir app/views/facture.php:118) d'afficher la TS chambre
+            // automatiquement sur la facture imprimée.
+            //
+            // Pour une chambre, `produit_id` est NULL (pas de produit stocké) :
+            // le libellé "Nuitée chambre N°X — JJ/MM" est généré côté vue via
+            // COALESCE / fallback. Si les triggers FK de details_vente.produit_id
+            // n'acceptent pas NULL, on retombe sur produit_id=0 (sentinelle).
+            // On évite de gérer la remise ici — remise gérée au niveau séjour.
+            $saleDetailModel = new \App\Models\SaleDetail();
+            for ($i = 0; $i < $nbNuits; $i++) {
+                $saleDetailModel->create([
+                    'vente_id'             => $saleId,
+                    'produit_id'           => null,
+                    'quantite'             => 1,
+                    'prix'                 => $prixParNuit,
+                    'remise_type'          => '%',
+                    'remise_value'         => 0,
+                    'taxe_specifique_type' => $chTsType,
+                    'taxe_specifique_value' => $chTsValue,
+                ]);
+            }
 
             // 2. INSERT hotel_factures
             $stmt = $pdo->prepare(

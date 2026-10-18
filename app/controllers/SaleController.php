@@ -62,35 +62,44 @@ class SaleController extends Controller
                 $shouldNegate = $typeFacture !== 'FA' && $typeFacture !== 'EA';
 
                 // ── Pont hôtel : imputation d'un extra à un séjour ─────────────
-                // Si la caisse envoie sejour_id, on force invoice_type='EX' (extra
-                // hôtelier) et on vérifie que le séjour existe et n'est pas clôturé.
-                // On récupère aussi le client_id lié au guest si non fourni.
-                $sejourId = isset($data['sejour_id']) && $data['sejour_id'] !== '' ? (int)$data['sejour_id'] : null;
-                if ($sejourId !== null) {
-                    $sejour = \App\Core\Database::getInstance()->fetch(
-                        'SELECT id, guest_id, statut, date_arrivee FROM hotel_sejours WHERE id = :id',
-                        [':id' => $sejourId]
-                    );
-                    if (!$sejour) {
-                        $this->status(422)->json(['error' => 'Séjour introuvable']);
-                        return;
-                    }
-                    if (in_array($sejour['statut'], ['termine', 'annule'], true)) {
-                        $this->status(422)->json(['error' => 'Séjour clôturé — impossible d\'ajouter un extra']);
-                        return;
-                    }
-                    // Forcer le type EX (extra hôtel)
-                    $typeFacture = 'EX';
-                    // Si pas de client POS fourni, on remonte au client lié au guest
-                    // (la facture extra sera imputée au même client que la facture finale)
-                    if (!$clientId) {
-                        $guestRow = \App\Core\Database::getInstance()->fetch(
-                            'SELECT client_id FROM hotel_guests WHERE id = :gid',
-                            [':gid' => (int)$sejour['guest_id']]
-                        );
-                        $clientId = $guestRow && !empty($guestRow['client_id']) ? (int)$guestRow['client_id'] : null;
-                    }
-                }
+                                // Si la caisse envoie sejour_id, on force invoice_type='EX' (extra
+                                // hôtelier) et on vérifie que le séjour existe et n'est pas clôturé.
+                                // On récupère aussi le client_id lié au guest si non fourni.
+                                // La ligne correspondante dans hotel_extras est créée après l'INSERT
+                                // de la vente (voir bloc "Pont hôtel — INSERT hotel_extras" plus bas),
+                                // dans la même transaction pour rester atomique.
+                                $sejourId = isset($data['sejour_id']) && $data['sejour_id'] !== '' ? (int)$data['sejour_id'] : null;
+                                $sejourChambreNumero = null; // pour la description human-friendly de l'extra
+                                if ($sejourId !== null) {
+                                    $sejour = \App\Core\Database::getInstance()->fetch(
+                                        'SELECT s.id, s.guest_id, s.statut, s.date_arrivee, c.numero AS chambre_numero
+                                         FROM hotel_sejours s
+                                         INNER JOIN hotel_chambres c ON c.id = s.chambre_id
+                                         WHERE s.id = :id',
+                                        [':id' => $sejourId]
+                                    );
+                                    if (!$sejour) {
+                                        $this->status(422)->json(['error' => 'Séjour introuvable']);
+                                        return;
+                                    }
+                                    if (in_array($sejour['statut'], ['termine', 'annule'], true)) {
+                                        $this->status(422)->json(['error' => 'Séjour clôturé — impossible d\'ajouter un extra']);
+                                        return;
+                                    }
+                                    // Forcer le type EX (extra hôtel) — pas de DGI à émettre (pas
+                                    // d'encaissement, le client paiera au check-out).
+                                    $typeFacture = 'EX';
+                                    $sejourChambreNumero = (string)($sejour['chambre_numero'] ?? '');
+                                    // Si pas de client POS fourni, on remonte au client lié au guest
+                                    // (la facture extra sera imputée au même client que la facture finale)
+                                    if (!$clientId) {
+                                        $guestRow = \App\Core\Database::getInstance()->fetch(
+                                            'SELECT client_id FROM hotel_guests WHERE id = :gid',
+                                            [':gid' => (int)$sejour['guest_id']]
+                                        );
+                                        $clientId = $guestRow && !empty($guestRow['client_id']) ? (int)$guestRow['client_id'] : null;
+                                    }
+                                }
 
                 try {
             $db = \App\Core\Database::getInstance()->getConnection();
@@ -198,39 +207,91 @@ class SaleController extends Controller
                     }
 
                     // Créer le détail avec la quantité (négative ou positive selon le type)
-                    $detailModel->create([
-                        'vente_id'   => $saleId,
-                        'produit_id' => $produitId,
-                        'quantite'   => $quantite,
-                        'prix'       => $item['prix'],
-                        'remise_type' => $item['remise_type'] ?? '%',
-                        'remise_value' => $item['remise_value'] ?? 0,
-                        'taxe_specifique_type' => $item['taxe_specifique_type'] ?? '%',
-                        'taxe_specifique_value' => $item['taxe_specifique_value'] ?? 0,
-                    ]);
-                }
-            }
+                                        $detailModel->create([
+                                            'vente_id'   => $saleId,
+                                            'produit_id' => $produitId,
+                                            'quantite'   => $quantite,
+                                            'prix'       => $item['prix'],
+                                            'remise_type' => $item['remise_type'] ?? '%',
+                                            'remise_value' => $item['remise_value'] ?? 0,
+                                            'taxe_specifique_type' => $item['taxe_specifique_type'] ?? '%',
+                                            'taxe_specifique_value' => $item['taxe_specifique_value'] ?? 0,
+                                        ]);
+                                    }
+                                }
 
-            $db->commit();
+                        // ── Pont hôtel — INSERT hotel_extras ─────────────────────────────
+                        // Si la vente a été rattachée à un séjour (invoice_type='EX'), on crée
+                        // ici la ligne correspondante dans hotel_extras. C'est ce qui permet
+                        // à la fiche séjour et à la facturation hôtel d'agréger le montant de
+                        // cet extra. On reste dans la même transaction pour que tout soit
+                        // atomique : si l'INSERT échoue, on rollback la vente aussi.
+                        if ($sejourId !== null) {
+                            // Description human-friendly : "Ch. 103 — 2× Coca-Cola, 1× Bière"
+                            // Si on a un nom de produit via la jointure, on le récupère ;
+                            // sinon on retombe sur la désignation générique "Produit #X".
+                            $parts = [];
+                            foreach ($data['articles'] as $item) {
+                                $pid = (int)($item['produit_id'] ?? 0);
+                                $qty = (float)($item['quantite'] ?? 0);
+                                if ($pid <= 0 || $qty <= 0) {
+                                    continue;
+                                }
+                                $nomRow = \App\Core\Database::getInstance()->fetch(
+                                    'SELECT nom FROM produits WHERE id = :id',
+                                    [':id' => $pid]
+                                );
+                                $nom = $nomRow['nom'] ?? ('Produit #' . $pid);
+                                $parts[] = sprintf('%s× %s', (int)$qty, $nom);
+                            }
+                            $descParts = $parts ?: ['Consommation'];
+                            $chambreLabel = $sejourChambreNumero !== null && $sejourChambreNumero !== ''
+                                ? 'Ch. ' . $sejourChambreNumero . ' — '
+                                : '';
+                            $extraDescription = $chambreLabel . implode(', ', $descParts);
 
-            $this->logAudit('create', 'vente', $saleId, [
-                'numero_facture' => $invoiceNum,
-                'total' => $data['total'],
-                'type_facture' => $typeFacture,
-            ]);
+                            $stmtExtra = $db->prepare(
+                                'INSERT INTO hotel_extras
+                                    (sejour_id, vente_id, description, montant, date_consommation, user_id)
+                                 VALUES (:sid, :vid, :desc, :montant, NOW(), :uid)'
+                            );
+                            $stmtExtra->execute([
+                                ':sid'    => $sejourId,
+                                ':vid'    => $saleId,
+                                ':desc'   => $extraDescription,
+                                // Le montant HT de l'extra correspond au total de la vente
+                                // (pas le TTC : c'est ce qui agrège proprement dans la note).
+                                // On utilise la valeur absolue pour rester compatible avec
+                                // d'éventuelles négations futures (avoirs d'extra).
+                                ':montant'=> abs((float)$data['total']),
+                                ':uid'    => (int)$_SESSION['user_id'],
+                            ]);
+                        }
 
-            $this->json([
-                'success' => true,
-                'numero_facture' => $invoiceNum,
-                'vente_id' => $saleId,
-                'type_facture' => $typeFacture,
-                'should_negate' => $shouldNegate,
-            ]);
-        } catch (\Exception $e) {
-            $db->rollBack();
-            $this->status(500)->json(['error' => 'Erreur lors de la vente: ' . $e->getMessage()]);
-        }
-    }
+                        $db->commit();
+
+                                    $this->logAudit('create', 'vente', $saleId, [
+                                        'numero_facture' => $invoiceNum,
+                                        'total' => $data['total'],
+                                        'type_facture' => $typeFacture,
+                                        'sejour_id' => $sejourId,
+                                    ]);
+
+                                    $this->json([
+                                        'success' => true,
+                                        'numero_facture' => $invoiceNum,
+                                        'vente_id' => $saleId,
+                                        'type_facture' => $typeFacture,
+                                        'should_negate' => $shouldNegate,
+                                        // Champs spécifiques au pont hôtel (null si pas d'imputation)
+                                        'sejour_id' => $sejourId,
+                                        'extra_imputed' => $sejourId !== null,
+                                    ]);
+                                } catch (\Exception $e) {
+                                            $db->rollBack();
+                                            $this->status(500)->json(['error' => 'Erreur lors de la vente: ' . $e->getMessage()]);
+                                        }
+                                    }
 
     public function delete($id)
     {

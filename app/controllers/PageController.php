@@ -3,6 +3,7 @@
 namespace App\Controllers;
 
 //use App\Models\Category;
+use App\Models\HotelReservation;
 use App\Models\Notification;
 use App\Models\Product;
 use App\Models\ProductBatch;
@@ -424,14 +425,37 @@ class PageController extends Controller
     }
 
     /**
-     * Calendrier manager — vue jour/semaine/mois des séjours.
+     * Calendrier manager — vue semaine des séjours.
      * Réservé aux managers (et super_admin). Réceptionniste et gouvernante
      * n'y ont pas accès — ils utilisent leurs pages dédiées.
+     *
+     * Query : ?from=YYYY-MM-DD (jour de départ de la semaine affichée).
+     *         Par défaut = aujourd'hui.
+     * Le rendu serveur hydrate la première vue (chambres + séjours qui
+     * chevauchent la semaine) ; le JS rafraîchi ensuite toutes les 60 s
+     * en fetchant /api/hotel/calendrier?from=...
      */
     public function hotelCalendrier()
     {
         $this->requireHotelAccess(['super_admin', 'manager']);
-        $this->render('hotel-calendrier', []);
+
+        // Plage affichée : [from, from+6] (7 jours). Default = aujourd'hui.
+        $from = isset($_GET['from']) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $_GET['from'])
+            ? $_GET['from']
+            : date('Y-m-d');
+        // Borne supérieure inclusive : 7 jours = indices 0..6
+        $to   = date('Y-m-d', strtotime($from . ' +6 days'));
+
+        $resModel   = new HotelReservation();
+        $chambres   = $resModel->allRooms();                          // 10 simples + 10 doubles triées
+        $sejours    = $resModel->sejoursSurPlage($from, $to);         // séjours qui chevauchent la semaine
+
+        $this->render('hotel-calendrier', [
+            'calFrom'    => $from,
+            'calTo'      => $to,
+            'calChambres'=> $chambres,
+            'calSejours' => $sejours,
+        ]);
     }
 
     /**
@@ -568,6 +592,42 @@ class PageController extends Controller
         echo json_encode([
             'success' => $ok,
             'message' => $ok ? 'Rôle hôtel mis à jour' : 'Refusé (hors scope ou rôle invalide)',
+        ]);
+    }
+
+    /**
+     * Endpoint JSON pour la page /hotel/calendrier.
+     * Renvoie les chambres + séjours qui chevauchent la semaine
+     * débutant à ?from=YYYY-MM-DD (par défaut : aujourd'hui).
+     *
+     * Accès : manager + super_admin (réceptionniste et gouvernante n'ont pas
+     * accès au calendrier global — ils utilisent Réception / Étages).
+     */
+    public function apiHotelCalendrier()
+    {
+        $hr = $this->resolveHotelRole();
+        if (!in_array($hr, ['super_admin', 'manager'], true)) {
+            header('HTTP/1.1 403 Forbidden');
+            echo json_encode(['success' => false, 'message' => 'Accès refusé']);
+            return;
+        }
+
+        $from = isset($_GET['from']) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $_GET['from'])
+            ? $_GET['from']
+            : date('Y-m-d');
+        $to = date('Y-m-d', strtotime($from . ' +6 days'));
+
+        $resModel = new HotelReservation();
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode([
+            'success'  => true,
+            'data'     => [
+                'from'      => $from,
+                'to'        => $to,
+                'chambres'  => $resModel->allRooms(),
+                'sejours'   => $resModel->sejoursSurPlage($from, $to),
+            ],
+            'server_time' => date('Y-m-d H:i:s'),
         ]);
     }
 
