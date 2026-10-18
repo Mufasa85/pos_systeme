@@ -88,6 +88,16 @@ class HotelChambreController extends Controller
                 isset($input['notes']) ? (string)$input['notes'] : null,
                 isset($input['etat']) ? (string)$input['etat'] : 'disponible'
             );
+            // La TS n'est pas passée à create() : on l'écrit via update() juste après,
+            // pour rester rétro-compatible avec la signature create() existante.
+            $needsTsUpdate = array_key_exists('taxe_specifique_type', $input)
+                || array_key_exists('taxe_specifique_value', $input);
+            if ($needsTsUpdate) {
+                (new HotelChambre())->update($id, [
+                    'taxe_specifique_type' => isset($input['taxe_specifique_type']) ? (string)$input['taxe_specifique_type'] : '%',
+                    'taxe_specifique_value' => isset($input['taxe_specifique_value']) ? (float)$input['taxe_specifique_value'] : 0,
+                ]);
+            }
         } catch (\RuntimeException $e) {
             $this->jsonOut(['success' => false, 'message' => $e->getMessage()], 409);
         }
