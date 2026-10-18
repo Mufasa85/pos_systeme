@@ -15,6 +15,13 @@ namespace App\Models;
  *    Note : l'état `occupée` n'existe pas dans l'enum actuel — c'est
  *    l'existence d'un séjour `en_cours` sur la chambre qui la marque
  *    occupée. Vu depuis la page Réception / Réservations.
+ *
+ * Taxe spécifique (Sprint 6 — 2026-10-18) :
+ *  - `taxe_specifique_type` ∈ {'%','CDF'}  — calquée sur `produits`
+ *  - `taxe_specifique_value`              — valeur de la TS (par nuitée)
+ *  La validation des bornes (% ∈ [0,100] / CDF ∈ [0, prix]) est faite
+ *  côté front (cf. hotel-chambres.js) pour rester cohérent avec le
+ *  pattern produit (posCart.saveProduct).
  */
 class HotelChambre
 {
@@ -27,7 +34,12 @@ class HotelChambre
 
     public function all(): array
     {
-        return $this->db->fetchAll('SELECT id, numero, type, prix_base, etat, notes FROM hotel_chambres ORDER BY numero ASC');
+        return $this->db->fetchAll(
+            'SELECT id, numero, type, prix_base, etat, notes,
+                    taxe_specifique_type, taxe_specifique_value
+             FROM hotel_chambres
+             ORDER BY numero ASC'
+        );
     }
 
     public function findById(int $id)
@@ -59,10 +71,24 @@ class HotelChambre
     {
         $fields = [];
         $params = [':id' => $id];
-        foreach (['numero', 'type', 'prix_base', 'etat', 'notes'] as $k) {
+        foreach (['numero', 'type', 'prix_base', 'etat', 'notes', 'taxe_specifique_type', 'taxe_specifique_value'] as $k) {
             if (array_key_exists($k, $data)) {
                 if ($k === 'type') $this->validateType((string)$data[$k]);
                 if ($k === 'etat') $this->validateEtat((string)$data[$k]);
+                if ($k === 'taxe_specifique_type') {
+                    $v = (string)$data[$k];
+                    if (!in_array($v, ['%', 'CDF'], true)) {
+                        throw new \RuntimeException("Type de taxe spécifique invalide : $v (attendu : %, CDF)");
+                    }
+                    $data[$k] = $v;
+                }
+                if ($k === 'taxe_specifique_value') {
+                    $v = (float)$data[$k];
+                    if ($v < 0) {
+                        throw new \RuntimeException("La valeur de taxe spécifique doit être >= 0.");
+                    }
+                    $data[$k] = $v;
+                }
                 $fields[] = "$k = :$k";
                 $params[":$k"] = $data[$k];
             }
