@@ -763,6 +763,12 @@ Router::get('/api/recharge-access', function () {
         'success'          => true,
         'allowed'          => $accessService->canAccess(),
         'payroll_allowed'  => $accessService->canAccessPayroll(),
+        // Sprint 7 — 2026-10-19 : ajout du flag `hotel_allowed` pour le
+        // module hôtellerie. Le front utilise ce flag pour cacher/afficher
+        // les liens hôtel dans la sidebar. Si l'API n'expose pas le flag
+        // (compat ascendante), canAccessHotel() retourne true par défaut
+        // et `hotel_allowed` est omis de la réponse.
+        'hotel_allowed'    => $accessService->canAccessHotel(),
     ]);
 });
 
