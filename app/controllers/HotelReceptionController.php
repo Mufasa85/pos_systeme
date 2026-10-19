@@ -32,6 +32,8 @@ class HotelReceptionController extends Controller
 
     private function guardStaff(): bool
     {
+        // Sprint 7 — 2026-10-19 : check API avant check rôle.
+        if (!$this->requireFeatureApiAccess('hotel')) return false;
         $appRole   = $_SESSION['role'] ?? '';
         $hotelRole = $_SESSION['hotel_role'] ?? null;
         if ($appRole === 'super_admin') return true;
@@ -42,6 +44,8 @@ class HotelReceptionController extends Controller
 
     private function guardManager(): bool
     {
+        // Sprint 7 — 2026-10-19 : check API avant check rôle.
+        if (!$this->requireFeatureApiAccess('hotel')) return false;
         $appRole   = $_SESSION['role'] ?? '';
         $hotelRole = $_SESSION['hotel_role'] ?? null;
         if ($appRole === 'super_admin') return true;
@@ -53,9 +57,11 @@ class HotelReceptionController extends Controller
     /**
      * Droit d'émettre des factures hôtel (manager + réceptionniste).
      * La gouvernante ne peut PAS émettre, elle est en lecture seule sur la facturation.
+     * Sprint 7 — 2026-10-19 : check API avant check rôle.
      */
     private function guardWriteFacture(): bool
     {
+        if (!$this->requireFeatureApiAccess('hotel')) return false;
         $appRole   = $_SESSION['role'] ?? '';
         $hotelRole = $_SESSION['hotel_role'] ?? null;
         if ($appRole === 'super_admin') return true;

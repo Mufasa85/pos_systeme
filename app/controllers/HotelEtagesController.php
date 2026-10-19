@@ -33,9 +33,11 @@ class HotelEtagesController extends Controller
     /**
      * Droit minimum pour consulter la page.
      * Toute personne ayant un rôle hôtel peut voir.
+     * Sprint 7 — 2026-10-19 : check API hôtel avant check rôle.
      */
     private function guardHotel(): bool
     {
+        if (!$this->requireFeatureApiAccess('hotel')) return false;
         $appRole   = $_SESSION['role'] ?? '';
         $hotelRole = $_SESSION['hotel_role'] ?? null;
         if ($appRole === 'super_admin') return true;

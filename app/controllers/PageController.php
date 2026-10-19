@@ -107,7 +107,9 @@ class PageController extends Controller
             $data['unreadNotifications'] = 0;
         }
 
-        // Pré-charger le cache d'accès aux recharges pour la sidebar
+        // Pré-charger le cache d'accès aux recharges pour la sidebar.
+        // Le warmup charge TOUS les flags (snelregideso, paie, hotel) en
+        // une seule requête API, donc on l'appelle une seule fois ici.
         try {
             $rechargeAccessService = new \App\Services\RechargeAccessService();
             $rechargeAccessService->warmupCache();
@@ -379,6 +381,7 @@ class PageController extends Controller
      */
     public function hotel()
     {
+        $this->requireHotelApiAccess();
         $hr = $this->resolveHotelRole();
         $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
         $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
@@ -400,6 +403,7 @@ class PageController extends Controller
      */
     public function hotelReception()
     {
+        $this->requireHotelApiAccess();
         $this->requireHotelAccess(['super_admin', 'admin', 'manager', 'receptionniste']);
         $this->render('hotel-reception', []);
     }
@@ -410,6 +414,7 @@ class PageController extends Controller
      */
     public function hotelEtages()
     {
+        $this->requireHotelApiAccess();
         $this->requireHotelAccess(['super_admin', 'admin', 'manager', 'gouvernante', 'receptionniste']);
         $this->render('hotel-etages', []);
     }
@@ -420,6 +425,7 @@ class PageController extends Controller
      */
     public function hotelDashboard()
     {
+        $this->requireHotelApiAccess();
         $this->requireHotelAccess(['super_admin', 'admin', 'manager']);
         $this->render('hotel-tableau-bord', []);
     }
@@ -437,6 +443,7 @@ class PageController extends Controller
      */
     public function hotelCalendrier()
     {
+        $this->requireHotelApiAccess();
         $this->requireHotelAccess(['super_admin', 'manager']);
 
         // Plage affichée : [from, from+6] (7 jours). Default = aujourd'hui.
@@ -465,6 +472,7 @@ class PageController extends Controller
      */
     public function hotelChambres()
     {
+        $this->requireHotelApiAccess();
         $this->requireHotelAccess(['super_admin', 'manager', 'receptionniste', 'gouvernante']);
         $this->render('hotel-chambres', []);
     }
@@ -476,6 +484,7 @@ class PageController extends Controller
      */
     public function hotelReservations()
     {
+        $this->requireHotelApiAccess();
         $appRole  = $_SESSION['role'] ?? '';
         $hotelRole = $_SESSION['hotel_role'] ?? null;
         $allowed =
@@ -499,6 +508,7 @@ class PageController extends Controller
      */
     public function hotelGuests()
     {
+        $this->requireHotelApiAccess();
         $appRole  = $_SESSION['role'] ?? '';
         $hotelRole = $_SESSION['hotel_role'] ?? null;
         $allowed =
@@ -523,6 +533,7 @@ class PageController extends Controller
      */
     public function hotelRoles()
     {
+        $this->requireHotelApiAccess();
         $this->requireHotelAccess(['super_admin', 'admin', 'manager']);
         $userModel = new User();
         $sessionRole = $_SESSION['role'] ?? '';
@@ -670,6 +681,32 @@ class PageController extends Controller
     }
 
     /**
+     * Sprint 7 — 2026-10-19 : vérifie l'accès au module hôtel via l'API
+     * externe (flag `hotel` retourné par /dgi/option_client/feedback.php).
+     * Pattern aligné sur /recharges et /payroll : si l'API refuse, on
+     * affiche la page 403.php (au lieu de rediriger vers /dashboard, comme
+     * pour requireHotelAccess qui ne dépend que du rôle métier local).
+     *
+     * NB : le contrôle d'accès API (canAccessHotel) est INDÉPENDANT du
+     * contrôle de rôle (requireHotelAccess) — les deux s'enchaînent :
+     *   1. D'abord l'API externe (ce helper) : "avez-vous souscrit au
+     *      module hôtel ?"
+     *   2. Puis le rôle métier (requireHotelAccess) : "votre rôle permet-il
+     *      d'accéder à CETTE page hôtel ?"
+     * Si les deux checks passent, l'accès est accordé. Si l'un des deux
+     * échoue, l'accès est refusé (403 API, 302 → /dashboard pour le rôle).
+     */
+    private function requireHotelApiAccess()
+    {
+        $accessService = new \App\Services\RechargeAccessService();
+        if (!$accessService->canAccessHotel()) {
+            http_response_code(403);
+            require_once dirname(__DIR__) . DIRECTORY_SEPARATOR . 'views/403.php';
+            exit;
+        }
+    }
+
+    /**
      * Liste toutes les boutiques (super_admin uniquement).
      */
     private function listAllShops(): array
@@ -710,6 +747,7 @@ class PageController extends Controller
      */
     public function hotelFacturation()
     {
+        $this->requireHotelApiAccess();
         $this->render('hotel-facturation', []);
     }
 

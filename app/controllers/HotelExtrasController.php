@@ -46,6 +46,10 @@ class HotelExtrasController extends Controller
         if (!$this->requireAuth()) {
             return;
         }
+        // Sprint 7 — 2026-10-19 : check API hôtel avant traitement.
+        if (!$this->requireFeatureApiAccess('hotel')) {
+            return;
+        }
 
         // Réutilise la jointure existante chambres + séjour en_cours + guest
         // déjà servie à la page Réception — pas de duplication de SQL.
@@ -100,6 +104,10 @@ class HotelExtrasController extends Controller
     public function extrasFromCart($params = []): void
     {
         if (!$this->requireAuth()) {
+            return;
+        }
+        // Sprint 7 — 2026-10-19 : check API hôtel avant traitement.
+        if (!$this->requireFeatureApiAccess('hotel')) {
             return;
         }
         if (!$this->isShopActive()) {

@@ -35,6 +35,10 @@ class HotelChambreController extends Controller
      */
     private function guardRead(): bool
     {
+        // Sprint 7 — 2026-10-19 : d'abord le feature flag API (canAccessHotel),
+        // puis les rôles métier. Si l'API refuse, on retourne false et la
+        // méthode appelante renvoie un 403 via requireFeatureApiAccess.
+        if (!$this->requireFeatureApiAccess('hotel')) return false;
         $appRole = $_SESSION['role'] ?? '';
         $hotelRole = $_SESSION['hotel_role'] ?? null;
         if ($appRole === 'super_admin') return true;
@@ -45,6 +49,8 @@ class HotelChambreController extends Controller
 
     private function guardWrite(): bool
     {
+        // Idem guardRead : check API + check rôle.
+        if (!$this->requireFeatureApiAccess('hotel')) return false;
         $appRole = $_SESSION['role'] ?? '';
         $hotelRole = $_SESSION['hotel_role'] ?? null;
         if ($appRole === 'super_admin') return true;

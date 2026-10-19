@@ -32,9 +32,16 @@ class HotelReservationController extends Controller
     /**
      * Garde : seuls manager + réceptionniste + super_admin ont accès.
      * On lit le rôle app et le rôle hôtel en session.
+     * Sprint 7 — 2026-10-19 : on vérifie d'abord le feature flag API
+     * (canAccessHotel) avant les rôles métier. Si l'API refuse,
+     * requireFeatureApiAccess a déjà envoyé un 403 et exit() le flux.
      */
     private function guard(): void
     {
+        if (!$this->requireFeatureApiAccess('hotel')) {
+            // requireFeatureApiAccess a déjà envoyé le 403 + exit
+            return;
+        }
         $appRole  = $_SESSION['role'] ?? '';
         $hotelRole = $_SESSION['hotel_role'] ?? null;
         if ($appRole === 'super_admin') return;

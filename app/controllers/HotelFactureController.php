@@ -37,6 +37,8 @@ class HotelFactureController extends Controller
 
     private function guardRead(): bool
     {
+        // Sprint 7 — 2026-10-19 : check API avant check rôle.
+        if (!$this->requireFeatureApiAccess('hotel')) return false;
         $appRole   = $_SESSION['role'] ?? '';
         $hotelRole = $_SESSION['hotel_role'] ?? null;
         if ($appRole === 'super_admin') return true;
@@ -47,6 +49,8 @@ class HotelFactureController extends Controller
 
     private function guardWrite(): bool
     {
+        // Sprint 7 — 2026-10-19 : check API avant check rôle.
+        if (!$this->requireFeatureApiAccess('hotel')) return false;
         $appRole   = $_SESSION['role'] ?? '';
         $hotelRole = $_SESSION['hotel_role'] ?? null;
         if ($appRole === 'super_admin') return true;
@@ -738,8 +742,10 @@ class HotelFactureController extends Controller
             //
             // Pour une chambre, `produit_id` est NULL (pas de produit stocké) :
             // le libellé "Nuitée chambre N°X — JJ/MM" est généré côté vue via
-            // COALESCE / fallback. Si les triggers FK de details_vente.produit_id
-            // n'acceptent pas NULL, on retombe sur produit_id=0 (sentinelle).
+            // COALESCE / fallback (cf. app/views/facture.php:118). La colonne
+            // `details_vente.produit_id` a été rendue NULLABLE par la migration
+            // 2026_10_19_details_vente_nullable_produit_id.sql, alignée sur le
+            // pattern `hotel_extras.produit_id` (déjà nullable depuis Sprint 6).
             // On évite de gérer la remise ici — remise gérée au niveau séjour.
             $saleDetailModel = new \App\Models\SaleDetail();
             for ($i = 0; $i < $nbNuits; $i++) {
