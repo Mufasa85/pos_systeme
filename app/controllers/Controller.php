@@ -95,11 +95,41 @@ class Controller
 
     protected function requireSuperAdmin()
     {
-        if (!$this->requireAuth()) {
-            return false;
-        }
         if (!$this->isSuperAdmin()) {
             self::status(403)->json(['error' => 'Accès refusé — super_admin requis']);
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * Sprint 7 — 2026-10-19 : garde d'accès au feature flag de l'API OSAT
+     * pour les contrôleurs API (Hotel*, Recharges, etc.). Pattern aligné
+     * sur requireAuth() : retourne false + status 403 si l'accès est refusé.
+     *
+     * Usage typique dans un contrôleur API :
+     *   public function someAction(): void {
+     *       if (!$this->requireAuth() || !$this->requireFeatureApiAccess('hotel')) return;
+     *       // ... suite de la logique
+     *   }
+     *
+     * Flags supportés : 'snelregideso' (= canAccess), 'paie' (= canAccessPayroll),
+     * 'hotel' (= canAccessHotel).
+     */
+    protected function requireFeatureApiAccess(string $feature): bool
+    {
+        $service = new \App\Services\RechargeAccessService();
+        $allowed = match ($feature) {
+            'snelregideso' => $service->canAccess(),
+            'paie'         => $service->canAccessPayroll(),
+            'hotel'        => $service->canAccessHotel(),
+            default        => true, // feature inconnue → on autorise
+        };
+        if (!$allowed) {
+            self::status(403)->json([
+                'success' => false,
+                'error'   => "Accès refusé : le feature « {$feature} » n'est pas activé pour cette boutique.",
+            ]);
             return false;
         }
         return true;
