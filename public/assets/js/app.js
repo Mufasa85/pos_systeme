@@ -1013,6 +1013,7 @@ const posCart = {
                 store_email: STORE_INFO.email || '',
                 store_ice: STORE_INFO.ice,
                 store_isf: STORE_INFO.isf,
+                store_nid: STORE_INFO.nid || '',
                 store_rccm: STORE_INFO.rccm,
                 store_homologation: !!STORE_INFO.homologation,
                 seller_name: sellerName,

@@ -1182,26 +1182,74 @@
     var n = previewData.nuits;
     var e = previewData.extras;
     var articles = [];
+
+    // ── Nuits : une ligne par nuitée (cf. pattern app.js : "Nuit {date} - Chambre X").
+    //    Les nuits n'ont pas de TS produit, pas de remise et pas de TVA
+    //    (régime B hôtelier : TVA non collectée). On envoie tax_rate=0.
     (n.lignes || []).forEach(function(l) {
+      var prixNuit = parseFloat(l.prix) || 0;
       articles.push({
         name: 'Nuit ' + fmtDate(l.date) + ' — Chambre ' + (s.chambre.numero || ''),
         quantity: 1,
-        price: parseFloat(l.prix) || 0,
+        price: prixNuit,
         tax_rate: 0,
         tax_etiquette: 'B',
         prod_service: 'SER',
+        remise_type: '%',
+        remise_value: 0,
+        taxe_specifique_type: '%',
+        taxe_specifique_value: 0,
       });
     });
+
+    // ── Extras caisse : on décompose ligne par ligne + produit par produit
+    //    pour que la DGI puisse recalculer le TTC de chaque article via :
+    //      ttc = price * quantity - remise_value + taxe_specifique_value + TVA
+    //    On suit exactement le pattern de app.js (cf. posCart.validateWithDGI).
+    //    Les valeurs envoyées sont les valeurs CDF effectives (pas en %).
     (e.lignes || []).forEach(function(x) {
-      articles.push({
-        name: x.description || ('Extra #' + x.numero),
-        quantity: 1,
-        price: parseFloat(x.montant) || 0,
-        tax_rate: 0,
-        tax_etiquette: 'B',
-        prod_service: 'SER',
-      });
+      if (x.produits && x.produits.length > 0) {
+        x.produits.forEach(function(p) {
+          var prixUnit = parseFloat(p.prix_unitaire) || 0;
+          var qty      = parseFloat(p.quantite) || 1;
+          var rType    = p.remise_type || '%';
+          var rValRaw  = parseFloat(p.remise_value) || 0;
+          var rValue   = rType === 'CDF' ? rValRaw : prixUnit * (rValRaw / 100);
+          var tsType   = p.taxe_specifique_type || '%';
+          var tsValRaw = parseFloat(p.taxe_specifique_value) || 0;
+          var tsValue  = tsType === 'CDF' ? tsValRaw : prixUnit * (tsValRaw / 100);
+          articles.push({
+            name: (x.description ? (x.description + ' — ') : '') + (p.nom || 'Produit'),
+            quantity: qty,
+            price: prixUnit,
+            tax_rate: parseFloat(p.tax_rate) || 0,
+            tax_etiquette: 'B',
+            prod_service: 'SER',
+            remise_type: rType,
+            remise_value: rValue,
+            taxe_specifique_type: tsType,
+            taxe_specifique_value: tsValue,
+          });
+        });
+      } else {
+        // Ligne legacy : pas de détails produits, on envoie juste le montant
+        // comme un article simple (le calcul DGI sera cohérent).
+        articles.push({
+          name: x.description || ('Extra #' + x.numero),
+          quantity: 1,
+          price: parseFloat(x.montant) || 0,
+          tax_rate: 0,
+          tax_etiquette: 'B',
+          prod_service: 'SER',
+          remise_type: '%',
+          remise_value: 0,
+          taxe_specifique_type: '%',
+          taxe_specifique_value: 0,
+        });
+      }
     });
+
+    // ── Extras manuels : pas de détails produit, on envoie le libellé + montant.
     extrasManuels.forEach(function(x) {
       articles.push({
         name: x.description,
@@ -1210,9 +1258,41 @@
         tax_rate: 0,
         tax_etiquette: 'B',
         prod_service: 'SER',
+        remise_type: '%',
+        remise_value: 0,
+        taxe_specifique_type: '%',
+        taxe_specifique_value: 0,
       });
     });
-    var total = articles.reduce(function(acc, a) { return acc + (parseFloat(a.price) || 0) * (parseFloat(a.quantity) || 1); }, 0);
+
+    // ── Total TTC envoyé à la DGI : doit matcher son recalcul interne.
+    // La DGI calcule pour chaque article :
+    //   TTC_ligne = price × quantity - remise_value + taxe_specifique_value
+    //             + (price × quantity - remise_value) × tax_rate/100
+    //             + taxe_specifique_value × tax_rate/100
+    //   TTC_ligne = (price × quantity + taxe_specifique_value) × (1 + tax_rate/100)
+    //             - remise_value × (1 + tax_rate/100)
+    // On reproduit exactement ce calcul pour que sum(amount_articles) matche
+    // le calcul DGI (cf. pattern identique à posCart.calculateItemTTC dans
+    // app.js : lineHT = price*qty + TS + TVA_sur_TS, lineTTC = lineHT).
+    var total = articles.reduce(function(acc, a) {
+      var prixUnit = parseFloat(a.price) || 0;
+      var qty = parseFloat(a.quantity) || 1;
+      var tRate = parseFloat(a.tax_rate) || 0;
+      var remiseVal = parseFloat(a.remise_value) || 0;
+      var tsVal = parseFloat(a.taxe_specifique_value) || 0;
+      // HT net = price × qty − remise_value (la remise est toujours CDF ici)
+      var htNet = prixUnit * qty - remiseVal;
+      // TS unitaire déjà incluse dans tsVal (déjà calculée en CDF côté JS).
+      var lineHT = htNet + tsVal;
+      // TVA sur (HT net + TS) — pattern identique à app.js calculateItemTTC
+      var vat = lineHT * (tRate / 100);
+      // TTC = HT + TVA (régime B hôtel : TVA non collectée mais la DGI
+      // calcule quand même sa part théorique et compare à amount)
+      var ttcLigne = lineHT + vat;
+      return acc + ttcLigne;
+    }, 0);
+
     var sellerName = (typeof CURRENT_USER !== 'undefined' && CURRENT_USER.fullName) ? CURRENT_USER.fullName : (STORE_INFO.name || '');
     var agentCode  = (typeof CURRENT_USER !== 'undefined' && CURRENT_USER.agentCode) ? CURRENT_USER.agentCode : '';
     var clientTypeCode = 'PP';
