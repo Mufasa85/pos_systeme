@@ -170,6 +170,24 @@ $page = 'hotel-chambres';
           </div>
         </div>
       </div>
+      <!--
+        Taxe de la chambre (Sprint 7 — 2026-10-19) : FK vers la table
+        `taxes`. Permet à la facturation hôtel de récupérer directement
+        le taux de TVA applicable (ex: B = 16% hôtellerie) via la
+        jointure séjours → chambres → taxes, sans fetch supplémentaire
+        côté front. Par défaut la liste est chargée via /api/taxes.
+        Si la table n'a pas encore de ligne, le select sera vide et la
+        chambre pourra être sauvegardée sans taxe (taxe_id=NULL).
+      -->
+      <div class="form-group">
+        <label for="room-taxe-id">Taxe applicable (régime TVA)</label>
+        <select id="room-taxe-id" name="taxe_id" class="form-input">
+          <option value="">— Aucune (par défaut) —</option>
+        </select>
+        <div style="font-size:.75rem;color:var(--muted);margin-top:4px;">
+          Le taux de cette taxe est envoyé à la DGI lors de la facturation hôtel (régime TVA type B hôtellerie = 16%).
+        </div>
+      </div>
     </form>
   </div>
   <footer class="hotel-drawer-foot">

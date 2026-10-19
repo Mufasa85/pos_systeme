@@ -104,7 +104,6 @@ $page = 'hotel-facturation';
         <div>
           <label for="modal-invoice-type" style="font-size: 0.7rem; font-weight: 600; color: #64748b; display: block; margin-bottom: 4px;">TYPE</label>
           <select id="modal-invoice-type" class="client-number-input" style="width: 100%; padding: 6px 8px; font-size: 0.8rem;">
-            <option value="HB">HB</option>
             <option value="FV">FV</option>
             <option value="EV">EV</option>
             <option value="FT">FT</option>
@@ -229,4 +228,4 @@ $page = 'hotel-facturation';
 
 <!-- app.js fournit STORE_INFO, _printReceiptContent, posCart.generateDGIQRCode, posCart.numberToFrenchWords, getPaymentTypeLabel -->
 <script src="/assets/js/app.js"></script>
-<script src="/assets/js/hotel-facturation.js?v=2"></script>
+<script src="/assets/js/hotel-facturation.js?v=6"></script>

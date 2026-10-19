@@ -575,16 +575,38 @@
   // calculé via computeSoldeCourant() ci-dessus, aligné sur `lineHT`
   // cumulé (= HT + TS + TVA_sur_TS, sans TVA sur prix car régime B
   // hôtelier TVA non collectée).
+  // Helper pour afficher le libellé TS (aligné sur posCart.getSpecificTaxLabel
+  // de app.js ligne ~874). Renvoie '[TS] X Fc' pour type='CDF' ou
+  // '[TS] X%' pour type='%', ou '' si valeur ≤ 0.
+  function getHotelSpecificTaxLabel(rawValue, type) {
+    var v = parseFloat(rawValue) || 0;
+    if (v <= 0) return '';
+    return (type === 'CDF')
+      ? ' <span style="color:#b45309;font-weight:700;">[TS]</span> ' + fmtFc(v) + ' '
+      : ' <span style="color:#b45309;font-weight:700;">[TS]</span> ' + v + '% ';
+  }
+
   function buildHotelReceiptItems(n, e, manuels) {
     var s = previewData.sejour;
     var chambreTaxLabel = (n && n.tax_etiquette) || 'B';
+    var chambreTsType   = (n && n.taxe_specifique_type) || '%';
+    // Pour la TS chambre, on a une seule valeur (par nuitée), appliquée à
+    // chaque ligne. Le libellé est généré via getHotelSpecificTaxLabel()
+    // (miroir de posCart.getSpecificTaxLabel() dans app.js).
+    var chambreTsLabel = getHotelSpecificTaxLabel(n && n.taxe_specifique_value, chambreTsType);
     var html = '<table class="receipt-table"><thead><tr><th>Article</th><th style="text-align:right">Total HT</th></tr></thead><tbody>';
     (n.lignes || []).forEach(function(l) {
       var prixNuit = parseFloat(l.prix) || 0;
       var tsUnit = parseFloat(l.ts_unitaire) || 0;
       // lineHT (app.js) = prix × qty + TS + TVA_sur_TS
       var lineHT = prixNuit * 1 + tsUnit + (tsUnit * (parseFloat(n.tax_rate) || 0) / 100);
-      html += '<tr class="item-name-row"><td colspan="2"><span class="item-name">Nuit ' + fmtDate(l.date) + ' — Chambre ' + escapeHtml(s.chambre.numero) + '<span class="item-tax-badge">' + chambreTaxLabel + '</span>[SER]</span></td></tr>'
+      // Libellé TS par ligne : on l'affiche dans le bloc "name" pour rester
+      // cohérent avec le pattern app.js (cf. renderCart() qui injecte
+      // specificTaxLabel dans le price <small>).
+      var tsLabelLine = tsUnit > 0
+        ? getHotelSpecificTaxLabel(tsUnit, chambreTsType)
+        : '';
+      html += '<tr class="item-name-row"><td colspan="2"><span class="item-name">Nuit ' + fmtDate(l.date) + ' — Chambre ' + escapeHtml(s.chambre.numero) + '<span class="item-tax-badge">' + chambreTaxLabel + '</span>[SER]<small style="color:#b45309;font-weight:600;">' + tsLabelLine + '</small></span></td></tr>'
             + '<tr class="item-detail-row"><td class="item-qty">1 × ' + fmtFc(prixNuit) + '</td><td class="item-total" style="text-align:right;">' + fmtFc(lineHT) + '</td></tr>';
     });
     (e.lignes || []).forEach(function(x) {
@@ -1016,12 +1038,14 @@
     // + extras manuels dans le bloc #hotel-ft-preview-extras.
     renderPreviewExtras();
 
-    // Type de facture par défaut : HB (Hotel Bill)
+    // Type de facture par défaut : FV (Facture de Vente).
+    // Sprint 7 — 2026-10-19 : HB a été retiré du select (cf. hotel-facturation.php)
+    // pour laisser l'utilisateur choisir parmi les types standards (FV/EV/FT/FA/EA/ET).
+    // Le type par défaut reste "FV" (Facture de Vente) — cohérent avec /caisse
+    // et /recharges.
     var invoiceTypeSelect = $('modal-invoice-type');
-    if (invoiceTypeSelect && (!invoiceTypeSelect.value || invoiceTypeSelect.value === 'FV')) {
-      // défaut : HB si boutique assujetie, FV sinon (cohérence avec /caisse)
-      var isAssujeti = !!(typeof STORE_INFO !== 'undefined' && STORE_INFO && STORE_INFO.homologation);
-      invoiceTypeSelect.value = isAssujeti ? 'HB' : 'FV';
+    if (invoiceTypeSelect && !invoiceTypeSelect.value) {
+      invoiceTypeSelect.value = 'FV';
     }
 
     // Références documents (vide au départ — max 8 cf. /caisse)
@@ -1098,10 +1122,13 @@
     if (errBox) { errBox.style.display = 'none'; errBox.textContent = ''; }
 
     // 1. Type de facture — on remplit la variable globale invoiceType
+    // Sprint 7 — 2026-10-19 : HB n'est plus une option (cf. hotel-facturation.php),
+    // on utilise le type sélectionné par l'utilisateur (FV/EV/FT/FA/EA/ET).
+    // Par défaut : FV (Facture de Vente). La logique d'assujétissement
+    // n'est plus nécessaire ici car le select est verrouillé sur FV si la
+    // boutique n'est pas assujettie (cf. lockInvoiceTypeIfNonAssujeti).
     var isAdmin = typeof CURRENT_USER !== 'undefined' && CURRENT_USER !== null && ['admin', 'super_admin'].indexOf(CURRENT_USER.role) >= 0;
-    var isAssujeti = !!(typeof STORE_INFO !== 'undefined' && STORE_INFO && STORE_INFO.homologation);
-    var invoiceType = $('modal-invoice-type') && isAdmin ? ($('modal-invoice-type').value || 'HB') : (isAssujeti ? 'HB' : 'FV');
-    if (!isAssujeti) invoiceType = 'FV';
+    var invoiceType = $('modal-invoice-type') && isAdmin ? ($('modal-invoice-type').value || 'FV') : 'FV';
     window.hotelInvoiceType = invoiceType;
 
     // REF FACTURE + EXONÉRATION (RAM/RRR/RAN/COR) — pattern /caisse
@@ -1205,7 +1232,16 @@
     var infoSection = buildHotelReceiptInfoSection();
     var totalsHtml  = buildHotelReceiptTotals(total);
     var paymentsHtml = buildHotelReceiptPayments();
-    var typeLabel = 'Facture Hôtel — Régime type B (HB)';
+    // Sprint 7 — 2026-10-19 : on utilise le type de facture sélectionné
+    // par l'utilisateur dans le modal "Informations Facture" (variable
+    // globale window.hotelInvoiceType, posée par confirmHotelInvoiceInfo()).
+    // Avant : titre hard-codé "Facture Hôtel — Régime type B (HB)" qui ne
+    // reflétait pas le choix de l'utilisateur. Maintenant on affiche le
+    // label complet via getInvoiceTypeLabel() (cf. app.js ligne 43), comme
+    // dans la caisse POS.
+    var typeLabel = (typeof getInvoiceTypeLabel === 'function' && window.hotelInvoiceType)
+      ? getInvoiceTypeLabel(window.hotelInvoiceType)
+      : 'Facture de Vente';
     var now = new Date().toLocaleString('fr-FR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
 
     var previewHtml =
@@ -1223,7 +1259,7 @@
           (STORE_INFO.isf ? '<div>Numero Impot: ' + escapeHtml(STORE_INFO.isf) + '</div>' : '') +
         '</div>' + infoSection +
       '</div>' +
-      '<div class="receipt-meta" style="justify-content:center; font-size:14px; font-weight:600;">' + typeLabel + '</div>' +
+      '<div class="receipt-meta" style="justify-content:center; font-size:14px; font-weight:600;">' + escapeHtml(typeLabel) + '</div>' +
       (window.hotelRefFacture ? '<div style="text-align:center; font-size:12px; color:#666;">Réf : ' + escapeHtml(window.hotelRefFacture) + '</div>' : '') +
       (window.hotelExoneration ? '<div style="text-align:center; font-size:11px; color:#888; font-style:italic;">Exonération : ' + escapeHtml(getExonerationLabel(window.hotelExoneration)) + '</div>' : '') +
       '<div class="receipt-items">' + itemsHtml + '</div>' +
@@ -1677,7 +1713,12 @@
     var infoSection = buildHotelReceiptInfoSection();
     var totalsHtml  = buildHotelReceiptTotals(total);
     var paymentsHtml = buildHotelReceiptPayments();
-    var typeLabel = 'Facture Hôtel — Régime type B (HB)';
+    // Sprint 7 — 2026-10-19 : titre dynamique basé sur le type sélectionné
+    // par l'utilisateur (cf. window.hotelInvoiceType). Voir showPreview()
+    // pour la version preview.
+    var typeLabel = (typeof getInvoiceTypeLabel === 'function' && window.hotelInvoiceType)
+      ? getInvoiceTypeLabel(window.hotelInvoiceType)
+      : 'Facture de Vente';
     var now = new Date().toLocaleString('fr-FR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
 
     var dgiInfoHtml = '';
@@ -1708,7 +1749,7 @@
           (STORE_INFO.isf ? '<div>Numero Impot: ' + escapeHtml(STORE_INFO.isf) + '</div>' : '') +
         '</div>' + infoSection +
       '</div>' +
-      '<div class="receipt-meta" style="justify-content:center; font-size:14px; font-weight:600;">' + typeLabel + '</div>' +
+      '<div class="receipt-meta" style="justify-content:center; font-size:14px; font-weight:600;">' + escapeHtml(typeLabel) + '</div>' +
       (window.hotelRefFacture ? '<div style="text-align:center; font-size:12px; color:#666;">Réf : ' + escapeHtml(window.hotelRefFacture) + '</div>' : '') +
       (window.hotelExoneration ? '<div style="text-align:center; font-size:11px; color:#888; font-style:italic;">Exonération : ' + escapeHtml(getExonerationLabel(window.hotelExoneration)) + '</div>' : '') +
       '<div class="receipt-items">' + itemsHtml + '</div>' +
