@@ -88,15 +88,27 @@ class HotelChambreController extends Controller
                 isset($input['notes']) ? (string)$input['notes'] : null,
                 isset($input['etat']) ? (string)$input['etat'] : 'disponible'
             );
-            // La TS n'est pas passée à create() : on l'écrit via update() juste après,
-            // pour rester rétro-compatible avec la signature create() existante.
-            $needsTsUpdate = array_key_exists('taxe_specifique_type', $input)
-                || array_key_exists('taxe_specifique_value', $input);
-            if ($needsTsUpdate) {
-                (new HotelChambre())->update($id, [
-                    'taxe_specifique_type' => isset($input['taxe_specifique_type']) ? (string)$input['taxe_specifique_type'] : '%',
-                    'taxe_specifique_value' => isset($input['taxe_specifique_value']) ? (float)$input['taxe_specifique_value'] : 0,
-                ]);
+            // La TS, la taxe_id, etc. ne sont pas passés à create() : on les
+            // écrit via update() juste après, pour rester rétro-compatible
+            // avec la signature create() existante. Cette double-écriture
+            // permet aussi de réutiliser toute la validation de update() pour
+            // ces champs (cf. HotelChambre::update()).
+            $postCreate = [];
+            if (array_key_exists('taxe_specifique_type', $input)) {
+                $postCreate['taxe_specifique_type'] = (string)$input['taxe_specifique_type'];
+            }
+            if (array_key_exists('taxe_specifique_value', $input)) {
+                $postCreate['taxe_specifique_value'] = (float)$input['taxe_specifique_value'];
+            }
+            // taxe_id (FK vers `taxes`) — Sprint 7 — 2026-10-19. Permet de
+            // lier la chambre à sa taxe (ex: B = 16% hôtellerie) pour que
+            // la facturation récupère directement le `taux` sans fetch
+            // supplémentaire.
+            if (array_key_exists('taxe_id', $input)) {
+                $postCreate['taxe_id'] = $input['taxe_id'];
+            }
+            if (!empty($postCreate)) {
+                (new HotelChambre())->update($id, $postCreate);
             }
         } catch (\RuntimeException $e) {
             $this->jsonOut(['success' => false, 'message' => $e->getMessage()], 409);

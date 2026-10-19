@@ -131,6 +131,12 @@ class HotelFactureController extends Controller
         $db = \App\Core\Database::getInstance();
 
         // Séjour + guest + client + chambre
+        // La chambre porte sa `taxe_id` (FK vers `taxes`) — la jointure LEFT
+        // ramène directement `taxe_taux`, `taxe_etiquette` et `taxe_groupe`
+        // sans avoir besoin d'un fetch séparé vers /api/taxes côté front.
+        // Cela permet à la page de facturation hôtel d'envoyer à la DGI la
+        // valeur du taux B (ex: 16%) directement depuis le `previewData`,
+        // dans le champ `tax_b_value` (cf. hotel-facturation.js).
         $sejour = $db->fetch(
             "SELECT s.*,
                     g.id AS guest_id, g.nom AS guest_nom, g.prenom AS guest_prenom,
@@ -138,11 +144,16 @@ class HotelFactureController extends Controller
                     c.id AS chambre_id, c.numero AS chambre_numero, c.type AS chambre_type, c.prix_base AS chambre_prix_base,
                     c.taxe_specifique_type  AS chambre_taxe_specifique_type,
                     c.taxe_specifique_value AS chambre_taxe_specifique_value,
+                    c.taxe_id               AS chambre_taxe_id,
+                    t.taux                  AS chambre_taxe_taux,
+                    t.etiquette             AS chambre_taxe_etiquette,
+                    t.groupe_taxe           AS chambre_taxe_groupe,
                     cl.code_client AS client_code, cl.nom_client AS client_nom
              FROM hotel_sejours s
-             INNER JOIN hotel_guests g ON g.id = s.guest_id
-             INNER JOIN hotel_chambres c ON c.id = s.chambre_id
-             LEFT JOIN clients cl ON cl.id = g.client_id
+             INNER JOIN hotel_guests   g  ON g.id  = s.guest_id
+             INNER JOIN hotel_chambres c  ON c.id  = s.chambre_id
+             LEFT  JOIN taxes          t  ON t.id  = c.taxe_id
+             LEFT  JOIN clients        cl ON cl.id = g.client_id
              WHERE s.id = :id",
             [':id' => $sejourId]
         );
@@ -209,6 +220,22 @@ class HotelFactureController extends Controller
         $totalNuitsApresRemise = round($totalNuits - $remiseNuits, 2);
         // Total séjour = prix nuit net + TS (toutes deux dans `nuits` côté UI).
         $totalNuitsAvecTS = round($totalNuitsApresRemise + $totalTaxeSpecifique, 2);
+
+        // TVA théorique sur la TS (pattern app.js : vatOnSpecificTaxUnit) :
+        // = TS_cumulée × tax_rate_chambre / 100.
+        // C'est la composante incluse dans `lineHT` envoyé à la DGI (cf. calcul
+        // front `buildDgiPayload`). On l'expose ici pour que la preview UI
+        // affiche le même total que la payload DGI.
+        $chTaxRowPreview = $db->fetch(
+            'SELECT t.taux FROM hotel_chambres c
+             LEFT JOIN taxes t ON t.id = c.taxe_id
+             WHERE c.id = :cid',
+            [':cid' => (int)$sejour['chambre_id']]
+        );
+        $chTaxRatePreview = (float)($chTaxRowPreview['taux'] ?? 0);
+        $tvaSurTS = round($totalTaxeSpecifique * $chTaxRatePreview / 100, 2);
+        // Total séjour aligné sur le pattern app.js (lineHT) : HT + TS + TVA_sur_TS
+        $totalNuitsAvecTSetTVA = round($totalNuitsAvecTS + $tvaSurTS, 2);
 
         // Extras : on lit DEUX sources pour rester compatible avec les deux flux
         // d'imputation :
@@ -408,18 +435,48 @@ class HotelFactureController extends Controller
                     'numero'   => $sejour['chambre_numero'],
                     'type'     => $sejour['chambre_type'],
                     'prix_base'=> (float)$sejour['chambre_prix_base'],
+                    // Taxe rattachée à la chambre (Sprint 7 — 2026-10-19).
+                    // Champs ramenés par la jointure LEFT sur `taxes` dans
+                    // la requête SQL plus haut. Le front s'en sert pour
+                    // envoyer `tax_b_value` à la DGI sans avoir à fetch
+                    // /api/taxes séparément. Si `taxe_id` est NULL, ces
+                    // champs sont NULL aussi (la DGI retombe sur son
+                    // propre taux par défaut).
+                    'taxe_id'      => isset($sejour['chambre_taxe_id']) ? (int)$sejour['chambre_taxe_id'] : null,
+                    'taxe_taux'    => isset($sejour['chambre_taxe_taux']) && $sejour['chambre_taxe_taux'] !== null
+                        ? (float)$sejour['chambre_taxe_taux'] : null,
+                    'taxe_etiquette' => $sejour['chambre_taxe_etiquette'] ?? null,
+                    'taxe_groupe'  => $sejour['chambre_taxe_groupe'] ?? null,
                 ],
             ],
             'nuits' => [
                 'total_ht'           => $totalNuitsApresRemise,
                 'taxe_specifique_total' => $totalTaxeSpecifique,
                 'total_avec_ts'      => $totalNuitsAvecTS,
+                // Sprint 7 — 2026-10-19 : alignement sur le pattern app.js
+                // (posCart.calculateItemTTC). `tva_sur_ts` = TVA théorique sur
+                // la TS (TS × tax_rate_chambre / 100). `total_avec_ts_et_tva`
+                // = HT + TS + TVA_sur_TS (équivalent de `lineHT` cumulé côté
+                // front). C'est ce total qui est envoyé à la DGI dans
+                // `amount` (= `lineHT` cumulé).
+                'tva_sur_ts'         => $tvaSurTS,
+                'total_avec_ts_et_tva' => $totalNuitsAvecTSetTVA,
                 'remise_pct'         => $remisePct,
                 'remise_montant'     => $remiseNuits,
                 'lignes'             => $nuits,
                 'nb_nuits'           => $nbNuits,
                 'taxe_specifique_type'  => $tsType,
                 'taxe_specifique_value' => (float)$tsValue,
+                // Taux de TVA applicable à la chambre (Sprint 7 — 2026-10-19).
+                // Lu depuis la FK chambre.taxe_id → taxes.taux via la jointure
+                // plus haut (chambre_taxe_taux). Le front en a besoin pour
+                // envoyer le `tax_rate` correct sur chaque ligne de nuit
+                // dans la payload DGI (cf. bug fix : avant on envoyait
+                // toujours tax_rate=0 même quand la chambre portait un
+                // groupe de taxation TVA).
+                'tax_rate'           => isset($sejour['chambre_taxe_taux']) && $sejour['chambre_taxe_taux'] !== null
+                    ? (float)$sejour['chambre_taxe_taux'] : 0,
+                'tax_etiquette'      => $sejour['chambre_taxe_etiquette'] ?? 'B',
             ],
             'extras' => [
                 'total_ht'  => round($totalExtras, 2),
@@ -546,10 +603,41 @@ class HotelFactureController extends Controller
         }
 
         $totalExtras = round($totalExtrasCaisse + $totalExtrasManuels, 2);
-        // Total = nuits (après remise) + TS chambre + extras. La TS n'est PAS
-        // affectée par la remise pct (cf. commentaire identique dans preview()).
-        $totalFinal = round($totalNuitsNet + $totalTaxeSpecifique + $totalExtras, 2);
-        $tvaMontant = 0.0; // type B
+
+        // Total aligné sur le pattern app.js (posCart.calculateItemTTC) :
+        //   lineHT  = prix × qty + TS + TVA_sur_TS   (TS affectée par la TVA)
+        //   lineTTC = lineHT + TVA_sur_prix × qty
+        //
+        // Régime B hôtelier : la TVA n'est PAS collectée auprès du client, MAIS
+        // on l'inclut dans le total persisté pour rester cohérent avec le
+        // calcul front (cf. hotel-facturation.js buildDgiPayload) et avec le
+        // pattern de la caisse (app.js). Le client paie donc
+        // `totalFinal - TVA_théorique` = HT + TS, et la part TVA est
+        // simplement "neutre" sur sa facture (info DGI, pas collectée).
+        //
+        // Le détail `tvaMontant` (cumul TVA théorique) est calculé ici pour
+        // info (cf. payload DGI). On le met dans la réponse JSON finale pour
+        // l'aperçu de la facture (affichage du détail TVA).
+        $tvaMontant = 0.0;
+        // Taux du groupe de taxation de la chambre (Sprint 7 — lu via FK
+        // chambre.taxe_id → taxes.taux). Si NULL ou 0, pas de TVA théorique.
+        $chTaxRow = $db->fetch(
+            'SELECT t.taux FROM hotel_chambres c
+             LEFT JOIN taxes t ON t.id = c.taxe_id
+             WHERE c.id = :cid',
+            [':cid' => (int)$sejour['chambre_id']]
+        );
+        $chTaxRate = (float)($chTaxRow['taux'] ?? 0);
+        // TVA théorique sur la TS (cohérent avec lineHT de app.js) :
+        // = TS_cumulé × tax_rate / 100
+        $tvaSurTS = round($totalTaxeSpecifique * $chTaxRate / 100, 2);
+        // Total = nuits (après remise) + TS + TVA_sur_TS + extras. La TS
+        // n'est PAS affectée par la remise pct (cf. commentaire identique
+        // dans preview()).
+        $totalFinal = round($totalNuitsNet + $totalTaxeSpecifique + $tvaSurTS + $totalExtras, 2);
+        // TVA théorique totale (sur prix + sur TS) — info, pas collectée.
+        // NB : on ne l'inclut PAS dans $totalFinal, c'est juste pour le détail.
+        $tvaTheorique = $tvaSurTS; // minimum (les extras peuvent ajouter leur propre TVA)
 
         // Acomptes
         $acompteRow = $db->fetch(
