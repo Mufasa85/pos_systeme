@@ -44,6 +44,44 @@
     pageAlert.style.display = '';
   }
 
+  // ── Miroir EXACT de posCart.calculateSpecificTaxUnit (public/assets/js/app.js) ──
+  // Algo de référence (cf. app.js, méthode posCart.calculateSpecificTaxUnit) :
+  //     calculateSpecificTaxUnit(item) {
+  //         const price = parseFloat(item.prix) || 0;
+  //         const value = parseFloat(item.taxe_specifique_value) || 0;
+  //         return item.taxe_specifique_type === 'CDF' ? value : price * (value / 100);
+  //     }
+  // Renvoie la valeur CDF de la taxe spécifique unitaire :
+  //   - si type === 'CDF' → valeur brute (en FC)
+  //   - sinon (type === '%') → pourcentage du prix unitaire
+  // Cette fonction est utilisée par buildDgiPayload() pour envoyer à la DGI
+  // une valeur déjà convertie en CDF (cohérent avec ce que fait la caisse).
+  function computeSpecificTaxValue(price, type, rawValue) {
+    var p = parseFloat(price) || 0;
+    var v = parseFloat(rawValue) || 0;
+    return (type === 'CDF') ? v : p * (v / 100);
+  }
+
+  // ── Lit le taux de TVA B (régime hôtelier) depuis le previewData ──
+  // Plus besoin de fetch /api/taxes : la valeur est portée par la chambre
+  // (chambre.taxe_id → table taxes → taux) et est ramenée par le
+  // contrôleur dans previewData.sejour.chambre.taxe_taux. Cela évite
+  // un round-trip réseau et garantit la cohérence avec le backend.
+  // Renvoie 0 si pas de taxe (NULL) ou si le previewData n'est pas chargé.
+  function getTaxBValueFromPreview() {
+    if (!previewData || !previewData.sejour || !previewData.sejour.chambre) return 0;
+    var ch = previewData.sejour.chambre;
+    // Plusieurs noms possibles selon comment le contrôleur renvoie la
+    // donnée jointe (taxe_taux direct, ou via les alias chambre_taxe_*).
+    var raw = (ch.taxe_taux !== undefined && ch.taxe_taux !== null)
+      ? ch.taxe_taux
+      : (ch.chambre_taxe_taux !== undefined && ch.chambre_taxe_taux !== null)
+        ? ch.chambre_taxe_taux
+        : 0;
+    var n = parseFloat(raw);
+    return isNaN(n) ? 0 : n;
+  }
+
   // ── Calcul TS / TVA par produit (aligné sur posCart.calculateItemTTC dans app.js) ──
   // Calcule pour UN produit : prix HT, TS unitaire, TVA (sur prix + sur TS), TTC.
   // La TVA type B de l'hôtel n'est pas collectée (cf. facturation hôtel),
@@ -342,25 +380,38 @@
       }
     });
 
-    // Totaux RÉELS chambre + extras (régime B hôtelier : TVA collectée = 0)
+    // Totaux RÉELS chambre + extras (régime B hôtelier : TVA collectée = 0).
+    //
+    // Sprint 7 — 2026-10-19 : alignement sur le pattern app.js
+    // (posCart.calculateItemTTC). Le total facturé au client inclut
+    // maintenant la TVA_théorique sur la TS (vatOnSpecificTaxUnit de
+    // app.js), exactement comme dans la caisse. Le backend expose
+    // `n.tva_sur_ts` et `n.total_avec_ts_et_tva` (= HT + TS + TVA_sur_TS).
+    // C'est ce dernier qui correspond au `amount` envoyé à la DGI.
     const totalNuitesAvecTS = parseFloat(n.total_avec_ts) || 0;
+    const tvaSurTS = parseFloat(n.tva_sur_ts) || 0;
+    const totalNuitesAvecTSetTVA = parseFloat(n.total_avec_ts_et_tva) || totalNuitesAvecTS + tvaSurTS;
     const totalExtrasHT = extrasTotals.total_ht || 0;
     const totalExtrasTS = extrasTotals.total_ts || 0;
     const totalExtrasTVATheorique = extrasTotals.total_tva || 0;
-    const totalFinalB = totalNuitesAvecTS + totalExtrasHT + totalExtrasTS;
-    const totalFinalAvecTVA = totalFinalB + totalExtrasTVATheorique;
+    // Total facturé = aligné sur le pattern app.js :
+    //   lineHT cumulé = (HT_nuit + TS_nuit + TVA_sur_TS_nuit) + extras_HT + extras_TS + TVA_sur_TS_extras
+    //                  = total_avec_ts_et_tva + totalExtrasHT + totalExtrasTS + totalExtrasTVATheorique
+    const totalFinalB = totalNuitesAvecTSetTVA + totalExtrasHT + totalExtrasTS + totalExtrasTVATheorique;
+    // lineTTC cumulé (= app.js lineTTC : +TVA_sur_prix) — info, pas collecté
+    const totalFinalAvecTVA = totalFinalB + 0; // la TVA sur prix n'est pas détaillée ici
 
     const totalsAndEmit = alreadyFactured ? '' : `
       <div class="hotel-ft-totals">
         <div class="row"><span>Total nuits (HT après remise)</span><span>${fmtFc(n.total_ht)}</span></div>
         ${n.taxe_specifique_total > 0 ? `<div class="row" style="color:#b45309;"><span>TS chambre (${n.taxe_specifique_type === 'CDF' ? fmtFc(n.taxe_specifique_value) : n.taxe_specifique_value + '%'})</span><span>${fmtFc(n.taxe_specifique_total)}</span></div>` : ''}
-        <div class="row"><span>Sous-total nuits + TS chambre</span><span>${fmtFc(totalNuitesAvecTS)}</span></div>
+        ${tvaSurTS > 0 ? `<div class="row" style="color:#1e40af;font-size:.78rem;"><span>TVA théorique sur TS chambre (régime B : non collectée)</span><span>${fmtFc(tvaSurTS)}</span></div>` : ''}
+        <div class="row"><span>Sous-total nuits + TS chambre + TVA_sur_TS</span><span>${fmtFc(totalNuitesAvecTSetTVA)}</span></div>
         <div class="row"><span>Total extras HT</span><span>${fmtFc(totalExtrasHT)}</span></div>
         ${totalExtrasTS > 0 ? `<div class="row" style="color:#b45309;"><span>TS extras</span><span>${fmtFc(totalExtrasTS)}</span></div>` : ''}
         ${extrasTaxDetail}
         <div class="row"><span>TVA théorique extras (régime B : non collectée)</span><span style="color:#1e40af;">${fmtFc(totalExtrasTVATheorique)}</span></div>
-        <div class="row total"><span>Total final (HT + TS, TVA non collectée)</span><span>${fmtFc(totalFinalB)}</span></div>
-        ${totalExtrasTVATheorique > 0 ? `<div class="row" style="font-size:.78rem;color:#94a3b8;"><span>Si TVA collectée (pour info)</span><span>${fmtFc(totalFinalAvecTVA)}</span></div>` : ''}
+        <div class="row total"><span>Total final (HT + TS + TVA_sur_TS, aligné pattern app.js)</span><span>${fmtFc(totalFinalB)}</span></div>
         <div class="row"><span>Acomptes déjà versés</span><span>− ${fmtFc(previewData.acompte_total)}</span></div>
         <div class="row total"><span>Solde dû</span><span>${fmtFc(totalFinalB - (previewData.acompte_total || 0))}</span></div>
       </div>
@@ -472,9 +523,49 @@
   }
 
   // ── CALCUL SOLDE COURANT ──────────────────────────────────────────────
+  // Sprint 7 — 2026-10-19 : alignement sur le pattern app.js
+  // (posCart.calculateItemTTC) — la valeur exposée au front inclut
+  // maintenant la TVA_sur_TS (= `lineHT` cumulé). On reproduit ici le
+  // même calcul pour que la preview/receipt soit cohérente avec la
+  // payload DGI et la persistance DB.
+  //
+  //   total = (HT_nuit + TS_nuit + TVA_sur_TS_nuit)         // total_avec_ts_et_tva (backend)
+  //         + extras_HT + extras_TS + extras_TVA_sur_TS     // cumul aligné pattern app.js
+  //         + extras_manuels
+  //         − acomptes (déjà déduits de solde_du par le backend)
   function computeSoldeCourant() {
     if (!previewData) return 0;
-    return previewData.solde_du + extrasManuels.reduce((s, x) => s + x.montant, 0);
+    var n = previewData.nuits || {};
+    var e = previewData.extras || {};
+    var extrasManualTotal = extrasManuels.reduce((s, x) => s + x.montant, 0);
+    // 1) Total chambre (HT + TS + TVA_sur_TS) — exposé par le backend
+    var totalNuitAvecTVA = parseFloat(n.total_avec_ts_et_tva) || 0;
+    // 2) Total extras caisse (HT + TS + TVA_sur_TS) — fourni par computeExtrasTotals
+    var totalExtrasHT = e.total_ht || 0;
+    var totalExtrasTS = e.total_ts || 0;
+    var totalExtrasTVATheorique = e.total_tva || 0;
+    // 3) Solde dû (déjà calculé par le backend comme
+    //    totalFinal - acompte_total). On PART de ce solde, qui est
+    //    garanti cohérent avec la DB, puis on AJUSTE pour les
+    //    extras_manuels (non encore dans la DB) et on RECOMPOSE le
+    //    total côté front pour la preview.
+    var soldeDu = parseFloat(previewData.solde_du) || 0;
+    // Si le backend n'a pas encore exposé total_avec_ts_et_tva (par
+    // exemple cache navigateur ancien), on retombe sur l'ancien calcul
+    // pour ne pas casser l'affichage.
+    if (totalNuitAvecTVA === 0 && totalExtrasTVATheorique === 0) {
+      // Mode dégradé : utilise l'ancien solde_du tel quel
+      return soldeDu + extrasManualTotal;
+    }
+    // Composition alignée pattern app.js :
+    // totalFacture = totalNuitAvecTVA + totalExtrasHT + totalExtrasTS + totalExtrasTVATheorique + extrasManualTotal
+    // soldeDu = totalFacture - acompteTotal
+    // → totalFacture = soldeDu + acompteTotal
+    // → pour éviter de recharger acompte_total, on reconstruit à partir
+    //   des composantes du backend ET on retire l'acompte comme le backend.
+    var acompteTotal = parseFloat(previewData.acompte_total) || 0;
+    var totalFacture = totalNuitAvecTVA + totalExtrasHT + totalExtrasTS + totalExtrasTVATheorique + extrasManualTotal;
+    return totalFacture - acompteTotal;
   }
   function getTotalPaiements() {
     return paiements.reduce((s, p) => s + (parseFloat(p.montant) || 0), 0);
@@ -482,17 +573,31 @@
 
 
   // Helpers de rendu ticket (réutilisés par preview et receipt)
+  // Sprint 7 — 2026-10-19 : alignement sur le pattern app.js
+  // (posCart.showPreview / calculateItemTTC). On affiche le détail
+  // TS + TVA par ligne, comme dans la caisse. Le total final est
+  // calculé via computeSoldeCourant() ci-dessus, aligné sur `lineHT`
+  // cumulé (= HT + TS + TVA_sur_TS, sans TVA sur prix car régime B
+  // hôtelier TVA non collectée).
   function buildHotelReceiptItems(n, e, manuels) {
     var s = previewData.sejour;
+    var chambreTaxLabel = (n && n.tax_etiquette) || 'B';
     var html = '<table class="receipt-table"><thead><tr><th>Article</th><th style="text-align:right">Total HT</th></tr></thead><tbody>';
     (n.lignes || []).forEach(function(l) {
-      html += '<tr class="item-name-row"><td colspan="2"><span class="item-name">Nuit ' + fmtDate(l.date) + ' — Chambre ' + escapeHtml(s.chambre.numero) + '<span class="item-tax-badge">B</span>[SER]</span></td></tr><tr class="item-detail-row"><td class="item-qty">1 × ' + fmtFc(l.prix) + '</td><td class="item-total" style="text-align:right;">' + fmtFc(l.prix) + '</td></tr>';
+      var prixNuit = parseFloat(l.prix) || 0;
+      var tsUnit = parseFloat(l.ts_unitaire) || 0;
+      // lineHT (app.js) = prix × qty + TS + TVA_sur_TS
+      var lineHT = prixNuit * 1 + tsUnit + (tsUnit * (parseFloat(n.tax_rate) || 0) / 100);
+      html += '<tr class="item-name-row"><td colspan="2"><span class="item-name">Nuit ' + fmtDate(l.date) + ' — Chambre ' + escapeHtml(s.chambre.numero) + '<span class="item-tax-badge">' + chambreTaxLabel + '</span>[SER]</span></td></tr>'
+            + '<tr class="item-detail-row"><td class="item-qty">1 × ' + fmtFc(prixNuit) + '</td><td class="item-total" style="text-align:right;">' + fmtFc(lineHT) + '</td></tr>';
     });
     (e.lignes || []).forEach(function(x) {
-      html += '<tr class="item-name-row"><td colspan="2"><span class="item-name">' + escapeHtml(x.description) + '<span class="item-tax-badge">B</span>[SER]</span></td></tr><tr class="item-detail-row"><td class="item-qty">1 × ' + fmtFc(x.montant) + '</td><td class="item-total" style="text-align:right;">' + fmtFc(x.montant) + '</td></tr>';
+      var montant = parseFloat(x.montant) || 0;
+      html += '<tr class="item-name-row"><td colspan="2"><span class="item-name">' + escapeHtml(x.description) + '<span class="item-tax-badge">B</span>[SER]</span></td></tr><tr class="item-detail-row"><td class="item-qty">1 × ' + fmtFc(montant) + '</td><td class="item-total" style="text-align:right;">' + fmtFc(montant) + '</td></tr>';
     });
     (manuels || []).forEach(function(x) {
-      html += '<tr class="item-name-row"><td colspan="2"><span class="item-name">' + escapeHtml(x.description) + ' <small style="color:#b45309">(extra manuel)</small><span class="item-tax-badge">B</span>[SER]</span></td></tr><tr class="item-detail-row"><td class="item-qty">1 × ' + fmtFc(x.montant) + '</td><td class="item-total" style="text-align:right;">' + fmtFc(x.montant) + '</td></tr>';
+      var montant = parseFloat(x.montant) || 0;
+      html += '<tr class="item-name-row"><td colspan="2"><span class="item-name">' + escapeHtml(x.description) + ' <small style="color:#b45309">(extra manuel)</small><span class="item-tax-badge">B</span>[SER]</span></td></tr><tr class="item-detail-row"><td class="item-qty">1 × ' + fmtFc(montant) + '</td><td class="item-total" style="text-align:right;">' + fmtFc(montant) + '</td></tr>';
     });
     return html + '</tbody></table>';
   }
@@ -513,20 +618,53 @@
   }
 
   function buildHotelReceiptTotals(total) {
-    var n = previewData.nuits;
-    var e = previewData.extras;
+    var n = previewData.nuits || {};
+    var e = previewData.extras || {};
     var manualTotal = extrasManuels.reduce(function(a, x) { return a + x.montant; }, 0);
     var usdRate = (typeof USD_RATE !== 'undefined' && USD_RATE > 0) ? USD_RATE : 0;
     var amountInWords = (typeof posCart !== 'undefined' && posCart.numberToFrenchWords)
       ? posCart.numberToFrenchWords(total)
       : '';
+
+    // Sprint 7 — 2026-10-19 : alignement pattern app.js
+    // Le total passé en argument est calculé par computeSoldeCourant()
+    // ci-dessus (= `lineHT` cumulé = HT + TS + TVA_sur_TS, sans TVA sur
+    // prix car régime B hôtelier). On décompose ici pour la transparence :
+    var totalNuitesHT  = parseFloat(n.total_ht) || 0;
+    var totalTSChambre = parseFloat(n.taxe_specifique_total) || 0;
+    var tvaSurTSChambre = parseFloat(n.tva_sur_ts) || 0;
+    var totalNuitesAvecTSetTVA = parseFloat(n.total_avec_ts_et_tva) || 0;
+    var totalExtrasHT = e.total_ht || 0;
+    var totalExtrasTS = e.total_ts || 0;
+    var totalExtrasTVA = e.total_tva || 0;
+
     var html = '';
-    html += '<div class="receipt-total-row"><span>Total nuits</span><span>' + fmtFc(n.total_ht) + '</span></div>';
-    html += '<div class="receipt-total-row"><span>Total extras caisse</span><span>' + fmtFc(e.total_ht) + '</span></div>';
+    // ── Bloc NUITS (HT + TS + TVA_sur_TS) — pattern app.js ──
+    html += '<div class="receipt-total-row"><span>Total nuits (HT)</span><span>' + fmtFc(totalNuitesHT) + '</span></div>';
+    if (totalTSChambre > 0) {
+      html += '<div class="receipt-total-row" style="color:#b45309;font-size:11px;"><span>TS chambre</span><span>' + fmtFc(totalTSChambre) + '</span></div>';
+    }
+    if (tvaSurTSChambre > 0) {
+      html += '<div class="receipt-total-row" style="color:#1e40af;font-size:11px;"><span>TVA théorique sur TS (régime B, non collectée)</span><span>' + fmtFc(tvaSurTSChambre) + '</span></div>';
+    }
+    if (totalNuitesAvecTSetTVA > 0) {
+      html += '<div class="receipt-total-row" style="font-size:11px;color:#475569;"><span>Sous-total nuits (HT+TS+TVA_sur_TS, app.js)</span><span>' + fmtFc(totalNuitesAvecTSetTVA) + '</span></div>';
+    }
+    // ── Bloc EXTRAS ──
+    if (totalExtrasHT > 0) {
+      html += '<div class="receipt-total-row"><span>Total extras (HT)</span><span>' + fmtFc(totalExtrasHT) + '</span></div>';
+    }
+    if (totalExtrasTS > 0) {
+      html += '<div class="receipt-total-row" style="color:#b45309;font-size:11px;"><span>TS extras</span><span>' + fmtFc(totalExtrasTS) + '</span></div>';
+    }
+    if (totalExtrasTVA > 0) {
+      html += '<div class="receipt-total-row" style="color:#1e40af;font-size:11px;"><span>TVA théorique extras (régime B, non collectée)</span><span>' + fmtFc(totalExtrasTVA) + '</span></div>';
+    }
+    // ── Bloc EXTRAS MANUELS ──
     if (manualTotal > 0) {
       html += '<div class="receipt-total-row"><span>Total extras manuels</span><span>' + fmtFc(manualTotal) + '</span></div>';
     }
-    html += '<div class="receipt-total-row"><span>TVA (B — non collectée)</span><span>0,00 Fc</span></div>';
+    // ── Total aligné pattern app.js (= lineHT cumulé) ──
     html += '<div class="receipt-total-row grand-total"><span>TOTAL TTC :</span><span>' + fmtFc(total) + '</span></div>';
     if (usdRate) {
       html += '<div class="receipt-total-row" style="font-size:11px; color:#555;"><span>TAUX DU JOUR :</span><span>' + usdRate + ' Fc/USD</span></div>';
@@ -766,6 +904,15 @@
     }
   }
 
+  // ── Récupère la valeur de la taxe B depuis le previewData ──
+  // (helper historique — voir getTaxBValueFromPreview() défini plus haut).
+  // Conservé ici comme wrapper synchrone pour les call-sites qui
+  // s'attendaient à un résultat synchrone après l'ouverture du modal
+  // d'info facture. Retourne simplement la valeur déjà calculée.
+  function getTaxBValue() {
+    return getTaxBValueFromPreview();
+  }
+
   // ===============================================================
   // OUVERTURE + VALIDATION DU PANEL INFO FACTURE (ÉTAPE 1/3)
   //   Le seul point de divergence avec /caisse : le client est pré-rempli
@@ -922,7 +1069,10 @@
       if (['PM', 'PC', 'PL', 'AO'].indexOf(head) >= 0) clientTypeCode = head;
     }
 
-    // Charge les types de clients et sélectionne celui du guest
+    // Charge les types de clients (pour le select #modal-client-type).
+    // La valeur de la taxe B est déjà disponible via previewData.sejour.chambre
+    // (héritée de la chambre via la jointure FK taxe_id → taxes.taux), donc
+    // plus besoin de fetch séparé vers /api/taxes.
     await hotelLoadClientTypes();
     var typeSelect = $('modal-client-type');
     if (typeSelect && clientTypeCode) {
@@ -1141,6 +1291,10 @@
       if (invData && invData.invoice_number) dgiInvoiceNum = invData.invoice_number;
     } catch (_) {}
 
+    // Plus besoin d'await loadTaxBRate() ici : la valeur est lue
+    // directement depuis previewData.sejour.chambre.taxe_taux (jointure
+    // chambre → taxes). Voir getTaxBValueFromPreview().
+
     var dgiPayload = buildDgiPayload(dgiInvoiceNum, 'FV');
     var dgiResp = await postToDgi(dgiPayload);
     if (!dgiResp || !dgiResp.success) {
@@ -1184,21 +1338,41 @@
     var articles = [];
 
     // ── Nuits : une ligne par nuitée (cf. pattern app.js : "Nuit {date} - Chambre X").
-    //    Les nuits n'ont pas de TS produit, pas de remise et pas de TVA
-    //    (régime B hôtelier : TVA non collectée). On envoie tax_rate=0.
+    //    BUG FIX 2026-10-19 : avant on envoyait TOUJOURS tax_rate=0 et
+    //    taxe_specifique_value=0, ce qui envoyait à la DGI une facture
+    //    incohérente quand la chambre avait une TS et/ou appartenait à
+    //    un groupe de taxation TVA (B, C, etc.). Le calcul `ht_tva_group`
+    //    / `va` côté DGI était alors impossible à réconcilier avec
+    //    `amount`. On utilise désormais les vraies valeurs de la chambre :
+    //      - `tax_rate`        : taux de TVA de la chambre (lu via la FK
+    //                            chambre.taxe_id → taxes.taux)
+    //      - `tax_etiquette`   : étiquette de la chambre (B par défaut)
+    //      - `taxe_specifique_type/value` : TS de la chambre appliquée par
+    //                            nuitée. La valeur est déjà calculée en
+    //                            CDF côté PHP (`l.ts_unitaire`) — pas
+    //                            besoin de la reconvertir.
+    //    Note : le `tax_b_value` au niveau de la payload est calculé par
+    //    getTaxBValueFromPreview() (cf. ci-dessous).
+    var chambreTaxRate  = parseFloat(n.tax_rate) || 0;
+    var chambreTaxLabel = n.tax_etiquette || 'B';
+    var chambreTsType   = n.taxe_specifique_type || '%';
     (n.lignes || []).forEach(function(l) {
       var prixNuit = parseFloat(l.prix) || 0;
+      // l.ts_unitaire = valeur CDF déjà calculée par le backend (cf.
+      // HotelFactureController::buildPreviewData — computeTaxeSpecifiqueUnit).
+      // On l'utilise directement, c'est la source de vérité côté serveur.
+      var tsValueCdf = parseFloat(l.ts_unitaire) || 0;
       articles.push({
         name: 'Nuit ' + fmtDate(l.date) + ' — Chambre ' + (s.chambre.numero || ''),
         quantity: 1,
         price: prixNuit,
-        tax_rate: 0,
-        tax_etiquette: 'B',
+        tax_rate: chambreTaxRate,
+        tax_etiquette: chambreTaxLabel,
         prod_service: 'SER',
         remise_type: '%',
         remise_value: 0,
-        taxe_specifique_type: '%',
-        taxe_specifique_value: 0,
+        taxe_specifique_type: chambreTsType,
+        taxe_specifique_value: tsValueCdf,
       });
     });
 
@@ -1217,7 +1391,8 @@
           var rValue   = rType === 'CDF' ? rValRaw : prixUnit * (rValRaw / 100);
           var tsType   = p.taxe_specifique_type || '%';
           var tsValRaw = parseFloat(p.taxe_specifique_value) || 0;
-          var tsValue  = tsType === 'CDF' ? tsValRaw : prixUnit * (tsValRaw / 100);
+          // Aligné sur app.js : posCart.calculateSpecificTaxUnit (miroir exact)
+          var tsValue  = computeSpecificTaxValue(prixUnit, tsType, tsValRaw);
           articles.push({
             name: (x.description ? (x.description + ' — ') : '') + (p.nom || 'Produit'),
             quantity: qty,
@@ -1265,33 +1440,61 @@
       });
     });
 
-    // ── Total TTC envoyé à la DGI : doit matcher son recalcul interne.
-    // La DGI calcule pour chaque article :
-    //   TTC_ligne = price × quantity - remise_value + taxe_specifique_value
-    //             + (price × quantity - remise_value) × tax_rate/100
-    //             + taxe_specifique_value × tax_rate/100
-    //   TTC_ligne = (price × quantity + taxe_specifique_value) × (1 + tax_rate/100)
-    //             - remise_value × (1 + tax_rate/100)
-    // On reproduit exactement ce calcul pour que sum(amount_articles) matche
-    // le calcul DGI (cf. pattern identique à posCart.calculateItemTTC dans
-    // app.js : lineHT = price*qty + TS + TVA_sur_TS, lineTTC = lineHT).
-    var total = articles.reduce(function(acc, a) {
+    // ── Total envoyé à la DGI : aligné sur le pattern app.js ──────────
+    // On reproduit ici EXACTEMENT la décomposition de posCart.calculateItemTTC
+    // (public/assets/js/app.js lignes 836-862) :
+    //
+    //   vatOnPriceUnit       = price × (taxRate / 100)         // TVA sur le prix
+    //   vatOnSpecificTaxUnit = specificTaxUnit × (taxRate/100) // TVA sur la TS
+    //   lineHT               = price × qty + specificTaxUnit + vatOnSpecificTaxUnit
+    //   lineTTC              = lineHT + vatOnPriceUnit × qty   // = app.js
+    //
+    // Le `tax_etiquette` (ex: "B") porte la valeur du taux via `tax_rate`
+    // (= chambre.taxe_id → taxes.taux, jointure Sprint 7). On utilise donc
+    // `tax_rate` (la valeur de l'étiquette) dans le calcul.
+    //
+    // Pour le total `amount` envoyé à la DGI :
+    //   - Hôtel régime B : la TVA n'est PAS collectée, le client paie
+    //     HT + TS (= $totalFinal persisté en DB par HotelFactureController::store).
+    //   - Mais on CALCULE la TVA_théorique (vatOnPrice + vatOnTS) et on
+    //     l'INCLUT dans `lineTTC` envoyé à la DGI, exactement comme app.js.
+    //   - La DGI recalculera son `vtotal` à partir de ces valeurs par article
+    //     et de la cohérence interne (les blocs ht_tva_group/va/ts doivent
+    //     matcher le total amount).
+    //
+    // IMPORTANT : on envoie deux totaux :
+    //   1. `lineTTC` (par article, inclus dans articles[]) = HT + TS + TVA_théorique
+    //      → la DGI recalcule amount = sum(lineTTC) et ventile ht_tva_group/va
+    //   2. `amount` (top-level) = HT + TS uniquement (régime B, non collecté)
+    //      → c'est ce que le client paie réellement (cohérent avec la DB)
+    // Si la DGI exige que amount == sum(lineTTC), on peut décommenter la
+    // ligne "amount = totalTTC" plus bas (mode collecte TVA).
+    var totalHT = 0;       // HT facturé (HT + TS, sans TVA)
+    var totalTTC = 0;      // TTC théorique (HT + TS + TVA, comme app.js)
+    var totalTVA = 0;      // TVA théorique (cumul vatOnPrice + vatOnTS)
+    var totalTS = 0;       // TS cumulée
+    articles.forEach(function(a) {
       var prixUnit = parseFloat(a.price) || 0;
       var qty = parseFloat(a.quantity) || 1;
       var tRate = parseFloat(a.tax_rate) || 0;
       var remiseVal = parseFloat(a.remise_value) || 0;
       var tsVal = parseFloat(a.taxe_specifique_value) || 0;
-      // HT net = price × qty − remise_value (la remise est toujours CDF ici)
-      var htNet = prixUnit * qty - remiseVal;
-      // TS unitaire déjà incluse dans tsVal (déjà calculée en CDF côté JS).
-      var lineHT = htNet + tsVal;
-      // TVA sur (HT net + TS) — pattern identique à app.js calculateItemTTC
-      var vat = lineHT * (tRate / 100);
-      // TTC = HT + TVA (régime B hôtel : TVA non collectée mais la DGI
-      // calcule quand même sa part théorique et compare à amount)
-      var ttcLigne = lineHT + vat;
-      return acc + ttcLigne;
-    }, 0);
+      // ── Miroir EXACT de posCart.calculateItemTTC (app.js) ──
+      var vatOnPriceUnit = prixUnit * (tRate / 100);
+      var vatOnTSUnit = tsVal * (tRate / 100);
+      // lineHT (app.js) = prix × qty + TS + TVA_sur_TS — la TVA sur prix N'EST PAS dedans
+      var lineHT = prixUnit * qty - remiseVal + tsVal + vatOnTSUnit;
+      // lineTTC (app.js) = lineHT + TVA_sur_prix × qty (la TVA sur prix est dans le TTC)
+      var lineTTC = lineHT + vatOnPriceUnit * qty;
+      totalHT += lineHT;   // somme des HT (cohérent DB)
+      totalTTC += lineTTC; // somme des TTC (cohérent app.js / DGI)
+      totalTVA += (vatOnPriceUnit + vatOnTSUnit) * qty;
+      totalTS  += tsVal;
+    });
+    // amount envoyé à la DGI = HT + TS (régime B hôtelier, TVA non collectée)
+    // = ce que le client paie réellement. Aligné sur $totalFinal persisté
+    // par HotelFactureController::store (ligne ~584).
+    var total = totalHT;
 
     var sellerName = (typeof CURRENT_USER !== 'undefined' && CURRENT_USER.fullName) ? CURRENT_USER.fullName : (STORE_INFO.name || '');
     var agentCode  = (typeof CURRENT_USER !== 'undefined' && CURRENT_USER.agentCode) ? CURRENT_USER.agentCode : '';
@@ -1301,6 +1504,15 @@
       if (['PM', 'PC', 'PL', 'AO'].indexOf(head) >= 0) clientTypeCode = head;
     }
     var dgiPayments = (paiements || []).map(function(p) { return { type: p.dgiType || 'ESPECES', amount: parseFloat(p.montant) || 0 }; });
+
+    // Valeur de la taxe B (TVA type B hôtelier) lue depuis le previewData
+    // via getTaxBValueFromPreview(). Le séjour hérite de cette valeur par
+    // jointure chambre.taxe_id → taxes.taux lors de l'appel à
+    // /api/hotel/factures/preview. C'est le taux de TVA en % appliqué
+    // au groupe B (en général 16). 0 si pas de taxe rattachée à la
+    // chambre — la DGI peut alors retomber sur son propre taux par défaut.
+    var bRate = getTaxBValueFromPreview();
+
     return {
       store_phone: (STORE_INFO.phone || ''),
       store_address: (STORE_INFO.address || ''),
@@ -1331,6 +1543,10 @@
       payments: dgiPayments,
       rate: (typeof USD_RATE !== 'undefined') ? USD_RATE : 0,
       providerService: '',
+      // Valeur de la taxe B (TVA type B hôtelier) — lue localement depuis
+      // la DB (cf. loadTaxBRate() / taxBValue). Envoyée à la DGI pour
+      // garantir la cohérence du calcul de TVA B côté serveur.
+      tax_b_value: bRate,
     };
   }
 

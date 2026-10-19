@@ -180,6 +180,49 @@
   // Drawer
   function open() { drawer.classList.add('open'); backdrop.classList.add('open'); document.body.style.overflow = 'hidden'; }
   function close() { drawer.classList.remove('open'); backdrop.classList.remove('open'); document.body.style.overflow = ''; }
+  // ── Cache des taxes pour le select #room-taxe-id ─────────────────────
+  // On charge /api/taxes au démarrage de la page et on garde la liste en
+  // mémoire. Cette liste est petite (~18 lignes dans la base seed) donc
+  // c'est acceptable de la mettre en cache.
+  let taxesCache = [];
+
+  async function loadTaxesList() {
+    if (taxesCache.length > 0) return taxesCache;
+    const r = await jsonFetch('/api/taxes');
+    if (r.ok && r.data && Array.isArray(r.data)) {
+      taxesCache = r.data;
+    } else if (r.ok && r.data && r.data.data && Array.isArray(r.data.data)) {
+      // tolérance : si l'API renvoie un wrapper { data: [...] }
+      taxesCache = r.data.data;
+    } else {
+      taxesCache = [];
+    }
+    return taxesCache;
+  }
+
+  function populateTaxeSelect(selectedId) {
+    const sel = document.getElementById('room-taxe-id');
+    if (!sel) return;
+    // On garde la 1re option "— Aucune —"
+    sel.innerHTML = '<option value="">— Aucune (par défaut) —</option>';
+    taxesCache.forEach(t => {
+      const opt = document.createElement('option');
+      opt.value = t.id;
+      const etq = (t.etiquette || '').trim();
+      const grp = (t.groupe_taxe || '').trim();
+      const taux = parseFloat(t.taux) || 0;
+      // Affichage : "B (Groupe B — Taxable) — 16%" pour faciliter la
+      // lecture. Le manager voit clairement le groupe et le taux.
+      opt.textContent = grp
+        ? `${etq} (${grp} — ${taux}%)`
+        : `${etq} — ${taux}%`;
+      if (selectedId && parseInt(selectedId, 10) === parseInt(t.id, 10)) {
+        opt.selected = true;
+      }
+      sel.appendChild(opt);
+    });
+  }
+
   function resetForm() {
     form.reset();
     form.querySelector('input[name="id"]').value = '';
@@ -192,13 +235,25 @@
     const tsValue = document.getElementById('room-taxe-specifique-value');
     if (tsType)  tsType.value = '%';
     if (tsValue) tsValue.value = '0';
+    // taxe_id : par défaut, on remet à "" (= aucune). On sélectionne
+    // automatiquement la taxe B (16% hôtellerie) si elle existe, pour
+    // rester cohérent avec le backfill de la migration. Si l'utilisateur
+    // préfère une autre taxe, il la change manuellement.
+    const taxeSel = document.getElementById('room-taxe-id');
+    if (taxeSel) {
+      const taxB = taxesCache.find(t => String(t.etiquette || '').trim().toUpperCase() === 'B');
+      taxeSel.value = taxB ? String(taxB.id) : '';
+    }
   }
 
   async function openDrawerForCreate() {
+    // S'assurer que la liste des taxes est chargée pour le select
+    await loadTaxesList();
     resetForm();
     open();
   }
   async function openDrawerForEdit(id) {
+    await loadTaxesList();
     resetForm();
     const r = await jsonFetch('/api/hotel/chambres/' + encodeURIComponent(id));
     if (!r.ok || !r.data || !r.data.success) {
@@ -220,6 +275,10 @@
     if (tsType)  tsType.value  = row.taxe_specifique_type || '%';
     if (tsValue) tsValue.value = (row.taxe_specifique_value !== null && row.taxe_specifique_value !== undefined)
       ? row.taxe_specifique_value : 0;
+    // Pré-remplir la taxe de la chambre (Sprint 7) — null/undefined = aucune.
+    // On peuple le select à partir du cache puis on sélectionne l'option
+    // correspondant à row.taxe_id (ou '' si pas de taxe).
+    populateTaxeSelect(row.taxe_id);
     drawerTitle.textContent = 'Modifier la chambre N° ' + row.numero;
     open();
   }
@@ -267,6 +326,12 @@
       notes: document.getElementById('room-notes').value || null,
       taxe_specifique_type:  taxeSpecifiqueType,
       taxe_specifique_value: taxeSpecifiqueValue,
+      // taxe_id (FK `taxes`) — Sprint 7 — 2026-10-19. Si le select est
+      // vide, on envoie null explicitement pour défaire la liaison.
+      taxe_id: (() => {
+        const v = document.getElementById('room-taxe-id').value;
+        return (v === '' || v === null) ? null : parseInt(v, 10);
+      })(),
     };
 
     let url = '/api/hotel/chambres';
