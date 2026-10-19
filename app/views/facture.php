@@ -129,7 +129,21 @@ $clientNif = $sale['client_nif'] ?? '';
                 ?>
                 <div class="receipt-item">
                     <span class="item-name">
-                        <?= htmlspecialchars($item['produit_nom'] ?? 'Produit') ?>
+                        <?php
+                            // Sprint 7 — 2026-10-19 : les lignes de type "nuit" (hôtel)
+                            // ont produit_id = NULL et produit_nom = NULL. On garde
+                            // un fallback explicite "Nuitée chambre" pour ne pas
+                            // afficher "Produit" (libellé par défaut) sur la
+                            // facture imprimée. La distinction se fait via le
+                            // `produit_id` (NULL = nuit hôtel) + le fait que la
+                            // facture hôtel est de type 'HB'.
+                            $itemName = $item['produit_nom'] ?? null;
+                            if (empty($itemName)) {
+                                $isHotel = (($sale['type_facture'] ?? '') === 'HB');
+                                $itemName = $isHotel ? 'Nuitée chambre' : 'Article';
+                            }
+                            echo htmlspecialchars($itemName);
+                        ?>
                         <span class="item-tax-badge"><?= $taxLabel ?></span>
                         <small style="color:#b45309;font-weight:600;"><?= $specificTaxLabel ?></small>
                     </span>
