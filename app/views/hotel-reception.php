@@ -209,4 +209,4 @@ $page = 'hotel-reception';
   </div>
 </aside>
 
-<script src="/assets/js/hotel-reception.js"></script>
+<script src="/assets/js/hotel-reception.js?v=1"></script>

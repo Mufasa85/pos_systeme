@@ -247,5 +247,44 @@ if (!function_exists('hr_date')) {
   </footer>
 </aside>
 
-<script src="/assets/js/hotel-reservations.js"></script>
-<script src="/assets/js/hotel-reservation-form.js"></script>
+<!-- ======================================================================
+     MODAL D'ACTIONS RÉSERVATION (Sprint 7 — 2026-10-19)
+     Ouvre depuis la liste de /hotel/reservations via le bouton "Actions".
+     Permet de :
+       - Voir le récap complet (guest, chambre, dates, prix, statut, facture)
+       - Check-in (statut=reserve → en_cours)
+       - Facturer (statut=en_cours → ouvre /hotel/facturation?sejour_id=X)
+       - Check-out (statut=en_cours, après facturation ou en mode "extras-only")
+       - Annuler (statut=reserve ou en_cours)
+       - Modifier (ouvre le drawer d'édition existant)
+====================================================================== -->
+<div id="hotel-res-actions-modal" class="modal" style="display:none;z-index:9500;">
+  <div class="modal-content" style="max-width:520px;padding:0;overflow:hidden;">
+    <header style="padding:1rem 1.25rem;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
+      <div>
+        <h3 style="margin:0;font-size:1.05rem;">Actions réservation</h3>
+        <div id="hotel-res-actions-subtitle" style="font-size:.8rem;color:var(--muted);margin-top:2px;">
+          Chargement…
+        </div>
+      </div>
+      <button type="button" class="hotel-drawer-close" id="hotel-res-actions-close" aria-label="Fermer">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </header>
+
+    <div id="hotel-res-actions-body" style="padding:1.25rem;max-height:60vh;overflow-y:auto;">
+      <!-- Rempli dynamiquement par hotel-reservations.js -->
+      <div style="padding:2rem;text-align:center;color:var(--muted);">Chargement des détails…</div>
+    </div>
+
+    <footer class="hotel-drawer-foot">
+      <button type="button" class="btn btn-ghost" id="hotel-res-actions-cancel">Fermer</button>
+    </footer>
+  </div>
+</div>
+
+<script src="/assets/js/hotel-reservations.js?v=1"></script>
+<script src="/assets/js/hotel-reservation-form.js?v=1"></script>
