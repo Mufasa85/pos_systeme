@@ -95,17 +95,30 @@
     lists[list].innerHTML = items.map(s => {
       const guest = `${escapeHtml(s.guest_prenom || '')} ${escapeHtml(s.guest_nom || '')}`.trim();
       const chLabel = `N° ${escapeHtml(String(s.chambre_numero))}`;
+      // Sprint 7 — 2026-10-19 : `s.facture_id` est exposé par le backend
+      // (LEFT JOIN hotel_factures dans HotelReservation::chambresAvecSejourActif
+      // et sejoursAujourdhui). S'il est défini (≠ null), la facture existe
+      // déjà (statut != 'annulee') et on n'affiche PAS le bouton "Facturer"
+      // (mais on garde un badge "Déjà facturé n°XXXX" pour la lisibilité).
+      const factureEmise = !!s.facture_id;
+      const factureLabel = factureEmise
+        ? `<span class="badge" style="background:#dcfce7;color:#166534;padding:2px 6px;border-radius:4px;font-size:.7rem;font-weight:500;" title="Facture ${escapeHtml(s.facture_numero || '')}">✓ Facturé ${escapeHtml(s.facture_numero || '')}</span>`
+        : '';
       let actionsHtml = '';
       if (type === 'arrival' && capabilities.check_in_out) {
         actionsHtml = `<button type="button" class="btn-mini primary js-checkin" data-id="${s.id}">Check-in</button>`;
       } else if (type === 'inProgress') {
         // Boutons disponibles selon capabilities :
         //   Détail     : tous les rôles hôtel voient le détail
-        //   Facturer   : si emit_facture (manager + réceptionniste)
+        //   Facturer   : si emit_facture (manager + réceptionniste) ET
+        //                pas déjà facturé (s.facture_id null)
         //   Check-out  : si check_in_out
         actionsHtml = `<button type="button" class="btn-mini js-open-sejour" data-id="${s.id}">Détail</button>`;
-        if (capabilities.emit_facture) {
+        if (capabilities.emit_facture && !factureEmise) {
           actionsHtml += `<button type="button" class="btn-mini primary js-facturer" data-id="${s.id}">Facturer</button>`;
+        }
+        if (factureEmise) {
+          actionsHtml += factureLabel;
         }
         if (capabilities.check_in_out) {
           actionsHtml += `<button type="button" class="btn-mini danger js-checkout" data-id="${s.id}">Check-out</button>`;
@@ -113,8 +126,11 @@
       } else if (type === 'departure') {
         // Le bouton Facturer apparaît même si check_in_out=false : facturer est
         // une action indépendante, contrôlée par sa propre capability emit_facture.
-        if (capabilities.emit_facture) {
+        // Condition supplémentaire : pas déjà facturé.
+        if (capabilities.emit_facture && !factureEmise) {
           actionsHtml = `<button type="button" class="btn-mini primary js-facturer" data-id="${s.id}">Facturer</button>`;
+        } else if (factureEmise) {
+          actionsHtml = factureLabel;
         }
         if (capabilities.check_in_out) {
           actionsHtml += `<button type="button" class="btn-mini danger js-checkout" data-id="${s.id}">Check-out</button>`;
