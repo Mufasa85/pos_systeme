@@ -403,10 +403,6 @@
 
     const totalsAndEmit = alreadyFactured ? '' : `
       <div class="hotel-ft-totals">
-        <div class="row"><span>Total nuits (HT après remise)</span><span>${fmtFc(n.total_ht)}</span></div>
-        ${n.taxe_specifique_total > 0 ? `<div class="row" style="color:#b45309;"><span>TS chambre (${n.taxe_specifique_type === 'CDF' ? fmtFc(n.taxe_specifique_value) : n.taxe_specifique_value + '%'})</span><span>${fmtFc(n.taxe_specifique_total)}</span></div>` : ''}
-        ${tvaSurTS > 0 ? `<div class="row" style="color:#1e40af;font-size:.78rem;"><span>TVA théorique sur TS chambre (régime B : non collectée)</span><span>${fmtFc(tvaSurTS)}</span></div>` : ''}
-        <div class="row"><span>Sous-total nuits + TS chambre + TVA_sur_TS</span><span>${fmtFc(totalNuitesAvecTSetTVA)}</span></div>
         <div class="row"><span>Total extras HT</span><span>${fmtFc(totalExtrasHT)}</span></div>
         ${totalExtrasTS > 0 ? `<div class="row" style="color:#b45309;"><span>TS extras</span><span>${fmtFc(totalExtrasTS)}</span></div>` : ''}
         ${extrasTaxDetail}
@@ -639,18 +635,7 @@
     var totalExtrasTVA = e.total_tva || 0;
 
     var html = '';
-    // ── Bloc NUITS (HT + TS + TVA_sur_TS) — pattern app.js ──
-    html += '<div class="receipt-total-row"><span>Total nuits (HT)</span><span>' + fmtFc(totalNuitesHT) + '</span></div>';
-    if (totalTSChambre > 0) {
-      html += '<div class="receipt-total-row" style="color:#b45309;font-size:11px;"><span>TS chambre</span><span>' + fmtFc(totalTSChambre) + '</span></div>';
-    }
-    if (tvaSurTSChambre > 0) {
-      html += '<div class="receipt-total-row" style="color:#1e40af;font-size:11px;"><span>TVA théorique sur TS (régime B, non collectée)</span><span>' + fmtFc(tvaSurTSChambre) + '</span></div>';
-    }
-    if (totalNuitesAvecTSetTVA > 0) {
-      html += '<div class="receipt-total-row" style="font-size:11px;color:#475569;"><span>Sous-total nuits (HT+TS+TVA_sur_TS, app.js)</span><span>' + fmtFc(totalNuitesAvecTSetTVA) + '</span></div>';
-    }
-    // ── Bloc EXTRAS ──
+    // ── Bloc EXTRAS (les nuits + TS + TVA_sur_TS sont déjà inclus dans `total`) ──
     if (totalExtrasHT > 0) {
       html += '<div class="receipt-total-row"><span>Total extras (HT)</span><span>' + fmtFc(totalExtrasHT) + '</span></div>';
     }
@@ -664,7 +649,7 @@
     if (manualTotal > 0) {
       html += '<div class="receipt-total-row"><span>Total extras manuels</span><span>' + fmtFc(manualTotal) + '</span></div>';
     }
-    // ── Total aligné pattern app.js (= lineHT cumulé) ──
+    // ── Total aligné pattern app.js (= lineHT cumulé, nuits + extras) ──
     html += '<div class="receipt-total-row grand-total"><span>TOTAL TTC :</span><span>' + fmtFc(total) + '</span></div>';
     if (usdRate) {
       html += '<div class="receipt-total-row" style="font-size:11px; color:#555;"><span>TAUX DU JOUR :</span><span>' + usdRate + ' Fc/USD</span></div>';
