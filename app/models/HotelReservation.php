@@ -31,14 +31,23 @@ class HotelReservation
      */
     public function list(?string $statut = null, ?string $dateFrom = null, ?string $dateTo = null): array
     {
+        // Sprint 7 — 2026-10-19 : LEFT JOIN hotel_factures pour exposer
+        // `facture_id` / `facture_numero` / `facture_statut` dans la liste
+        // (utilisé par /hotel/reservations pour afficher le badge "Facturé"
+        // et masquer le bouton "Facturer" si déjà facturé).
         $sql = "SELECT s.*,
                        g.nom AS guest_nom, g.prenom AS guest_prenom, g.telephone AS guest_tel,
                        c.numero AS chambre_numero, c.type AS chambre_type, c.prix_base AS chambre_prix_base,
-                       u.nom_complet AS user_nom
+                       u.nom_complet AS user_nom,
+                       hf.id AS facture_id, hf.numero_facture AS facture_numero,
+                       hf.statut AS facture_statut, hf.total_final AS facture_total
                 FROM hotel_sejours s
                 INNER JOIN hotel_guests g ON g.id = s.guest_id
                 INNER JOIN hotel_chambres c ON c.id = s.chambre_id
                 LEFT JOIN utilisateurs u ON u.id = s.user_id
+                LEFT JOIN hotel_factures hf
+                  ON hf.sejour_id = s.id
+                 AND hf.statut != 'annulee'
                 WHERE 1=1";
         $params = [];
         if ($statut) {
@@ -59,13 +68,23 @@ class HotelReservation
 
     public function findById(int $id)
     {
+        // Sprint 7 — 2026-10-19 : LEFT JOIN hotel_factures pour exposer
+        // `facture_id` / `facture_numero` / `facture_statut` directement
+        // dans le détail de la réservation. Le modal d'actions de
+        // /hotel/reservations utilise ces champs pour savoir si le bouton
+        // "Facturer" doit être affiché.
         return $this->db->fetch(
             "SELECT s.*, g.nom AS guest_nom, g.prenom AS guest_prenom, g.telephone AS guest_tel,
                     g.piece_identite AS guest_piece, g.nationalite AS guest_nat,
-                    c.numero AS chambre_numero, c.type AS chambre_type
+                    c.numero AS chambre_numero, c.type AS chambre_type,
+                    hf.id AS facture_id, hf.numero_facture AS facture_numero,
+                    hf.statut AS facture_statut, hf.total_final AS facture_total
              FROM hotel_sejours s
              INNER JOIN hotel_guests g ON g.id = s.guest_id
              INNER JOIN hotel_chambres c ON c.id = s.chambre_id
+             LEFT JOIN hotel_factures hf
+               ON hf.sejour_id = s.id
+              AND hf.statut != 'annulee'
              WHERE s.id = :id",
             [':id' => $id]
         );
@@ -228,18 +247,29 @@ class HotelReservation
     /**
      * Toutes les chambres avec, s'il existe, le séjour en cours (en_cours) qui les occupe.
      * Jointure LEFT pour garder les chambres vides.
+     *
+     * Sprint 7 — 2026-10-19 : on joint aussi `hotel_factures` (LEFT JOIN) pour
+     * exposer `facture_id` et `facture_numero` (et `facture_statut`) afin que
+     * la page Réception puisse afficher un badge "Déjà facturé" et cacher
+     * le bouton "Facturer" si une facture existe déjà (non annulée). On
+     * garde le LEFT JOIN pour les séjours sans facture (= NULL).
      */
     public function chambresAvecSejourActif(): array
     {
         return $this->db->fetchAll(
             "SELECT c.id AS chambre_id, c.numero, c.type, c.prix_base, c.etat,
                     s.id AS sejour_id, s.date_arrivee, s.date_depart_prevue, s.prix_par_nuit, s.statut,
-                    g.id AS guest_id, g.nom AS guest_nom, g.prenom AS guest_prenom, g.telephone AS guest_tel
+                    g.id AS guest_id, g.nom AS guest_nom, g.prenom AS guest_prenom, g.telephone AS guest_tel,
+                    hf.id AS facture_id, hf.numero_facture AS facture_numero,
+                    hf.statut AS facture_statut
              FROM hotel_chambres c
              LEFT JOIN hotel_sejours s
                ON s.chambre_id = c.id
               AND s.statut = 'en_cours'
              LEFT JOIN hotel_guests g ON g.id = s.guest_id
+             LEFT JOIN hotel_factures hf
+               ON hf.sejour_id = s.id
+              AND hf.statut != 'annulee'
              ORDER BY c.numero ASC"
         );
     }
@@ -285,12 +315,21 @@ class HotelReservation
         $today = date('Y-m-d');
         $now   = date('Y-m-d H:i:s');
 
+        // Sprint 7 — 2026-10-19 : LEFT JOIN hotel_factures pour exposer
+        // `facture_id` / `facture_numero` / `facture_statut` (NULL si pas
+        // de facture ou facture annulée). Le front utilise `facture_id` pour
+        // savoir s'il doit cacher le bouton "Facturer".
         $arrivals = $this->db->fetchAll(
             "SELECT s.*, g.nom AS guest_nom, g.prenom AS guest_prenom, g.telephone AS guest_tel,
-                    c.numero AS chambre_numero, c.type AS chambre_type
+                    c.numero AS chambre_numero, c.type AS chambre_type,
+                    hf.id AS facture_id, hf.numero_facture AS facture_numero,
+                    hf.statut AS facture_statut
              FROM hotel_sejours s
              INNER JOIN hotel_guests g ON g.id = s.guest_id
              INNER JOIN hotel_chambres c ON c.id = s.chambre_id
+             LEFT JOIN hotel_factures hf
+               ON hf.sejour_id = s.id
+              AND hf.statut != 'annulee'
              WHERE s.statut = 'reserve'
                AND DATE(s.date_arrivee) = :today
              ORDER BY s.date_arrivee ASC",
@@ -299,10 +338,15 @@ class HotelReservation
 
         $inProgress = $this->db->fetchAll(
             "SELECT s.*, g.nom AS guest_nom, g.prenom AS guest_prenom, g.telephone AS guest_tel,
-                    c.numero AS chambre_numero, c.type AS chambre_type
+                    c.numero AS chambre_numero, c.type AS chambre_type,
+                    hf.id AS facture_id, hf.numero_facture AS facture_numero,
+                    hf.statut AS facture_statut
              FROM hotel_sejours s
              INNER JOIN hotel_guests g ON g.id = s.guest_id
              INNER JOIN hotel_chambres c ON c.id = s.chambre_id
+             LEFT JOIN hotel_factures hf
+               ON hf.sejour_id = s.id
+              AND hf.statut != 'annulee'
              WHERE s.statut = 'en_cours'
              ORDER BY s.date_arrivee ASC",
             []
@@ -310,10 +354,15 @@ class HotelReservation
 
         $departures = $this->db->fetchAll(
             "SELECT s.*, g.nom AS guest_nom, g.prenom AS guest_prenom, g.telephone AS guest_tel,
-                    c.numero AS chambre_numero, c.type AS chambre_type
+                    c.numero AS chambre_numero, c.type AS chambre_type,
+                    hf.id AS facture_id, hf.numero_facture AS facture_numero,
+                    hf.statut AS facture_statut
              FROM hotel_sejours s
              INNER JOIN hotel_guests g ON g.id = s.guest_id
              INNER JOIN hotel_chambres c ON c.id = s.chambre_id
+             LEFT JOIN hotel_factures hf
+               ON hf.sejour_id = s.id
+              AND hf.statut != 'annulee'
              WHERE s.statut = 'en_cours'
                AND s.date_depart_prevue = :today
              ORDER BY s.date_arrivee ASC",
