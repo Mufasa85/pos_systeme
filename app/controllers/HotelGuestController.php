@@ -35,6 +35,8 @@ class HotelGuestController extends Controller
 
     private function guardRead(): bool
     {
+        // Sprint 7 — 2026-10-19 : check API avant check rôle.
+        if (!$this->requireFeatureApiAccess('hotel')) return false;
         $appRole   = $_SESSION['role'] ?? '';
         $hotelRole = $_SESSION['hotel_role'] ?? null;
         if ($appRole === 'super_admin') return true;
@@ -45,6 +47,8 @@ class HotelGuestController extends Controller
 
     private function guardWrite(): bool
     {
+        // Sprint 7 — 2026-10-19 : check API avant check rôle.
+        if (!$this->requireFeatureApiAccess('hotel')) return false;
         $appRole   = $_SESSION['role'] ?? '';
         $hotelRole = $_SESSION['hotel_role'] ?? null;
         if ($appRole === 'super_admin') return true;
