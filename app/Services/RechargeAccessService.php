@@ -20,6 +20,16 @@ class RechargeAccessService
     private const SESSION_KEY = 'feature_access_cache';
     private const SESSION_KEY_BC = 'recharge_access_cache'; // backward compat for header.php
 
+    /**
+     * Flags par défaut (refus) quand l'API échoue ou ne renvoie rien.
+     * Sprint 7 — 2026-10-19 : ajout du flag `hotel` pour le module hôtellerie.
+     */
+    private const DEFAULT_DENIED_FLAGS = [
+        'snelregideso' => false,
+        'paie'         => false,
+        'hotel'        => false,
+    ];
+
     public function __construct(?int $cacheTtl = null)
     {
         $this->cacheTtl = $cacheTtl ?? 300;
@@ -41,20 +51,54 @@ class RechargeAccessService
     {
         return $this->getFeatureFlag('paie');
     }
+
+    /**
+     * Vérifie l'accès à /hotel/* (flag hotel).
+     * Sprint 7 — 2026-10-19 : ajouté pour permettre à l'API OSAT de
+     * contrôler l'accès au module hôtellerie (comme snelregideso et paie).
+     * Si l'API ne renvoie pas le flag `hotel`, on l'accorde par défaut
+     * (comportement permissif pour ne pas casser les installations où
+     * l'API n'a pas encore été mise à jour). Les utilisateurs peuvent
+     * aussi être refusés via requireHotelAccess() (rôle métier) sans
+     * dépendre de l'API.
+     */
+    public function canAccessHotel(): bool
+    {
+        $flags = $this->getAllFlags();
+        if (!array_key_exists('hotel', $flags)) {
+            // API n'a pas encore exposé le flag hotel → on autorise
+            // (le contrôle d'accès métier via requireHotelAccess suffit
+            // pour bloquer les rôles non autorisés).
+            return true;
+        }
+        return !empty($flags['hotel']);
+    }
 /**
      * Récupère un flag depuis le cache ou depuis l'API.
      */
+    /**
+     * Récupère un flag depuis le cache ou depuis l'API.
+     * Délègue à getAllFlags() pour mutualiser la logique de cache.
+     */
     private function getFeatureFlag(string $flagName): bool
     {
-        $this->ensureSessionStarted();
+        $flags = $this->getAllFlags();
+        return !empty($flags[$flagName]);
+    }
 
+    /**
+     * Récupère TOUS les flags depuis le cache (ou via fetch si expiré).
+     * Sprint 7 — 2026-10-19 : factorisé pour canAccessHotel() qui doit
+     * distinguer "flag absent" (autoriser par défaut) de "flag=false" (refuser).
+     */
+    private function getAllFlags(): array
+    {
+        $this->ensureSessionStarted();
         $cached = $_SESSION[self::SESSION_KEY] ?? null;
         if ($cached !== null && isset($cached['expires_at']) && $cached['expires_at'] > time()) {
-            return isset($cached['flags'][$flagName]) && $cached['flags'][$flagName];
+            return $cached['flags'] ?? [];
         }
-
-        $flags = $this->fetchFromApi();
-        return isset($flags[$flagName]) && $flags[$flagName];
+        return $this->fetchFromApi();
     }
 
     /**
@@ -86,6 +130,10 @@ class RechargeAccessService
     /**
      * Appelle l'API externe et met en cache les flags.
      * Retourne un tableau associatif des flags.
+     * Sprint 7 — 2026-10-19 : ajout du flag `hotel` (lu depuis le payload
+     * `data.hotel` de l'API). Si l'API ne le fournit pas encore, canAccessHotel()
+     * le considérera comme "absent" et autorisera l'accès (fail-open par
+     * compatibilité avec les déploiements où l'API n'a pas été mise à jour).
      */
     private function fetchFromApi(): array
     {
@@ -93,8 +141,8 @@ class RechargeAccessService
 
         if (empty($nif)) {
             error_log('[FeatureAccessService] Aucun NIF trouvé — accès refusé par défaut');
-            $this->storeCache(['snelregideso' => false, 'paie' => false]);
-            return ['snelregideso' => false, 'paie' => false];
+            $this->storeCache(self::DEFAULT_DENIED_FLAGS);
+            return self::DEFAULT_DENIED_FLAGS;
         }
 
         $url = $this->apiBaseUrl . '?nif=' . urlencode($nif);
@@ -117,21 +165,25 @@ class RechargeAccessService
 
             if ($response === false || empty($response)) {
                 error_log('[FeatureAccessService] Erreur API: ' . $curlError . ' (HTTP ' . $httpCode . ')');
-                $this->storeCache(['snelregideso' => false, 'paie' => false]);
-                return ['snelregideso' => false, 'paie' => false];
+                $this->storeCache(self::DEFAULT_DENIED_FLAGS);
+                return self::DEFAULT_DENIED_FLAGS;
             }
 
             $data = json_decode($response, true);
             if (json_last_error() !== JSON_ERROR_NONE || empty($data['success'])) {
                 error_log('[FeatureAccessService] Réponse API invalide');
-                $this->storeCache(['snelregideso' => false, 'paie' => false]);
-                return ['snelregideso' => false, 'paie' => false];
+                $this->storeCache(self::DEFAULT_DENIED_FLAGS);
+                return self::DEFAULT_DENIED_FLAGS;
             }
 
             $payload = $data['data'] ?? [];
             $flags = [
                 'snelregideso' => !empty($payload['snelregideso']),
                 'paie'         => !empty($payload['paie']),
+                // hotel : si l'API ne le fournit pas, on NE le met PAS dans
+                // les flags → canAccessHotel() le verra comme "absent" et
+                // autorisera (fail-open pour compat ascendante).
+                'hotel'        => array_key_exists('hotel', $payload) ? !empty($payload['hotel']) : null,
             ];
 
             $this->storeCache($flags);
@@ -139,8 +191,8 @@ class RechargeAccessService
 
         } catch (\Exception $e) {
             error_log('[FeatureAccessService] Exception: ' . $e->getMessage());
-            $this->storeCache(['snelregideso' => false, 'paie' => false]);
-            return ['snelregideso' => false, 'paie' => false];
+            $this->storeCache(self::DEFAULT_DENIED_FLAGS);
+            return self::DEFAULT_DENIED_FLAGS;
         }
     }
 
