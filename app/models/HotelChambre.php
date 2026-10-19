@@ -22,6 +22,13 @@ namespace App\Models;
  *  La validation des bornes (% ∈ [0,100] / CDF ∈ [0, prix]) est faite
  *  côté front (cf. hotel-chambres.js) pour rester cohérent avec le
  *  pattern produit (posCart.saveProduct).
+ *
+ * Taxe de la chambre (Sprint 7 — 2026-10-19) :
+ *  - `taxe_id` FK vers `taxes(id)` — la chambre porte sa taxe (ex: B
+ *    = 16% pour l'hôtellerie). Cette FK permet de récupérer directement
+ *    le `taux` de TVA applicable sans fetch séparé vers /api/taxes
+ *    lors de la facturation hôtel. Le séjour hérite de la valeur via
+ *    la jointure `hotel_sejours → hotel_chambres → taxes`.
  */
 class HotelChambre
 {
@@ -36,7 +43,8 @@ class HotelChambre
     {
         return $this->db->fetchAll(
             'SELECT id, numero, type, prix_base, etat, notes,
-                    taxe_specifique_type, taxe_specifique_value
+                    taxe_specifique_type, taxe_specifique_value,
+                    taxe_id
              FROM hotel_chambres
              ORDER BY numero ASC'
         );
@@ -45,6 +53,27 @@ class HotelChambre
     public function findById(int $id)
     {
         return $this->db->fetch('SELECT * FROM hotel_chambres WHERE id = :id', [':id' => $id]);
+    }
+
+    /**
+     * Renvoie la chambre enrichie avec les colonnes de sa taxe (jointure
+     * LEFT sur `taxes` pour rester robuste si `taxe_id` est NULL).
+     * Champs ajoutés : `taxe_taux`, `taxe_etiquette`, `taxe_groupe`.
+     * Utilisé par le contrôleur de facturation pour exposer directement
+     * la valeur du taux B (TVA hôtellerie) sans avoir à fetch /api/taxes.
+     */
+    public function findByIdWithTaxe(int $id)
+    {
+        return $this->db->fetch(
+            'SELECT hc.*,
+                    t.taux       AS taxe_taux,
+                    t.etiquette  AS taxe_etiquette,
+                    t.groupe_taxe AS taxe_groupe
+             FROM hotel_chambres hc
+             LEFT JOIN taxes t ON t.id = hc.taxe_id
+             WHERE hc.id = :id',
+            [':id' => $id]
+        );
     }
 
     /**
@@ -71,7 +100,7 @@ class HotelChambre
     {
         $fields = [];
         $params = [':id' => $id];
-        foreach (['numero', 'type', 'prix_base', 'etat', 'notes', 'taxe_specifique_type', 'taxe_specifique_value'] as $k) {
+        foreach (['numero', 'type', 'prix_base', 'etat', 'notes', 'taxe_specifique_type', 'taxe_specifique_value', 'taxe_id'] as $k) {
             if (array_key_exists($k, $data)) {
                 if ($k === 'type') $this->validateType((string)$data[$k]);
                 if ($k === 'etat') $this->validateEtat((string)$data[$k]);
@@ -88,6 +117,19 @@ class HotelChambre
                         throw new \RuntimeException("La valeur de taxe spécifique doit être >= 0.");
                     }
                     $data[$k] = $v;
+                }
+                if ($k === 'taxe_id') {
+                    // taxe_id peut être NULL (= pas de taxe) ou un entier positif.
+                    $v = $data[$k];
+                    if ($v === null || $v === '' || $v === 0) {
+                        $data[$k] = null;
+                    } else {
+                        $v = (int)$v;
+                        if ($v <= 0) {
+                            throw new \RuntimeException("taxe_id invalide : $v");
+                        }
+                        $data[$k] = $v;
+                    }
                 }
                 $fields[] = "$k = :$k";
                 $params[":$k"] = $data[$k];
