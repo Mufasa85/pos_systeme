@@ -19,16 +19,16 @@
  *  et `_printReceiptContent` sont factorisés dans /assets/js/app.js et utilisés
  *  tels quels (déjà chargés via le footer global : <script src="/assets/js/app.js">).
  */
-(function() {
+(function () {
   'use strict';
 
   const APP_URL = window.location.origin;
   const $ = (id) => document.getElementById(id);
   const pageAlert = $('hotel-ft-alert-page');
-  const picker    = $('hotel-ft-sejours-picker');
-  const bloc      = $('hotel-ft-bloc');
-  const search    = $('hotel-ft-sejour-search');
-  const results   = $('hotel-ft-sejour-results');
+  const picker = $('hotel-ft-sejours-picker');
+  const bloc = $('hotel-ft-bloc');
+  const search = $('hotel-ft-sejour-search');
+  const results = $('hotel-ft-sejour-results');
 
   let currentSejourId = null;
   let previewData = null;
@@ -45,22 +45,16 @@
   }
 
   // ── Miroir EXACT de posCart.calculateSpecificTaxUnit (public/assets/js/app.js) ──
-  // Algo de référence (cf. app.js, méthode posCart.calculateSpecificTaxUnit) :
+  // BUG FIX 2026-10-20 : cette fonction standalone a été supprimée car elle
+  // n'est plus utilisée — `computeProductTTC` (introduite juste en dessous)
+  // implémente désormais la même formule en interne pour chaque produit.
+  // On garde l'algo documenté ici pour référence historique :
+  //
   //     calculateSpecificTaxUnit(item) {
   //         const price = parseFloat(item.prix) || 0;
   //         const value = parseFloat(item.taxe_specifique_value) || 0;
   //         return item.taxe_specifique_type === 'CDF' ? value : price * (value / 100);
   //     }
-  // Renvoie la valeur CDF de la taxe spécifique unitaire :
-  //   - si type === 'CDF' → valeur brute (en FC)
-  //   - sinon (type === '%') → pourcentage du prix unitaire
-  // Cette fonction est utilisée par buildDgiPayload() pour envoyer à la DGI
-  // une valeur déjà convertie en CDF (cohérent avec ce que fait la caisse).
-  function computeSpecificTaxValue(price, type, rawValue) {
-    var p = parseFloat(price) || 0;
-    var v = parseFloat(rawValue) || 0;
-    return (type === 'CDF') ? v : p * (v / 100);
-  }
 
   // ── Lit le taux de TVA B (régime hôtelier) depuis le previewData ──
   // Plus besoin de fetch /api/taxes : la valeur est portée par la chambre
@@ -82,72 +76,160 @@
     return isNaN(n) ? 0 : n;
   }
 
-  // ── Calcul TS / TVA par produit (aligné sur posCart.calculateItemTTC dans app.js) ──
-  // Calcule pour UN produit : prix HT, TS unitaire, TVA (sur prix + sur TS), TTC.
-  // La TVA type B de l'hôtel n'est pas collectée (cf. facturation hôtel),
-  // mais on calcule ici la valeur THÉORIQUE pour pouvoir l'afficher dans le
-  // détail (info utilisateur / DGI). Le régime B est ensuite géré côté UI
-  // (TVA non collectée, montant facturé = HT + TS).
-  function computeItemTTC(item) {
-    var price = parseFloat(item.prix_unitaire) || 0;
-    var qty = parseFloat(item.quantite) || 1;
-    var taxRate = parseFloat(item.tax_rate) || 0;
-    var rType = item.remise_type || '%';
-    var rValue = parseFloat(item.remise_value) || 0;
-    var tsType = item.taxe_specifique_type || '%';
-    var tsValue = parseFloat(item.taxe_specifique_value) || 0;
+  // ── Calcul TS / TVA par produit — MIRROIR EXACT de posCart.calculateItemTTC ──
+  // Réplique la formule de `public/assets/js/app.js` lignes 836-862 :
+  //
+  //   calculateSpecificTaxUnit(item) {
+  //       const price = parseFloat(item.prix) || 0;
+  //       const value = parseFloat(item.taxe_specifique_value) || 0;
+  //       return item.taxe_specifique_type === 'CDF' ? value : price * (value / 100);
+  //   }
+  //
+  //   calculateItemTTC(item, quantityOverride = null) {
+  //       const price    = parseFloat(item.prix) || 0;
+  //       const quantity = quantityOverride !== null ? quantityOverride : (parseFloat(item.quantite) || 0);
+  //       const taxRate  = parseFloat(item.tax_rate) || 0;
+  //       const specificTaxUnit       = this.calculateSpecificTaxUnit(item);
+  //       const vatOnPriceUnit        = price * (taxRate / 100);
+  //       const vatOnSpecificTaxUnit  = specificTaxUnit * (taxRate / 100);
+  //       const lineHT  = price * quantity + specificTaxUnit + vatOnSpecificTaxUnit;
+  //       const unitTTC = price + specificTaxUnit + vatOnPriceUnit + vatOnSpecificTaxUnit;
+  //       return {
+  //           priceHT, quantity, specificTaxUnit, specificTaxTotal,
+  //           vatOnPriceTotal: vatOnPriceUnit * quantity,
+  //           vatOnSpecificTaxTotal: vatOnSpecificTaxUnit * quantity,
+  //           taxTotal: (vatOnPriceUnit + vatOnSpecificTaxUnit) * quantity,
+  //           lineHT, lineTTC: lineHT, unitTTC
+  //       };
+  //   }
+  //
+  // NOTE IMPORTANTE — convention BUG FIX 2026-10-20 :
+  // Avant, ce fichier calculait prixHtNet = price - remise puis appliquait
+  // TS et TVA sur ce prix net. Ça NE CORRESPONDAIT PAS au pattern app.js
+  // (qui ne soustrait PAS la remise dans lineHT — la remise est gérée à
+  // part via remise_value envoyé à la DGI). De plus, la TS était appliquée
+  // sur prixHtNet au lieu de price, ce qui sous-évaluait le TTC.
+  //
+  // On reproduit maintenant fidèlement la formule app.js :
+  //   1. specificTaxUnit = (type === 'CDF') ? value : price * (value / 100)
+  //      → TS calculée sur le PRIX BRUT (price), pas sur le prix net.
+  //   2. vatOnPriceUnit       = price * (taxRate / 100)
+  //   3. vatOnSpecificTaxUnit = specificTaxUnit * (taxRate / 100)
+  //   4. lineHT  = price * qty + specificTaxUnit + vatOnSpecificTaxUnit
+  //                (la remise n'est PAS incluse ici ; alignée app.js)
+  //   5. lineTTC = lineHT + vatOnPriceUnit * qty
+  //
+  // La remise est EXPOSÉE séparément (`remise_montant`, `remise_value`) pour
+  // info / DGI, mais ne réduit PAS le lineHT côté front — c'est cohérent
+  // avec ce que fait app.js (cf. validateWithDGI() qui envoie remise_value
+  // tel quel sans impacter lineHT).
+  function computeProductTTC(product) {
+    var p         = product || {};
+    var price     = parseFloat(p.prix_unitaire) || 0;
+    var qty       = parseFloat(p.quantite) || 1;
+    var taxRate   = parseFloat(p.tax_rate) || 0;
+    var rType     = p.remise_type || '%';
+    var rValueRaw = parseFloat(p.remise_value) || 0;
+    var tsType    = p.taxe_specifique_type || '%';
+    var tsValueRaw= parseFloat(p.taxe_specifique_value) || 0;
 
-    // Remise sur le prix unitaire (alignement app.js)
-    var remise = rType === 'CDF' ? rValue : price * (rValue / 100);
-    var prixHtNet = Math.max(0, price - remise);
+    // 1) TS unitaire — miroir exact de posCart.calculateSpecificTaxUnit
+    var specificTaxUnit = (tsType === 'CDF')
+      ? tsValueRaw
+      : price * (tsValueRaw / 100);
 
-    // TS unitaire (alignement posCart.calculateSpecificTaxUnit dans app.js)
-    var tsUnit = tsType === 'CDF' ? tsValue : prixHtNet * (tsValue / 100);
+    // 2) TVA unitaire sur prix + sur TS — miroir exact de posCart.calculateItemTTC
+    var vatOnPriceUnit       = price * (taxRate / 100);
+    var vatOnSpecificTaxUnit = specificTaxUnit * (taxRate / 100);
 
-    // TVA sur (prix HT net + TS) — même formule que posCart.calculateItemTTC.
-    var vatOnPrice = prixHtNet * (taxRate / 100);
-    var vatOnTS = tsUnit * (taxRate / 100);
+    // 3) lineHT (= HT cumulé = prix × qty + TS + TVA_sur_TS)
+    var lineHT = (price * qty) + specificTaxUnit + vatOnSpecificTaxUnit;
 
-    var lineHT = prixHtNet * qty + tsUnit * qty;
-    var lineTTC = lineHT + (vatOnPrice + vatOnTS) * qty;
+    // 4) lineTTC (= lineHT + TVA_sur_prix × qty)
+    var lineTTC = lineHT + vatOnPriceUnit * qty;
+
+    // Remise exposée pour information (montant CDF après conversion si %).
+    // NE MODIFIE PAS lineHT ni lineTTC — alignement app.js (cf. note ci-dessus).
+    var remiseMontant = (rType === 'CDF') ? rValueRaw : (price * rValueRaw / 100);
 
     return {
-      prix_ht_net_unitaire: prixHtNet,
-      ts_unitaire: tsUnit,
-      line_ht: lineHT,
-      line_ts: tsUnit * qty,
-      line_vat_price: vatOnPrice * qty,
-      line_vat_ts: vatOnTS * qty,
-      line_vat_total: (vatOnPrice + vatOnTS) * qty,
-      line_ttc: lineTTC,
-      quantite: qty,
-      tax_rate: taxRate
+      // Données sources normalisées
+      price_unitaire:     price,
+      quantite:           qty,
+      tax_rate:           taxRate,
+      tax_etiquette:      p.taxe_etiquette || 'B',
+      // Résultats unitaires (par unité)
+      specific_tax_unit:  specificTaxUnit,
+      vat_on_price_unit:  vatOnPriceUnit,
+      vat_on_ts_unit:     vatOnSpecificTaxUnit,
+      // Résultats ligne (cumulés avec quantité)
+      line_ht:            lineHT,
+      line_ts:            specificTaxUnit * qty,
+      line_vat_price:     vatOnPriceUnit * qty,
+      line_vat_ts:        vatOnSpecificTaxUnit * qty,
+      line_vat_total:     (vatOnPriceUnit + vatOnSpecificTaxUnit) * qty,
+      line_ttc:           lineTTC,
+      // Remise (info uniquement — non déduite des line_* ci-dessus)
+      remise_type:        rType,
+      remise_value_raw:   rValueRaw,
+      remise_montant:     remiseMontant,
     };
   }
 
+  // Wrapper rétro-compatible — certains call-sites historiques utilisent
+  // encore `computeItemTTC`. On garde l'API exacte mais on la fait pointer
+  // sur le nouveau calculateur. (Le nom `computeItemTTC` reste pour ne pas
+  // casser les call-sites dans renderBloc / buildHotelReceiptTotals.)
+  function computeItemTTC(item) {
+    return computeProductTTC(item);
+  }
+
   // Agrège les totaux pour TOUS les extras d'un séjour (toutes lignes confondues).
-  // Renvoie : { total_ht, total_ts, total_tva, total_ttc } (par catégorie de TVA).
+  // Renvoie : { total_ht, total_ts, total_tva, total_ttc } + détail par taux
+  // et par étiquette de TVA. BUG FIX 2026-10-20 : utilise maintenant
+  // computeProductTTC (miroir app.js) pour que les totaux correspondent
+  // EXACTEMENT à ce que la caisse POS envoie à la DGI. Avant cette
+  // correction, `total_ttc` était sous-évalué car la TS était calculée sur
+  // prixHtNet au lieu de price, et la TVA n'incluait pas correctement
+  // la composante TVA_sur_TS.
   function computeExtrasTotals(extrasLignes) {
     var lines = extrasLignes || [];
     var totalHT = 0, totalTS = 0, totalVAT = 0, totalTTC = 0;
-    var byRate = {}; // { '16': { ht, ts, vat, ttc }, ... }
+    var byRate = {}; // { '16': { ht, ts, vat, ttc }, ... }         (par taux de TVA)
+    var byEtiq = {}; // { 'B'|'C'|... : { ht, ts, vat, ttc }, ... } (par étiquette DGI)
 
     lines.forEach(function (ligne) {
       (ligne.produits || []).forEach(function (p) {
-        var calc = computeItemTTC(p);
+        var calc = computeProductTTC(p);
         totalHT  += calc.line_ht;
         totalTS  += calc.line_ts;
         totalVAT += calc.line_vat_total;
         totalTTC += calc.line_ttc;
+        // Bucket par taux de TVA (info UI)
         var r = String(calc.tax_rate || 0);
         if (!byRate[r]) byRate[r] = { ht: 0, ts: 0, vat: 0, ttc: 0 };
         byRate[r].ht  += calc.line_ht;
         byRate[r].ts  += calc.line_ts;
         byRate[r].vat += calc.line_vat_total;
         byRate[r].ttc += calc.line_ttc;
+        // Bucket par étiquette DGI (A/B/C/...) — utile pour le détail
+        // tax breakdown envoyé par la DGI dans buildHotelReceiptTaxBreakdown.
+        var e = String(calc.tax_etiquette || 'B');
+        if (!byEtiq[e]) byEtiq[e] = { ht: 0, ts: 0, vat: 0, ttc: 0 };
+        byEtiq[e].ht  += calc.line_ht;
+        byEtiq[e].ts  += calc.line_ts;
+        byEtiq[e].vat += calc.line_vat_total;
+        byEtiq[e].ttc += calc.line_ttc;
       });
     });
-    return { total_ht: totalHT, total_ts: totalTS, total_tva: totalVAT, total_ttc: totalTTC, by_rate: byRate };
+    return {
+      total_ht:  totalHT,
+      total_ts:  totalTS,
+      total_tva: totalVAT,
+      total_ttc: totalTTC,
+      by_rate:   byRate,
+      by_etiq:   byEtiq,
+    };
   }
   function escapeHtml(s) {
     return String(s == null ? '' : s)
@@ -161,7 +243,7 @@
     if (!s) return '—';
     const d = new Date(String(s).replace(' ', 'T'));
     if (isNaN(d)) return s;
-    return ('0' + d.getDate()).slice(-2) + '/' + ('0' + (d.getMonth()+1)).slice(-2) + '/' + d.getFullYear();
+    return ('0' + d.getDate()).slice(-2) + '/' + ('0' + (d.getMonth() + 1)).slice(-2) + '/' + d.getFullYear();
   }
   async function jsonFetch(url, opts) {
     const res = await fetch(APP_URL + url, Object.assign(
@@ -188,10 +270,10 @@
 
   // Mapping modes de paiement UI hôtel → nomenclature DGI
   const PAY_MODE_DGI = {
-    cash:         'ESPECES',
+    cash: 'ESPECES',
     mobile_money: 'MOBILEMONEY',
-    carte:        'CARTEBANCAIRE',
-    autre:        'AUTRE',
+    carte: 'CARTEBANCAIRE',
+    autre: 'AUTRE',
   };
   // Numéro de facture envoyé à la DGI : on garde la nomenclature existante
   // (FV = Facture de Vente). Le DGI ne connaît pas 'HB' ; le backend transcrit
@@ -316,26 +398,26 @@
           var calc = computeItemTTC(p);
           var tsLabel = (p.taxe_specifique_value && p.taxe_specifique_value > 0)
             ? ' <span style="color:#b45309;font-weight:600;">TS ' + (p.taxe_specifique_type === 'CDF'
-                ? fmtFc(p.taxe_specifique_value)
-                : p.taxe_specifique_value + '%')
-              + '</span>'
+              ? fmtFc(p.taxe_specifique_value)
+              : p.taxe_specifique_value + '%')
+            + '</span>'
             : '';
           var tvaLabel = (p.tax_rate && p.tax_rate > 0)
             ? ' <span style="color:#1e40af;">TVA ' + p.tax_rate + '%</span>'
             : '';
           var remiseLabel = (p.remise_value && p.remise_value > 0)
             ? ' <span style="color:#16a34a;">−' + (p.remise_type === 'CDF'
-                ? ' ' + fmtFc(p.remise_value)
-                : p.remise_value + '%')
-              + '</span>'
+              ? ' ' + fmtFc(p.remise_value)
+              : p.remise_value + '%')
+            + '</span>'
             : '';
           prodsHtml += '<tr>'
             + '<td style="padding:1px 4px 1px 16px;">› ' + escapeHtml(p.nom || 'Produit') + '</td>'
             + '<td style="padding:1px 4px;text-align:right;">'
-            +   formatQty(calc.quantite, false) + ' × ' + fmtFc(p.prix_unitaire || 0)
-            +   tsLabel + remiseLabel
-            +   '<br><span style="color:#0B5E88;">HT ' + fmtFc(calc.line_ht) + '</span>'
-            +   tvaLabel
+            + formatQty(calc.quantite, false) + ' × ' + fmtFc(p.prix_unitaire || 0)
+            + tsLabel + remiseLabel
+            + '<br><span style="color:#0B5E88;">HT ' + fmtFc(calc.line_ht) + '</span>'
+            + tvaLabel
             + '</td>'
             + '</tr>';
         });
@@ -356,7 +438,7 @@
     const extrasTable = extrasDetailRows.length === 0
       ? '<div style="font-size:.82rem;color:var(--muted);font-style:italic;">Aucun extra saisi depuis la caisse pour ce séjour.</div>'
       : '<table class="hotel-ft-table"><thead><tr><th>Date</th><th>Description</th><th class="num">Montant</th></tr></thead><tbody>'
-        + extrasDetailRows.join('') + '</tbody></table>';
+      + extrasDetailRows.join('') + '</tbody></table>';
     const acomptesRows = (previewData.acomptes || []).map(a => '<tr><td>' + fmtDate(a.date) + '</td><td>' + escapeHtml(a.mode) + '</td><td class="num">' + fmtFc(a.montant) + '</td></tr>').join('');
     const acomptesTable = (previewData.acomptes || []).length === 0
       ? '<div style="font-size:.82rem;color:var(--muted);font-style:italic;">Aucun acompte.</div>'
@@ -382,32 +464,43 @@
 
     // Totaux RÉELS chambre + extras (régime B hôtelier : TVA collectée = 0).
     //
-    // Sprint 7 — 2026-10-19 : alignement sur le pattern app.js
-    // (posCart.calculateItemTTC). Le total facturé au client inclut
-    // maintenant la TVA_théorique sur la TS (vatOnSpecificTaxUnit de
-    // app.js), exactement comme dans la caisse. Le backend expose
-    // `n.tva_sur_ts` et `n.total_avec_ts_et_tva` (= HT + TS + TVA_sur_TS).
-    // C'est ce dernier qui correspond au `amount` envoyé à la DGI.
+    // BUG FIX 2026-10-20 — alignement strict sur posCart.calculateItemTTC :
+    // Avant cette correction, on additionnait ici
+    //   totalFinalB = totalNuitesAvecTSetTVA + totalExtrasHT + totalExtrasTS + totalExtrasTVATheorique
+    // ce qui COMPTAIT 3 FOIS la composante extras :
+    //   - totalExtrasHT (line_ht) inclut déjà TS + TVA_sur_TS (cf. computeProductTTC)
+    //   - totalExtrasTS  = la TS une seconde fois
+    //   - totalExtrasTVATheorique = la TVA une seconde fois
+    // Résultat : le total facturé était surévalué d'un facteur (TS + TVA).
+    //
+    // Formule correcte (pattern app.js) :
+    //   totalFacture = sum(lineTTC_extras) + total_avec_ts_et_tva_chambre + extrasManuels
+    //
+    // Pour les chambres, le backend expose `total_avec_ts_et_tva`
+    // (= lineHT cumulé chambres = HT + TS + TVA_sur_TS, sans TVA_sur_prix).
+    // Pour les extras, on utilise `line_ttc` (miroir app.js) :
+    //   line_ttc = price*qty + TS + TVA_sur_prix + TVA_sur_TS
+    // Ce qui correspond au calcul DGI attendu pour la rubrique TTC.
     const totalNuitesAvecTS = parseFloat(n.total_avec_ts) || 0;
     const tvaSurTS = parseFloat(n.tva_sur_ts) || 0;
-    const totalNuitesAvecTSetTVA = parseFloat(n.total_avec_ts_et_tva) || totalNuitesAvecTS + tvaSurTS;
-    const totalExtrasHT = extrasTotals.total_ht || 0;
-    const totalExtrasTS = extrasTotals.total_ts || 0;
-    const totalExtrasTVATheorique = extrasTotals.total_tva || 0;
-    // Total facturé = aligné sur le pattern app.js :
-    //   lineHT cumulé = (HT_nuit + TS_nuit + TVA_sur_TS_nuit) + extras_HT + extras_TS + TVA_sur_TS_extras
-    //                  = total_avec_ts_et_tva + totalExtrasHT + totalExtrasTS + totalExtrasTVATheorique
-    const totalFinalB = totalNuitesAvecTSetTVA + totalExtrasHT + totalExtrasTS + totalExtrasTVATheorique;
-    // lineTTC cumulé (= app.js lineTTC : +TVA_sur_prix) — info, pas collecté
-    const totalFinalAvecTVA = totalFinalB + 0; // la TVA sur prix n'est pas détaillée ici
+    const totalNuitesAvecTSetTVA = parseFloat(n.total_avec_ts_et_tva) || (totalNuitesAvecTS + tvaSurTS);
+    // Totaux extras — VRAIES valeurs (pas de double-comptage)
+    const totalExtrasTTC = extrasTotals.total_ttc || 0;     // lineTTC cumulé = HT + TS + TVA_sur_prix + TVA_sur_TS
+    const totalExtrasHT = extrasTotals.total_ht || 0;       // line_ht cumulé  = HT + TS + TVA_sur_TS
+    const totalExtrasTS = extrasTotals.total_ts || 0;       // TS cumulée
+    const totalExtrasTVATheorique = extrasTotals.total_tva || 0; // TVA = TVA_sur_prix + TVA_sur_TS
+    // Total facturé (cumul chambres + extras, aligné pattern app.js)
+    const totalFinalB = totalNuitesAvecTSetTVA + totalExtrasTTC;
+    // Total avec TVA_sur_prix incluse (= lineTTC cumulé chambres + extras) — info
+    const totalFinalAvecTVA = totalFinalB;
 
     const totalsAndEmit = alreadyFactured ? '' : `
       <div class="hotel-ft-totals">
-        <div class="row"><span>Total extras HT</span><span>${fmtFc(totalExtrasHT)}</span></div>
-        ${totalExtrasTS > 0 ? `<div class="row" style="color:#b45309;"><span>TS extras</span><span>${fmtFc(totalExtrasTS)}</span></div>` : ''}
+        <div class="row"><span>Total extras (TTC, aligné pattern app.js)</span><span>${fmtFc(totalExtrasTTC)}</span></div>
+        ${totalExtrasTS > 0 ? `<div class="row" style="color:#b45309;"><span>dont TS extras</span><span>${fmtFc(totalExtrasTS)}</span></div>` : ''}
         ${extrasTaxDetail}
-        <div class="row"><span>TVA théorique extras (régime B : non collectée)</span><span style="color:#1e40af;">${fmtFc(totalExtrasTVATheorique)}</span></div>
-        <div class="row total"><span>Total final (HT + TS + TVA_sur_TS, aligné pattern app.js)</span><span>${fmtFc(totalFinalB)}</span></div>
+        ${totalExtrasTVATheorique > 0 ? `<div class="row"><span>dont TVA théorique extras (régime B : non collectée)</span><span style="color:#1e40af;">${fmtFc(totalExtrasTVATheorique)}</span></div>` : ''}
+        <div class="row total"><span>Total chambres + extras TTC</span><span>${fmtFc(totalFinalB)}</span></div>
         <div class="row"><span>Acomptes déjà versés</span><span>− ${fmtFc(previewData.acompte_total)}</span></div>
         <div class="row total"><span>Solde dû</span><span>${fmtFc(totalFinalB - (previewData.acompte_total || 0))}</span></div>
       </div>
@@ -449,7 +542,7 @@
         <table class="hotel-ft-table"><thead><tr><th>Date</th><th class="num">Prix</th></tr></thead><tbody>${nightsRows}${remiseRow}</tbody></table>
       </div>
       <div style="margin-top:1.25rem;">
-        <h4 class="hotel-ft-section-title">Extras (${(e.lignes||[]).length} saisie${(e.lignes||[]).length > 1 ? 's' : ''})</h4>
+        <h4 class="hotel-ft-section-title">Extras (${(e.lignes || []).length} saisie${(e.lignes || []).length > 1 ? 's' : ''})</h4>
         ${extrasTable}
         <div style="margin-top:.85rem;font-size:.82rem;color:var(--muted);">Ajout manuel (minibar, casse, pourboire…) :</div>
         <div class="hotel-ft-extras-add">
@@ -508,7 +601,7 @@
       '<table class="hotel-ft-table" style="margin-top:.5rem;"><thead><tr><th>Description</th><th class="num">Montant</th><th></th></tr></thead><tbody>' +
       rows + '</tbody></table>' +
       '<div style="text-align:right;font-size:.85rem;color:var(--muted);margin-top:.25rem;">Sous-total : <strong>' +
-      fmtFc(extrasManuels.reduce((s,x) => s + x.montant, 0)) + '</strong></div>';
+      fmtFc(extrasManuels.reduce((s, x) => s + x.montant, 0)) + '</strong></div>';
     $list.querySelectorAll('[data-rm]').forEach(b => {
       b.addEventListener('click', () => {
         const i = parseInt(b.dataset.rm, 10);
@@ -529,39 +622,54 @@
   //         + extras_HT + extras_TS + extras_TVA_sur_TS     // cumul aligné pattern app.js
   //         + extras_manuels
   //         − acomptes (déjà déduits de solde_du par le backend)
+  // BUG FIX 2026-10-20 — alignement strict sur posCart.calculateItemTTC :
+  // Le solde dû exposé à l'UI et envoyé à la DGI doit être :
+  //
+  //   totalFacture = lineTTC_chambres + lineTTC_extras_caisse + extras_manuels
+  //   soldeDu     = totalFacture − acompteTotal
+  //
+  // AVANT (buggé) :
+  //   - Cette fonction lisait `e.total_ht`, `e.total_ts`, `e.total_tva`
+  //     depuis la réponse backend, mais le contrôleur PHP ne calcule PAS
+  //     ces champs pour les extras : il expose juste `extras.total_ht`
+  //     (= sum des montants = qty × prix, SANS TS ni TVA).
+  //   - `e.total_ts` et `e.total_tva` étaient donc `undefined` → 0.
+  //   - Du coup, le totalTTC n'incluait PAS la TS ni la TVA des extras.
+  //   - On sous-évaluait massivement le TTC facturé.
+  //
+  // MAINTENANT :
+  //   - On appelle `computeExtrasTotals(e.lignes)` qui ré-applique la formule
+  //     complète `posCart.calculateItemTTC` sur chaque produit détaillé
+  //     (prix × qty + TS + TVA_sur_prix + TVA_sur_TS).
+  //   - On utilise `extrasTotals.total_ttc` (= lineTTC cumulé extras).
+  //   - `totalChambresTTC` (= `total_avec_ts_et_tva` du backend) reste
+  //     la source de vérité pour les chambres (déjà correct).
+  //   - Le résultat est donc EXACTEMENT `TTC_chambres + TTC_extras +
+  //     extras_manuels − acompte_total`.
   function computeSoldeCourant() {
     if (!previewData) return 0;
     var n = previewData.nuits || {};
     var e = previewData.extras || {};
-    var extrasManualTotal = extrasManuels.reduce((s, x) => s + x.montant, 0);
-    // 1) Total chambre (HT + TS + TVA_sur_TS) — exposé par le backend
-    var totalNuitAvecTVA = parseFloat(n.total_avec_ts_et_tva) || 0;
-    // 2) Total extras caisse (HT + TS + TVA_sur_TS) — fourni par computeExtrasTotals
-    var totalExtrasHT = e.total_ht || 0;
-    var totalExtrasTS = e.total_ts || 0;
-    var totalExtrasTVATheorique = e.total_tva || 0;
-    // 3) Solde dû (déjà calculé par le backend comme
-    //    totalFinal - acompte_total). On PART de ce solde, qui est
-    //    garanti cohérent avec la DB, puis on AJUSTE pour les
-    //    extras_manuels (non encore dans la DB) et on RECOMPOSE le
-    //    total côté front pour la preview.
-    var soldeDu = parseFloat(previewData.solde_du) || 0;
-    // Si le backend n'a pas encore exposé total_avec_ts_et_tva (par
-    // exemple cache navigateur ancien), on retombe sur l'ancien calcul
-    // pour ne pas casser l'affichage.
-    if (totalNuitAvecTVA === 0 && totalExtrasTVATheorique === 0) {
-      // Mode dégradé : utilise l'ancien solde_du tel quel
-      return soldeDu + extrasManualTotal;
-    }
-    // Composition alignée pattern app.js :
-    // totalFacture = totalNuitAvecTVA + totalExtrasHT + totalExtrasTS + totalExtrasTVATheorique + extrasManualTotal
-    // soldeDu = totalFacture - acompteTotal
-    // → totalFacture = soldeDu + acompteTotal
-    // → pour éviter de recharger acompte_total, on reconstruit à partir
-    //   des composantes du backend ET on retire l'acompte comme le backend.
+    var extrasManualTotal = extrasManuels.reduce(function (s, x) { return s + x.montant; }, 0);
+
+    // 1) Total chambres TTC — exposé par le backend
+    //    (= HT + TS + TVA_sur_TS pour le séjour, sans TVA_sur_prix
+    //      car régime B hôtelier)
+    var totalChambresTTC = parseFloat(n.total_avec_ts_et_tva) || 0;
+
+    // 2) Total extras caisse TTC — calculé ICI via computeExtrasTotals
+    //    (= sum de lineTTC des produits = HT + TS + TVA_sur_prix + TVA_sur_TS)
+    var extrasTotals = computeExtrasTotals(e.lignes);
+    var totalExtrasTTC = extrasTotals.total_ttc || 0;
+
+    // 3) Acomptes
     var acompteTotal = parseFloat(previewData.acompte_total) || 0;
-    var totalFacture = totalNuitAvecTVA + totalExtrasHT + totalExtrasTS + totalExtrasTVATheorique + extrasManualTotal;
-    return totalFacture - acompteTotal;
+
+    // 4) Total facturé TTC
+    var totalFactureTTC = totalChambresTTC + totalExtrasTTC + extrasManualTotal;
+
+    // 5) Solde dû = total − acomptes
+    return totalFactureTTC - acompteTotal;
   }
   function getTotalPaiements() {
     return paiements.reduce((s, p) => s + (parseFloat(p.montant) || 0), 0);
@@ -589,31 +697,61 @@
   function buildHotelReceiptItems(n, e, manuels) {
     var s = previewData.sejour;
     var chambreTaxLabel = (n && n.tax_etiquette) || 'B';
-    var chambreTsType   = (n && n.taxe_specifique_type) || '%';
+    var chambreTsType = (n && n.taxe_specifique_type) || '%';
     // Pour la TS chambre, on a une seule valeur (par nuitée), appliquée à
     // chaque ligne. Le libellé est généré via getHotelSpecificTaxLabel()
     // (miroir de posCart.getSpecificTaxLabel() dans app.js).
     var chambreTsLabel = getHotelSpecificTaxLabel(n && n.taxe_specifique_value, chambreTsType);
-    var html = '<table class="receipt-table"><thead><tr><th>Article</th><th style="text-align:right">Total HT</th></tr></thead><tbody>';
-    (n.lignes || []).forEach(function(l) {
+    var html = '<table class="receipt-table"><thead><tr><th>Article</th><th style="text-align:right">Total TTC</th></tr></thead><tbody>';
+    // ── Nuits : alignement pattern app.js ───────────────────────────────
+    // lineHT (app.js) = prix × qty + TS + TVA_sur_TS
+    (n.lignes || []).forEach(function (l) {
       var prixNuit = parseFloat(l.prix) || 0;
       var tsUnit = parseFloat(l.ts_unitaire) || 0;
-      // lineHT (app.js) = prix × qty + TS + TVA_sur_TS
       var lineHT = prixNuit * 1 + tsUnit + (tsUnit * (parseFloat(n.tax_rate) || 0) / 100);
-      // Libellé TS par ligne : on l'affiche dans le bloc "name" pour rester
-      // cohérent avec le pattern app.js (cf. renderCart() qui injecte
-      // specificTaxLabel dans le price <small>).
       var tsLabelLine = tsUnit > 0
         ? getHotelSpecificTaxLabel(tsUnit, chambreTsType)
         : '';
       html += '<tr class="item-name-row"><td colspan="2"><span class="item-name">Nuit ' + fmtDate(l.date) + ' — Chambre ' + escapeHtml(s.chambre.numero) + '<span class="item-tax-badge">' + chambreTaxLabel + '</span>[SER]<small style="color:#b45309;font-weight:600;">' + tsLabelLine + '</small></span></td></tr>'
-            + '<tr class="item-detail-row"><td class="item-qty">1 × ' + fmtFc(prixNuit) + '</td><td class="item-total" style="text-align:right;">' + fmtFc(lineHT) + '</td></tr>';
+        + '<tr class="item-detail-row"><td class="item-qty">1 × ' + fmtFc(prixNuit) + '</td><td class="item-total" style="text-align:right;">' + fmtFc(lineHT) + '</td></tr>';
     });
-    (e.lignes || []).forEach(function(x) {
-      var montant = parseFloat(x.montant) || 0;
-      html += '<tr class="item-name-row"><td colspan="2"><span class="item-name">' + escapeHtml(x.description) + '<span class="item-tax-badge">B</span>[SER]</span></td></tr><tr class="item-detail-row"><td class="item-qty">1 × ' + fmtFc(montant) + '</td><td class="item-total" style="text-align:right;">' + fmtFc(montant) + '</td></tr>';
+    // ── Extras caisse : affiche les produits avec leur lineTTC ──────────
+    // BUG FIX 2026-10-20 : avant on affichait simplement `montant`
+    // (= qty × prix) comme total, ce qui sous-évaluait le TTC en omettant
+    // la TS et la TVA. On utilise maintenant computeProductTTC pour
+    // calculer le vrai lineTTC (= prix × qty + TS + TVA_sur_prix + TVA_sur_TS).
+    // Si une vente legacy n'a pas de détail produit, on retombe sur
+    // le montant affiché comme approximation (cas rare).
+    (e.lignes || []).forEach(function (x) {
+      var produits = x.produits || [];
+      if (produits.length > 0) {
+        produits.forEach(function (p) {
+          var calc = computeProductTTC(p);
+          var tsLabel = '';
+          if (calc.line_ts > 0) {
+            // TS unitaire (CDF) = line_ts / qty
+            var tsUnitVal = calc.quantite > 0 ? (calc.line_ts / calc.quantite) : 0;
+            tsLabel = getHotelSpecificTaxLabel(tsUnitVal, p.taxe_specifique_type || '%');
+          }
+          var tvaLabel = (p.tax_rate && p.tax_rate > 0)
+            ? ' <span style="color:#1e40af;">[TVA ' + p.tax_rate + '%]</span>'
+            : '';
+          html += '<tr class="item-name-row"><td colspan="2"><span class="item-name">'
+            + escapeHtml(p.nom || x.description || 'Produit')
+            + (tsLabel ? '<small style="color:#b45309;font-weight:600;">' + tsLabel + '</small>' : '')
+            + tvaLabel
+            + '</span></td></tr>'
+            + '<tr class="item-detail-row"><td class="item-qty">'
+            + formatQty(calc.quantite, false) + ' × ' + fmtFc(p.prix_unitaire || 0)
+            + '</td><td class="item-total" style="text-align:right;">' + fmtFc(calc.line_ttc) + '</td></tr>';
+        });
+      } else {
+        // Ligne legacy : pas de détails produits, on affiche le montant brut
+        var montant = parseFloat(x.montant) || 0;
+        html += '<tr class="item-name-row"><td colspan="2"><span class="item-name">' + escapeHtml(x.description || 'Extra') + '<span class="item-tax-badge">B</span>[SER]</span></td></tr><tr class="item-detail-row"><td class="item-qty">1 × ' + fmtFc(montant) + '</td><td class="item-total" style="text-align:right;">' + fmtFc(montant) + '</td></tr>';
+      }
     });
-    (manuels || []).forEach(function(x) {
+    (manuels || []).forEach(function (x) {
       var montant = parseFloat(x.montant) || 0;
       html += '<tr class="item-name-row"><td colspan="2"><span class="item-name">' + escapeHtml(x.description) + ' <small style="color:#b45309">(extra manuel)</small><span class="item-tax-badge">B</span>[SER]</span></td></tr><tr class="item-detail-row"><td class="item-qty">1 × ' + fmtFc(montant) + '</td><td class="item-total" style="text-align:right;">' + fmtFc(montant) + '</td></tr>';
     });
@@ -623,7 +761,7 @@
   function buildHotelReceiptInfoSection() {
     var s = previewData.sejour;
     var sellerName = (typeof CURRENT_USER !== 'undefined' && CURRENT_USER.fullName) ? CURRENT_USER.fullName : (STORE_INFO.name || '');
-    var agentCode  = (typeof CURRENT_USER !== 'undefined' && CURRENT_USER.agentCode) ? CURRENT_USER.agentCode : '';
+    var agentCode = (typeof CURRENT_USER !== 'undefined' && CURRENT_USER.agentCode) ? CURRENT_USER.agentCode : '';
     return '<div class="client-vendor-info" style="border-top:1px dashed #ccc; margin-top:6px; padding-top:6px; text-align:left; font-size:11px; line-height:1.5;">'
       + '<div style="display:flex;justify-content:space-between;gap:10px;"><span><strong>VENDEUR:</strong></span><span>' + escapeHtml(sellerName) + '</span></div>'
       + (agentCode ? '<div style="display:flex;justify-content:space-between;gap:10px;"><span><strong>NUM AGENT:</strong></span><span>' + escapeHtml(agentCode) + '</span></div>' : '')
@@ -638,40 +776,59 @@
   function buildHotelReceiptTotals(total) {
     var n = previewData.nuits || {};
     var e = previewData.extras || {};
-    var manualTotal = extrasManuels.reduce(function(a, x) { return a + x.montant; }, 0);
+    var manualTotal = extrasManuels.reduce(function (a, x) { return a + x.montant; }, 0);
     var usdRate = (typeof USD_RATE !== 'undefined' && USD_RATE > 0) ? USD_RATE : 0;
     var amountInWords = (typeof posCart !== 'undefined' && posCart.numberToFrenchWords)
       ? posCart.numberToFrenchWords(total)
       : '';
 
-    // Sprint 7 — 2026-10-19 : alignement pattern app.js
-    // Le total passé en argument est calculé par computeSoldeCourant()
-    // ci-dessus (= `lineHT` cumulé = HT + TS + TVA_sur_TS, sans TVA sur
-    // prix car régime B hôtelier). On décompose ici pour la transparence :
-    var totalNuitesHT  = parseFloat(n.total_ht) || 0;
+    // BUG FIX 2026-10-20 — alignement strict sur pattern app.js :
+    //   - Avant : on lisait `e.total_ht`, `e.total_ts`, `e.total_tva`
+    //     depuis la réponse backend, mais le contrôleur PHP ne calcule
+    //     PAS ces champs pour les extras. → ils étaient toujours à 0.
+    //   - Maintenant : on appelle `computeExtrasTotals(e.lignes)` pour
+    //     ré-appliquer la formule complète (miroir app.js) sur chaque
+    //     produit détaillé (HT + TS + TVA_sur_prix + TVA_sur_TS).
+    var extrasTotals = computeExtrasTotals(e.lignes);
+    var totalNuitesHT = parseFloat(n.total_ht) || 0;
     var totalTSChambre = parseFloat(n.taxe_specifique_total) || 0;
     var tvaSurTSChambre = parseFloat(n.tva_sur_ts) || 0;
     var totalNuitesAvecTSetTVA = parseFloat(n.total_avec_ts_et_tva) || 0;
-    var totalExtrasHT = e.total_ht || 0;
-    var totalExtrasTS = e.total_ts || 0;
-    var totalExtrasTVA = e.total_tva || 0;
+    // Totaux extras CORRECTEMENT calculés (alignés pattern app.js)
+    var totalExtrasHT  = extrasTotals.total_ht  || 0;
+    var totalExtrasTS  = extrasTotals.total_ts  || 0;
+    var totalExtrasTVA = extrasTotals.total_tva || 0;
+    var totalExtrasTTC = extrasTotals.total_ttc || 0;
 
     var html = '';
+    // ── Bloc CHAMBRES : décomposition info ──
+    if (totalNuitesHT > 0) {
+      html += '<div class="receipt-total-row" style="font-size:11px;"><span>HT chambres</span><span>' + fmtFc(totalNuitesHT) + '</span></div>';
+    }
+    if (totalTSChambre > 0) {
+      html += '<div class="receipt-total-row" style="color:#b45309;font-size:11px;"><span>TS chambres</span><span>' + fmtFc(totalTSChambre) + '</span></div>';
+    }
+    if (tvaSurTSChambre > 0) {
+      html += '<div class="receipt-total-row" style="color:#1e40af;font-size:11px;"><span>TVA chambres (régime B, non collectée)</span><span>' + fmtFc(tvaSurTSChambre) + '</span></div>';
+    }
+    if (totalNuitesAvecTSetTVA > 0) {
+      html += '<div class="receipt-total-row" style="font-size:11px;"><span>Sous-total chambres</span><span>' + fmtFc(totalNuitesAvecTSetTVA) + '</span></div>';
+    }
     // ── Bloc EXTRAS (les nuits + TS + TVA_sur_TS sont déjà inclus dans `total`) ──
-    if (totalExtrasHT > 0) {
-      html += '<div class="receipt-total-row"><span>Total extras (HT)</span><span>' + fmtFc(totalExtrasHT) + '</span></div>';
+    if (totalExtrasTTC > 0) {
+      html += '<div class="receipt-total-row"><span>Total extras (TTC)</span><span>' + fmtFc(totalExtrasTTC) + '</span></div>';
     }
     if (totalExtrasTS > 0) {
-      html += '<div class="receipt-total-row" style="color:#b45309;font-size:11px;"><span>TS extras</span><span>' + fmtFc(totalExtrasTS) + '</span></div>';
+      html += '<div class="receipt-total-row" style="color:#b45309;font-size:11px;"><span>dont TS extras</span><span>' + fmtFc(totalExtrasTS) + '</span></div>';
     }
     if (totalExtrasTVA > 0) {
-      html += '<div class="receipt-total-row" style="color:#1e40af;font-size:11px;"><span>TVA théorique extras (régime B, non collectée)</span><span>' + fmtFc(totalExtrasTVA) + '</span></div>';
+      html += '<div class="receipt-total-row" style="color:#1e40af;font-size:11px;"><span>dont TVA théorique extras (régime B, non collectée)</span><span>' + fmtFc(totalExtrasTVA) + '</span></div>';
     }
     // ── Bloc EXTRAS MANUELS ──
     if (manualTotal > 0) {
       html += '<div class="receipt-total-row"><span>Total extras manuels</span><span>' + fmtFc(manualTotal) + '</span></div>';
     }
-    // ── Total aligné pattern app.js (= lineHT cumulé, nuits + extras) ──
+    // ── Total aligné pattern app.js (= lineTTC cumulé, nuits + extras) ──
     html += '<div class="receipt-total-row grand-total"><span>TOTAL TTC :</span><span>' + fmtFc(total) + '</span></div>';
     if (usdRate) {
       html += '<div class="receipt-total-row" style="font-size:11px; color:#555;"><span>TAUX DU JOUR :</span><span>' + usdRate + ' Fc/USD</span></div>';
@@ -685,7 +842,7 @@
   function buildHotelReceiptPayments() {
     if (!paiements || paiements.length === 0) return '';
     var html = '<div style="border-top:1px dashed #ccc; margin-top:6px; padding-top:6px;">';
-    paiements.forEach(function(p) {
+    paiements.forEach(function (p) {
       html += '<div class="receipt-total-row" style="font-size:11px; color:#555;"><span>' + escapeHtml(paymentLabel(p.mode)) + ' :</span><span>' + fmtFc(p.montant) + '</span></div>';
     });
     return html + '</div>';
@@ -714,23 +871,23 @@
     line.className = 'modal-payment-line';
     line.style.cssText = 'display: grid; grid-template-columns: 1fr 100px 28px; gap: 8px; align-items: end;';
     line.innerHTML =
-        '<div>' +
-        '  <label style="font-size: 0.7rem; color: #166534; display: block; margin-bottom: 4px;">Type</label>' +
-        '  <select class="modal-payment-type client-number-input" style="width: 100%; background: #fff;" onchange="hotelCalculateModalPayments()">' +
-        '    <option value="ESPECES"' + (type === 'ESPECES' ? ' selected' : '') + '>Espèces</option>' +
-        '    <option value="MOBILEMONEY"' + (type === 'MOBILEMONEY' ? ' selected' : '') + '>Mobile Money</option>' +
-        '    <option value="CARTEBANCAIRE"' + (type === 'CARTEBANCAIRE' ? ' selected' : '') + '>Carte Bancaire</option>' +
-        '    <option value="VIREMENT"' + (type === 'VIREMENT' ? ' selected' : '') + '>Virement</option>' +
-        '    <option value="CREDIT"' + (type === 'CREDIT' ? ' selected' : '') + '>Crédit</option>' +
-        '    <option value="CHEQUES"' + (type === 'CHEQUES' ? ' selected' : '') + '>Chèques</option>' +
-        '    <option value="AUTRE"' + (type === 'AUTRE' ? ' selected' : '') + '>Autres</option>' +
-        '  </select>' +
-        '</div>' +
-        '<div>' +
-        '  <label style="font-size: 0.7rem; color: #166534; display: block; margin-bottom: 4px;">Montant</label>' +
-        '  <input type="number" class="modal-payment-amount client-number-input" step="0.01" min="0" placeholder="0.00" value="' + (amount > 0 ? amount.toFixed(2) : '') + '" style="width: 100%;" oninput="hotelCalculateModalPayments()">' +
-        '</div>' +
-        '<button type="button" onclick="removeHotelModalPaymentLine(this)" style="background: #fee2e2; color: #dc2626; border: none; border-radius: 6px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1rem;">×</button>';
+      '<div>' +
+      '  <label style="font-size: 0.7rem; color: #166534; display: block; margin-bottom: 4px;">Type</label>' +
+      '  <select class="modal-payment-type client-number-input" style="width: 100%; background: #fff;" onchange="hotelCalculateModalPayments()">' +
+      '    <option value="ESPECES"' + (type === 'ESPECES' ? ' selected' : '') + '>Espèces</option>' +
+      '    <option value="MOBILEMONEY"' + (type === 'MOBILEMONEY' ? ' selected' : '') + '>Mobile Money</option>' +
+      '    <option value="CARTEBANCAIRE"' + (type === 'CARTEBANCAIRE' ? ' selected' : '') + '>Carte Bancaire</option>' +
+      '    <option value="VIREMENT"' + (type === 'VIREMENT' ? ' selected' : '') + '>Virement</option>' +
+      '    <option value="CREDIT"' + (type === 'CREDIT' ? ' selected' : '') + '>Crédit</option>' +
+      '    <option value="CHEQUES"' + (type === 'CHEQUES' ? ' selected' : '') + '>Chèques</option>' +
+      '    <option value="AUTRE"' + (type === 'AUTRE' ? ' selected' : '') + '>Autres</option>' +
+      '  </select>' +
+      '</div>' +
+      '<div>' +
+      '  <label style="font-size: 0.7rem; color: #166534; display: block; margin-bottom: 4px;">Montant</label>' +
+      '  <input type="number" class="modal-payment-amount client-number-input" step="0.01" min="0" placeholder="0.00" value="' + (amount > 0 ? amount.toFixed(2) : '') + '" style="width: 100%;" oninput="hotelCalculateModalPayments()">' +
+      '</div>' +
+      '<button type="button" onclick="removeHotelModalPaymentLine(this)" style="background: #fee2e2; color: #dc2626; border: none; border-radius: 6px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1rem;">×</button>';
     list.appendChild(line);
     hotelUpdateModalPaymentRemoveButtons();
     var addBtn = $('add-payment-line-btn');
@@ -750,7 +907,7 @@
 
   function hotelUpdateModalPaymentRemoveButtons() {
     var lines = document.querySelectorAll('.modal-payment-line');
-    lines.forEach(function(line) {
+    lines.forEach(function (line) {
       var btn = line.querySelector('button');
       if (btn) btn.style.display = lines.length > 1 ? 'flex' : 'none';
     });
@@ -760,7 +917,7 @@
     var lines = document.querySelectorAll('.modal-payment-line');
     var total = 0;
     var payments = [];
-    lines.forEach(function(line) {
+    lines.forEach(function (line) {
       var type = line.querySelector('.modal-payment-type') ? line.querySelector('.modal-payment-type').value : 'ESPECES';
       var amount = parseFloat(line.querySelector('.modal-payment-amount') ? line.querySelector('.modal-payment-amount').value : 0) || 0;
       total += amount;
@@ -796,7 +953,7 @@
   function getHotelModalPayments() {
     var lines = document.querySelectorAll('.modal-payment-line');
     var payments = [];
-    lines.forEach(function(line) {
+    lines.forEach(function (line) {
       var type = line.querySelector('.modal-payment-type') ? line.querySelector('.modal-payment-type').value : 'ESPECES';
       var amount = parseFloat(line.querySelector('.modal-payment-amount') ? line.querySelector('.modal-payment-amount').value : 0) || 0;
       if (amount > 0) payments.push({ type: type, amount: amount });
@@ -817,8 +974,8 @@
     line.className = 'modal-ref-doc-line';
     line.style.cssText = 'display: flex; gap: 8px; align-items: center;';
     line.innerHTML =
-        '<input type="text" class="modal-ref-doc-input client-number-input" placeholder="Réf..." value="' + value + '" style="width: 100%;" oninput="syncHotelRefDocsCount()">' +
-        '<button type="button" onclick="removeHotelRefDocLine(this)" style="background: #fee2e2; color: #dc2626; border: none; border-radius: 6px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1rem;">×</button>';
+      '<input type="text" class="modal-ref-doc-input client-number-input" placeholder="Réf..." value="' + value + '" style="width: 100%;" oninput="syncHotelRefDocsCount()">' +
+      '<button type="button" onclick="removeHotelRefDocLine(this)" style="background: #fee2e2; color: #dc2626; border: none; border-radius: 6px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1rem;">×</button>';
     list.appendChild(line);
     hotelUpdateAddRefDocButton();
     syncHotelRefDocsCount();
@@ -857,7 +1014,7 @@
     if (mainInput && mainInput.value && mainInput.value.trim()) refs.push(mainInput.value.trim());
     var list = $('modal-ref-docs-list');
     if (list) {
-      list.querySelectorAll('.modal-ref-doc-input').forEach(function(input) {
+      list.querySelectorAll('.modal-ref-doc-input').forEach(function (input) {
         if (input.value && input.value.trim()) refs.push(input.value.trim());
       });
     }
@@ -872,7 +1029,7 @@
     var originalBorderColor = el.style.borderColor;
     el.style.boxShadow = '0 0 0 3px rgba(220, 38, 38, 0.5)';
     el.style.borderColor = '#dc2626';
-    var clear = function() {
+    var clear = function () {
       el.style.boxShadow = originalBoxShadow;
       el.style.borderColor = originalBorderColor;
       el.removeEventListener('input', clear);
@@ -898,7 +1055,7 @@
         defOpt.value = '';
         defOpt.textContent = 'Type client';
         typeSelect.appendChild(defOpt);
-        types.forEach(function(t) {
+        types.forEach(function (t) {
           var o = document.createElement('option');
           o.value = t.id;
           o.textContent = (t.code || '') + ' - ' + (t.description || t.name || '');
@@ -927,26 +1084,18 @@
   //   saisi par l'utilisateur.
   // ===============================================================
 
-  // ── CALCUL TTC LIGNE PRODUIT (mirroir de posCart.calculateItemTTC côté caisse)
-  // Reprend exactement la même logique que public/assets/js/app.js lignes 834-862
-  // pour que les calculs TS/TVA soient cohérents entre la facture hôtel et la
-  // facture POS. Champs du payload : prix_unitaire, quantite, tax_rate,
-  // taxe_specifique_type, taxe_specifique_value. (La remise ligne est appliquée
-  // côté backend lors de la création de la vente — le prix_unitaire stocké est
-  // déjà le prix effectivement facturé ; on n'a donc pas à la redéduire ici.)
+  // ── CALCUL TTC LIGNE PRODUIT (alias rétro-compatible)
+  // BUG FIX 2026-10-20 : cette fonction existait en double du calculateur
+  // principal `computeProductTTC` (cf. plus haut). Plutôt que de maintenir
+  // deux implémentations parallèles (avec le risque de drift entre
+  // preview / preview extras / DGI), on redirige vers `computeProductTTC`.
+  //
+  // Historique : reprenait exactement la même logique que public/assets/js/app.js
+  // lignes 836-862 pour que les calculs TS/TVA soient cohérents entre la
+  // facture hôtel et la facture POS. Champs du payload : prix_unitaire,
+  // quantite, tax_rate, taxe_specifique_type, taxe_specifique_value.
   function calcItemTTCMirror(p) {
-    var price   = parseFloat(p.prix_unitaire) || 0;
-    var qty     = parseFloat(p.quantite) || 0;
-    var taxRate = parseFloat(p.tax_rate) || 0;
-    // TS unitaire : 'CDF' → valeur fixe ; '%' → % du prix unitaire
-    var specificTaxUnit = (p.taxe_specifique_type === 'CDF')
-      ? (parseFloat(p.taxe_specifique_value) || 0)
-      : price * ((parseFloat(p.taxe_specifique_value) || 0) / 100);
-    var vatOnPriceUnit       = price * (taxRate / 100);
-    var vatOnSpecificTaxUnit = specificTaxUnit * (taxRate / 100);
-    return {
-      lineTTC: (price * qty) + (specificTaxUnit + vatOnPriceUnit + vatOnSpecificTaxUnit) * qty
-    };
+    return computeProductTTC(p);
   }
 
   // Rendu des extras caisse (produits détaillés) + extras manuels dans le bloc
@@ -966,10 +1115,10 @@
     // 1) Extras caisse : une card par vente, liste de produits dépliable
     if (lignes.length > 0) {
       html += '<div style="font-size:.75rem;font-weight:600;color:var(--muted);text-transform:uppercase;margin-bottom:.35rem;">Extras consommés (caisse)</div>';
-      lignes.forEach(function(vente, idx) {
+      lignes.forEach(function (vente, idx) {
         var produits = vente.produits || [];
         var totalCalcule = 0;
-        var rowsHtml = produits.map(function(p) {
+        var rowsHtml = produits.map(function (p) {
           var tot = calcItemTTCMirror(p).lineTTC;
           totalCalcule += tot;
           var qtyStr = (p.quantite === Math.floor(p.quantite))
@@ -992,20 +1141,20 @@
 
         html += '<details style="margin-bottom:.5rem;border:1px solid var(--border,#e2e8f0);border-radius:8px;background:#f8fafc;"' + (idx === 0 ? ' open' : '') + '>'
           + '<summary style="padding:.5rem .65rem;cursor:pointer;font-size:.85rem;display:flex;justify-content:space-between;align-items:center;gap:.5rem;">'
-          +   '<span><strong>' + escapeHtml(vente.numero || ('Vente #' + vente.vente_id)) + '</strong>'
-          +     ' <span style="color:var(--muted);font-size:.75rem;">· ' + escapeHtml(vente.date || '') + '</span>'
-          +   '</span>'
-          +   '<span style="font-weight:700;color:#0B5E88;">' + fmtFc(vente.montant) + '</span>'
+          + '<span><strong>' + escapeHtml(vente.numero || ('Vente #' + vente.vente_id)) + '</strong>'
+          + ' <span style="color:var(--muted);font-size:.75rem;">· ' + escapeHtml(vente.date || '') + '</span>'
+          + '</span>'
+          + '<span style="font-weight:700;color:#0B5E88;">' + fmtFc(vente.montant) + '</span>'
           + '</summary>'
           + (produits.length > 0
-              ? '<div style="padding:.25rem .65rem .65rem .65rem;">'
-                + '<table class="hotel-ft-table" style="font-size:.78rem;">'
-                +   '<thead><tr><th>Produit</th><th class="num">Qté</th><th class="num">PU</th><th class="num">Total</th></tr></thead>'
-                +   '<tbody>' + rowsHtml + '</tbody>'
-                +   '<tfoot><tr><td colspan="3" style="text-align:right;font-weight:600;">Sous-total vente</td><td class="num" style="font-weight:700;">' + fmtFc(totalCalcule) + '</td></tr></tfoot>'
-                + '</table>'
-                + '</div>'
-              : '<div style="padding:.25rem .65rem .65rem .65rem;font-style:italic;color:var(--muted);font-size:.78rem;">Aucun détail produit (vente legacy).</div>')
+            ? '<div style="padding:.25rem .65rem .65rem .65rem;">'
+            + '<table class="hotel-ft-table" style="font-size:.78rem;">'
+            + '<thead><tr><th>Produit</th><th class="num">Qté</th><th class="num">PU</th><th class="num">Total</th></tr></thead>'
+            + '<tbody>' + rowsHtml + '</tbody>'
+            + '<tfoot><tr><td colspan="3" style="text-align:right;font-weight:600;">Sous-total vente</td><td class="num" style="font-weight:700;">' + fmtFc(totalCalcule) + '</td></tr></tfoot>'
+            + '</table>'
+            + '</div>'
+            : '<div style="padding:.25rem .65rem .65rem .65rem;font-style:italic;color:var(--muted);font-size:.78rem;">Aucun détail produit (vente legacy).</div>')
           + '</details>';
       });
     }
@@ -1013,7 +1162,7 @@
     // 2) Extras manuels : conservés à leur place, format inchangé
     if (extrasManuels.length > 0) {
       html += '<div style="font-size:.75rem;font-weight:600;color:var(--muted);text-transform:uppercase;margin:.75rem 0 .35rem 0;">Extras manuels (saisis ici)</div>';
-      var rowsM = extrasManuels.map(function(x) {
+      var rowsM = extrasManuels.map(function (x) {
         return '<tr><td>' + escapeHtml(x.description) + '</td><td class="num">' + fmtFc(x.montant) + '</td></tr>';
       }).join('');
       html += '<table class="hotel-ft-table"><thead><tr><th>Description</th><th class="num">Montant</th></tr></thead><tbody>' + rowsM + '</tbody></table>';
@@ -1132,7 +1281,7 @@
     window.hotelInvoiceType = invoiceType;
 
     // REF FACTURE + EXONÉRATION (RAM/RRR/RAN/COR) — pattern /caisse
-    window.hotelRefFacture   = ($('modal-invoice-num') && $('modal-invoice-num').value) ? $('modal-invoice-num').value.trim() : '';
+    window.hotelRefFacture = ($('modal-invoice-num') && $('modal-invoice-num').value) ? $('modal-invoice-num').value.trim() : '';
     window.hotelExoneration = ($('modal-exoneration') && $('modal-exoneration').value) ? $('modal-exoneration').value : '';
 
     var invoiceRefs = getHotelModalRefDocs();
@@ -1173,7 +1322,7 @@
       return;
     }
     // 6. Pour AO : au moins 1 référence document non vide
-    if (clientTypeCode === 'AO' && (invoiceRefs.length === 0 || invoiceRefs.every(function(r) { return !r.trim(); }))) {
+    if (clientTypeCode === 'AO' && (invoiceRefs.length === 0 || invoiceRefs.every(function (r) { return !r.trim(); }))) {
       alert("La référence document est obligatoire pour les ambassades et organisations internationales.");
       hotelHighlightModalField('modal-invoice-ref');
       return;
@@ -1182,7 +1331,7 @@
     // 7. Paiements : on récupère depuis #modal-payments-list (format DGI)
     var dgiPayments = getHotelModalPayments();
     var totalSolde = computeSoldeCourant();
-    var dgiTotal = dgiPayments.reduce(function(s, p) { return s + p.amount; }, 0);
+    var dgiTotal = dgiPayments.reduce(function (s, p) { return s + p.amount; }, 0);
     if (dgiPayments.length === 0 || dgiTotal < totalSolde - 0.001) {
       alert('Le montant total des paiements est insuffisant par rapport au solde de la facture (' + fmtFc(totalSolde) + ').');
       var firstAmt = document.querySelector('#modal-payments-list .modal-payment-amount');
@@ -1191,7 +1340,7 @@
     }
 
     // 8. Mémorise les paiements pour processEmission (mapping DGI->UI)
-    paiements = dgiPayments.map(function(p) {
+    paiements = dgiPayments.map(function (p) {
       var uiMode = 'cash';
       if (p.type === 'MOBILEMONEY') uiMode = 'mobile_money';
       else if (p.type === 'CARTEBANCAIRE') uiMode = 'carte';
@@ -1230,7 +1379,7 @@
 
     var itemsHtml = buildHotelReceiptItems(n, e, extrasManuels);
     var infoSection = buildHotelReceiptInfoSection();
-    var totalsHtml  = buildHotelReceiptTotals(total);
+    var totalsHtml = buildHotelReceiptTotals(total);
     var paymentsHtml = buildHotelReceiptPayments();
     // Sprint 7 — 2026-10-19 : on utilise le type de facture sélectionné
     // par l'utilisateur dans le modal "Informations Facture" (variable
@@ -1242,22 +1391,22 @@
     var typeLabel = (typeof getInvoiceTypeLabel === 'function' && window.hotelInvoiceType)
       ? getInvoiceTypeLabel(window.hotelInvoiceType)
       : 'Facture de Vente';
-    var now = new Date().toLocaleString('fr-FR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+    var now = new Date().toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
     var previewHtml =
       '<div class="receipt"><div class="receipt-header">' +
-        (STORE_INFO.logo ? '<img src="' + STORE_INFO.logo + '" class="receipt-logo" alt="Logo">' : '') +
-        '<div class="store-name">' + escapeHtml(STORE_INFO.name || '') + '</div>' +
-        '<div class="store-info">' +
-          '<div><strong>Point de vente :</strong> ' + escapeHtml(STORE_INFO.pdv || '') + '</div>' +
-          '<div>Adresse : ' + escapeHtml(STORE_INFO.address || '') + '</div>' +
-          '<div>Tel: ' + escapeHtml(STORE_INFO.phone || '') + '</div>' +
-          (STORE_INFO.email ? '<div>Email: ' + escapeHtml(STORE_INFO.email) + '</div>' : '') +
-          '<div>ID Nat: ' + escapeHtml(STORE_INFO.ice || '') + '</div>' +
-          (STORE_INFO.nid ? '<div>NID: ' + escapeHtml(STORE_INFO.nid) + '</div>' : '') +
-          (STORE_INFO.rccm ? '<div>RCCM: ' + escapeHtml(STORE_INFO.rccm) + '</div>' : '') +
-          (STORE_INFO.isf ? '<div>Numero Impot: ' + escapeHtml(STORE_INFO.isf) + '</div>' : '') +
-        '</div>' + infoSection +
+      (STORE_INFO.logo ? '<img src="' + STORE_INFO.logo + '" class="receipt-logo" alt="Logo">' : '') +
+      '<div class="store-name">' + escapeHtml(STORE_INFO.name || '') + '</div>' +
+      '<div class="store-info">' +
+      '<div><strong>Point de vente :</strong> ' + escapeHtml(STORE_INFO.pdv || '') + '</div>' +
+      '<div>Adresse : ' + escapeHtml(STORE_INFO.address || '') + '</div>' +
+      '<div>Tel: ' + escapeHtml(STORE_INFO.phone || '') + '</div>' +
+      (STORE_INFO.email ? '<div>Email: ' + escapeHtml(STORE_INFO.email) + '</div>' : '') +
+      '<div>ID Nat: ' + escapeHtml(STORE_INFO.ice || '') + '</div>' +
+      (STORE_INFO.nid ? '<div>NID: ' + escapeHtml(STORE_INFO.nid) + '</div>' : '') +
+      (STORE_INFO.rccm ? '<div>RCCM: ' + escapeHtml(STORE_INFO.rccm) + '</div>' : '') +
+      (STORE_INFO.isf ? '<div>Numero Impot: ' + escapeHtml(STORE_INFO.isf) + '</div>' : '') +
+      '</div>' + infoSection +
       '</div>' +
       '<div class="receipt-meta" style="justify-content:center; font-size:14px; font-weight:600;">' + escapeHtml(typeLabel) + '</div>' +
       (window.hotelRefFacture ? '<div style="text-align:center; font-size:12px; color:#666;">Réf : ' + escapeHtml(window.hotelRefFacture) + '</div>' : '') +
@@ -1265,10 +1414,10 @@
       '<div class="receipt-items">' + itemsHtml + '</div>' +
       '<div class="receipt-totals">' + totalsHtml + paymentsHtml + '</div>' +
       '<div class="receipt-footer">' +
-        '<div class="barcode">FACTURE n°' + escapeHtml(previewInvoiceNum) + '</div>' +
-        '<div style="font-size:11px; color:#333; margin-top:4px;">Date : ' + now + '</div>' +
-        '<div class="thank-you">Merci de votre séjour !</div>' +
-        '<div style="margin-top:5px; font-size:9px; font-style:italic;">---Powered By Osat---</div>' +
+      '<div class="barcode">FACTURE n°' + escapeHtml(previewInvoiceNum) + '</div>' +
+      '<div style="font-size:11px; color:#333; margin-top:4px;">Date : ' + now + '</div>' +
+      '<div class="thank-you">Merci de votre séjour !</div>' +
+      '<div style="margin-top:5px; font-size:9px; font-style:italic;">---Powered By Osat---</div>' +
       '</div></div>';
 
     var previewContent = $('preview-content');
@@ -1279,17 +1428,17 @@
       previewFooter.innerHTML =
         '<button type="button" class="btn btn-secondary" id="hotel-ft-preview-cancel">Annuler</button>' +
         '<button type="button" id="hotel-ft-preview-validate" class="btn btn-primary">' +
-          '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' +
-            '<polyline points="20 6 9 17 4 12"></polyline>' +
-          '</svg>' +
-          ' Valider la facture</button>';
+        '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' +
+        '<polyline points="20 6 9 17 4 12"></polyline>' +
+        '</svg>' +
+        ' Valider la facture</button>';
       var c = $('hotel-ft-preview-cancel');
-      if (c) c.onclick = function() {
+      if (c) c.onclick = function () {
         var m = $('preview-modal'); if (m) m.classList.remove('active');
         document.body.style.overflow = '';
       };
       var v = $('hotel-ft-preview-validate');
-      if (v) v.onclick = function() {
+      if (v) v.onclick = function () {
         var m = $('preview-modal'); if (m) m.classList.remove('active');
         processEmission();
       };
@@ -1310,7 +1459,7 @@
       var invRes = await fetch(APP_URL + '/api/vente/next-invoice');
       var invData = await invRes.json();
       if (invData && invData.invoice_number) dgiInvoiceNum = invData.invoice_number;
-    } catch (_) {}
+    } catch (_) { }
 
     // Plus besoin d'await loadTaxBRate() ici : la valeur est lue
     // directement depuis previewData.sejour.chambre.taxe_taux (jointure
@@ -1374,10 +1523,10 @@
     //                            besoin de la reconvertir.
     //    Note : le `tax_b_value` au niveau de la payload est calculé par
     //    getTaxBValueFromPreview() (cf. ci-dessous).
-    var chambreTaxRate  = parseFloat(n.tax_rate) || 0;
+    var chambreTaxRate = parseFloat(n.tax_rate) || 0;
     var chambreTaxLabel = n.tax_etiquette || 'B';
-    var chambreTsType   = n.taxe_specifique_type || '%';
-    (n.lignes || []).forEach(function(l) {
+    var chambreTsType = n.taxe_specifique_type || '%';
+    (n.lignes || []).forEach(function (l) {
       var prixNuit = parseFloat(l.prix) || 0;
       // l.ts_unitaire = valeur CDF déjà calculée par le backend (cf.
       // HotelFactureController::buildPreviewData — computeTaxeSpecifiqueUnit).
@@ -1402,29 +1551,33 @@
     //      ttc = price * quantity - remise_value + taxe_specifique_value + TVA
     //    On suit exactement le pattern de app.js (cf. posCart.validateWithDGI).
     //    Les valeurs envoyées sont les valeurs CDF effectives (pas en %).
-    (e.lignes || []).forEach(function(x) {
+    //
+    // BUG FIX 2026-10-20 :
+    //   1. `tax_etiquette` était hardcodé à 'B' pour tous les extras → on
+    //      envoyait à tort au régime B des produits appartenant à d'autres
+    //      groupes (C=5%, F=16%, etc.), ce qui faussait le calcul de TVA
+    //      côté DGI. On lit maintenant la vraie étiquette depuis
+    //      `p.taxe_etiquette` (fournie par HotelFactureController::preview
+    //      via la jointure produits.taxe_id → taxes).
+    //   2. `taxe_specifique_value` est convertie via `computeProductTTC`
+    //      pour garantir la cohérence avec le calcul front (`lineTTC`).
+    (e.lignes || []).forEach(function (x) {
       if (x.produits && x.produits.length > 0) {
-        x.produits.forEach(function(p) {
-          var prixUnit = parseFloat(p.prix_unitaire) || 0;
-          var qty      = parseFloat(p.quantite) || 1;
-          var rType    = p.remise_type || '%';
-          var rValRaw  = parseFloat(p.remise_value) || 0;
-          var rValue   = rType === 'CDF' ? rValRaw : prixUnit * (rValRaw / 100);
-          var tsType   = p.taxe_specifique_type || '%';
-          var tsValRaw = parseFloat(p.taxe_specifique_value) || 0;
-          // Aligné sur app.js : posCart.calculateSpecificTaxUnit (miroir exact)
-          var tsValue  = computeSpecificTaxValue(prixUnit, tsType, tsValRaw);
+        x.produits.forEach(function (p) {
+          // Calcul TTC aligné pattern app.js — réutilise computeProductTTC
+          // pour la SPECIFIC (TS convertie en CDF) et la REMISE (CDF ou %).
+          var calc = computeProductTTC(p);
           articles.push({
             name: (x.description ? (x.description + ' — ') : '') + (p.nom || 'Produit'),
-            quantity: qty,
-            price: prixUnit,
-            tax_rate: parseFloat(p.tax_rate) || 0,
-            tax_etiquette: 'B',
+            quantity: calc.quantite,
+            price: calc.price_unitaire,
+            tax_rate: calc.tax_rate,
+            tax_etiquette: calc.tax_etiquette,
             prod_service: 'SER',
-            remise_type: rType,
-            remise_value: rValue,
-            taxe_specifique_type: tsType,
-            taxe_specifique_value: tsValue,
+            remise_type: calc.remise_type,
+            remise_value: calc.remise_montant,
+            taxe_specifique_type: p.taxe_specifique_type || '%',
+            taxe_specifique_value: calc.specific_tax_unit,
           });
         });
       } else {
@@ -1446,7 +1599,7 @@
     });
 
     // ── Extras manuels : pas de détails produit, on envoie le libellé + montant.
-    extrasManuels.forEach(function(x) {
+    extrasManuels.forEach(function (x) {
       articles.push({
         name: x.description,
         quantity: 1,
@@ -1490,27 +1643,37 @@
     //      → c'est ce que le client paie réellement (cohérent avec la DB)
     // Si la DGI exige que amount == sum(lineTTC), on peut décommenter la
     // ligne "amount = totalTTC" plus bas (mode collecte TVA).
-    var totalHT = 0;       // HT facturé (HT + TS, sans TVA)
+    //
+    // BUG FIX 2026-10-20 : l'ancien calcul faisait `lineHT = prix*qty - remiseVal + tsVal + VAT_sur_TS`.
+    // Or dans app.js (cf. posCart.calculateItemTTC ligne 849), la remise n'est PAS déduite
+    // dans lineHT — elle est appliquée en aval par la DGI via le champ remise_value.
+    // On aligne maintenant sur app.js :
+    //   lineHT  = prix*qty + TS + VAT_sur_TS   (PAS de remise dans lineHT)
+    //   lineTTC = lineHT + VAT_sur_prix * qty
+    // L'impact sur le total n'est pas nul car l'ancienne formule sous-évaluait
+    // lineHT pour les produits remisés (la remise_value était appliquée 2 fois :
+    // une fois ici, une fois par la DGI).
+    var totalHT = 0;       // HT facturé (= lineHT * 1, aligné app.js)
     var totalTTC = 0;      // TTC théorique (HT + TS + TVA, comme app.js)
     var totalTVA = 0;      // TVA théorique (cumul vatOnPrice + vatOnTS)
     var totalTS = 0;       // TS cumulée
-    articles.forEach(function(a) {
+    articles.forEach(function (a) {
       var prixUnit = parseFloat(a.price) || 0;
       var qty = parseFloat(a.quantity) || 1;
       var tRate = parseFloat(a.tax_rate) || 0;
-      var remiseVal = parseFloat(a.remise_value) || 0;
       var tsVal = parseFloat(a.taxe_specifique_value) || 0;
       // ── Miroir EXACT de posCart.calculateItemTTC (app.js) ──
       var vatOnPriceUnit = prixUnit * (tRate / 100);
       var vatOnTSUnit = tsVal * (tRate / 100);
       // lineHT (app.js) = prix × qty + TS + TVA_sur_TS — la TVA sur prix N'EST PAS dedans
-      var lineHT = prixUnit * qty - remiseVal + tsVal + vatOnTSUnit;
+      //                    la remise_value est envoyée séparément et appliquée par la DGI
+      var lineHT = prixUnit * qty + tsVal + vatOnTSUnit;
       // lineTTC (app.js) = lineHT + TVA_sur_prix × qty (la TVA sur prix est dans le TTC)
       var lineTTC = lineHT + vatOnPriceUnit * qty;
       totalHT += lineHT;   // somme des HT (cohérent DB)
       totalTTC += lineTTC; // somme des TTC (cohérent app.js / DGI)
       totalTVA += (vatOnPriceUnit + vatOnTSUnit) * qty;
-      totalTS  += tsVal;
+      totalTS += tsVal;
     });
     // amount envoyé à la DGI = HT + TS (régime B hôtelier, TVA non collectée)
     // = ce que le client paie réellement. Aligné sur $totalFinal persisté
@@ -1518,13 +1681,13 @@
     var total = totalHT;
 
     var sellerName = (typeof CURRENT_USER !== 'undefined' && CURRENT_USER.fullName) ? CURRENT_USER.fullName : (STORE_INFO.name || '');
-    var agentCode  = (typeof CURRENT_USER !== 'undefined' && CURRENT_USER.agentCode) ? CURRENT_USER.agentCode : '';
+    var agentCode = (typeof CURRENT_USER !== 'undefined' && CURRENT_USER.agentCode) ? CURRENT_USER.agentCode : '';
     var clientTypeCode = 'PP';
     if (s.client && s.client.code_client) {
       var head = (s.client.code_client || '').toUpperCase().slice(0, 2);
       if (['PM', 'PC', 'PL', 'AO'].indexOf(head) >= 0) clientTypeCode = head;
     }
-    var dgiPayments = (paiements || []).map(function(p) { return { type: p.dgiType || 'ESPECES', amount: parseFloat(p.montant) || 0 }; });
+    var dgiPayments = (paiements || []).map(function (p) { return { type: p.dgiType || 'ESPECES', amount: parseFloat(p.montant) || 0 }; });
 
     // Valeur de la taxe B (TVA type B hôtelier) lue depuis le previewData
     // via getTaxBValueFromPreview(). Le séjour hérite de cette valeur par
@@ -1576,7 +1739,7 @@
     var payload = {
       sejour_id: currentSejourId,
       extras_manuels: extrasManuels,
-      paiements: (paiements || []).map(function(p) { return { mode: p.mode, montant: parseFloat(p.montant) || 0 }; }),
+      paiements: (paiements || []).map(function (p) { return { mode: p.mode, montant: parseFloat(p.montant) || 0 }; }),
       check_out: ($('hotel-ft-checkout') && $('hotel-ft-checkout').checked) ? true : false,
       dgi_data: {
         dateDGI: dgiData.dateDGI || null,
@@ -1620,7 +1783,7 @@
       if (dgiData.ts) {
         tsData = typeof dgiData.ts === 'string' ? JSON.parse(dgiData.ts) : dgiData.ts;
       }
-    } catch (e) {}
+    } catch (e) { }
     // ht_tva_group : wrapper 3 niveaux {success, message, data:{ha,va,ts}}
     // (fallback sur ht_tva au cas ou certains proxies DGI exposent l'autre cle)
     var rawGroup = dgiData.ht_tva_group || dgiData.ht_tva;
@@ -1633,7 +1796,7 @@
         vaData = (inner && inner.va) || {};
         tsDataFromGroup = (inner && inner.ts) || {};
       }
-    } catch (e) {}
+    } catch (e) { }
     // Le TS du top-level prend le pas sur celui du groupe (le plus exhaustif),
     // sinon on garde celui du groupe.
     var finalTs = (tsData && Object.keys(tsData).length) ? tsData : tsDataFromGroup;
@@ -1643,14 +1806,14 @@
   // Catégories DGI (A=exonéré, B=16, C=5, F=16 marché public ext, ...).
   // On n'affiche QUE celles qui ont une valeur non nulle.
   var HOTEL_TAX_CATEGORIES = [
-    { key: 'haa', label: 'A', tax: 0,  description: 'EXONERE ET HORS CHAMP',                     ts: 'tsa' },
-    { key: 'hab', label: 'B', tax: 16, description: 'Taxable',                                    ts: 'tsb' },
-    { key: 'hac', label: 'C', tax: 5,  description: 'Taxable',                                    ts: 'tsc' },
-    { key: 'had', label: 'D', tax: 0,  description: 'Regimes derogatoires TVA',                  ts: 'tsd' },
-    { key: 'hae', label: 'E', tax: 0,  description: 'Exportation et operation assimilees',       ts: 'tse' },
+    { key: 'haa', label: 'A', tax: 0, description: 'EXONERE ET HORS CHAMP', ts: 'tsa' },
+    { key: 'hab', label: 'B', tax: 16, description: 'Taxable', ts: 'tsb' },
+    { key: 'hac', label: 'C', tax: 5, description: 'Taxable', ts: 'tsc' },
+    { key: 'had', label: 'D', tax: 0, description: 'Regimes derogatoires TVA', ts: 'tsd' },
+    { key: 'hae', label: 'E', tax: 0, description: 'Exportation et operation assimilees', ts: 'tse' },
     { key: 'haf', label: 'F', tax: 16, description: 'TVA marche public a financement exterieur', ts: 'tsf' },
-    { key: 'hag', label: 'G', tax: 5,  description: 'TVA marche public a financement exterieur', ts: 'tsg' },
-    { key: 'hap', label: 'P', tax: 1,  description: 'TVA marche public a financement exterieur', ts: 'tsp' },
+    { key: 'hag', label: 'G', tax: 5, description: 'TVA marche public a financement exterieur', ts: 'tsg' },
+    { key: 'hap', label: 'P', tax: 1, description: 'TVA marche public a financement exterieur', ts: 'tsp' },
   ];
 
   function buildHotelReceiptTaxBreakdown(dgiData) {
@@ -1659,8 +1822,8 @@
     var ha = parsed.ha, va = parsed.va, ts = parsed.ts;
     var html = '';
     var totalTva = 0;
-    HOTEL_TAX_CATEGORIES.forEach(function(cat) {
-      var ht  = parseFloat(ha[cat.key]) || 0;
+    HOTEL_TAX_CATEGORIES.forEach(function (cat) {
+      var ht = parseFloat(ha[cat.key]) || 0;
       // la TVA s'appelle vaa/vab/vac/... — on récupère la lettre de fin
       var vaKey = 'va' + cat.key.slice(-1);
       var vat = parseFloat(va[vaKey]) || 0;
@@ -1669,37 +1832,37 @@
         var htLabel = cat.tax === 0 ? 'TOTAL' : 'HT';
         var rateTxt = cat.tax === 0 ? '' : (' ' + cat.tax + ' %');
         html += '<div class="receipt-total-row" style="font-size:11px; color:#333; padding-left:10px;">'
-              + '<span>' + htLabel + '[' + cat.label + '] ' + cat.description + rateTxt + ' :</span>'
-              + '<span>' + ht.toFixed(2) + ' Fc</span>'
-              + '</div>';
+          + '<span>' + htLabel + '[' + cat.label + '] ' + cat.description + rateTxt + ' :</span>'
+          + '<span>' + ht.toFixed(2) + ' Fc</span>'
+          + '</div>';
         if (Math.abs(tsValue) > 0) {
           html += '<div class="receipt-total-row" style="font-size:11px; color:#666; padding-left:10px;">'
-                + '<span>TS[' + cat.label + '] ' + cat.description + rateTxt + ' :</span>'
-                + '<span>' + tsValue.toFixed(2) + ' Fc</span>'
-                + '</div>';
+            + '<span>TS[' + cat.label + '] ' + cat.description + rateTxt + ' :</span>'
+            + '<span>' + tsValue.toFixed(2) + ' Fc</span>'
+            + '</div>';
         }
         if (Math.abs(vat) > 0) {
           html += '<div class="receipt-total-row" style="font-size:11px; color:#666; padding-left:10px;">'
-                + '<span>TVA[' + cat.label + '] ' + cat.description + rateTxt + ' :</span>'
-                + '<span>' + vat.toFixed(2) + ' Fc</span>'
-                + '</div>';
+            + '<span>TVA[' + cat.label + '] ' + cat.description + rateTxt + ' :</span>'
+            + '<span>' + vat.toFixed(2) + ' Fc</span>'
+            + '</div>';
           totalTva += vat;
         }
       }
     });
     if (totalTva > 0.01) {
       html += '<div class="receipt-total-row" style="font-size:11px; color:#000; font-weight:600; margin-top:6px; padding-top:6px; border-top:1px dashed #ccc;">'
-            + '<span>Total TVA :</span>'
-            + '<span>' + totalTva.toFixed(2) + ' Fc</span>'
-            + '</div>';
+        + '<span>Total TVA :</span>'
+        + '<span>' + totalTva.toFixed(2) + ' Fc</span>'
+        + '</div>';
     }
     return html;
   }
 
   function countHotelArticles(n, e, manuels) {
     return (n && n.lignes ? n.lignes.length : 0)
-         + (e && e.lignes ? e.lignes.length : 0)
-         + (manuels ? manuels.length : 0);
+      + (e && e.lignes ? e.lignes.length : 0)
+      + (manuels ? manuels.length : 0);
   }
   function openReceiptModal(saleData, dgiResp) {
     var s = previewData.sejour;
@@ -1711,7 +1874,7 @@
 
     var itemsHtml = buildHotelReceiptItems(n, e, extrasManuels);
     var infoSection = buildHotelReceiptInfoSection();
-    var totalsHtml  = buildHotelReceiptTotals(total);
+    var totalsHtml = buildHotelReceiptTotals(total);
     var paymentsHtml = buildHotelReceiptPayments();
     // Sprint 7 — 2026-10-19 : titre dynamique basé sur le type sélectionné
     // par l'utilisateur (cf. window.hotelInvoiceType). Voir showPreview()
@@ -1719,7 +1882,7 @@
     var typeLabel = (typeof getInvoiceTypeLabel === 'function' && window.hotelInvoiceType)
       ? getInvoiceTypeLabel(window.hotelInvoiceType)
       : 'Facture de Vente';
-    var now = new Date().toLocaleString('fr-FR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+    var now = new Date().toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
     var dgiInfoHtml = '';
     if (isHomologuee && dgiData && (dgiData.codeDEFDGI || dgiData.counters || dgiData.nim)) {
@@ -1736,34 +1899,34 @@
 
     var receiptHtml =
       '<div class="receipt"><div class="receipt-header">' +
-        (STORE_INFO.logo ? '<img src="' + STORE_INFO.logo + '" class="receipt-logo" alt="Logo">' : '') +
-        '<div class="store-name">' + escapeHtml(STORE_INFO.name || '') + '</div>' +
-        '<div class="store-info">' +
-          '<div><strong>Point de vente :</strong> ' + escapeHtml(STORE_INFO.pdv || '') + '</div>' +
-          '<div>Adresse : ' + escapeHtml(STORE_INFO.address || '') + '</div>' +
-          '<div>Tel: ' + escapeHtml(STORE_INFO.phone || '') + '</div>' +
-          (STORE_INFO.email ? '<div>Email: ' + escapeHtml(STORE_INFO.email) + '</div>' : '') +
-          '<div>ID Nat: ' + escapeHtml(STORE_INFO.ice || '') + '</div>' +
-          (STORE_INFO.nid ? '<div>NID: ' + escapeHtml(STORE_INFO.nid) + '</div>' : '') +
-          (STORE_INFO.rccm ? '<div>RCCM: ' + escapeHtml(STORE_INFO.rccm) + '</div>' : '') +
-          (STORE_INFO.isf ? '<div>Numero Impot: ' + escapeHtml(STORE_INFO.isf) + '</div>' : '') +
-        '</div>' + infoSection +
+      (STORE_INFO.logo ? '<img src="' + STORE_INFO.logo + '" class="receipt-logo" alt="Logo">' : '') +
+      '<div class="store-name">' + escapeHtml(STORE_INFO.name || '') + '</div>' +
+      '<div class="store-info">' +
+      '<div><strong>Point de vente :</strong> ' + escapeHtml(STORE_INFO.pdv || '') + '</div>' +
+      '<div>Adresse : ' + escapeHtml(STORE_INFO.address || '') + '</div>' +
+      '<div>Tel: ' + escapeHtml(STORE_INFO.phone || '') + '</div>' +
+      (STORE_INFO.email ? '<div>Email: ' + escapeHtml(STORE_INFO.email) + '</div>' : '') +
+      '<div>ID Nat: ' + escapeHtml(STORE_INFO.ice || '') + '</div>' +
+      (STORE_INFO.nid ? '<div>NID: ' + escapeHtml(STORE_INFO.nid) + '</div>' : '') +
+      (STORE_INFO.rccm ? '<div>RCCM: ' + escapeHtml(STORE_INFO.rccm) + '</div>' : '') +
+      (STORE_INFO.isf ? '<div>Numero Impot: ' + escapeHtml(STORE_INFO.isf) + '</div>' : '') +
+      '</div>' + infoSection +
       '</div>' +
       '<div class="receipt-meta" style="justify-content:center; font-size:14px; font-weight:600;">' + escapeHtml(typeLabel) + '</div>' +
       (window.hotelRefFacture ? '<div style="text-align:center; font-size:12px; color:#666;">Réf : ' + escapeHtml(window.hotelRefFacture) + '</div>' : '') +
       (window.hotelExoneration ? '<div style="text-align:center; font-size:11px; color:#888; font-style:italic;">Exonération : ' + escapeHtml(getExonerationLabel(window.hotelExoneration)) + '</div>' : '') +
       '<div class="receipt-items">' + itemsHtml + '</div>' +
       '<div class="receipt-totals">' + totalsHtml + paymentsHtml + buildHotelReceiptTaxBreakdown(dgiData) +
-        (isHomologuee && STORE_INFO.isf ? '<div style="margin:10px 0; font-size:11px; color:#333; border:1px dashed #ccc; padding:8px; border-radius:4px; text-align:center;">ISF : ' + escapeHtml(dgiData.isf || STORE_INFO.isf) + '</div>' : '') +
+      (isHomologuee && STORE_INFO.isf ? '<div style="margin:10px 0; font-size:11px; color:#333; border:1px dashed #ccc; padding:8px; border-radius:4px; text-align:center;">ISF : ' + escapeHtml(dgiData.isf || STORE_INFO.isf) + '</div>' : '') +
       '<div class="receipt-total-row" style="font-size:11px; color:#000; font-weight:600;"><span>Nombre d\'article(s) :</span><span>' + countHotelArticles(n, e, extrasManuels) + '</span></div>' +
       '</div>' +
       dgiInfoHtml +
       '<div class="receipt-footer">' +
-        '<div id="hotel-ft-qrcode-container" class="qrcode-container"></div>' +
-        '<div class="barcode">FACTURE n°' + escapeHtml(saleData.numero_facture || '') + '</div>' +
-        '<div style="font-size:11px; color:#333; margin-top:4px;">Date : ' + now + '</div>' +
-        '<div class="thank-you">Merci de votre séjour !</div>' +
-        '<div style="margin-top:5px; font-size:9px; font-style:italic;">---Powered By Osat---</div>' +
+      '<div id="hotel-ft-qrcode-container" class="qrcode-container"></div>' +
+      '<div class="barcode">FACTURE n°' + escapeHtml(saleData.numero_facture || '') + '</div>' +
+      '<div style="font-size:11px; color:#333; margin-top:4px;">Date : ' + now + '</div>' +
+      '<div class="thank-you">Merci de votre séjour !</div>' +
+      '<div style="margin-top:5px; font-size:9px; font-style:italic;">---Powered By Osat---</div>' +
       '</div></div>';
 
     var receiptContent = $('receipt-content');
@@ -1773,11 +1936,11 @@
 
     var qrContent = (dgiData && dgiData.qrCode) ? dgiData.qrCode : (saleData.numero_facture || '');
     if (typeof posCart !== 'undefined' && posCart.generateDGIQRCode && qrContent) {
-      setTimeout(function() { posCart.generateDGIQRCode(qrContent, 'hotel-ft-qrcode-container'); }, 80);
+      setTimeout(function () { posCart.generateDGIQRCode(qrContent, 'hotel-ft-qrcode-container'); }, 80);
     }
     var printBtn = $('print-receipt');
     if (printBtn) {
-      printBtn.onclick = function() {
+      printBtn.onclick = function () {
         var content = $('receipt-content') ? $('receipt-content').innerHTML : '';
         if (typeof _printReceiptContent === 'function') _printReceiptContent(content);
         else window.print();
@@ -1812,14 +1975,14 @@
   if (typeof window !== 'undefined') {
     window.openHotelInvoiceInfoModal = openHotelInvoiceInfoModal;
     window.closeHotelInvoiceInfoModal = closeHotelInvoiceInfoModal;
-    window.confirmHotelInvoiceInfo    = confirmHotelInvoiceInfo;
-    window.addHotelModalPaymentLine   = addHotelModalPaymentLine;
-    window.removeHotelModalPaymentLine= removeHotelModalPaymentLine;
-    window.addHotelRefDocLine         = addHotelRefDocLine;
-    window.removeHotelRefDocLine      = removeHotelRefDocLine;
-    window.syncHotelRefDocsCount      = syncHotelRefDocsCount;
-    window.cancelExistingFacture      = cancelExistingFacture;
-    window.closeReceiptModal          = closeReceiptModal;
+    window.confirmHotelInvoiceInfo = confirmHotelInvoiceInfo;
+    window.addHotelModalPaymentLine = addHotelModalPaymentLine;
+    window.removeHotelModalPaymentLine = removeHotelModalPaymentLine;
+    window.addHotelRefDocLine = addHotelRefDocLine;
+    window.removeHotelRefDocLine = removeHotelRefDocLine;
+    window.syncHotelRefDocsCount = syncHotelRefDocsCount;
+    window.cancelExistingFacture = cancelExistingFacture;
+    window.closeReceiptModal = closeReceiptModal;
   }
 })();
 

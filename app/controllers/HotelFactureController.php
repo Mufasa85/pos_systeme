@@ -266,7 +266,8 @@ class HotelFactureController extends Controller
                     d.remise_type AS d_remise_type, d.remise_value AS d_remise_value,
                     d.taxe_specifique_type AS d_ts_type, d.taxe_specifique_value AS d_ts_value,
                     p.nom AS produit_nom,
-                    t.taux AS produit_tax_rate
+                    t.taux AS produit_tax_rate,
+                    t.etiquette AS produit_tax_etiquette
              FROM ventes v
              INNER JOIN details_vente d ON d.vente_id = v.id
              LEFT JOIN produits p ON p.id = d.produit_id
@@ -287,7 +288,8 @@ class HotelFactureController extends Controller
                     he.taxe_specifique_type, he.taxe_specifique_value,
                     he.tax_rate,
                     p.nom AS produit_nom,
-                    t.taux AS produit_tax_rate_db
+                    t.taux AS produit_tax_rate_db,
+                    t.etiquette AS produit_tax_etiquette_db
              FROM hotel_extras he
              LEFT JOIN produits p ON p.id = he.produit_id
              LEFT JOIN taxes   t ON t.id = p.taxe_id
@@ -321,6 +323,7 @@ class HotelFactureController extends Controller
                 'taxe_specifique_type' => (string)($row['d_ts_type'] ?? '%'),
                 'taxe_specifique_value'=> (float)($row['d_ts_value'] ?? 0),
                 'tax_rate'             => (float)($row['produit_tax_rate'] ?? 0),
+                'taxe_etiquette'       => (string)($row['produit_tax_etiquette'] ?? 'B'),
             ];
         }
         // Regroupement des hotel_extras créés via le picker (source 2).
@@ -356,6 +359,14 @@ class HotelFactureController extends Controller
             $rType        = $row['remise_type'] ?? '%';
             $rValue       = (float)($row['remise_value'] ?? 0);
             $taxRate      = (float)($row['tax_rate'] ?? $row['produit_tax_rate_db'] ?? 0);
+            // BUG FIX 2026-10-20 : on expose aussi le code du groupe de
+            // taxation (A/B/C/D/E/F/G/H/I/J/K/L/P) pour que le front puisse
+            // envoyer le bon `tax_etiquette` à la DGI. Avant on hardcodait
+            // 'B' côté JS → les extras des groupes C/F/etc. étaient déclarés
+            // à tort au régime B, ce qui faussait le calcul de TVA côté DGI.
+            $taxEtiq      = (string)($row['tax_etiquette']
+                                  ?? $row['produit_tax_etiquette_db']
+                                  ?? 'B');
             $nom          = (string)($row['produit_nom'] ?? '');
             if ($nom === '') {
                 // Legacy : on retombe sur le parsing de la description
@@ -383,6 +394,7 @@ class HotelFactureController extends Controller
                 'taxe_specifique_type' => $tsType,
                 'taxe_specifique_value'=> $tsValue,
                 'tax_rate'             => $taxRate,
+                'taxe_etiquette'       => $taxEtiq,
             ];
             $extrasParVente[$key]['montant'] += (float)$row['montant'];
         }

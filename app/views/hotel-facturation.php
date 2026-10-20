@@ -228,4 +228,4 @@ $page = 'hotel-facturation';
 
 <!-- app.js fournit STORE_INFO, _printReceiptContent, posCart.generateDGIQRCode, posCart.numberToFrenchWords, getPaymentTypeLabel -->
 <script src="/assets/js/app.js"></script>
-<script src="/assets/js/hotel-facturation.js?v=6"></script>
+<script src="/assets/js/hotel-facturation.js?v=10"></script>
