@@ -58,7 +58,14 @@ $page = 'hotel-chambres';
   <div class="hotel-rooms-card">
     <div class="page-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
       <div>
-        <h2 style="margin:0;color:var(--foreground);">Chambres</h2>
+        <h2 style="margin:0;color:var(--foreground);display:flex;align-items:center;gap:.5rem;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color:var(--primary);">
+            <path d="M2 17v-5a3 3 0 0 1 3-3h14a3 3 0 0 1 3 3v5"></path>
+            <path d="M2 17h20"></path>
+            <path d="M6 12V9a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v3"></path>
+          </svg>
+          Chambres
+        </h2>
         <div style="font-size:.8rem;color:var(--muted);margin-top:4px;">
           Catalogue des chambres de l'hôtel (numéro, type, prix, état, notes).
         </div>

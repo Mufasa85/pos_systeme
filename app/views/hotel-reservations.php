@@ -14,8 +14,11 @@ $page = 'hotel-reservations';
 
 // helper : format date FR
 if (!function_exists('hr_date')) {
-    function hr_date($s) {
-        if (!$s) return '';
+    function hr_date($s)
+    {
+        if (!$s) {
+            return '';
+        }
         $dt = strtotime($s);
         return $dt ? date('d/m/Y H:i', $dt) : htmlspecialchars($s);
     }
@@ -100,7 +103,16 @@ if (!function_exists('hr_date')) {
   <div class="hotel-res-card">
     <div class="page-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
       <div>
-        <h2 style="margin:0;color:var(--foreground);">Réservations hôtel</h2>
+        <h2 style="margin:0;color:var(--foreground);display:flex;align-items:center;gap:.5rem;">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color:var(--primary);">
+          <rect x="3" y="4" width="18" height="18" rx="2"></rect>
+          <line x1="16" y1="2" x2="16" y2="6"></line>
+          <line x1="8"  y1="2" x2="8"  y2="6"></line>
+          <line x1="3"  y1="10" x2="21" y2="10"></line>
+          <path d="M8 14h2M8 18h2M14 14h2M14 18h2"></path>
+        </svg>
+        Réservations hôtel
+      </h2>
         <div style="font-size:.8rem;color:var(--muted);margin-top:4px;">
           Créez, modifiez ou annulez les réservations. Le check-in / check-out reste sur la page Réception.
         </div>

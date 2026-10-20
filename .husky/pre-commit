@@ -7,8 +7,12 @@ PHP_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '\.php$' || t
 
 if [ -n "$PHP_FILES" ]; then
   echo "[husky] Vérification du style PHP sur $(echo "$PHP_FILES" | wc -l) fichier(s) staged..."
+  # --config=.php-cs-fixer.php est requis depuis PHP-CS-Fixer v3 quand on
+  # passe plusieurs chemins en arguments (sinon: "For multiple paths
+  # config parameter is required"). Le dist .php-cs-fixer.dist.php
+  # n'existe pas dans ce repo — seul .php-cs-fixer.php est présent.
   # shellcheck disable=SC2086
-  vendor/bin/php-cs-fixer fix --dry-run --diff --verbose $PHP_FILES || exit 1
+  vendor/bin/php-cs-fixer fix --config=.php-cs-fixer.php --dry-run --diff --verbose $PHP_FILES || exit 1
 fi
 
 # ESLint + Prettier sur les fichiers en staging

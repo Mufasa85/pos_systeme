@@ -148,6 +148,10 @@ $page = 'hotel-reception';
     <div>
       <h2 style="margin:0;color:var(--foreground);display:flex;align-items:center;gap:.5rem;">
         <span class="hotel-rec-pulse"></span>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color:var(--primary);">
+          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+          <polyline points="9 22 9 12 15 12 15 22"></polyline>
+        </svg>
         Réception
       </h2>
       <div style="font-size:.8rem;color:var(--muted);margin-top:4px;">
@@ -163,15 +167,27 @@ $page = 'hotel-reception';
   <div class="hotel-rec-card">
     <div class="hotel-rec-timeline">
       <div class="hotel-rec-tile" id="tile-arrivals">
-        <h3>Arrivées aujourd'hui <span class="badge-count" id="count-arrivals">0</span></h3>
+        <h3>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color:#16a34a;"><path d="M15 3l6 6"/><path d="M11 21l-6-6"/><path d="M21 3l-9 9"/><path d="M15 9l6-6"/><path d="M9 15l-6 6"/></svg>
+          Arrivées aujourd'hui
+          <span class="badge-count" id="count-arrivals">0</span>
+        </h3>
         <div id="list-arrivals"><div class="hotel-rec-item-empty">Aucune arrivée prévue.</div></div>
       </div>
       <div class="hotel-rec-tile" id="tile-inProgress">
-        <h3>En cours <span class="badge-count" id="count-inProgress">0</span></h3>
+        <h3>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color:#2563eb;"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>
+          En cours
+          <span class="badge-count" id="count-inProgress">0</span>
+        </h3>
         <div id="list-inProgress"><div class="hotel-rec-item-empty">Aucun séjour en cours.</div></div>
       </div>
       <div class="hotel-rec-tile" id="tile-departures">
-        <h3>Départs aujourd'hui <span class="badge-count" id="count-departures">0</span></h3>
+        <h3>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color:#dc2626;"><path d="M9 21l-6-6"/><path d="M3 21l9-9"/><path d="M9 15l-6-6"/><path d="M15 9l6 6"/></svg>
+          Départs aujourd'hui
+          <span class="badge-count" id="count-departures">0</span>
+        </h3>
         <div id="list-departures"><div class="hotel-rec-item-empty">Aucun départ prévu.</div></div>
       </div>
     </div>

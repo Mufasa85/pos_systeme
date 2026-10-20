@@ -75,7 +75,15 @@ $page = 'hotel-guests';
   <div class="hotel-gn-card">
     <div class="page-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
       <div>
-        <h2 style="margin:0;color:var(--foreground);">Guests</h2>
+        <h2 style="margin:0;color:var(--foreground);display:flex;align-items:center;gap:.5rem;">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color:var(--primary);">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+          <circle cx="9" cy="7" r="4"></circle>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+          <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+        </svg>
+        Guests
+      </h2>
         <div style="font-size:.8rem;color:var(--muted);margin-top:4px;">
           Clients ayant séjourné (ou réservé) à l'hôtel. Recherche par nom, téléphone ou pièce d'identité.
         </div>

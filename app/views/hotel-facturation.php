@@ -44,12 +44,24 @@ $page = 'hotel-facturation';
   <div class="hotel-ft-card">
     <div class="page-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
       <div>
-        <h2 style="margin:0;color:var(--foreground);">Facturation hôtel</h2>
+        <h2 style="margin:0;color:var(--foreground);display:flex;align-items:center;gap:.5rem;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color:var(--primary);">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <line x1="16" y1="13" x2="8" y2="13"></line>
+            <line x1="16" y1="17" x2="8" y2="17"></line>
+            <line x1="10" y1="9" x2="8" y2="9"></line>
+          </svg>
+          Facturation hôtel
+        </h2>
         <div style="font-size:.8rem;color:var(--muted);margin-top:4px;">
           Facture officielle du séjour — régime TVA type B (non collectée).
         </div>
       </div>
-      <a href="/hotel/reception" class="btn btn-ghost btn-small">← Retour à la réception</a>
+      <a href="/hotel/reception" class="btn btn-ghost btn-small">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-1px;margin-right:4px;"><polyline points="15 18 9 12 15 6"/></svg>
+        Retour à la réception
+      </a>
     </div>
 
     <div id="hotel-ft-alert-page" class="hotel-ft-banner hidden" style="display:none;"></div>

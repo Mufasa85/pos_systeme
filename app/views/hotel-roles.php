@@ -12,6 +12,19 @@
  */
 $currentUserRoleApp = $_SESSION['role'] ?? '';
 $isSuperAdminView  = $currentUserRoleApp === 'super_admin';
+
+// --- Contrat de variables injectées par PageController::hotelRoles() ---
+// Ces variables existent à l'exécution (extract($data) dans render()).
+// Les déclarations ci-dessous ne servent qu'à supprimer les warnings de
+// l'IDE et à documenter explicitement le contrat. Aucun effet runtime.
+// @phpstan-ignore-next-line
+$hotelUsers      = $hotelUsers      ?? [];
+// @phpstan-ignore-next-line
+$targetShopId    = $targetShopId    ?? 0;
+// @phpstan-ignore-next-line
+$allShops        = $allShops        ?? [];
+// @phpstan-ignore-next-line
+$currentShopName = $currentShopName ?? '';
 ?>
 <style>
   .hotel-roles-wrap { max-width: 920px; margin: 1.5rem auto; padding: 0 1rem; }
@@ -58,7 +71,12 @@ $isSuperAdminView  = $currentUserRoleApp === 'super_admin';
   <div class="hotel-roles-card">
     <div class="hotel-roles-header">
       <div>
-        <h1>Gestion des rôles Hôtel</h1>
+        <h1 style="display:flex; align-items:center; gap:.55rem;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0B5E88" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+          </svg>
+          Gestion des rôles Hôtel
+        </h1>
         <div class="subtitle">Assignez vos vendeurs à un rôle métier hôtel (manager, réceptionniste, gouvernante) ou laissez "Aucun accès" pour qu'ils restent uniquement sur la caisse.</div>
       </div>
       <span class="hotel-roles-shop-pill"><?= htmlspecialchars($currentShopName) ?></span>
@@ -104,7 +122,7 @@ $isSuperAdminView  = $currentUserRoleApp === 'super_admin';
               $appRole = $u['role'];
               $hotelRole = $u['hotel_role']; // null|manager|receptionniste|gouvernante
               $isAdminAuto = ($appRole === 'admin');
-            ?>
+              ?>
             <tr data-user-id="<?= (int)$u['id'] ?>">
               <td>
                 <div class="hotel-roles-user-cell">
