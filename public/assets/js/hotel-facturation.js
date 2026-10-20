@@ -817,7 +817,7 @@
       + '</div>';
   }
 
-  function buildHotelReceiptTotals(total) {
+  function buildHotelReceiptTotals(total, dgiTotal) {
     var manualTotal = extrasManuels.reduce(function (a, x) { return a + x.montant; }, 0);
     var usdRate = (typeof USD_RATE !== 'undefined' && USD_RATE > 0) ? USD_RATE : 0;
     var amountInWords = (typeof posCart !== 'undefined' && posCart.numberToFrenchWords)
@@ -835,6 +835,11 @@
     //     pour ne montrer que le TOTAL TTC + extras manuels — la
     //     décomposition HT/TS/TVA est disponible via le `tax_b_value`
     //     retourné par la DGI dans `buildHotelReceiptTaxBreakdown`.
+    //
+    // BUG FIX 2026-10-20 (round 5) : on affiche aussi le `total` retourné
+    // par la DGI (= total TTC officiel confirmé par la DGI) juste à côté
+    // du TOTAL TTC. Cela permet à l'utilisateur de voir immédiatement la
+    // valeur confirmée par la DGI (champ `total` de la réponse API DGI).
     var html = '';
     // ── Bloc EXTRAS MANUELS ──
     if (manualTotal > 0) {
@@ -842,6 +847,13 @@
     }
     // ── Total aligné pattern app.js (= lineTTC cumulé, nuits + extras) ──
     html += '<div class="receipt-total-row grand-total"><span>TOTAL TTC :</span><span>' + fmtFc(total) + '</span></div>';
+    // ── Total confirmé par la DGI (champ `total` de la réponse DGI) ─────
+    if (typeof dgiTotal === 'number' && !isNaN(dgiTotal) && dgiTotal > 0) {
+      html += '<div class="receipt-total-row" style="font-size:11px; color:#2e7d32;">'
+        + '<span>Total confirmé DGI :</span>'
+        + '<span>' + fmtFc(dgiTotal) + '</span>'
+        + '</div>';
+    }
     if (usdRate) {
       html += '<div class="receipt-total-row" style="font-size:11px; color:#555;"><span>TAUX DU JOUR :</span><span>' + usdRate + ' Fc/USD</span></div>';
       html += '<div class="receipt-total-row" style="font-size:11px; color:#555;"><span>Equivalent en USD :</span><span>' + (total / usdRate).toFixed(2) + ' $</span></div>';
@@ -1910,7 +1922,12 @@
 
     var itemsHtml = buildHotelReceiptItems(n, e, extrasManuels);
     var infoSection = buildHotelReceiptInfoSection();
-    var totalsHtml = buildHotelReceiptTotals(total);
+    // BUG FIX 2026-10-20 (round 5) : on passe aussi le `total` retourné
+    // par la DGI (= total TTC officiel confirmé par la DGI) pour qu'il
+    // soit affiché juste à côté du TOTAL TTC dans la facture finale.
+    // cf. clé `total` dans la réponse API DGI (ex: 10251870).
+    var dgiTotal = (dgiData && typeof dgiData.total === 'number') ? dgiData.total : null;
+    var totalsHtml = buildHotelReceiptTotals(total, dgiTotal);
     var paymentsHtml = buildHotelReceiptPayments();
     // Sprint 7 — 2026-10-19 : titre dynamique basé sur le type sélectionné
     // par l'utilisateur (cf. window.hotelInvoiceType). Voir showPreview()
@@ -1929,9 +1946,22 @@
         (dgiData.codeDEFDGI ? 'CODE DEF/DGI: ' + escapeHtml(dgiData.codeDEFDGI) : '') +
         (dgiData.nim ? '<br>DEF NID : ' + escapeHtml(dgiData.nim) : '') +
         (dgiData.counters ? '<br>DEF Compteurs: ' + escapeHtml(dgiData.counters) : '') +
-        (dgiData.dateDGI ? '<br>DEF Heure : ' + escapeHtml(dgiData.dateDGI) : '') +
+        // BUG FIX 2026-10-20 (round 5) : l'API DGI renvoie `dateTime` (et non
+        // `dateDGI` comme dans les anciennes versions). On accepte les deux
+        // noms pour la rétrocompatibilité (certains proxies DGI exposent
+        // encore `dateDGI`).
+        ((dgiData.dateTime || dgiData.dateDGI) ? '<br>DEF Heure : ' + escapeHtml(dgiData.dateTime || dgiData.dateDGI) : '') +
         '</div></div>';
     }
+
+    // BUG FIX 2026-10-20 (round 4) : déplacement du détail TVA retourné par
+    // la DGI. Avant, il était inséré dans le bloc `receipt-totals`, après
+    // le TOTAL TTC (cf. bloc `taxesGroupes` plus bas). On le déplace
+    // maintenant dans un bloc dédié `receipt-taxes` placé ENTRE la liste
+    // des articles et le bloc `receipt-totals`, pour qu'il apparaisse
+    // visuellement juste au-dessus du TOTAL TTC. C'est plus logique
+    // puisque ce détail est la décomposition du total.
+    var taxesGroupes = buildHotelReceiptTaxBreakdown(dgiData);
 
     var receiptHtml =
       '<div class="receipt"><div class="receipt-header">' +
@@ -1952,7 +1982,9 @@
       (window.hotelRefFacture ? '<div style="text-align:center; font-size:12px; color:#666;">Réf : ' + escapeHtml(window.hotelRefFacture) + '</div>' : '') +
       (window.hotelExoneration ? '<div style="text-align:center; font-size:11px; color:#888; font-style:italic;">Exonération : ' + escapeHtml(getExonerationLabel(window.hotelExoneration)) + '</div>' : '') +
       '<div class="receipt-items">' + itemsHtml + '</div>' +
-      '<div class="receipt-totals">' + totalsHtml + paymentsHtml + buildHotelReceiptTaxBreakdown(dgiData) +
+      // Détail TVA (HT/TS/TVA par groupe A/B/C/...) — placé juste avant le TOTAL TTC
+      (taxesGroupes ? '<div class="receipt-taxes" style="border-top:1px dashed #ccc; border-bottom:1px dashed #ccc; padding:6px 0; margin:6px 0;">' + taxesGroupes + '</div>' : '') +
+      '<div class="receipt-totals">' + totalsHtml + paymentsHtml +
       (isHomologuee && STORE_INFO.isf ? '<div style="margin:10px 0; font-size:11px; color:#333; border:1px dashed #ccc; padding:8px; border-radius:4px; text-align:center;">ISF : ' + escapeHtml(dgiData.isf || STORE_INFO.isf) + '</div>' : '') +
       '<div class="receipt-total-row" style="font-size:11px; color:#000; font-weight:600;"><span>Nombre d\'article(s) :</span><span>' + countHotelArticles(n, e, extrasManuels) + '</span></div>' +
       '</div>' +

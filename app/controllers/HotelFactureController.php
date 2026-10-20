@@ -266,6 +266,7 @@ class HotelFactureController extends Controller
                     d.remise_type AS d_remise_type, d.remise_value AS d_remise_value,
                     d.taxe_specifique_type AS d_ts_type, d.taxe_specifique_value AS d_ts_value,
                     p.nom AS produit_nom,
+                    p.prod_service AS produit_prod_service,
                     t.taux AS produit_tax_rate,
                     t.etiquette AS produit_tax_etiquette
              FROM ventes v
@@ -288,6 +289,7 @@ class HotelFactureController extends Controller
                     he.taxe_specifique_type, he.taxe_specifique_value,
                     he.tax_rate,
                     p.nom AS produit_nom,
+                    p.prod_service AS produit_prod_service_db,
                     t.taux AS produit_tax_rate_db,
                     t.etiquette AS produit_tax_etiquette_db
              FROM hotel_extras he
@@ -323,6 +325,7 @@ class HotelFactureController extends Controller
                 'taxe_specifique_type' => (string)($row['d_ts_type'] ?? '%'),
                 'taxe_specifique_value'=> (float)($row['d_ts_value'] ?? 0),
                 'tax_rate'             => (float)($row['produit_tax_rate'] ?? 0),
+                'prod_service'         => (string)($row['produit_prod_service'] ?? 'BIE'),
                 'taxe_etiquette'       => (string)($row['produit_tax_etiquette'] ?? 'B'),
             ];
         }
@@ -368,6 +371,12 @@ class HotelFactureController extends Controller
                                   ?? $row['produit_tax_etiquette_db']
                                   ?? 'B');
             $nom          = (string)($row['produit_nom'] ?? '');
+            // prod_service vient directement de la table produits (via jointure
+            // LEFT). Si pas de produit lié, fallback sur 'BIE' (bien) — l'extra
+            // hôtelier est généralement un bien consommé. Le front s'en sert pour
+            // afficher `[BIE]` ou `[SER]` dans le libellé de l'article (aligné
+            // sur le pattern d'affichage de la caisse POS, cf. app.js ligne 1482).
+            $prodService  = (string)($row['produit_prod_service_db'] ?? 'BIE');
             if ($nom === '') {
                 // Legacy : on retombe sur le parsing de la description
                 $desc = (string)$row['description'];
@@ -395,6 +404,7 @@ class HotelFactureController extends Controller
                 'taxe_specifique_value'=> $tsValue,
                 'tax_rate'             => $taxRate,
                 'taxe_etiquette'       => $taxEtiq,
+                'prod_service'         => $prodService,
             ];
             $extrasParVente[$key]['montant'] += (float)$row['montant'];
         }
