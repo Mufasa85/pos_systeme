@@ -186,12 +186,29 @@
 
   // Agrège les totaux pour TOUS les extras d'un séjour (toutes lignes confondues).
   // Renvoie : { total_ht, total_ts, total_tva, total_ttc } + détail par taux
-  // et par étiquette de TVA. BUG FIX 2026-10-20 : utilise maintenant
-  // computeProductTTC (miroir app.js) pour que les totaux correspondent
-  // EXACTEMENT à ce que la caisse POS envoie à la DGI. Avant cette
-  // correction, `total_ttc` était sous-évalué car la TS était calculée sur
-  // prixHtNet au lieu de price, et la TVA n'incluait pas correctement
-  // la composante TVA_sur_TS.
+  // et par étiquette de TVA.
+  //
+  // BUG FIX 2026-10-20 (round 2) — calcul TTC adapté au régime B hôtelier :
+  // En hôtellerie (régime B), la TVA sur prix n'est PAS collectée auprès du
+  // client : il paie uniquement HT + TS + TVA_sur_TS. C'est exactement ce que
+  // `line_ht` représente dans le pattern app.js (cf. posCart.calculateItemTTC
+  // ligne 849). Le `line_ttc` (qui inclut en plus la TVA_sur_prix × qty)
+  // correspond au TTC théorique avec TVA collectée — utile pour la ventilation
+  // DGI mais pas pour le montant facturé en régime B.
+  //
+  // Exemple : prix 2000, qty 1, TVA 5%, TS 10% (en %), remise 40%
+  //   specificTaxUnit = 200 (TS)
+  //   vatOnPriceUnit  = 100 (TVA collectée — non facturée en B)
+  //   vatOnTSUnit     = 10  (TVA sur TS)
+  //   lineHT          = 2000 + 200 + 10 = 2210   ← TTC facturé au client
+  //   lineTTC         = 2210 + 100       = 2310   ← TTC théorique DGI
+  //
+  // On expose ici :
+  //   total_ht  = sum(line_ht)         (= HT + TS + TVA_sur_TS — régime B)
+  //   total_ttc = sum(line_ht)         (= idem — TTC facturé au client)
+  //   total_ts  = sum(line_ts)         (info)
+  //   total_tva = sum(line_vat_total)  (info : TVA_sur_prix + TVA_sur_TS)
+  //   by_rate / by_etiq : idem avec cumul par catégorie de TVA
   function computeExtrasTotals(extrasLignes) {
     var lines = extrasLignes || [];
     var totalHT = 0, totalTS = 0, totalVAT = 0, totalTTC = 0;
@@ -204,14 +221,17 @@
         totalHT  += calc.line_ht;
         totalTS  += calc.line_ts;
         totalVAT += calc.line_vat_total;
-        totalTTC += calc.line_ttc;
+        // TTC facturé client en régime B = line_ht (= HT + TS + TVA_sur_TS).
+        // Note : si on voulait le TTC théorique avec TVA collectée, ce serait
+        // calc.line_ttc (= lineHT + TVA_sur_prix × qty).
+        totalTTC += calc.line_ht;
         // Bucket par taux de TVA (info UI)
         var r = String(calc.tax_rate || 0);
         if (!byRate[r]) byRate[r] = { ht: 0, ts: 0, vat: 0, ttc: 0 };
         byRate[r].ht  += calc.line_ht;
         byRate[r].ts  += calc.line_ts;
         byRate[r].vat += calc.line_vat_total;
-        byRate[r].ttc += calc.line_ttc;
+        byRate[r].ttc += calc.line_ht;
         // Bucket par étiquette DGI (A/B/C/...) — utile pour le détail
         // tax breakdown envoyé par la DGI dans buildHotelReceiptTaxBreakdown.
         var e = String(calc.tax_etiquette || 'B');
@@ -219,7 +239,7 @@
         byEtiq[e].ht  += calc.line_ht;
         byEtiq[e].ts  += calc.line_ts;
         byEtiq[e].vat += calc.line_vat_total;
-        byEtiq[e].ttc += calc.line_ttc;
+        byEtiq[e].ttc += calc.line_ht;
       });
     });
     return {
@@ -444,24 +464,6 @@
       ? '<div style="font-size:.82rem;color:var(--muted);font-style:italic;">Aucun acompte.</div>'
       : '<table class="hotel-ft-table"><thead><tr><th>Date</th><th>Mode</th><th class="num">Montant</th></tr></thead><tbody>' + acomptesRows + '</tbody></table>';
 
-    // Bloc détail taxes extras (par catégorie de TVA)
-    var extrasTaxDetail = '';
-    Object.keys(extrasTotals.by_rate || {}).forEach(function (rate) {
-      var b = extrasTotals.by_rate[rate];
-      if (b.ht > 0 || b.ts > 0 || b.vat > 0) {
-        extrasTaxDetail += '<div class="row" style="font-size:.78rem;color:#475569;padding-left:1rem;">'
-          + '<span>HT extras (TVA ' + rate + '%)</span><span>' + fmtFc(b.ht) + '</span></div>';
-        if (b.ts > 0) {
-          extrasTaxDetail += '<div class="row" style="font-size:.78rem;color:#b45309;padding-left:1rem;">'
-            + '<span>TS extras (TVA ' + rate + '%)</span><span>' + fmtFc(b.ts) + '</span></div>';
-        }
-        if (b.vat > 0) {
-          extrasTaxDetail += '<div class="row" style="font-size:.78rem;color:#1e40af;padding-left:1rem;">'
-            + '<span>TVA extras (' + rate + '%)</span><span>' + fmtFc(b.vat) + '</span></div>';
-        }
-      }
-    });
-
     // Totaux RÉELS chambre + extras (régime B hôtelier : TVA collectée = 0).
     //
     // BUG FIX 2026-10-20 — alignement strict sur posCart.calculateItemTTC :
@@ -484,22 +486,13 @@
     const totalNuitesAvecTS = parseFloat(n.total_avec_ts) || 0;
     const tvaSurTS = parseFloat(n.tva_sur_ts) || 0;
     const totalNuitesAvecTSetTVA = parseFloat(n.total_avec_ts_et_tva) || (totalNuitesAvecTS + tvaSurTS);
-    // Totaux extras — VRAIES valeurs (pas de double-comptage)
-    const totalExtrasTTC = extrasTotals.total_ttc || 0;     // lineTTC cumulé = HT + TS + TVA_sur_prix + TVA_sur_TS
-    const totalExtrasHT = extrasTotals.total_ht || 0;       // line_ht cumulé  = HT + TS + TVA_sur_TS
-    const totalExtrasTS = extrasTotals.total_ts || 0;       // TS cumulée
-    const totalExtrasTVATheorique = extrasTotals.total_tva || 0; // TVA = TVA_sur_prix + TVA_sur_TS
+    // Total extras TTC (aligné pattern app.js : lineTTC cumulé)
+    const totalExtrasTTC = extrasTotals.total_ttc || 0;
     // Total facturé (cumul chambres + extras, aligné pattern app.js)
     const totalFinalB = totalNuitesAvecTSetTVA + totalExtrasTTC;
-    // Total avec TVA_sur_prix incluse (= lineTTC cumulé chambres + extras) — info
-    const totalFinalAvecTVA = totalFinalB;
 
     const totalsAndEmit = alreadyFactured ? '' : `
       <div class="hotel-ft-totals">
-        <div class="row"><span>Total extras (TTC, aligné pattern app.js)</span><span>${fmtFc(totalExtrasTTC)}</span></div>
-        ${totalExtrasTS > 0 ? `<div class="row" style="color:#b45309;"><span>dont TS extras</span><span>${fmtFc(totalExtrasTS)}</span></div>` : ''}
-        ${extrasTaxDetail}
-        ${totalExtrasTVATheorique > 0 ? `<div class="row"><span>dont TVA théorique extras (régime B : non collectée)</span><span style="color:#1e40af;">${fmtFc(totalExtrasTVATheorique)}</span></div>` : ''}
         <div class="row total"><span>Total chambres + extras TTC</span><span>${fmtFc(totalFinalB)}</span></div>
         <div class="row"><span>Acomptes déjà versés</span><span>− ${fmtFc(previewData.acompte_total)}</span></div>
         <div class="row total"><span>Solde dû</span><span>${fmtFc(totalFinalB - (previewData.acompte_total || 0))}</span></div>
@@ -639,13 +632,16 @@
   //
   // MAINTENANT :
   //   - On appelle `computeExtrasTotals(e.lignes)` qui ré-applique la formule
-  //     complète `posCart.calculateItemTTC` sur chaque produit détaillé
-  //     (prix × qty + TS + TVA_sur_prix + TVA_sur_TS).
-  //   - On utilise `extrasTotals.total_ttc` (= lineTTC cumulé extras).
-  //   - `totalChambresTTC` (= `total_avec_ts_et_tva` du backend) reste
-  //     la source de vérité pour les chambres (déjà correct).
-  //   - Le résultat est donc EXACTEMENT `TTC_chambres + TTC_extras +
-  //     extras_manuels − acompte_total`.
+  //     `posCart.calculateItemTTC` sur chaque produit détaillé.
+  //   - `extrasTotals.total_ttc` = TTC facturé au client en régime B hôtelier
+  //     (= sum(line_ht) = HT + TS + TVA_sur_TS, sans TVA_sur_prix qui n'est
+  //      PAS collectée — cf. commentaire dans computeExtrasTotals).
+  //   - `totalChambresTTC` (= `total_avec_ts_et_tva` du backend) reste la
+  //     source de vérité pour les chambres (= lineHT cumulé chambres, déjà
+  //     cohérent régime B).
+  //   - Le résultat est donc EXACTEMENT :
+  //        TTC_chambres + TTC_extras + extras_manuels − acompte_total
+  //     où chaque TTC est en régime B (HT + TS + TVA_sur_TS).
   function computeSoldeCourant() {
     if (!previewData) return 0;
     var n = previewData.nuits || {};
@@ -658,7 +654,7 @@
     var totalChambresTTC = parseFloat(n.total_avec_ts_et_tva) || 0;
 
     // 2) Total extras caisse TTC — calculé ICI via computeExtrasTotals
-    //    (= sum de lineTTC des produits = HT + TS + TVA_sur_prix + TVA_sur_TS)
+    //    (= sum(line_ht) des produits = HT + TS + TVA_sur_TS, régime B)
     var extrasTotals = computeExtrasTotals(e.lignes);
     var totalExtrasTTC = extrasTotals.total_ttc || 0;
 
@@ -743,7 +739,12 @@
             + '</span></td></tr>'
             + '<tr class="item-detail-row"><td class="item-qty">'
             + formatQty(calc.quantite, false) + ' × ' + fmtFc(p.prix_unitaire || 0)
-            + '</td><td class="item-total" style="text-align:right;">' + fmtFc(calc.line_ttc) + '</td></tr>';
+            // BUG FIX 2026-10-20 (round 2) : on affiche line_ht (= HT + TS + TVA_sur_TS)
+            // qui correspond au TTC facturé au client en régime B hôtelier
+            // (la TVA_sur_prix n'est PAS collectée). Avant cette correction,
+            // on affichait line_ttc (= lineHT + TVA_sur_prix × qty), ce qui
+            // surévaluait le TTC de la TVA_sur_prix dans la facture hôtel.
+            + '</td><td class="item-total" style="text-align:right;">' + fmtFc(calc.line_ht) + '</td></tr>';
         });
       } else {
         // Ligne legacy : pas de détails produits, on affiche le montant brut
@@ -774,8 +775,6 @@
   }
 
   function buildHotelReceiptTotals(total) {
-    var n = previewData.nuits || {};
-    var e = previewData.extras || {};
     var manualTotal = extrasManuels.reduce(function (a, x) { return a + x.montant; }, 0);
     var usdRate = (typeof USD_RATE !== 'undefined' && USD_RATE > 0) ? USD_RATE : 0;
     var amountInWords = (typeof posCart !== 'undefined' && posCart.numberToFrenchWords)
@@ -789,41 +788,11 @@
     //   - Maintenant : on appelle `computeExtrasTotals(e.lignes)` pour
     //     ré-appliquer la formule complète (miroir app.js) sur chaque
     //     produit détaillé (HT + TS + TVA_sur_prix + TVA_sur_TS).
-    var extrasTotals = computeExtrasTotals(e.lignes);
-    var totalNuitesHT = parseFloat(n.total_ht) || 0;
-    var totalTSChambre = parseFloat(n.taxe_specifique_total) || 0;
-    var tvaSurTSChambre = parseFloat(n.tva_sur_ts) || 0;
-    var totalNuitesAvecTSetTVA = parseFloat(n.total_avec_ts_et_tva) || 0;
-    // Totaux extras CORRECTEMENT calculés (alignés pattern app.js)
-    var totalExtrasHT  = extrasTotals.total_ht  || 0;
-    var totalExtrasTS  = extrasTotals.total_ts  || 0;
-    var totalExtrasTVA = extrasTotals.total_tva || 0;
-    var totalExtrasTTC = extrasTotals.total_ttc || 0;
-
+    //   - L'affichage détaillé a été simplifié (cf. nettoyage 2026-10-20)
+    //     pour ne montrer que le TOTAL TTC + extras manuels — la
+    //     décomposition HT/TS/TVA est disponible via le `tax_b_value`
+    //     retourné par la DGI dans `buildHotelReceiptTaxBreakdown`.
     var html = '';
-    // ── Bloc CHAMBRES : décomposition info ──
-    if (totalNuitesHT > 0) {
-      html += '<div class="receipt-total-row" style="font-size:11px;"><span>HT chambres</span><span>' + fmtFc(totalNuitesHT) + '</span></div>';
-    }
-    if (totalTSChambre > 0) {
-      html += '<div class="receipt-total-row" style="color:#b45309;font-size:11px;"><span>TS chambres</span><span>' + fmtFc(totalTSChambre) + '</span></div>';
-    }
-    if (tvaSurTSChambre > 0) {
-      html += '<div class="receipt-total-row" style="color:#1e40af;font-size:11px;"><span>TVA chambres (régime B, non collectée)</span><span>' + fmtFc(tvaSurTSChambre) + '</span></div>';
-    }
-    if (totalNuitesAvecTSetTVA > 0) {
-      html += '<div class="receipt-total-row" style="font-size:11px;"><span>Sous-total chambres</span><span>' + fmtFc(totalNuitesAvecTSetTVA) + '</span></div>';
-    }
-    // ── Bloc EXTRAS (les nuits + TS + TVA_sur_TS sont déjà inclus dans `total`) ──
-    if (totalExtrasTTC > 0) {
-      html += '<div class="receipt-total-row"><span>Total extras (TTC)</span><span>' + fmtFc(totalExtrasTTC) + '</span></div>';
-    }
-    if (totalExtrasTS > 0) {
-      html += '<div class="receipt-total-row" style="color:#b45309;font-size:11px;"><span>dont TS extras</span><span>' + fmtFc(totalExtrasTS) + '</span></div>';
-    }
-    if (totalExtrasTVA > 0) {
-      html += '<div class="receipt-total-row" style="color:#1e40af;font-size:11px;"><span>dont TVA théorique extras (régime B, non collectée)</span><span>' + fmtFc(totalExtrasTVA) + '</span></div>';
-    }
     // ── Bloc EXTRAS MANUELS ──
     if (manualTotal > 0) {
       html += '<div class="receipt-total-row"><span>Total extras manuels</span><span>' + fmtFc(manualTotal) + '</span></div>';
@@ -1119,7 +1088,12 @@
         var produits = vente.produits || [];
         var totalCalcule = 0;
         var rowsHtml = produits.map(function (p) {
-          var tot = calcItemTTCMirror(p).lineTTC;
+          // BUG FIX 2026-10-20 (round 2) — régime B hôtelier : on utilise
+          // line_ht (= HT + TS + TVA_sur_TS, sans TVA_sur_prix) qui
+          // correspond au TTC facturé au client (cf. commentaire dans
+          // computeExtrasTotals). Avant : lineTTC surévaluait la facture.
+          var calc = calcItemTTCMirror(p);
+          var tot = calc.line_ht;
           totalCalcule += tot;
           var qtyStr = (p.quantite === Math.floor(p.quantite))
             ? String(p.quantite)
@@ -1571,6 +1545,15 @@
             name: (x.description ? (x.description + ' — ') : '') + (p.nom || 'Produit'),
             quantity: calc.quantite,
             price: calc.price_unitaire,
+            // BUG FIX 2026-10-20 (round 2) : on envoie le VRAI tax_rate du
+            // produit (ex: 5% pour ceoe) à la DGI pour qu'elle puisse ventiler
+            // correctement la TVA. Le `amount` (top-level) envoyé par la suite
+            // est volontairement différent du `vtotal` que la DGI recalcule :
+            //   - vtotal = sum(lineTTC) = HT + TS + TVA_sur_prix + TVA_sur_TS
+            //   - amount = sum(lineHT)  = HT + TS + TVA_sur_TS (= TTC facturé
+            //                              au client en régime B hôtelier,
+            //                              TVA_sur_prix non collectée)
+            // Le client paie `amount` (régime B), la DGI ventile selon `vtotal`.
             tax_rate: calc.tax_rate,
             tax_etiquette: calc.tax_etiquette,
             prod_service: 'SER',
@@ -1627,27 +1610,20 @@
     // (= chambre.taxe_id → taxes.taux, jointure Sprint 7). On utilise donc
     // `tax_rate` (la valeur de l'étiquette) dans le calcul.
     //
-    // Pour le total `amount` envoyé à la DGI :
-    //   - Hôtel régime B : la TVA n'est PAS collectée, le client paie
-    //     HT + TS (= $totalFinal persisté en DB par HotelFactureController::store).
-    //   - Mais on CALCULE la TVA_théorique (vatOnPrice + vatOnTS) et on
-    //     l'INCLUT dans `lineTTC` envoyé à la DGI, exactement comme app.js.
-    //   - La DGI recalculera son `vtotal` à partir de ces valeurs par article
-    //     et de la cohérence interne (les blocs ht_tva_group/va/ts doivent
-    //     matcher le total amount).
+    // BUG FIX 2026-10-20 (round 2) — régime B hôtelier :
+    //   - Le `amount` (top-level) envoyé à la DGI = sum(lineHT) = HT + TS +
+    //     TVA_sur_TS (TTC que le client paie en régime B, sans TVA_sur_prix).
+    //   - Le `vtotal` recalculé par la DGI = sum(lineTTC) = HT + TS +
+    //     TVA_sur_prix + TVA_sur_TS (TTC théorique, info fiscale).
+    //   - Les deux divergent en régime B : c'est NORMAL et CONFORME — le
+    //     client paie `amount` (= lineHT), la DGI ventile selon son
+    //     `vtotal` théorique.
     //
-    // IMPORTANT : on envoie deux totaux :
-    //   1. `lineTTC` (par article, inclus dans articles[]) = HT + TS + TVA_théorique
-    //      → la DGI recalcule amount = sum(lineTTC) et ventile ht_tva_group/va
-    //   2. `amount` (top-level) = HT + TS uniquement (régime B, non collecté)
-    //      → c'est ce que le client paie réellement (cohérent avec la DB)
-    // Si la DGI exige que amount == sum(lineTTC), on peut décommenter la
-    // ligne "amount = totalTTC" plus bas (mode collecte TVA).
-    //
-    // BUG FIX 2026-10-20 : l'ancien calcul faisait `lineHT = prix*qty - remiseVal + tsVal + VAT_sur_TS`.
-    // Or dans app.js (cf. posCart.calculateItemTTC ligne 849), la remise n'est PAS déduite
-    // dans lineHT — elle est appliquée en aval par la DGI via le champ remise_value.
-    // On aligne maintenant sur app.js :
+    // BUG FIX 2026-10-20 (initial) : l'ancien calcul faisait
+    // `lineHT = prix*qty - remiseVal + tsVal + VAT_sur_TS`. Or dans app.js
+    // (cf. posCart.calculateItemTTC ligne 849), la remise n'est PAS déduite
+    // dans lineHT — elle est appliquée en aval par la DGI via le champ
+    // remise_value. On aligne maintenant sur app.js :
     //   lineHT  = prix*qty + TS + VAT_sur_TS   (PAS de remise dans lineHT)
     //   lineTTC = lineHT + VAT_sur_prix * qty
     // L'impact sur le total n'est pas nul car l'ancienne formule sous-évaluait
@@ -1670,14 +1646,17 @@
       var lineHT = prixUnit * qty + tsVal + vatOnTSUnit;
       // lineTTC (app.js) = lineHT + TVA_sur_prix × qty (la TVA sur prix est dans le TTC)
       var lineTTC = lineHT + vatOnPriceUnit * qty;
-      totalHT += lineHT;   // somme des HT (cohérent DB)
-      totalTTC += lineTTC; // somme des TTC (cohérent app.js / DGI)
+      totalHT += lineHT;   // somme des HT (= TTC facturé client, régime B)
+      totalTTC += lineTTC; // somme des TTC (= vtotal DGI, info fiscale)
       totalTVA += (vatOnPriceUnit + vatOnTSUnit) * qty;
       totalTS += tsVal;
     });
-    // amount envoyé à la DGI = HT + TS (régime B hôtelier, TVA non collectée)
-    // = ce que le client paie réellement. Aligné sur $totalFinal persisté
-    // par HotelFactureController::store (ligne ~584).
+    // amount envoyé à la DGI = sum(lineHT) (= HT + TS + TVA_sur_TS — régime B,
+    // TVA non collectée). C'est le TTC que le client paie réellement, aligné
+    // sur $totalFinal persisté par HotelFactureController::store.
+    // Note : le `vtotal` recalculé par la DGI sera = sum(lineTTC), qui inclut
+    // la TVA_sur_prix — c'est attendu en régime B (info fiscale distincte du
+    // montant facturé au client).
     var total = totalHT;
 
     var sellerName = (typeof CURRENT_USER !== 'undefined' && CURRENT_USER.fullName) ? CURRENT_USER.fullName : (STORE_INFO.name || '');
