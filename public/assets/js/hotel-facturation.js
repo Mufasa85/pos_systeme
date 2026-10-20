@@ -407,6 +407,10 @@
       : '';
 
     // Calcul détaillé des extras (qte × prix_unitaire × TS × TVA).
+    // BUG FIX 2026-10-20 (round 3) : on aligne l'affichage du récap de page
+    // sur le pattern de la caisse POS :
+    //   <nom> <tax_etiquette> [prod_service] - <remise> [TS] <valeur TS>
+    //   <qty> × <prix>                                      <total TTC>
     const extrasTotals = computeExtrasTotals(e.lignes);
     const extrasDetailRows = [];
     (e.lignes || []).forEach(function (x) {
@@ -415,29 +419,34 @@
       if (x.produits && x.produits.length > 0) {
         var prodsHtml = '<table style="width:100%;font-size:.75rem;margin-top:.25rem;color:#475569;">';
         x.produits.forEach(function (p) {
-          var calc = computeItemTTC(p);
-          var tsLabel = (p.taxe_specifique_value && p.taxe_specifique_value > 0)
-            ? ' <span style="color:#b45309;font-weight:600;">TS ' + (p.taxe_specifique_type === 'CDF'
-              ? fmtFc(p.taxe_specifique_value)
-              : p.taxe_specifique_value + '%')
-            + '</span>'
-            : '';
-          var tvaLabel = (p.tax_rate && p.tax_rate > 0)
-            ? ' <span style="color:#1e40af;">TVA ' + p.tax_rate + '%</span>'
-            : '';
+          var calc = computeProductTTC(p);
+          // Étiquette de taxe (ex: "B", "C")
+          var taxLabel = calc.tax_etiquette || (calc.tax_rate > 0 ? 'TVA ' + calc.tax_rate + '%' : '');
+          // prod_service (ex: 'BIE' ou 'SER')
+          var prodServiceBadge = p.prod_service ? '[' + escapeHtml(p.prod_service) + ']' : '';
+          // Libellé remise
           var remiseLabel = (p.remise_value && p.remise_value > 0)
-            ? ' <span style="color:#16a34a;">−' + (p.remise_type === 'CDF'
-              ? ' ' + fmtFc(p.remise_value)
-              : p.remise_value + '%')
-            + '</span>'
+            ? ' - ' + (p.remise_type === 'CDF'
+              ? p.remise_value + ' Fc'
+              : p.remise_value + '%') + ' remise'
+            : '';
+          // Libellé TS
+          var tsLabel = (p.taxe_specifique_value && p.taxe_specifique_value > 0)
+            ? ' [TS] ' + (p.taxe_specifique_type === 'CDF'
+              ? p.taxe_specifique_value + ' Fc'
+              : p.taxe_specifique_value + '%')
             : '';
           prodsHtml += '<tr>'
-            + '<td style="padding:1px 4px 1px 16px;">› ' + escapeHtml(p.nom || 'Produit') + '</td>'
+            + '<td style="padding:1px 4px 1px 16px;">'
+            +   escapeHtml(p.nom || 'Produit')
+            +   (taxLabel ? ' <span style="font-weight:600;">' + taxLabel + '</span>' : '')
+            +   (prodServiceBadge ? ' <span style="font-weight:600;">' + prodServiceBadge + '</span>' : '')
+            +   (remiseLabel ? ' <span style="color:#16a34a;">' + remiseLabel + '</span>' : '')
+            +   (tsLabel ? ' <span style="color:#b45309;">' + tsLabel + '</span>' : '')
+            + '</td>'
             + '<td style="padding:1px 4px;text-align:right;">'
-            + formatQty(calc.quantite, false) + ' × ' + fmtFc(p.prix_unitaire || 0)
-            + tsLabel + remiseLabel
-            + '<br><span style="color:#0B5E88;">HT ' + fmtFc(calc.line_ht) + '</span>'
-            + tvaLabel
+            +   formatQty(calc.quantite, false) + ' × ' + fmtFc(p.prix_unitaire || 0)
+            +   '<br><span style="color:#0B5E88;">HT ' + fmtFc(calc.line_ht) + '</span>'
             + '</td>'
             + '</tr>';
         });
@@ -694,67 +703,101 @@
     var s = previewData.sejour;
     var chambreTaxLabel = (n && n.tax_etiquette) || 'B';
     var chambreTsType = (n && n.taxe_specifique_type) || '%';
-    // Pour la TS chambre, on a une seule valeur (par nuitée), appliquée à
-    // chaque ligne. Le libellé est généré via getHotelSpecificTaxLabel()
-    // (miroir de posCart.getSpecificTaxLabel() dans app.js).
-    var chambreTsLabel = getHotelSpecificTaxLabel(n && n.taxe_specifique_value, chambreTsType);
+    var chambreTsRawValue = parseFloat(n && n.taxe_specifique_value) || 0;
+    // Helper local pour générer le libellé TS brut (aligné sur
+    // posCart.getSpecificTaxLabel dans app.js ligne 866-872) : renvoie
+    // " [TS] X Fc" ou " [TS] X%" selon le type, ou "" si valeur <= 0.
+    function rawTsLabel(rawValue, type) {
+      var v = parseFloat(rawValue) || 0;
+      if (v <= 0) return '';
+      return (type === 'CDF')
+        ? ' <span style="color:#b45309;font-weight:700;">[TS]</span> ' + v + ' Fc '
+        : ' <span style="color:#b45309;font-weight:700;">[TS]</span> ' + v + '% ';
+    }
+    // Helper local pour générer le libellé remise (aligné sur app.js ligne
+    // 1483-1487) : renvoie " - X Fc remise" ou " - X% remise", ou "" si
+    // remise_value <= 0.
+    function rawDiscountLabel(remiseType, remiseValue) {
+      var v = parseFloat(remiseValue) || 0;
+      if (v <= 0) return '';
+      return (remiseType === 'CDF')
+        ? ' - ' + v + ' Fc remise'
+        : ' - ' + v + '% remise';
+    }
+    // En-tête de table — on garde "Total TTC" pour l'hôtel (vs "Total HT"
+    // dans la caisse) parce qu'on est en régime B non collecté et le total
+    // affiché correspond effectivement au TTC facturé client.
     var html = '<table class="receipt-table"><thead><tr><th>Article</th><th style="text-align:right">Total TTC</th></tr></thead><tbody>';
-    // ── Nuits : alignement pattern app.js ───────────────────────────────
-    // lineHT (app.js) = prix × qty + TS + TVA_sur_TS
+
+    // ── Nuits : format aligné sur app.js ligne 1491-1499 ────────────────
+    // BUG FIX 2026-10-20 (round 3) : on reproduit exactement le format
+    // d'affichage de la caisse POS :
+    //   <nom chambre> [SER] [TS] <valeur TS>
+    //   <qty> × <prix>                                  <total>
     (n.lignes || []).forEach(function (l) {
       var prixNuit = parseFloat(l.prix) || 0;
       var tsUnit = parseFloat(l.ts_unitaire) || 0;
+      // lineHT (app.js) = prix × qty + TS + TVA_sur_TS
       var lineHT = prixNuit * 1 + tsUnit + (tsUnit * (parseFloat(n.tax_rate) || 0) / 100);
-      var tsLabelLine = tsUnit > 0
-        ? getHotelSpecificTaxLabel(tsUnit, chambreTsType)
-        : '';
-      html += '<tr class="item-name-row"><td colspan="2"><span class="item-name">Nuit ' + fmtDate(l.date) + ' — Chambre ' + escapeHtml(s.chambre.numero) + '<span class="item-tax-badge">' + chambreTaxLabel + '</span>[SER]<small style="color:#b45309;font-weight:600;">' + tsLabelLine + '</small></span></td></tr>'
-        + '<tr class="item-detail-row"><td class="item-qty">1 × ' + fmtFc(prixNuit) + '</td><td class="item-total" style="text-align:right;">' + fmtFc(lineHT) + '</td></tr>';
+      // Libellé TS avec la valeur brute (pas en CDF calculé)
+      var tsLabelLine = rawTsLabel(chambreTsRawValue, chambreTsType);
+      // prod_service chambre = 'SER' (service hôtellerie)
+      html += '<tr class="item-name-row"><td colspan="2"><span class="item-name">Nuit ' + fmtDate(l.date) + ' — Chambre ' + escapeHtml(s.chambre.numero) + '<span class="item-tax-badge">' + chambreTaxLabel + '</span><span class="item-prod-service">[SER]</span><small style="color:#b45309;font-weight:600;">' + tsLabelLine + '</small></span></td></tr>'
+        + '<tr class="item-detail-row"><td class="item-qty">1 × ' + fmtFc(prixNuit) + ' </td><td class="item-total" style="text-align:right;">' + fmtFc(lineHT) + ' Fc</td></tr>';
     });
     // ── Extras caisse : affiche les produits avec leur lineTTC ──────────
-    // BUG FIX 2026-10-20 : avant on affichait simplement `montant`
-    // (= qty × prix) comme total, ce qui sous-évaluait le TTC en omettant
-    // la TS et la TVA. On utilise maintenant computeProductTTC pour
-    // calculer le vrai lineTTC (= prix × qty + TS + TVA_sur_prix + TVA_sur_TS).
-    // Si une vente legacy n'a pas de détail produit, on retombe sur
-    // le montant affiché comme approximation (cas rare).
+    // ── Extras caisse : format aligné sur app.js ligne 1491-1499 ──────────
+    // Affiche pour chaque produit :
+    //   <nom> <tax_etiquette> [prod_service] - <remise> [TS] <valeur TS>
+    //   <qty> × <prix>                                  <total TTC>
+    // BUG FIX 2026-10-20 (round 3) : on aligne sur le pattern d'affichage
+    // de la caisse POS pour la lisibilité (badge étiquette, badge prod_service,
+    // libellé remise, libellé TS).
     (e.lignes || []).forEach(function (x) {
       var produits = x.produits || [];
       if (produits.length > 0) {
         produits.forEach(function (p) {
           var calc = computeProductTTC(p);
-          var tsLabel = '';
-          if (calc.line_ts > 0) {
-            // TS unitaire (CDF) = line_ts / qty
-            var tsUnitVal = calc.quantite > 0 ? (calc.line_ts / calc.quantite) : 0;
-            tsLabel = getHotelSpecificTaxLabel(tsUnitVal, p.taxe_specifique_type || '%');
-          }
-          var tvaLabel = (p.tax_rate && p.tax_rate > 0)
-            ? ' <span style="color:#1e40af;">[TVA ' + p.tax_rate + '%]</span>'
-            : '';
-          html += '<tr class="item-name-row"><td colspan="2"><span class="item-name">'
+          // Étiquette de taxe (ex: "B", "C")
+          var taxLabel = calc.tax_etiquette || (calc.tax_rate > 0 ? 'TVA ' + calc.tax_rate + '%' : 'Exonere');
+          // prod_service (ex: 'BIE' ou 'SER') — lu depuis le backend (cf.
+          // HotelFactureController::buildPreviewData)
+          var prodServiceBadge = p.prod_service ? '<span class="item-prod-service">[' + escapeHtml(p.prod_service) + ']</span>' : '';
+          // Libellé remise (aligné sur app.js ligne 1483-1487)
+          var discountLabel = rawDiscountLabel(p.remise_type, p.remise_value);
+          // Libellé TS (aligné sur app.js ligne 866-872, valeur brute)
+          var specificTaxLabel = rawTsLabel(p.taxe_specifique_value, p.taxe_specifique_type);
+          html += '<tr class="item-name-row">'
+            + '<td colspan="2"><span class="item-name">'
             + escapeHtml(p.nom || x.description || 'Produit')
-            + (tsLabel ? '<small style="color:#b45309;font-weight:600;">' + tsLabel + '</small>' : '')
-            + tvaLabel
+            + '<span class="item-tax-badge">' + escapeHtml(taxLabel) + '</span>'
+            + prodServiceBadge
+            + (discountLabel ? '<small style="color:var(--success);font-weight:600;">' + discountLabel + '</small>' : '')
+            + (specificTaxLabel ? '<small style="color:#b45309;font-weight:600;">' + specificTaxLabel + '</small>' : '')
             + '</span></td></tr>'
             + '<tr class="item-detail-row"><td class="item-qty">'
-            + formatQty(calc.quantite, false) + ' × ' + fmtFc(p.prix_unitaire || 0)
-            // BUG FIX 2026-10-20 (round 2) : on affiche line_ht (= HT + TS + TVA_sur_TS)
-            // qui correspond au TTC facturé au client en régime B hôtelier
-            // (la TVA_sur_prix n'est PAS collectée). Avant cette correction,
-            // on affichait line_ttc (= lineHT + TVA_sur_prix × qty), ce qui
-            // surévaluait le TTC de la TVA_sur_prix dans la facture hôtel.
-            + '</td><td class="item-total" style="text-align:right;">' + fmtFc(calc.line_ht) + '</td></tr>';
+            + formatQty(calc.quantite, false) + ' × ' + fmtFc(p.prix_unitaire || 0) + ' '
+            // BUG FIX 2026-10-20 (round 2) : on affiche line_ht (= HT + TS +
+            // TVA_sur_TS) qui correspond au TTC facturé au client en régime B
+            // hôtelier (la TVA_sur_prix n'est PAS collectée).
+            + '</td><td class="item-total" style="text-align:right;">' + fmtFc(calc.line_ht) + ' Fc</td></tr>';
         });
       } else {
         // Ligne legacy : pas de détails produits, on affiche le montant brut
         var montant = parseFloat(x.montant) || 0;
-        html += '<tr class="item-name-row"><td colspan="2"><span class="item-name">' + escapeHtml(x.description || 'Extra') + '<span class="item-tax-badge">B</span>[SER]</span></td></tr><tr class="item-detail-row"><td class="item-qty">1 × ' + fmtFc(montant) + '</td><td class="item-total" style="text-align:right;">' + fmtFc(montant) + '</td></tr>';
+        html += '<tr class="item-name-row"><td colspan="2"><span class="item-name">' + escapeHtml(x.description || 'Extra') + '<span class="item-tax-badge">B</span><span class="item-prod-service">[SER]</span></span></td></tr><tr class="item-detail-row"><td class="item-qty">1 × ' + fmtFc(montant) + ' </td><td class="item-total" style="text-align:right;">' + fmtFc(montant) + ' Fc</td></tr>';
       }
     });
+    // ── Extras manuels : format aligné sur app.js ─────────────────────────
     (manuels || []).forEach(function (x) {
       var montant = parseFloat(x.montant) || 0;
-      html += '<tr class="item-name-row"><td colspan="2"><span class="item-name">' + escapeHtml(x.description) + ' <small style="color:#b45309">(extra manuel)</small><span class="item-tax-badge">B</span>[SER]</span></td></tr><tr class="item-detail-row"><td class="item-qty">1 × ' + fmtFc(montant) + '</td><td class="item-total" style="text-align:right;">' + fmtFc(montant) + '</td></tr>';
+      html += '<tr class="item-name-row"><td colspan="2"><span class="item-name">'
+        + escapeHtml(x.description)
+        + ' <small style="color:#b45309">(extra manuel)</small>'
+        + '<span class="item-tax-badge">B</span>'
+        + '<span class="item-prod-service">[SER]</span>'
+        + '</span></td></tr>'
+        + '<tr class="item-detail-row"><td class="item-qty">1 × ' + fmtFc(montant) + ' </td><td class="item-total" style="text-align:right;">' + fmtFc(montant) + ' Fc</td></tr>';
     });
     return html + '</tbody></table>';
   }
@@ -1098,15 +1141,29 @@
           var qtyStr = (p.quantite === Math.floor(p.quantite))
             ? String(p.quantite)
             : p.quantite.toFixed(3);
-          // Libellé TS pour information (cohérent avec la caisse)
-          var tsLbl = '';
-          if ((parseFloat(p.taxe_specifique_value) || 0) > 0) {
-            tsLbl = p.taxe_specifique_type === 'CDF'
-              ? ' (+ TS ' + fmtFc(p.taxe_specifique_value) + ')'
-              : ' (+ TS ' + p.taxe_specifique_value + '%)';
-          }
+          // BUG FIX 2026-10-20 (round 3) : on aligne l'affichage sur le pattern
+          // de la caisse POS (cf. app.js ligne 1491-1499) — étiquettes,
+          // prod_service, libellé remise et TS dans la même ligne que le nom.
+          var taxLabel = calc.tax_etiquette || (calc.tax_rate > 0 ? 'TVA ' + calc.tax_rate + '%' : '');
+          var prodServiceBadge = p.prod_service ? '[' + escapeHtml(p.prod_service) + ']' : '';
+          var remiseLabel = (p.remise_value && p.remise_value > 0)
+            ? ' - ' + (p.remise_type === 'CDF'
+              ? p.remise_value + ' Fc'
+              : p.remise_value + '%') + ' remise'
+            : '';
+          var tsLabel = (p.taxe_specifique_value && p.taxe_specifique_value > 0)
+            ? ' [TS] ' + (p.taxe_specifique_type === 'CDF'
+              ? p.taxe_specifique_value + ' Fc'
+              : p.taxe_specifique_value + '%')
+            : '';
           return '<tr>'
-            + '<td>' + escapeHtml(p.nom) + tsLbl + '</td>'
+            + '<td>'
+            +   escapeHtml(p.nom)
+            +   (taxLabel ? ' <span style="font-weight:600;">' + taxLabel + '</span>' : '')
+            +   (prodServiceBadge ? ' <span style="font-weight:600;">' + prodServiceBadge + '</span>' : '')
+            +   (remiseLabel ? ' <span style="color:#16a34a;">' + remiseLabel + '</span>' : '')
+            +   (tsLabel ? ' <span style="color:#b45309;">' + tsLabel + '</span>' : '')
+            + '</td>'
             + '<td class="num">' + qtyStr + '</td>'
             + '<td class="num">' + fmtFc(p.prix_unitaire) + '</td>'
             + '<td class="num">' + fmtFc(tot) + '</td>'
