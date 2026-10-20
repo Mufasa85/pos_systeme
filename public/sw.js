@@ -1,22 +1,18 @@
-const CACHE_VERSION = 'v7';  // ceasar a chaque version modifiée avant d'envoyer au CT modife en v2,v3,v4,v5,v6,v7 comme avec le asset.js c'est pour le cache mec ...
+const CACHE_VERSION = 'v8'; // ceasar a chaque version modifiée avant d'envoyer au CT modife en v2,v3,v4,v5,v6,v7 comme avec le asset.js c'est pour le cache mec ...
 const CACHE_NAME = `pos-cache-${CACHE_VERSION}`;
 
 // Installation rapide — on n'a rien à pré-cacher (Hostinger bloque parfois
 // les chemins absolus lors de l'install, on fait confiance au runtime).
-self.addEventListener('install', (event) => {
+self.addEventListener('install', event => {
   self.skipWaiting();
 });
 
-self.addEventListener('activate', (event) => {
+self.addEventListener('activate', event => {
   event.waitUntil(
     caches
       .keys()
-      .then((keys) =>
-        Promise.all(
-          keys
-            .filter((key) => key !== CACHE_NAME)
-            .map((key) => caches.delete(key))
-        )
+      .then(keys =>
+        Promise.all(keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key)))
       )
       .then(() => self.clients.claim())
   );
@@ -51,8 +47,8 @@ function isStaticAsset(request, url) {
     '.xml',
   ];
   return (
-    staticPaths.some((path) => url.pathname.startsWith(path)) ||
-    staticExts.some((ext) => url.pathname.endsWith(ext))
+    staticPaths.some(path => url.pathname.startsWith(path)) ||
+    staticExts.some(ext => url.pathname.endsWith(ext))
   );
 }
 
@@ -64,20 +60,20 @@ function isPwaIcon(request, url) {
     '/assets/img/apple-touch-icon',
     '/assets/img/android-chrome',
   ];
-  return iconPaths.some((path) => url.pathname.startsWith(path));
+  return iconPaths.some(path => url.pathname.startsWith(path));
 }
 
 function networkFirst(request) {
   return fetch(request)
-    .then((networkResponse) => {
+    .then(networkResponse => {
       if (networkResponse && networkResponse.ok) {
         const clone = networkResponse.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+        caches.open(CACHE_NAME).then(cache => cache.put(request, clone));
       }
       return networkResponse;
     })
     .catch(() => {
-      return caches.match(request).then((cached) => {
+      return caches.match(request).then(cached => {
         if (cached) {
           return cached;
         }
@@ -108,32 +104,29 @@ function networkFirst(request) {
 
 function cacheFirst(request) {
   const networkPromise = fetch(request)
-    .then((networkResponse) => {
+    .then(networkResponse => {
       if (networkResponse && networkResponse.ok) {
         const clone = networkResponse.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+        caches.open(CACHE_NAME).then(cache => cache.put(request, clone));
       }
       return networkResponse;
     })
     .catch(() => undefined);
 
-  return caches.match(request).then((cached) => {
+  return caches.match(request).then(cached => {
     if (cached) {
       // Mise à jour en arrière-plan
       networkPromise.catch(() => {});
       return cached;
     }
-    return networkPromise.then((networkResponse) => {
-      return (
-        networkResponse ||
-        new Response('Ressource non disponible', { status: 404 })
-      );
+    return networkPromise.then(networkResponse => {
+      return networkResponse || new Response('Ressource non disponible', { status: 404 });
     });
   });
 }
 
 // Gestion des requêtes
-self.addEventListener('fetch', (event) => {
+self.addEventListener('fetch', event => {
   const request = event.request;
   const url = new URL(request.url);
 
@@ -159,7 +152,7 @@ self.addEventListener('fetch', (event) => {
 });
 
 // Permet à la page de forcer la mise à jour du SW
-self.addEventListener('message', (event) => {
+self.addEventListener('message', event => {
   if (event.data === 'SKIP_WAITING') {
     self.skipWaiting();
   }

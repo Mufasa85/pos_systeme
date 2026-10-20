@@ -226,7 +226,13 @@ foreach ($calSejours as $s) {
   <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:1rem;flex-wrap:wrap;gap:.5rem;">
     <div>
       <h2 style="margin:0;color:var(--foreground);display:flex;align-items:center;gap:.5rem;">
-        📅 Calendrier des séjours
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color:var(--primary);">
+          <rect x="3" y="4" width="18" height="18" rx="2"></rect>
+          <line x1="16" y1="2" x2="16" y2="6"></line>
+          <line x1="8"  y1="2" x2="8"  y2="6"></line>
+          <line x1="3"  y1="10" x2="21" y2="10"></line>
+        </svg>
+        Calendrier des séjours
       </h2>
       <div style="font-size:.8rem;color:var(--muted);margin-top:4px;">
         Vue semaine — chambres en lignes, jours en colonnes. Lecture seule. Actualisation toutes les 60 s.
@@ -238,13 +244,14 @@ foreach ($calSejours as $s) {
   <!-- Navigation semaine -->
   <div class="hotel-cal-card">
     <div class="hotel-cal-nav">
-      <a class="hotel-cal-btn" id="cal-prev" href="/hotel/calendrier?from=<?= htmlspecialchars(date('Y-m-d', strtotime($calFrom . ' -7 days'))) ?>" title="Semaine précédente">← Précédent</a>
+      <a class="hotel-cal-btn" id="cal-prev" href="/hotel/calendrier?from=<?= htmlspecialchars(date('Y-m-d', strtotime($calFrom . ' -7 days'))) ?>" title="Semaine précédente"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>Précédent</a>
       <a class="hotel-cal-btn primary" id="cal-today" href="/hotel/calendrier?from=<?= htmlspecialchars($todayYmd) ?>" title="Aujourd'hui">Aujourd'hui</a>
-      <a class="hotel-cal-btn" id="cal-next" href="/hotel/calendrier?from=<?= htmlspecialchars(date('Y-m-d', strtotime($calFrom . ' +7 days'))) ?>" title="Semaine suivante">Suivant →</a>
+      <a class="hotel-cal-btn" id="cal-next" href="/hotel/calendrier?from=<?= htmlspecialchars(date('Y-m-d', strtotime($calFrom . ' +7 days'))) ?>" title="Semaine suivante">Suivant<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></a>
       <span class="label">Semaine du</span>
       <span class="range" id="cal-range">
         <?= htmlspecialchars((new DateTimeImmutable($calFrom))->format('d/m/Y')) ?>
-        → <?= htmlspecialchars((new DateTimeImmutable($calTo))->format('d/m/Y')) ?>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:middle;color:var(--muted);"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+        <?= htmlspecialchars((new DateTimeImmutable($calTo))->format('d/m/Y')) ?>
       </span>
     </div>
 
@@ -277,23 +284,25 @@ foreach ($calSejours as $s) {
           $cid = (int)$ch['id'];
           $horsService = ($ch['etat'] ?? '') === 'hors_service';
           $roomSejours = $sejoursByChambre[$cid] ?? [];
-        ?>
+          ?>
         <div class="hotel-cal-cell room">
           <span><?= htmlspecialchars($ch['numero']) ?></span>
           <span class="room-type"><?= htmlspecialchars($ch['type']) ?></span>
         </div>
         <?php foreach ($days as $d): ?>
           <?php
-            $cellYmd = $d->format('Y-m-d');
+              $cellYmd = $d->format('Y-m-d');
             $isToday = $cellYmd === $todayYmd;
             $cellClasses = 'hotel-cal-cell';
-            if ($isToday) $cellClasses .= ' today';
+            if ($isToday) {
+                $cellClasses .= ' today';
+            }
             // Les séjours de cette chambre : on regarde si la cellule correspond
             // à un jour où un séjour est actif. Pour la grille, on rend un
             // bandeau par séjour en position absolue par-dessus la cellule
             // du jour d'arrivée (l'API JS restituera les séjours débordant).
             // Ici on insère un placeholder ; le JS rendra tout depuis l'API.
-          ?>
+            ?>
           <div class="<?= $cellClasses ?>"
                data-room-id="<?= $cid ?>"
                data-day="<?= htmlspecialchars($cellYmd) ?>"
@@ -317,34 +326,36 @@ foreach ($calSejours as $s) {
     <?php else: ?>
       <?php foreach ($calChambres as $ch): ?>
         <?php
-          $cid = (int)$ch['id'];
+            $cid = (int)$ch['id'];
           $roomSejours = $sejoursByChambre[$cid] ?? [];
           $horsService = ($ch['etat'] ?? '') === 'hors_service';
-        ?>
+          ?>
         <div class="mob-room">
           <div class="mob-room-head">
             <span class="num">Chambre <?= htmlspecialchars($ch['numero']) ?></span>
             <span class="type"><?= htmlspecialchars($ch['type']) ?></span>
           </div>
           <?php if ($horsService): ?>
-            <div class="mob-hors">⚠ Chambre hors service</div>
+            <div class="mob-hors"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px;margin-right:4px;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Chambre hors service</div>
           <?php elseif (empty($roomSejours)): ?>
             <div class="mob-empty">Aucun séjour cette semaine.</div>
           <?php else: ?>
             <?php foreach ($roomSejours as $s):
-              $col = $statusColors[$s['statut']] ?? $statusColors['reserve'];
-              $arr = new DateTimeImmutable($s['date_arrivee']);
-              $dep = new DateTimeImmutable($s['date_depart_prevue']);
-              $nights = (int)$dep->diff($arr)->format('%r%a');
-              if ($nights < 1) $nights = 1;
-            ?>
+                $col = $statusColors[$s['statut']] ?? $statusColors['reserve'];
+                $arr = new DateTimeImmutable($s['date_arrivee']);
+                $dep = new DateTimeImmutable($s['date_depart_prevue']);
+                $nights = (int)$dep->diff($arr)->format('%r%a');
+                if ($nights < 1) {
+                    $nights = 1;
+                }
+                ?>
               <div class="mob-sejour"
                    data-sejour-id="<?= (int)$s['id'] ?>"
                    style="background: <?= htmlspecialchars($col['bg']) ?>; border-color: <?= htmlspecialchars($col['border']) ?>; color: <?= htmlspecialchars($col['text']) ?>;">
                 <div>
                   <div class="guest"><?= htmlspecialchars(trim(($s['guest_prenom'] ?? '') . ' ' . ($s['guest_nom'] ?? ''))) ?: 'Guest #' . (int)$s['guest_id'] ?></div>
                   <div class="dates">
-                    <?= htmlspecialchars($arr->format('d/m')) ?> → <?= htmlspecialchars($dep->format('d/m')) ?>
+                    <?= htmlspecialchars($arr->format('d/m')) ?> <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-1px;opacity:.7;"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg> <?= htmlspecialchars($dep->format('d/m')) ?>
                     · <?= $nights ?> nuit<?= $nights > 1 ? 's' : '' ?>
                   </div>
                 </div>
@@ -364,34 +375,34 @@ foreach ($calSejours as $s) {
     from:    <?= json_encode($calFrom) ?>,
     to:      <?= json_encode($calTo) ?>,
     today:   <?= json_encode($todayYmd) ?>,
-    joursLabels: <?= json_encode(array_map(fn($d) => $d->format('Y-m-d'), $days)) ?>,
-    joursDays:   <?= json_encode(array_map(fn($d) => ['name' => $d->format('D'), 'num' => $d->format('d/m')], $days)) ?>,
-    chambres:    <?= json_encode(array_map(function($c) {
-      return [
-        'id'      => (int)$c['id'],
-        'numero'  => $c['numero'],
-        'type'    => $c['type'],
-        'etat'    => $c['etat'] ?? '',
-      ];
+    joursLabels: <?= json_encode(array_map(fn ($d) => $d->format('Y-m-d'), $days)) ?>,
+    joursDays:   <?= json_encode(array_map(fn ($d) => ['name' => $d->format('D'), 'num' => $d->format('d/m')], $days)) ?>,
+    chambres:    <?= json_encode(array_map(function ($c) {
+        return [
+          'id'      => (int)$c['id'],
+          'numero'  => $c['numero'],
+          'type'    => $c['type'],
+          'etat'    => $c['etat'] ?? '',
+        ];
     }, $calChambres)) ?>,
-    sejours: <?= json_encode(array_map(function($s) {
-      return [
-        'id'                  => (int)$s['id'],
-        'chambre_id'          => (int)$s['chambre_id'],
-        'guest_id'            => (int)$s['guest_id'],
-        'guest_nom'           => $s['guest_nom'] ?? '',
-        'guest_prenom'        => $s['guest_prenom'] ?? '',
-        'guest_tel'           => $s['guest_tel'] ?? '',
-        'date_arrivee'        => $s['date_arrivee'],
-        'date_depart_prevue'  => $s['date_depart_prevue'],
-        'date_depart_reelle'  => $s['date_depart_reelle'],
-        'statut'              => $s['statut'],
-        'prix_par_nuit'       => (float)($s['prix_par_nuit'] ?? 0),
-        'remise_pct'          => (float)($s['remise_pct'] ?? 0),
-        'notes'               => $s['notes'] ?? '',
-        'chambre_numero'      => $s['chambre_numero'] ?? '',
-        'chambre_type'        => $s['chambre_type'] ?? '',
-      ];
+    sejours: <?= json_encode(array_map(function ($s) {
+        return [
+          'id'                  => (int)$s['id'],
+          'chambre_id'          => (int)$s['chambre_id'],
+          'guest_id'            => (int)$s['guest_id'],
+          'guest_nom'           => $s['guest_nom'] ?? '',
+          'guest_prenom'        => $s['guest_prenom'] ?? '',
+          'guest_tel'           => $s['guest_tel'] ?? '',
+          'date_arrivee'        => $s['date_arrivee'],
+          'date_depart_prevue'  => $s['date_depart_prevue'],
+          'date_depart_reelle'  => $s['date_depart_reelle'],
+          'statut'              => $s['statut'],
+          'prix_par_nuit'       => (float)($s['prix_par_nuit'] ?? 0),
+          'remise_pct'          => (float)($s['remise_pct'] ?? 0),
+          'notes'               => $s['notes'] ?? '',
+          'chambre_numero'      => $s['chambre_numero'] ?? '',
+          'chambre_type'        => $s['chambre_type'] ?? '',
+        ];
     }, $calSejours)) ?>,
     statusColors: <?= json_encode($statusColors) ?>
   };

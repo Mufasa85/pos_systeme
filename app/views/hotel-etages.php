@@ -17,6 +17,39 @@
  * gros boutons tactiles (≥ 48px), responsive mobile-first.
  */
 $page = 'hotel-etages';
+
+// Helper local d'icônes SVG (Feather-style 24×24, fill none, stroke 2).
+// Utilisé uniquement pour le rendu serveur (les emojis côté JS sont remplacés
+// par du texte/markup compatible mobile dans le script plus bas).
+if (!function_exists('hotel_icon_etages')) {
+    function hotel_icon_etages(string $name, int $size = 18, string $extra = ''): string
+    {
+        $common = "width=\"{$size}\" height=\"{$size}\" viewBox=\"0 0 24 24\" fill=\"none\" "
+                . 'stroke="currentColor" stroke-width="2" stroke-linecap="round" '
+                . "stroke-linejoin=\"round\" {$extra}";
+        $paths = [
+            'broom'     => '<path d="M19 4l-7 7M5 13l4 4 7-7-4-4z"></path>'
+                         . '<path d="M3 21l4-4"></path>',
+            'hand'      => '<path d="M9 11V6.5a1.5 1.5 0 0 1 3 0V11"></path>'
+                         . '<path d="M12 11V5.5a1.5 1.5 0 0 1 3 0V11"></path>'
+                         . '<path d="M15 11V7.5a1.5 1.5 0 0 1 3 0V13"></path>'
+                         . '<path d="M18 9.5a1.5 1.5 0 0 1 3 0V15a6 6 0 0 1-6 6h-2a6 6 0 0 1-6-6v-1.5a1.5 1.5 0 0 1 3 0"></path>',
+            'check'     => '<polyline points="20 6 9 17 4 12"></polyline>',
+            'alert'     => '<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>'
+                         . '<line x1="12" y1="9" x2="12" y2="13"></line>'
+                         . '<line x1="12" y1="17" x2="12.01" y2="17"></line>',
+            'clock'     => '<circle cx="12" cy="12" r="9"></circle>'
+                         . '<polyline points="12 7 12 12 15 14"></polyline>',
+            'sparkle'   => '<path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"></path>'
+                         . '<circle cx="12" cy="12" r="3"></circle>',
+            'bed'       => '<path d="M2 17v-5a3 3 0 0 1 3-3h14a3 3 0 0 1 3 3v5"></path>'
+                         . '<path d="M2 17h20"></path>'
+                         . '<path d="M6 12V9a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v3"></path>',
+        ];
+        $path = $paths[$name] ?? '<circle cx="12" cy="12" r="9"></circle>';
+        return "<svg {$common}>{$path}</svg>";
+    }
+}
 ?>
 
 <style>
@@ -211,7 +244,19 @@ $page = 'hotel-etages';
     text-align: center;
     color: var(--muted, #64748b);
   }
-  .etages-empty .emoji { font-size: 2.5rem; display: block; margin-bottom: .5rem; }
+  .etages-empty .emoji {
+    font-size: 2.5rem; display: inline-flex; align-items: center; justify-content: center;
+    margin: 0 auto .5rem; width: 64px; height: 64px;
+    border-radius: 50%; background: #f1f5f9; color: #64748b;
+  }
+  .etages-empty .emoji svg { width: 28px; height: 28px; }
+
+  /* Boutons avec icône SVG inline (injectée par hotel-etages.renderTache). */
+  .etages-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    gap: .5rem;
+  }
+  .etages-btn svg { width: 1.05em; height: 1.05em; flex-shrink: 0; }
 
   /* Toast notification */
   .etages-toast {
@@ -290,7 +335,13 @@ $page = 'hotel-etages';
 
 <main class="etages-wrap">
   <h1 class="etages-title">
-    <span>🧹 Étages</span>
+    <span style="display:inline-flex; align-items:center; gap:.5rem;">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0B5E88" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M19 4l-7 7M5 13l4 4 7-7-4-4z"></path>
+        <path d="M3 21l4-4"></path>
+      </svg>
+      Étages
+    </span>
     <span class="subtitle">Mes tâches du jour</span>
   </h1>
 
@@ -304,14 +355,17 @@ $page = 'hotel-etages';
 
   <!-- Liste -->
   <div class="etages-list" id="etages-list">
-    <div class="etages-empty"><span class="emoji">⏳</span>Chargement…</div>
+    <div class="etages-empty"><span class="emoji" aria-hidden="true"><?= hotel_icon_etages('clock', 32) ?></span>Chargement…</div>
   </div>
 </main>
 
 <!-- Modal signalement problème -->
 <div class="etages-modal-backdrop" id="etages-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="etages-modal-title">
   <div class="etages-modal">
-    <h3 id="etages-modal-title">⚠ Signaler un problème</h3>
+    <h3 id="etages-modal-title" style="display:flex; align-items:center; gap:.5rem;">
+      <span style="color:#dc2626; display:inline-flex;" aria-hidden="true"><?= hotel_icon_etages('alert', 18) ?></span>
+      Signaler un problème
+    </h3>
     <div class="room-line" id="etages-modal-room">Chambre</div>
     <textarea id="etages-modal-msg" placeholder="Décrivez le problème (ex : baignoire cassée, drap taché, fuite…)" maxlength="500"></textarea>
     <div class="etages-modal-actions">
@@ -386,19 +440,19 @@ $page = 'hotel-etages';
     if (t.statut === 'a_faire' && !t.assigne_a) {
       actions = `
         <div class="etages-card-actions">
-          <button type="button" class="etages-btn primary"   data-action="claim" data-task-id="${taskId ?? ''}" data-chambre-id="${chambreId}" data-room="${esc(t.chambre_numero)}">✋ Réclamer</button>
-          <button type="button" class="etages-btn warning"   data-action="issue" data-task-id="${taskId ?? ''}" data-chambre-id="${chambreId}" data-room="${esc(t.chambre_numero)}">⚠ Problème</button>
+          <button type="button" class="etages-btn primary"   data-action="claim" data-task-id="${taskId ?? ''}" data-chambre-id="${chambreId}" data-room="${esc(t.chambre_numero)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 11V6.5a1.5 1.5 0 0 1 3 0V11"/><path d="M12 11V5.5a1.5 1.5 0 0 1 3 0V11"/><path d="M15 11V7.5a1.5 1.5 0 0 1 3 0V13"/><path d="M18 9.5a1.5 1.5 0 0 1 3 0V15a6 6 0 0 1-6 6h-2a6 6 0 0 1-6-6v-1.5a1.5 1.5 0 0 1 3 0"/></svg>Réclamer</button>
+          <button type="button" class="etages-btn warning"   data-action="issue" data-task-id="${taskId ?? ''}" data-chambre-id="${chambreId}" data-room="${esc(t.chambre_numero)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Problème</button>
         </div>`;
     } else if (t.statut === 'a_faire' || t.statut === 'en_cours') {
       actions = `
         <div class="etages-card-actions">
-          <button type="button" class="etages-btn primary"   data-action="done"  data-task-id="${taskId ?? ''}" data-chambre-id="${chambreId}" data-room="${esc(t.chambre_numero)}">✓ Fait</button>
-          <button type="button" class="etages-btn warning"   data-action="issue" data-task-id="${taskId ?? ''}" data-chambre-id="${chambreId}" data-room="${esc(t.chambre_numero)}">⚠ Problème</button>
+          <button type="button" class="etages-btn primary"   data-action="done"  data-task-id="${taskId ?? ''}" data-chambre-id="${chambreId}" data-room="${esc(t.chambre_numero)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>Fait</button>
+          <button type="button" class="etages-btn warning"   data-action="issue" data-task-id="${taskId ?? ''}" data-chambre-id="${chambreId}" data-room="${esc(t.chambre_numero)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Problème</button>
         </div>`;
     } else if (t.statut === 'bloque') {
       actions = `
         <div class="etages-card-actions">
-          <button type="button" class="etages-btn secondary" disabled>En attente du manager</button>
+          <button type="button" class="etages-btn secondary" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>En attente du manager</button>
         </div>`;
     } else {
       actions = ''; // fait : pas d'actions
@@ -420,7 +474,7 @@ $page = 'hotel-etages';
     const list = document.getElementById('etages-list');
     list.innerHTML = '';
     if (!data.taches || data.taches.length === 0) {
-      list.innerHTML = '<div class="etages-empty"><span class="emoji">✨</span>Aucune chambre à nettoyer pour le moment.<br>Vous êtes à jour, merci !</div>';
+      list.innerHTML = '<div class="etages-empty"><span class="emoji" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/><circle cx="12" cy="12" r="3"/></svg></span>Aucune chambre à nettoyer pour le moment.<br>Vous êtes à jour, merci !</div>';
       return;
     }
     data.taches.forEach(t => list.appendChild(renderTache(t)));
@@ -466,7 +520,7 @@ $page = 'hotel-etages';
       });
       const json = await res.json().catch(() => ({}));
       if (res.ok && json.success) {
-        const msg = { claim: 'Tâche réclamée ✓', done: 'Chambre marquée faite ✓', issue: 'Problème signalé au manager ✓' }[action];
+        const msg = { claim: 'Tâche réclamée', done: 'Chambre marquée faite', issue: 'Problème signalé au manager' }[action];
         toast(msg, 'success');
         loadBoard();
       } else {
