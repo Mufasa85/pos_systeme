@@ -522,7 +522,6 @@
         ⚠ Facture existante : <strong>${escapeHtml(ex.numero_facture)}</strong> (${fmtFc(ex.total_final)}) — ${escapeHtml(ex.statut)}.
         <div style="margin-top:.5rem;display:flex;gap:.5rem;justify-content:flex-end;">
           <a href="/facture/${ex.vente_id}" target="_blank" class="btn btn-primary btn-small">Voir / Imprimer</a>
-          <button type="button" class="btn btn-ghost btn-small" id="hotel-ft-cancel-existing">Annuler</button>
         </div>
       </div>` : '';
 
@@ -588,8 +587,9 @@
       u.searchParams.delete('sejour_id');
       window.history.replaceState({}, '', u.toString());
     });
-    const $cancelExisting = $('hotel-ft-cancel-existing');
-    if ($cancelExisting) $cancelExisting.addEventListener('click', cancelExistingFacture);
+    // BUG FIX 2026-10-20 (round 6) : suppression de la feature d'annulation
+    // de facture de réservation. L'écouteur sur #hotel-ft-cancel-existing
+    // et la fonction cancelExistingFacture() ont été supprimés (cf. plus bas).
 
     renderExtrasManuels();
   }
@@ -2021,17 +2021,9 @@
     document.body.style.overflow = '';
   }
 
-  async function cancelExistingFacture() {
-    if (!previewData || !previewData.existing_facture) return;
-    var ex = previewData.existing_facture;
-    if (!confirm('Annuler la facture ' + ex.numero_facture + ' ?\nCette opération est réservée aux managers.')) return;
-    var r = await jsonFetch('/api/hotel/factures/' + ex.id + '/cancel', { method: 'POST' });
-    if (r.ok && r.data && r.data.success) {
-      loadSejour(currentSejourId);
-    } else {
-      alert((r.data && r.data.message) || 'Erreur');
-    }
-  }
+  // BUG FIX 2026-10-20 (round 6) : la fonction cancelExistingFacture() et son
+  // exposition window.cancelExistingFacture ont été supprimées — l'annulation
+  // de facture n'est plus autorisée depuis l'UI de /hotel/facturation.
 
   // Init
   var urlSejourId = parseInt(new URL(window.location.href).searchParams.get('sejour_id') || '0', 10);
@@ -2049,7 +2041,6 @@
     window.addHotelRefDocLine = addHotelRefDocLine;
     window.removeHotelRefDocLine = removeHotelRefDocLine;
     window.syncHotelRefDocsCount = syncHotelRefDocsCount;
-    window.cancelExistingFacture = cancelExistingFacture;
     window.closeReceiptModal = closeReceiptModal;
   }
 })();

@@ -894,26 +894,8 @@ class HotelFactureController extends Controller
         $this->jsonOut(['success' => true, 'data' => $facture]);
     }
 
-    /**
-     * POST /api/hotel/factures/[i:id]/cancel
-     * Annule (passe statut='annulee'). Ne supprime pas la vente — on garde l'historique.
-     * Si on annule la facture, le séjour peut être refacturé.
-     */
-    public function cancel($id): void
-    {
-        if (!$this->guardWrite()) $this->jsonOut(['success' => false, 'message' => 'Accès refusé'], 403);
-        $id = is_array($id) ? (int)($id['id'] ?? 0) : (int)$id;
-        $db = \App\Core\Database::getInstance();
-        $facture = $db->fetch('SELECT id, statut FROM hotel_factures WHERE id = :id', [':id' => $id]);
-        if (!$facture) $this->jsonOut(['success' => false, 'message' => 'Facture introuvable'], 404);
-        if ($facture['statut'] === 'annulee') {
-            $this->jsonOut(['success' => false, 'message' => 'Facture déjà annulée'], 409);
-        }
-        $db->execute(
-            "UPDATE hotel_factures SET statut = 'annulee' WHERE id = :id",
-            [':id' => $id]
-        );
-        $this->logAudit('cancel', 'hotel_facture', $id, []);
-        $this->jsonOut(['success' => true]);
-    }
+    // BUG FIX 2026-10-20 (round 6) : la méthode public function cancel($id)
+    // a été supprimée. L'annulation de facture n'est plus autorisée depuis
+    // l'UI de /hotel/facturation (ni via API). L'historique des factures
+    // déjà annulées reste préservé en DB pour traçabilité.
 }

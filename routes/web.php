@@ -87,7 +87,10 @@ Router::get('/hotel/facturation', [PageController::class, 'hotelFacturation']);
 Router::get('/api/hotel/factures/preview', [HotelFactureController::class, 'preview']);
 Router::post('/api/hotel/factures', [HotelFactureController::class, 'store']);
 Router::get('/api/hotel/factures/[i:id]', [HotelFactureController::class, 'show']);
-Router::post('/api/hotel/factures/[i:id]/cancel', [HotelFactureController::class, 'cancel']);
+// BUG FIX 2026-10-20 (round 6) : route /api/hotel/factures/[i:id]/cancel
+// supprimée — l'annulation de facture n'est plus autorisée depuis l'UI de
+// /hotel/facturation. La méthode HotelFactureController::cancel() est
+// également supprimée.
 Router::get('/categories', [PageController::class, 'categories']);
 Router::get('/taxes', [PageController::class, 'taxes']);
 Router::get('/parametres', [PageController::class, 'parametres']);
