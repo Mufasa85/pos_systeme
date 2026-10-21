@@ -124,14 +124,14 @@
   // avec ce que fait app.js (cf. validateWithDGI() qui envoie remise_value
   // tel quel sans impacter lineHT).
   function computeProductTTC(product) {
-    var p         = product || {};
-    var price     = parseFloat(p.prix_unitaire) || 0;
-    var qty       = parseFloat(p.quantite) || 1;
-    var taxRate   = parseFloat(p.tax_rate) || 0;
-    var rType     = p.remise_type || '%';
+    var p = product || {};
+    var price = parseFloat(p.prix_unitaire) || 0;
+    var qty = parseFloat(p.quantite) || 1;
+    var taxRate = parseFloat(p.tax_rate) || 0;
+    var rType = p.remise_type || '%';
     var rValueRaw = parseFloat(p.remise_value) || 0;
-    var tsType    = p.taxe_specifique_type || '%';
-    var tsValueRaw= parseFloat(p.taxe_specifique_value) || 0;
+    var tsType = p.taxe_specifique_type || '%';
+    var tsValueRaw = parseFloat(p.taxe_specifique_value) || 0;
 
     // 1) TS unitaire — miroir exact de posCart.calculateSpecificTaxUnit
     var specificTaxUnit = (tsType === 'CDF')
@@ -139,7 +139,7 @@
       : price * (tsValueRaw / 100);
 
     // 2) TVA unitaire sur prix + sur TS — miroir exact de posCart.calculateItemTTC
-    var vatOnPriceUnit       = price * (taxRate / 100);
+    var vatOnPriceUnit = price * (taxRate / 100);
     var vatOnSpecificTaxUnit = specificTaxUnit * (taxRate / 100);
 
     // 3) lineHT (= HT cumulé = prix × qty + TS + TVA_sur_TS)
@@ -154,25 +154,25 @@
 
     return {
       // Données sources normalisées
-      price_unitaire:     price,
-      quantite:           qty,
-      tax_rate:           taxRate,
-      tax_etiquette:      p.taxe_etiquette || 'B',
+      price_unitaire: price,
+      quantite: qty,
+      tax_rate: taxRate,
+      tax_etiquette: p.taxe_etiquette || 'B',
       // Résultats unitaires (par unité)
-      specific_tax_unit:  specificTaxUnit,
-      vat_on_price_unit:  vatOnPriceUnit,
-      vat_on_ts_unit:     vatOnSpecificTaxUnit,
+      specific_tax_unit: specificTaxUnit,
+      vat_on_price_unit: vatOnPriceUnit,
+      vat_on_ts_unit: vatOnSpecificTaxUnit,
       // Résultats ligne (cumulés avec quantité)
-      line_ht:            lineHT,
-      line_ts:            specificTaxUnit * qty,
-      line_vat_price:     vatOnPriceUnit * qty,
-      line_vat_ts:        vatOnSpecificTaxUnit * qty,
-      line_vat_total:     (vatOnPriceUnit + vatOnSpecificTaxUnit) * qty,
-      line_ttc:           lineTTC,
+      line_ht: lineHT,
+      line_ts: specificTaxUnit * qty,
+      line_vat_price: vatOnPriceUnit * qty,
+      line_vat_ts: vatOnSpecificTaxUnit * qty,
+      line_vat_total: (vatOnPriceUnit + vatOnSpecificTaxUnit) * qty,
+      line_ttc: lineTTC,
       // Remise (info uniquement — non déduite des line_* ci-dessus)
-      remise_type:        rType,
-      remise_value_raw:   rValueRaw,
-      remise_montant:     remiseMontant,
+      remise_type: rType,
+      remise_value_raw: rValueRaw,
+      remise_montant: remiseMontant,
     };
   }
 
@@ -218,8 +218,8 @@
     lines.forEach(function (ligne) {
       (ligne.produits || []).forEach(function (p) {
         var calc = computeProductTTC(p);
-        totalHT  += calc.line_ht;
-        totalTS  += calc.line_ts;
+        totalHT += calc.line_ht;
+        totalTS += calc.line_ts;
         totalVAT += calc.line_vat_total;
         // TTC facturé client en régime B = line_ht (= HT + TS + TVA_sur_TS).
         // Note : si on voulait le TTC théorique avec TVA collectée, ce serait
@@ -228,27 +228,27 @@
         // Bucket par taux de TVA (info UI)
         var r = String(calc.tax_rate || 0);
         if (!byRate[r]) byRate[r] = { ht: 0, ts: 0, vat: 0, ttc: 0 };
-        byRate[r].ht  += calc.line_ht;
-        byRate[r].ts  += calc.line_ts;
+        byRate[r].ht += calc.line_ht;
+        byRate[r].ts += calc.line_ts;
         byRate[r].vat += calc.line_vat_total;
         byRate[r].ttc += calc.line_ht;
         // Bucket par étiquette DGI (A/B/C/...) — utile pour le détail
         // tax breakdown envoyé par la DGI dans buildHotelReceiptTaxBreakdown.
         var e = String(calc.tax_etiquette || 'B');
         if (!byEtiq[e]) byEtiq[e] = { ht: 0, ts: 0, vat: 0, ttc: 0 };
-        byEtiq[e].ht  += calc.line_ht;
-        byEtiq[e].ts  += calc.line_ts;
+        byEtiq[e].ht += calc.line_ht;
+        byEtiq[e].ts += calc.line_ts;
         byEtiq[e].vat += calc.line_vat_total;
         byEtiq[e].ttc += calc.line_ht;
       });
     });
     return {
-      total_ht:  totalHT,
-      total_ts:  totalTS,
+      total_ht: totalHT,
+      total_ts: totalTS,
       total_tva: totalVAT,
       total_ttc: totalTTC,
-      by_rate:   byRate,
-      by_etiq:   byEtiq,
+      by_rate: byRate,
+      by_etiq: byEtiq,
     };
   }
   function escapeHtml(s) {
@@ -438,15 +438,15 @@
             : '';
           prodsHtml += '<tr>'
             + '<td style="padding:1px 4px 1px 16px;">'
-            +   escapeHtml(p.nom || 'Produit')
-            +   (taxLabel ? ' <span style="font-weight:600;">' + taxLabel + '</span>' : '')
-            +   (prodServiceBadge ? ' <span style="font-weight:600;">' + prodServiceBadge + '</span>' : '')
-            +   (remiseLabel ? ' <span style="color:#16a34a;">' + remiseLabel + '</span>' : '')
-            +   (tsLabel ? ' <span style="color:#b45309;">' + tsLabel + '</span>' : '')
+            + escapeHtml(p.nom || 'Produit')
+            + (taxLabel ? ' <span style="font-weight:600;">' + taxLabel + '</span>' : '')
+            + (prodServiceBadge ? ' <span style="font-weight:600;">' + prodServiceBadge + '</span>' : '')
+            + (remiseLabel ? ' <span style="color:#16a34a;">' + remiseLabel + '</span>' : '')
+            + (tsLabel ? ' <span style="color:#b45309;">' + tsLabel + '</span>' : '')
             + '</td>'
             + '<td style="padding:1px 4px;text-align:right;">'
-            +   formatQty(calc.quantite, false) + ' × ' + fmtFc(p.prix_unitaire || 0)
-            +   '<br><span style="color:#0B5E88;">HT ' + fmtFc(calc.line_ht) + '</span>'
+            + formatQty(calc.quantite, false) + ' × ' + fmtFc(p.prix_unitaire || 0)
+            + '<br><span style="color:#0B5E88;">HT ' + fmtFc(calc.line_ht) + '</span>'
             + '</td>'
             + '</tr>';
         });
@@ -846,14 +846,14 @@
       html += '<div class="receipt-total-row"><span>Total extras manuels</span><span>' + fmtFc(manualTotal) + '</span></div>';
     }
     // ── Total aligné pattern app.js (= lineTTC cumulé, nuits + extras) ──
-    html += '<div class="receipt-total-row grand-total"><span>TOTAL TTC :</span><span>' + fmtFc(total) + '</span></div>';
+    html += '<div class="receipt-total-row grand-total"><span>TOTAL TTC :</span><span>' + fmtFc(dgiTotal) + '</span></div>';
     // ── Total confirmé par la DGI (champ `total` de la réponse DGI) ─────
-    if (typeof dgiTotal === 'number' && !isNaN(dgiTotal) && dgiTotal > 0) {
-      html += '<div class="receipt-total-row" style="font-size:11px; color:#2e7d32;">'
-        + '<span>Total confirmé DGI :</span>'
-        + '<span>' + fmtFc(dgiTotal) + '</span>'
-        + '</div>';
-    }
+    // if (typeof dgiTotal === 'number' && !isNaN(dgiTotal) && dgiTotal > 0) {
+    //   html += '<div class="receipt-total-row" style="font-size:11px; color:#2e7d32;">'
+    //     + '<span>Total confirmé DGI :</span>'
+    //     + '<span>' + fmtFc(dgiTotal) + '</span>'
+    //     + '</div>';
+    // }
     if (usdRate) {
       html += '<div class="receipt-total-row" style="font-size:11px; color:#555;"><span>TAUX DU JOUR :</span><span>' + usdRate + ' Fc/USD</span></div>';
       html += '<div class="receipt-total-row" style="font-size:11px; color:#555;"><span>Equivalent en USD :</span><span>' + (total / usdRate).toFixed(2) + ' $</span></div>';
@@ -1170,11 +1170,11 @@
             : '';
           return '<tr>'
             + '<td>'
-            +   escapeHtml(p.nom)
-            +   (taxLabel ? ' <span style="font-weight:600;">' + taxLabel + '</span>' : '')
-            +   (prodServiceBadge ? ' <span style="font-weight:600;">' + prodServiceBadge + '</span>' : '')
-            +   (remiseLabel ? ' <span style="color:#16a34a;">' + remiseLabel + '</span>' : '')
-            +   (tsLabel ? ' <span style="color:#b45309;">' + tsLabel + '</span>' : '')
+            + escapeHtml(p.nom)
+            + (taxLabel ? ' <span style="font-weight:600;">' + taxLabel + '</span>' : '')
+            + (prodServiceBadge ? ' <span style="font-weight:600;">' + prodServiceBadge + '</span>' : '')
+            + (remiseLabel ? ' <span style="color:#16a34a;">' + remiseLabel + '</span>' : '')
+            + (tsLabel ? ' <span style="color:#b45309;">' + tsLabel + '</span>' : '')
             + '</td>'
             + '<td class="num">' + qtyStr + '</td>'
             + '<td class="num">' + fmtFc(p.prix_unitaire) + '</td>'
@@ -1927,6 +1927,7 @@
     // soit affiché juste à côté du TOTAL TTC dans la facture finale.
     // cf. clé `total` dans la réponse API DGI (ex: 10251870).
     var dgiTotal = (dgiData && typeof dgiData.total === 'number') ? dgiData.total : null;
+    console.log(dgiData)
     var totalsHtml = buildHotelReceiptTotals(total, dgiTotal);
     var paymentsHtml = buildHotelReceiptPayments();
     // Sprint 7 — 2026-10-19 : titre dynamique basé sur le type sélectionné

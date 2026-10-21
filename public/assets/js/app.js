@@ -713,46 +713,46 @@ const posCart = {
         this.renderCart();
     },
 
-        clearCart() {
-                this.items = [];
-                this.clientNumber = '';
-                this.currentClient = null;
-                this.currentSejour = null;
-                const clientInput = $('#client-number');
-                if (clientInput) clientInput.value = '';
-                const clientDisplay = $('#client-name-display');
-                if (clientDisplay) clientDisplay.remove();
-                this.renderCart();
-            },
+    clearCart() {
+        this.items = [];
+        this.clientNumber = '';
+        this.currentClient = null;
+        this.currentSejour = null;
+        const clientInput = $('#client-number');
+        if (clientInput) clientInput.value = '';
+        const clientDisplay = $('#client-name-display');
+        if (clientDisplay) clientDisplay.remove();
+        this.renderCart();
+    },
 
-            /**
-             * Sélectionne un séjour hôtelier pour imputer la prochaine vente comme extra.
-             * Appelée depuis le bouton "Imputer à un séjour" dans l'UI de la caisse.
-             *
-             * Comportement : on stocke le séjour dans this.currentSejour, puis on
-             * affiche un toast en haut de la page (showCaisseToast) plutôt qu'un
-             * bloc persistant dans le panier (ancien #cart-sejour-indicator qui
-             * était juste au-dessus de "Valider la vente"). Pour annuler, on
-             * re-passe null et un second toast s'affiche.
-             */
-            setCurrentSejour(sejour) {
-                            this.currentSejour = sejour;
-                            if (typeof showCaisseToast === 'function') {
-                                if (sejour) {
-                                    const chambre = sejour.chambre_numero || '?';
-                                    const client  = (sejour.guest_prenom ? sejour.guest_prenom + ' ' : '') + (sejour.guest_nom || '');
-                                    const line = `Séjour imputé sur la chambre ${chambre} — ${client.trim() || 'client'} (séjour #${sejour.id})`;
-                                    showCaisseToast(line, 'info');
-                                } else {
-                                    showCaisseToast('Séjour désélectionné', 'info');
-                                }
-                            }
-                            // Compat descendante : si l'ancien indicateur existe
-                            // encore dans le DOM, on le masque pour éviter qu'il
-                            // reste visible.
-                            const ind = $('#cart-sejour-indicator');
-                            if (ind) ind.style.display = 'none';
-                        },
+    /**
+     * Sélectionne un séjour hôtelier pour imputer la prochaine vente comme extra.
+     * Appelée depuis le bouton "Imputer à un séjour" dans l'UI de la caisse.
+     *
+     * Comportement : on stocke le séjour dans this.currentSejour, puis on
+     * affiche un toast en haut de la page (showCaisseToast) plutôt qu'un
+     * bloc persistant dans le panier (ancien #cart-sejour-indicator qui
+     * était juste au-dessus de "Valider la vente"). Pour annuler, on
+     * re-passe null et un second toast s'affiche.
+     */
+    setCurrentSejour(sejour) {
+        this.currentSejour = sejour;
+        if (typeof showCaisseToast === 'function') {
+            if (sejour) {
+                const chambre = sejour.chambre_numero || '?';
+                const client = (sejour.guest_prenom ? sejour.guest_prenom + ' ' : '') + (sejour.guest_nom || '');
+                const line = `Séjour imputé sur la chambre ${chambre} — ${client.trim() || 'client'} (séjour #${sejour.id})`;
+                showCaisseToast(line, 'info');
+            } else {
+                showCaisseToast('Séjour désélectionné', 'info');
+            }
+        }
+        // Compat descendante : si l'ancien indicateur existe
+        // encore dans le DOM, on le masque pour éviter qu'il
+        // reste visible.
+        const ind = $('#cart-sejour-indicator');
+        if (ind) ind.style.display = 'none';
+    },
 
     toggleCalcMode(enabled) {
         this.calcMode = enabled;
@@ -952,7 +952,7 @@ const posCart = {
             const totalUsd = this.currentTotals.total / USD_RATE;
             const totalUsdEl = $('#total-usd');
             if (totalUsdEl) {
-                totalUsdEl.textContent = 'â‰ˆ $' + totalUsd.toFixed(2) + ' USD';
+                totalUsdEl.textContent = '≈ $' + totalUsd.toFixed(2) + ' USD';
             }
         }
     },
@@ -1493,7 +1493,7 @@ const posCart = {
                     <td colspan="2"><span class="item-name"> ${item.nom}<span class="item-tax-badge">${taxLabel}</span>${prodService}<small style="color:var(--success);font-weight:600;">${discountLabel}</small><small style="color:#b45309;font-weight:600;">${specificTaxLabel}</small></span></td>
                 </tr>
                 <tr class="item-detail-row">
-                    <td class="item-qty">${qtyDisplay} Ã— ${formatCurrency(itemPrice)} </td>
+                    <td class="item-qty">${qtyDisplay} x ${formatCurrency(itemPrice)} </td>
                     <td class="item-total">${truncateDecimals(itemTotalHT).toFixed(3)} Fc</td>
                 </tr>
             `;
@@ -1777,60 +1777,60 @@ const posCart = {
             }
 
             // Etape 2: Sauvegarder la vente
-        // Si la facture N'est PAS FA ou EA, on envoie les quantités et
-        // les totaux en négatif au backend (cohérent avec la DGI)
-        const saveTypeFacture = document.getElementById('invoice-type')?.value || 'FV';
-        const saveShouldNegate = saveTypeFacture === 'FA' || saveTypeFacture === 'EA';
-        const saveSign = saveShouldNegate ? -1 : 1;
-        const saleRes = await fetch(APP_URL + '/api/vente', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                articles: this.items.map(item => ({
-                    ...item,
-                    quantite: item.quantite * saveSign
-                })),
-                client_id: this.currentClient ? this.currentClient.id : null,
-                sejour_id: this.currentSejour ? this.currentSejour.id : null,
-                sous_total_ht: this.currentTotals.sous_total_ht * saveSign,
-                tva: this.currentTotals.tva * saveSign,
-                total: this.currentTotals.total * saveSign,
-                type_facture: saveTypeFacture,
-                // ISF réellement utilisé pour l'enregistrement DGI : c'est la
-                // clé de recherche de la facture, il doit être figé tel quel.
-                store_isf: STORE_INFO.isf || '',
-                payments: this.currentPayments?.length > 0 ? this.currentPayments : [{ type: (document.getElementById('modal-payment-type') || document.getElementById('payment-type'))?.value || 'ESPECES', amount: this.currentTotals.total }],
-                dgi_data: {
-                    dateDGI: dgiResponse.data ? dgiResponse.data.dateDGI : null,
-                    qrCode: dgiResponse.data ? dgiResponse.data.qrCode : '',
-                    codeDEFDGI: dgiResponse.data ? dgiResponse.data.codeDEFDGI : '',
-                    counters: dgiResponse.data ? dgiResponse.data.counters : null,
-                    nim: dgiResponse.data ? dgiResponse.data.nim : null,
-                    total: dgiResponse.data ? dgiResponse.data.total : null,
-                    vtotal: dgiResponse.data ? dgiResponse.data.vtotal : null,
-                    isf: dgiResponse.data ? dgiResponse.data.isf : null,
-                    comment: dgiResponse.comment || (dgiResponse.data ? dgiResponse.data.comment : null)
-                }
-            })
-        });
-        const saleData = await saleRes.json();
+            // Si la facture N'est PAS FA ou EA, on envoie les quantités et
+            // les totaux en négatif au backend (cohérent avec la DGI)
+            const saveTypeFacture = document.getElementById('invoice-type')?.value || 'FV';
+            const saveShouldNegate = saveTypeFacture === 'FA' || saveTypeFacture === 'EA';
+            const saveSign = saveShouldNegate ? -1 : 1;
+            const saleRes = await fetch(APP_URL + '/api/vente', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    articles: this.items.map(item => ({
+                        ...item,
+                        quantite: item.quantite * saveSign
+                    })),
+                    client_id: this.currentClient ? this.currentClient.id : null,
+                    sejour_id: this.currentSejour ? this.currentSejour.id : null,
+                    sous_total_ht: this.currentTotals.sous_total_ht * saveSign,
+                    tva: this.currentTotals.tva * saveSign,
+                    total: this.currentTotals.total * saveSign,
+                    type_facture: saveTypeFacture,
+                    // ISF réellement utilisé pour l'enregistrement DGI : c'est la
+                    // clé de recherche de la facture, il doit être figé tel quel.
+                    store_isf: STORE_INFO.isf || '',
+                    payments: this.currentPayments?.length > 0 ? this.currentPayments : [{ type: (document.getElementById('modal-payment-type') || document.getElementById('payment-type'))?.value || 'ESPECES', amount: this.currentTotals.total }],
+                    dgi_data: {
+                        dateDGI: dgiResponse.data ? dgiResponse.data.dateDGI : null,
+                        qrCode: dgiResponse.data ? dgiResponse.data.qrCode : '',
+                        codeDEFDGI: dgiResponse.data ? dgiResponse.data.codeDEFDGI : '',
+                        counters: dgiResponse.data ? dgiResponse.data.counters : null,
+                        nim: dgiResponse.data ? dgiResponse.data.nim : null,
+                        total: dgiResponse.data ? dgiResponse.data.total : null,
+                        vtotal: dgiResponse.data ? dgiResponse.data.vtotal : null,
+                        isf: dgiResponse.data ? dgiResponse.data.isf : null,
+                        comment: dgiResponse.comment || (dgiResponse.data ? dgiResponse.data.comment : null)
+                    }
+                })
+            });
+            const saleData = await saleRes.json();
 
-        if (!saleData.success) {
-            // Cas particulier : boutique désactivée par le super_admin pendant
-            // la session â†’ on déconnecte l'utilisateur immédiatement avec un
-            // message clair et on bloque toute autre action.
-            if (saleData.error === 'shop_disabled' || saleRes.status === 403) {
-                alert(saleData.message || 'Votre boutique a été désactivée. Vous ne pouvez plus émettre de factures.');
-                window.location.href = '/logout?reason=shop_disabled';
+            if (!saleData.success) {
+                // Cas particulier : boutique désactivée par le super_admin pendant
+                // la session â†’ on déconnecte l'utilisateur immédiatement avec un
+                // message clair et on bloque toute autre action.
+                if (saleData.error === 'shop_disabled' || saleRes.status === 403) {
+                    alert(saleData.message || 'Votre boutique a été désactivée. Vous ne pouvez plus émettre de factures.');
+                    window.location.href = '/logout?reason=shop_disabled';
+                    return;
+                }
+                alert(saleData.error);
+                $('#confirm-sale').disabled = false;
+                $('#confirm-sale').innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> Valider la facture';
                 return;
             }
-            alert(saleData.error);
-            $('#confirm-sale').disabled = false;
-            $('#confirm-sale').innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> Valider la facture';
-            return;
-        }
 
-        // Fermer le modal de prévisualisation
+            // Fermer le modal de prévisualisation
             this.closePreview();
 
             // Stocker les donnees de vente
@@ -1953,7 +1953,7 @@ const posCart = {
                         <td colspan="2"><span class="item-name">${item.nom}<span class="item-tax-badge">${taxLabel}</span>${prodService}<small style="color:var(--success);font-weight:600;">${discountLabel}</small><small style="color:#b45309;font-weight:600;">${specificTaxLabel}</small></span></td>
                     </tr>
                     <tr class="item-detail-row">
-                        <td class="item-qty">${formatQty(itemQty, isPoidsItem)} Ã— ${formatCurrency(itemPrice)} </td>
+                        <td class="item-qty">${formatQty(itemQty, isPoidsItem)} x ${formatCurrency(itemPrice)} </td>
                         <td class="item-total">${truncateDecimals(itemTotalHT).toFixed(3)} Fc</td>
                     </tr>
                 `;
@@ -2791,7 +2791,7 @@ function renderServiceBillContent(data, sale) {
             html += '<td colspan="2"><span class="item-name">' + (article.name || 'Article') + '<span class="item-tax-badge">' + taxLabel + '</span>' + prodService + '<small style="color:var(--success);font-weight:600;">' + discountLabel + '</small><small style="color:#b45309;font-weight:600;">' + specificTaxLabel + '</small></span></td>';
             html += '</tr>';
             html += '<tr class="item-detail-row">';
-            html += '<td class="item-qty">' + quantity + ' Ã— ' + price.toFixed(2) + ' Fc</td>';
+            html += '<td class="item-qty">' + quantity + ' x ' + price.toFixed(2) + ' Fc</td>';
             html += '<td class="item-total">' + articleTotal.toFixed(2) + ' Fc</td>';
             html += '</tr>';
         });
@@ -3228,9 +3228,9 @@ function showCaisseToast(message, type, duration) {
 
     // Icônes SVG inline (légères, pas de dépendance externe)
     const icons = {
-        info:    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>',
+        info: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>',
         success: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>',
-        error:   '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>',
+        error: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>',
     };
 
     const el = document.createElement('div');
@@ -3268,9 +3268,9 @@ function showCaisseToast(message, type, duration) {
 
 async function openSejourPicker() {
     const modal = $('#sejour-picker-modal');
-    const list  = $('#sejour-picker-list');
+    const list = $('#sejour-picker-list');
     const empty = $('#sejour-picker-empty');
-    const err   = $('#sejour-picker-error');
+    const err = $('#sejour-picker-error');
     if (!modal || !list) {
         console.warn('[sejour-picker] modal introuvable dans le DOM');
         return;
@@ -3279,7 +3279,7 @@ async function openSejourPicker() {
     // Reset UI
     list.innerHTML = '<div style="padding:1rem;text-align:center;color:#94a3b8;font-size:0.85rem;">Chargement des séjours en cours…</div>';
     if (empty) empty.style.display = 'none';
-    if (err)   { err.style.display = 'none'; err.textContent = ''; }
+    if (err) { err.style.display = 'none'; err.textContent = ''; }
     // Force l'affichage : on ajoute 'active' ET on pose un display inline
     // pour court-circuiter toute spécificité CSS ou ancêtre en display:none
     // qui pourrait masquer le modal (bug rencontré : modal niché ou CSS
@@ -3288,7 +3288,7 @@ async function openSejourPicker() {
     modal.style.display = 'flex';
 
     try {
-        const res  = await fetch(APP_URL + '/api/hotel/sejours/en-cours');
+        const res = await fetch(APP_URL + '/api/hotel/sejours/en-cours');
         const data = await res.json();
         if (!res.ok || !data.success) {
             throw new Error(data.message || ('HTTP ' + res.status));
@@ -3302,21 +3302,21 @@ async function openSejourPicker() {
         // Génération de la liste
         list.innerHTML = sejours.map(function (s) {
             const chambre = escapeHtml(String(s.chambre_numero || '?'));
-            const nom     = escapeHtml(((s.guest_prenom ? s.guest_prenom + ' ' : '') + (s.guest_nom || '')).trim() || 'Client');
-            const tel     = s.guest_telephone ? escapeHtml(s.guest_telephone) : '';
-            const type    = s.chambre_type === 'double' ? '🛏️🛏️ Double' : '🛏️ Simple';
+            const nom = escapeHtml(((s.guest_prenom ? s.guest_prenom + ' ' : '') + (s.guest_nom || '')).trim() || 'Client');
+            const tel = s.guest_telephone ? escapeHtml(s.guest_telephone) : '';
+            const type = s.chambre_type === 'double' ? '🛏️🛏️ Double' : '🛏️ Simple';
             // data-sejour-id permet de retrouver l'objet sejour au clic.
             const safe = JSON.stringify(s).replace(/"/g, '&quot;');
             return ''
                 + '<button type="button" class="sejour-picker-row" data-sejour="' + safe + '" '
-                +   'style="text-align:left;padding:0.75rem;border:1px solid var(--border,#e2e8f0);border-radius:10px;background:var(--card,#fff);cursor:pointer;transition:all 0.15s;" '
-                +   'onmouseenter="this.style.background=\'#f1f5f9\'" onmouseleave="this.style.background=\'var(--card,#fff)\'">'
-                +   '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">'
-                +     '<div style="font-weight:700;color:#0B5E88;">Chambre ' + chambre + '</div>'
-                +     '<div style="font-size:0.7rem;color:#64748b;">' + type + '</div>'
-                +   '</div>'
-                +   '<div style="margin-top:0.25rem;font-size:0.9rem;color:#1a1a2e;">' + nom + '</div>'
-                +   (tel ? '<div style="margin-top:0.15rem;font-size:0.75rem;color:#64748b;">📞 ' + tel + '</div>' : '')
+                + 'style="text-align:left;padding:0.75rem;border:1px solid var(--border,#e2e8f0);border-radius:10px;background:var(--card,#fff);cursor:pointer;transition:all 0.15s;" '
+                + 'onmouseenter="this.style.background=\'#f1f5f9\'" onmouseleave="this.style.background=\'var(--card,#fff)\'">'
+                + '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">'
+                + '<div style="font-weight:700;color:#0B5E88;">Chambre ' + chambre + '</div>'
+                + '<div style="font-size:0.7rem;color:#64748b;">' + type + '</div>'
+                + '</div>'
+                + '<div style="margin-top:0.25rem;font-size:0.9rem;color:#1a1a2e;">' + nom + '</div>'
+                + (tel ? '<div style="margin-top:0.15rem;font-size:0.75rem;color:#64748b;">📞 ' + tel + '</div>' : '')
                 + '</button>';
         }).join('');
         // Bind clic
@@ -3369,7 +3369,7 @@ function closeSejourPicker() {
  *     laisser l'utilisateur corriger ou annuler.
  */
 async function imputeCartToSejour(sejour, onDone) {
-    onDone = typeof onDone === 'function' ? onDone : function () {};
+    onDone = typeof onDone === 'function' ? onDone : function () { };
 
     const items = (posCart && posCart.items) ? posCart.items : [];
 
@@ -3396,26 +3396,26 @@ async function imputeCartToSejour(sejour, onDone) {
     const payload = {
         articles: items.map(function (it) {
             return {
-                produit_id:              it.produit_id,
-                nom:                     it.nom || '',
-                quantite:                Number(it.quantite) || 0,
-                prix:                    Number(it.prix)     || 0,
+                produit_id: it.produit_id,
+                nom: it.nom || '',
+                quantite: Number(it.quantite) || 0,
+                prix: Number(it.prix) || 0,
                 // Snapshots TS / TVA / remise du produit (au moment de l'extra).
                 // Côté backend on retombe sur produits/taxes si manquants, mais
                 // on les envoie quand même depuis la caisse pour éviter une
                 // jointure SQL par ligne.
-                taxe_specifique_type:    it.taxe_specifique_type || '%',
-                taxe_specifique_value:   Number(it.taxe_specifique_value) || 0,
-                remise_type:              it.remise_type || '%',
-                remise_value:             Number(it.remise_value) || 0,
-                tax_rate:                 Number(it.tax_rate) || 0,
+                taxe_specifique_type: it.taxe_specifique_type || '%',
+                taxe_specifique_value: Number(it.taxe_specifique_value) || 0,
+                remise_type: it.remise_type || '%',
+                remise_value: Number(it.remise_value) || 0,
+                tax_rate: Number(it.tax_rate) || 0,
             };
         }),
     };
 
     const url = (typeof APP_URL !== 'undefined' ? APP_URL : '')
-              + '/api/hotel/sejours/' + encodeURIComponent(sejour.id)
-              + '/extras-from-cart';
+        + '/api/hotel/sejours/' + encodeURIComponent(sejour.id)
+        + '/extras-from-cart';
 
     try {
         const response = await fetch(url, {
@@ -4712,7 +4712,7 @@ function addModalPaymentLine(type = 'ESPECES', amount = 0) {
             <label style="font-size: 0.7rem; color: #166534; display: block; margin-bottom: 4px;">Montant</label>
             <input type="number" class="modal-payment-amount client-number-input" step="0.01" min="0" placeholder="0.00" value="${amount > 0 ? amount.toFixed(2) : ''}" style="width: 100%;" oninput="calculateModalPayments()">
         </div>
-        <button type="button" onclick="removeModalPaymentLine(this)" style="background: #fee2e2; color: #dc2626; border: none; border-radius: 6px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1rem;">Ã—</button>
+        <button type="button" onclick="removeModalPaymentLine(this)" style="background: #fee2e2; color: #dc2626; border: none; border-radius: 6px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1rem;">x</button>
     `;
     list.appendChild(line);
     updateModalPaymentRemoveButtons();
@@ -4812,7 +4812,7 @@ function addModalRefDocLine(value = '') {
     line.style.cssText = 'display: flex; gap: 8px; align-items: center;';
     line.innerHTML = `
         <input type="text" class="modal-ref-doc-input client-number-input" placeholder="Réf..." value="${value}" style="width: 100%;" oninput="syncRefDocsCount()">
-        <button type="button" onclick="removeModalRefDocLine(this)" style="background: #fee2e2; color: #dc2626; border: none; border-radius: 6px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1rem;">Ã—</button>
+        <button type="button" onclick="removeModalRefDocLine(this)" style="background: #fee2e2; color: #dc2626; border: none; border-radius: 6px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1rem;">x</button>
     `;
     list.appendChild(line);
     updateAddRefDocButton();
