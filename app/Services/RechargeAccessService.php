@@ -23,6 +23,16 @@ class RechargeAccessService
     /**
      * Flags par défaut (refus) quand l'API échoue ou ne renvoie rien.
      * Sprint 7 — 2026-10-19 : ajout du flag `hotel` pour le module hôtellerie.
+     *
+     * BUG FIX 2026-10-20 (round 2) — retour au comportement STRICT :
+     * Le module hôtel doit être aussi strict que /recharges et /payroll.
+     * Un fail-open (hotel => null) avait été posé en round 1 parce
+     * qu'un admin + hotel_role=manager recevait 403 ; mais l'exigence
+     * est que l'accès au module reste conditionné au flag API, à
+     * l'identique des autres modules payants. Simplement, le bouton
+     * Hôtel est MASQUÉ dans le header quand le flag est absent/false
+     * (cf. header.php → $showHotel), pour que l'utilisateur ne tombe
+     * pas sur une page 403 en cliquant un lien visible.
      */
     private const DEFAULT_DENIED_FLAGS = [
         'snelregideso' => false,
@@ -56,27 +66,22 @@ class RechargeAccessService
      * Vérifie l'accès à /hotel/* (flag hotel).
      * Sprint 7 — 2026-10-19 : ajouté pour permettre à l'API OSAT de
      * contrôler l'accès au module hôtellerie (comme snelregideso et paie).
-     * Si l'API ne renvoie pas le flag `hotel`, on l'accorde par défaut
-     * (comportement permissif pour ne pas casser les installations où
-     * l'API n'a pas encore été mise à jour). Les utilisateurs peuvent
-     * aussi être refusés via requireHotelAccess() (rôle métier) sans
-     * dépendre de l'API.
+     *
+     * BUG FIX 2026-10-20 (round 2) — comportement STRICT :
+     * Sémantique identique à canAccess() / canAccessPayroll() :
+     *   - flag `hotel` truthy               → accès accordé
+     *   - flag `hotel` falsy / absent / null → accès refusé (403)
+     *
+     * Le rôle métier (requireHotelAccess / guardRead / guardWrite) reste
+     * le 2e filtre, inchangé. Le bouton Hôtel est masqué dans header.php
+     * quand le flag est faux, pour éviter un 403 en cliquant un lien
+     * visible.
      */
     public function canAccessHotel(): bool
     {
-        $flags = $this->getAllFlags();
-        if (!array_key_exists('hotel', $flags)) {
-            // API n'a pas encore exposé le flag hotel → on autorise
-            // (le contrôle d'accès métier via requireHotelAccess suffit
-            // pour bloquer les rôles non autorisés).
-            return true;
-        }
-        return !empty($flags['hotel']);
+        return $this->getFeatureFlag('hotel');
     }
 /**
-     * Récupère un flag depuis le cache ou depuis l'API.
-     */
-    /**
      * Récupère un flag depuis le cache ou depuis l'API.
      * Délègue à getAllFlags() pour mutualiser la logique de cache.
      */
@@ -87,22 +92,64 @@ class RechargeAccessService
     }
 
     /**
+     * BUG FIX 2026-10-20 (round 2) — helper de debug.
+     * Retourne les flags bruts (sans interprétation) + l'état du cache,
+     * pour diagnostiquer un refus d'accès sans ouvrir les logs serveur.
+     * Utilisé par GET /api/recharge-access → champ `debug_flags`.
+     */
+    public function getFlagsForDebug(): array
+    {
+        $this->ensureSessionStarted();
+        $cached = $_SESSION[self::SESSION_KEY] ?? null;
+        $flags  = $this->getAllFlags();
+        return [
+            'flags'          => $flags,
+            'from_cache'     => ($cached !== null && isset($cached['expires_at']) && $cached['expires_at'] > time()),
+            'cache_expires_in' => ($cached && isset($cached['expires_at'])) ? max(0, (int)$cached['expires_at'] - time()) : 0,
+            'nif_found'      => !empty($this->getNif()),
+        ];
+    }
+
+    /**
      * Récupère TOUS les flags depuis le cache (ou via fetch si expiré).
      * Sprint 7 — 2026-10-19 : factorisé pour canAccessHotel() qui doit
      * distinguer "flag absent" (autoriser par défaut) de "flag=false" (refuser).
+     *
+     * BUG FIX 2026-10-20 (round 3) — auto-purge du cache "legacy" :
+     * L'API OSAT a mis en place le flag `hotel` progressivement. Un cache
+     * rempli par une version antérieure de l'API contient
+     * `flags['hotel'] = null` (clé présente, valeur absente de l'API).
+     * Avec le TTL de 300s, ce cache "legacy" pouvait geler l'accès pendant
+     * 5 minutes après le déploiement du nouveau backend OSAT → 403
+     * inexpliqué alors que l'API renvoie bien `hotel: 1`.
+     *
+     * Correctif : si `flags['hotel']` n'est pas un booléen (donc null
+     * = l'API ne l'expose pas encore), on considère le cache comme
+     * PÉRIMÉ et on force un re-fetch immédiat, même si le TTL n'est pas
+     * atteint. Dès que l'API expose `hotel`, la valeur est un booléen
+     * et le cache redevient valide normalement.
      */
     private function getAllFlags(): array
     {
         $this->ensureSessionStarted();
         $cached = $_SESSION[self::SESSION_KEY] ?? null;
+
         if ($cached !== null && isset($cached['expires_at']) && $cached['expires_at'] > time()) {
-            return $cached['flags'] ?? [];
+            $flags = $cached['flags'] ?? [];
+            // Cache "legacy" : hotel n'est pas un booléen → on invalide.
+            if (!is_bool($flags['hotel'] ?? null)) {
+                error_log('[FeatureAccessService] Cache legacy détecté (hotel non-booléen) → re-fetch immédiat');
+                return $this->fetchFromApi();
+            }
+            return $flags;
         }
         return $this->fetchFromApi();
     }
 
     /**
      * Pré-charge le cache sans bloquer si déjà en cache.
+     * Même logique que getAllFlags() : un cache "legacy" (hotel non-booléen)
+     * est considéré comme périmé → re-fetch immédiat.
      */
     public function warmupCache(): void
     {
@@ -110,7 +157,12 @@ class RechargeAccessService
 
         $cached = $_SESSION[self::SESSION_KEY] ?? null;
         if ($cached !== null && isset($cached['expires_at']) && $cached['expires_at'] > time()) {
-            return;
+            $flags = $cached['flags'] ?? [];
+            if (is_bool($flags['hotel'] ?? null)) {
+                return;   // cache valide et complet → rien à faire
+            }
+            // Cache legacy → on repasse par fetchFromApi()
+            error_log('[FeatureAccessService] warmup : cache legacy (hotel non-booléen) → re-fetch');
         }
 
         $this->fetchFromApi();

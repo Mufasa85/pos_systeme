@@ -43,8 +43,8 @@
   <meta name="msapplication-TileColor" content="#1a1e64">
   <meta name="msapplication-config" content="/assets/img/browserconfig.xml">
 
-  <link rel="stylesheet" href="/assets/css/styles.css?v=208999999999999">
-  <link rel="stylesheet" href="/assets/css/mobile-caisse.css?v=999999999999999999999999999">
+  <link rel="stylesheet" href="/assets/css/styles.css?v=100">
+  <link rel="stylesheet" href="/assets/css/mobile-caisse.css?v=100">
   <?php if (($page ?? '') === 'payroll'): ?>
     <link rel="stylesheet" href="/assets/css/payroll.css?v=1">
   <?php endif; ?>
@@ -67,52 +67,52 @@
        Si le super_admin désactive la boutique en cours de session, l'utilisateur
        est automatiquement redirigé vers /logout?reason=shop_disabled. -->
   <script>
-  (function () {
-    // super_admin : pas de shop, on ne poll pas
-    if (!CURRENT_USER || !CURRENT_USER.shopId) return;
-    // Si on est déjà sur la page de login, inutile
-    if (window.location.pathname === '/' || window.location.pathname === '/index.php') return;
+    (function() {
+      // super_admin : pas de shop, on ne poll pas
+      if (!CURRENT_USER || !CURRENT_USER.shopId) return;
+      // Si on est déjà sur la page de login, inutile
+      if (window.location.pathname === '/' || window.location.pathname === '/index.php') return;
 
-    let lastCheckAt = 0;
-    let isChecking = false;
+      let lastCheckAt = 0;
+      let isChecking = false;
 
-    async function pollShopActive() {
-      if (isChecking) return;
-      isChecking = true;
-      try {
-        const res = await fetch(APP_URL + '/api/shops/check-active', {
-          credentials: 'same-origin',
-          cache: 'no-store',
-        });
-        if (res.status === 401 || res.status === 403) {
-          // Session détruite côté serveur → redirection propre
-          window.location.href = '/?reason=session_expired';
-          return;
+      async function pollShopActive() {
+        if (isChecking) return;
+        isChecking = true;
+        try {
+          const res = await fetch(APP_URL + '/api/shops/check-active', {
+            credentials: 'same-origin',
+            cache: 'no-store',
+          });
+          if (res.status === 401 || res.status === 403) {
+            // Session détruite côté serveur → redirection propre
+            window.location.href = '/?reason=session_expired';
+            return;
+          }
+          const data = await res.json();
+          if (data && data.success === true && data.active === false) {
+            // Boutique désactivée → on déconnecte
+            window.location.href = '/logout?reason=shop_disabled';
+          }
+        } catch (e) {
+          // Erreur réseau silencieuse : on ne déconnecte pas l'utilisateur
+        } finally {
+          isChecking = false;
         }
-        const data = await res.json();
-        if (data && data.success === true && data.active === false) {
-          // Boutique désactivée → on déconnecte
-          window.location.href = '/logout?reason=shop_disabled';
+      }
+
+      // Première vérification rapide (5s après chargement)
+      setTimeout(pollShopActive, 5000);
+      // Puis toutes les 30 secondes
+      setInterval(pollShopActive, 30000);
+
+      // Vérifier aussi au retour de focus sur l'onglet (l'utilisateur revient après une pause)
+      document.addEventListener('visibilitychange', function() {
+        if (!document.hidden) {
+          pollShopActive();
         }
-      } catch (e) {
-        // Erreur réseau silencieuse : on ne déconnecte pas l'utilisateur
-      } finally {
-        isChecking = false;
-      }
-    }
-
-    // Première vérification rapide (5s après chargement)
-    setTimeout(pollShopActive, 5000);
-    // Puis toutes les 30 secondes
-    setInterval(pollShopActive, 30000);
-
-    // Vérifier aussi au retour de focus sur l'onglet (l'utilisateur revient après une pause)
-    document.addEventListener('visibilitychange', function () {
-      if (!document.hidden) {
-        pollShopActive();
-      }
-    });
-  })();
+      });
+    })();
   </script>
   <script src="/assets/js/service-bill-fetcher.js"></script>
   <script src="/assets/js/theme.js?v=1"></script>
@@ -123,16 +123,18 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <script>
     if ('serviceWorker' in navigator) {
-      window.addEventListener('load', function () {
+      window.addEventListener('load', function() {
         navigator.serviceWorker
-          .register('/sw.js', { scope: '/' })
-          .then(function (registration) {
+          .register('/sw.js', {
+            scope: '/'
+          })
+          .then(function(registration) {
             console.log('[PWA] Service Worker registered, scope:', registration.scope);
             // Forcer la prise en compte d'une nouvelle version
-            registration.addEventListener('updatefound', function () {
+            registration.addEventListener('updatefound', function() {
               const newWorker = registration.installing;
               if (!newWorker) return;
-              newWorker.addEventListener('statechange', function () {
+              newWorker.addEventListener('statechange', function() {
                 if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
                   console.log('[PWA] Nouvelle version disponible, activation…');
                   newWorker.postMessage('SKIP_WAITING');
@@ -140,7 +142,7 @@
               });
             });
           })
-          .catch(function (err) {
+          .catch(function(err) {
             console.error('[PWA] Service Worker registration failed:', err);
           });
       });
@@ -196,13 +198,13 @@
         </div>
         <?php
         $role = $_SESSION['role'] ?? '';
-  if ($role === 'super_admin') {
-      // Utiliser exactement la même requête que dans le header/login (companyName / companyInfo / storeName)
-      $sidebarStoreName = ($companyName ?? ($companyInfo['name'] ?? ($storeName ?? 'Mon Magasin')));
-  } else {
-      $sidebarStoreName = ($storeName ?? 'Mon Magasin');
-  }
-  ?>
+        if ($role === 'super_admin') {
+          // Utiliser exactement la même requête que dans le header/login (companyName / companyInfo / storeName)
+          $sidebarStoreName = ($companyName ?? ($companyInfo['name'] ?? ($storeName ?? 'Mon Magasin')));
+        } else {
+          $sidebarStoreName = ($storeName ?? 'Mon Magasin');
+        }
+        ?>
         <span id="sidebar-store-name"><?= htmlspecialchars($sidebarStoreName) ?></span>
 
         <button id="close-sidebar" class="close-sidebar">
@@ -252,156 +254,174 @@
         // Rôle effectif (mêmes règles que PageController::resolveHotelRole)
         if ($appRole === 'super_admin')      $effectiveHotelRole = 'super_admin';
         elseif ($appRole === 'admin')        $effectiveHotelRole = 'manager';
-        elseif (in_array($hotelRole, ['manager','receptionniste','gouvernante'], true)) $effectiveHotelRole = $hotelRole;
+        elseif (in_array($hotelRole, ['manager', 'receptionniste', 'gouvernante'], true)) $effectiveHotelRole = $hotelRole;
         else                                  $effectiveHotelRole = 'aucun';
 
         $showHotel = ($effectiveHotelRole !== 'aucun');
 
+        // BUG FIX 2026-10-20 — masquage du module Hôtel quand le flag API
+        // `hotel` est faux/absent. Sans ce check, un admin + hotel_role=manager
+        // voyait le menu Hôtel, cliquait, et tombait sur une page 403
+        // (requireHotelApiAccess → canAccessHotel() strict).
+        // Même logique de lecture du cache que $showPayroll / $showRecharges
+        // (voir plus bas) : on lit directement $_SESSION['feature_access_cache'].
+        $hotelFeatureOk = false;
+        $featureCacheHotel = $_SESSION['feature_access_cache'] ?? null;
+        if ($featureCacheHotel !== null
+            && isset($featureCacheHotel['expires_at'])
+            && $featureCacheHotel['expires_at'] > time()) {
+          $hotelFeatureOk = !empty($featureCacheHotel['flags']['hotel']);
+        }
+        // Le menu Hôtel (et son dropdown) n'est rendu que si :
+        //   1. l'utilisateur a un rôle hôtel effectif, ET
+        //   2. le flag API `hotel` est vrai (abonnement actif)
+        $showHotel = ($effectiveHotelRole !== 'aucun') && $hotelFeatureOk;
+
         // Permissions par sous-page (alignées sur PageController::requireHotelAccess)
-        $canDashboard = in_array($effectiveHotelRole, ['super_admin','manager'], true);
-        $canCalendar  = in_array($effectiveHotelRole, ['super_admin','manager'], true);
-        $canReception = in_array($effectiveHotelRole, ['super_admin','manager','receptionniste'], true);
-        $canReservations = in_array($effectiveHotelRole, ['super_admin','manager','receptionniste'], true);
-        $canEtages    = in_array($effectiveHotelRole, ['super_admin','manager','receptionniste','gouvernante'], true);
+        $canDashboard = in_array($effectiveHotelRole, ['super_admin', 'manager'], true);
+        $canCalendar  = in_array($effectiveHotelRole, ['super_admin', 'manager'], true);
+        $canReception = in_array($effectiveHotelRole, ['super_admin', 'manager', 'receptionniste'], true);
+        $canReservations = in_array($effectiveHotelRole, ['super_admin', 'manager', 'receptionniste'], true);
+        $canEtages    = in_array($effectiveHotelRole, ['super_admin', 'manager', 'receptionniste', 'gouvernante'], true);
         $canChambres  = $showHotel; // tous rôles hôtel
         $canGuests    = $showHotel; // tous rôles hôtel
-        $canManageRoles = in_array($effectiveHotelRole, ['super_admin','manager'], true);
+        $canManageRoles = in_array($effectiveHotelRole, ['super_admin', 'manager'], true);
 
         $currentPage = $currentPage ?? '';
         $isHotelPage = str_starts_with($currentPage, 'hotel');
         ?>
 
         <?php if ($showHotel): ?>
-        <div class="nav-dropdown <?= $isHotelPage ? 'open' : '' ?>" id="hotel-dropdown">
-          <button type="button" class="nav-item nav-dropdown-trigger <?= $isHotelPage ? 'active' : '' ?>" aria-haspopup="true" aria-expanded="false">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M3 21V8l9-5 9 5v13"></path>
-              <path d="M9 21V12h6v9"></path>
-              <line x1="3" y1="21" x2="21" y1="21"></line>
-            </svg>
-            <span>Hôtel</span>
-            <svg class="nav-dropdown-caret" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polyline points="6 9 12 15 18 9"></polyline>
-            </svg>
-          </button>
-          <div class="nav-dropdown-menu" role="menu">
-            <?php if ($canDashboard): ?>
-              <a href="/hotel/tableau-bord" class="nav-dropdown-item <?= $currentPage === 'hotel-tableau-bord' ? 'active' : '' ?>" role="menuitem">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <rect x="3" y="3" width="7" height="7"></rect>
-                  <rect x="14" y="3" width="7" height="7"></rect>
-                  <rect x="14" y="14" width="7" height="7"></rect>
-                  <rect x="3" y="14" width="7" height="7"></rect>
-                </svg>
-                <span>Tableau de bord</span>
-              </a>
-            <?php endif; ?>
+          <div class="nav-dropdown <?= $isHotelPage ? 'open' : '' ?>" id="hotel-dropdown">
+            <button type="button" class="nav-item nav-dropdown-trigger <?= $isHotelPage ? 'active' : '' ?>" aria-haspopup="true" aria-expanded="false">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 21V8l9-5 9 5v13"></path>
+                <path d="M9 21V12h6v9"></path>
+                <line x1="3" y1="21" x2="21" y1="21"></line>
+              </svg>
+              <span>Hôtel</span>
+              <svg class="nav-dropdown-caret" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </button>
+            <div class="nav-dropdown-menu" role="menu">
+              <?php if ($canDashboard): ?>
+                <a href="/hotel/tableau-bord" class="nav-dropdown-item <?= $currentPage === 'hotel-tableau-bord' ? 'active' : '' ?>" role="menuitem">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="7" height="7"></rect>
+                    <rect x="14" y="3" width="7" height="7"></rect>
+                    <rect x="14" y="14" width="7" height="7"></rect>
+                    <rect x="3" y="14" width="7" height="7"></rect>
+                  </svg>
+                  <span>Tableau de bord</span>
+                </a>
+              <?php endif; ?>
 
-            <?php if ($canCalendar): ?>
-              <a href="/hotel/calendrier" class="nav-dropdown-item <?= $currentPage === 'hotel-calendrier' ? 'active' : '' ?>" role="menuitem">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <rect x="3" y="4" width="18" height="18" rx="2"></rect>
-                  <line x1="16" y1="2" x2="16" y1="6"></line>
-                  <line x1="8" y1="2" x2="8" y1="6"></line>
-                  <line x1="3" y1="10" x2="21" y1="10"></line>
-                </svg>
-                <span>Calendrier</span>
-              </a>
-            <?php endif; ?>
+              <?php if ($canCalendar): ?>
+                <a href="/hotel/calendrier" class="nav-dropdown-item <?= $currentPage === 'hotel-calendrier' ? 'active' : '' ?>" role="menuitem">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="4" width="18" height="18" rx="2"></rect>
+                    <line x1="16" y1="2" x2="16" y1="6"></line>
+                    <line x1="8" y1="2" x2="8" y1="6"></line>
+                    <line x1="3" y1="10" x2="21" y1="10"></line>
+                  </svg>
+                  <span>Calendrier</span>
+                </a>
+              <?php endif; ?>
 
-            <?php if ($canReservations): ?>
-              <a href="/hotel/reservations" class="nav-dropdown-item <?= $currentPage === 'hotel-reservations' ? 'active' : '' ?>" role="menuitem">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <rect x="3" y="4" width="18" height="18" rx="2"></rect>
-                  <line x1="16" y1="2" x2="16" y1="6"></line>
-                  <line x1="8" y1="2" x2="8" y1="6"></line>
-                  <line x1="3" y1="10" x2="21" y1="10"></line>
-                  <path d="M8 14h2M8 18h2M14 14h2M14 18h2"></path>
-                </svg>
-                <span>Réservations</span>
-              </a>
-            <?php endif; ?>
+              <?php if ($canReservations): ?>
+                <a href="/hotel/reservations" class="nav-dropdown-item <?= $currentPage === 'hotel-reservations' ? 'active' : '' ?>" role="menuitem">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="4" width="18" height="18" rx="2"></rect>
+                    <line x1="16" y1="2" x2="16" y1="6"></line>
+                    <line x1="8" y1="2" x2="8" y1="6"></line>
+                    <line x1="3" y1="10" x2="21" y1="10"></line>
+                    <path d="M8 14h2M8 18h2M14 14h2M14 18h2"></path>
+                  </svg>
+                  <span>Réservations</span>
+                </a>
+              <?php endif; ?>
 
-            <?php if ($canReception): ?>
-              <a href="/hotel/reception" class="nav-dropdown-item <?= $currentPage === 'hotel-reception' ? 'active' : '' ?>" role="menuitem">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-                  <polyline points="9 22 9 12 15 12 15 22"></polyline>
-                </svg>
-                <span>Réception</span>
-              </a>
-            <?php endif; ?>
+              <?php if ($canReception): ?>
+                <a href="/hotel/reception" class="nav-dropdown-item <?= $currentPage === 'hotel-reception' ? 'active' : '' ?>" role="menuitem">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                    <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                  </svg>
+                  <span>Réception</span>
+                </a>
+              <?php endif; ?>
 
-            <?php if ($canEtages): ?>
-              <a href="/hotel/etages" class="nav-dropdown-item <?= $currentPage === 'hotel-etages' ? 'active' : '' ?>" role="menuitem">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <rect x="3" y="3" width="18" height="18" rx="2"></rect>
-                  <line x1="3" y1="9" x2="21" y1="9"></line>
-                  <line x1="3" y1="15" x2="21" y1="15"></line>
-                  <line x1="9" y1="3" x2="9" y1="21"></line>
-                  <line x1="15" y1="3" x2="15" y1="21"></line>
-                </svg>
-                <span>Étages (Housekeeping)</span>
-              </a>
-            <?php endif; ?>
+              <?php if ($canEtages): ?>
+                <a href="/hotel/etages" class="nav-dropdown-item <?= $currentPage === 'hotel-etages' ? 'active' : '' ?>" role="menuitem">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+                    <line x1="3" y1="9" x2="21" y1="9"></line>
+                    <line x1="3" y1="15" x2="21" y1="15"></line>
+                    <line x1="9" y1="3" x2="9" y1="21"></line>
+                    <line x1="15" y1="3" x2="15" y1="21"></line>
+                  </svg>
+                  <span>Étages (Housekeeping)</span>
+                </a>
+              <?php endif; ?>
 
-            <?php if ($canChambres): ?>
-              <a href="/hotel/chambres" class="nav-dropdown-item <?= $currentPage === 'hotel-chambres' ? 'active' : '' ?>" role="menuitem">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M2 17v-5a3 3 0 0 1 3-3h14a3 3 0 0 1 3 3v5"></path>
-                  <path d="M2 17h20"></path>
-                  <path d="M6 9V5a3 3 0 0 1 3-3h6a3 3 0 0 1 3 3v4"></path>
-                  <circle cx="12" cy="13" r="1.5"></circle>
-                </svg>
-                <span>Chambres</span>
-              </a>
-            <?php endif; ?>
+              <?php if ($canChambres): ?>
+                <a href="/hotel/chambres" class="nav-dropdown-item <?= $currentPage === 'hotel-chambres' ? 'active' : '' ?>" role="menuitem">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M2 17v-5a3 3 0 0 1 3-3h14a3 3 0 0 1 3 3v5"></path>
+                    <path d="M2 17h20"></path>
+                    <path d="M6 9V5a3 3 0 0 1 3-3h6a3 3 0 0 1 3 3v4"></path>
+                    <circle cx="12" cy="13" r="1.5"></circle>
+                  </svg>
+                  <span>Chambres</span>
+                </a>
+              <?php endif; ?>
 
-            <?php if ($canGuests): ?>
-              <a href="/hotel/guests" class="nav-dropdown-item <?= $currentPage === 'hotel-guests' ? 'active' : '' ?>" role="menuitem">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                  <circle cx="8.5" cy="7" r="4"></circle>
-                  <path d="M20 8v6"></path>
-                  <path d="M23 11h-6"></path>
-                </svg>
-                <span>Guests</span>
-              </a>
-            <?php endif; ?>
+              <?php if ($canGuests): ?>
+                <a href="/hotel/guests" class="nav-dropdown-item <?= $currentPage === 'hotel-guests' ? 'active' : '' ?>" role="menuitem">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="8.5" cy="7" r="4"></circle>
+                    <path d="M20 8v6"></path>
+                    <path d="M23 11h-6"></path>
+                  </svg>
+                  <span>Guests</span>
+                </a>
+              <?php endif; ?>
 
-            <?php if ($canManageRoles): ?>
-              <a href="/hotel/roles" class="nav-dropdown-item <?= $currentPage === 'hotel-roles' ? 'active' : '' ?>" role="menuitem">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                  <circle cx="8.5" cy="7" r="4"></circle>
-                  <path d="M20 8v6"></path>
-                  <path d="M23 11h-6"></path>
-                </svg>
-                <span>Gestion des rôles</span>
-              </a>
-            <?php endif; ?>
-                      </div>
-                    </div>
-                    <?php endif; ?>
-                    <?php
-                    $showRecharges = false;
-                    $rechargeCache = $_SESSION['recharge_access_cache'] ?? null;
-  if ($rechargeCache !== null && isset($rechargeCache['expires_at']) && $rechargeCache['expires_at'] > time()) {
-      $showRecharges = (bool) $rechargeCache['granted'];
-  }
-  ?>
-        <?php if ($showRecharges): ?>
-        <a href="/recharges" class="nav-item <?= $currentPage == 'recharges' ? 'active' : '' ?>">
-          <div class="nav-icon-split">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path>
-            </svg>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"></path>
-            </svg>
+              <?php if ($canManageRoles): ?>
+                <a href="/hotel/roles" class="nav-dropdown-item <?= $currentPage === 'hotel-roles' ? 'active' : '' ?>" role="menuitem">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="8.5" cy="7" r="4"></circle>
+                    <path d="M20 8v6"></path>
+                    <path d="M23 11h-6"></path>
+                  </svg>
+                  <span>Gestion des rôles</span>
+                </a>
+              <?php endif; ?>
+            </div>
           </div>
-          <span>ELECTRICITE/EAU</span>
-        </a>
+        <?php endif; ?>
+        <?php
+        $showRecharges = false;
+        $rechargeCache = $_SESSION['recharge_access_cache'] ?? null;
+        if ($rechargeCache !== null && isset($rechargeCache['expires_at']) && $rechargeCache['expires_at'] > time()) {
+          $showRecharges = (bool) $rechargeCache['granted'];
+        }
+        ?>
+        <?php if ($showRecharges): ?>
+          <a href="/recharges" class="nav-item <?= $currentPage == 'recharges' ? 'active' : '' ?>">
+            <div class="nav-icon-split">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path>
+              </svg>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"></path>
+              </svg>
+            </div>
+            <span>ELECTRICITE/EAU</span>
+          </a>
         <?php endif; ?>
         <a href="/produits" class="nav-item <?= $currentPage == 'produits' ? 'active' : '' ?>">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -461,12 +481,12 @@
         </a>
 
         <?php
-  $showPayroll = false;
-  $featureCache = $_SESSION['feature_access_cache'] ?? null;
-  if ($featureCache !== null && isset($featureCache['expires_at']) && $featureCache['expires_at'] > time()) {
-      $showPayroll = isset($featureCache['flags']['paie']) && $featureCache['flags']['paie'];
-  }
-  ?>
+        $showPayroll = false;
+        $featureCache = $_SESSION['feature_access_cache'] ?? null;
+        if ($featureCache !== null && isset($featureCache['expires_at']) && $featureCache['expires_at'] > time()) {
+          $showPayroll = isset($featureCache['flags']['paie']) && $featureCache['flags']['paie'];
+        }
+        ?>
         <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'vendeur' && $showPayroll): ?>
           <a href="/payroll/mypayslips" class="nav-item <?= $currentPage == 'payroll' ? 'active' : '' ?>">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -488,30 +508,30 @@
             <span>Categories</span>
           </a>
           <?php if ($storeHomologation ?? true): ?>
-          <a href="/taxes" class="nav-item <?= $currentPage == 'taxes' ? 'active' : '' ?>">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <line x1="19" y1="5" x2="5" y2="19"></line>
-              <circle cx="6.5" cy="6.5" r="2.5"></circle>
-              <circle cx="17.5" cy="17.5" r="2.5"></circle>
-            </svg>
-            <span>Taxes</span>
-          </a>
+            <a href="/taxes" class="nav-item <?= $currentPage == 'taxes' ? 'active' : '' ?>">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="19" y1="5" x2="5" y2="19"></line>
+                <circle cx="6.5" cy="6.5" r="2.5"></circle>
+                <circle cx="17.5" cy="17.5" r="2.5"></circle>
+              </svg>
+              <span>Taxes</span>
+            </a>
           <?php endif; ?>
           <?php if ($showPayroll): ?>
-          <a href="/payroll" class="nav-item <?= $currentPage == 'payroll' ? 'active' : '' ?>">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
-              <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
-            </svg>
-            <span>Paie</span>
-          </a>
-          <a href="/payroll/settings" class="nav-item <?= $currentPage == 'payroll' ? 'active' : '' ?>">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="3"></circle>
-              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-            </svg>
-            <span>Parametres paie</span>
-          </a>
+            <a href="/payroll" class="nav-item <?= $currentPage == 'payroll' ? 'active' : '' ?>">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+                <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+              </svg>
+              <span>Paie</span>
+            </a>
+            <a href="/payroll/settings" class="nav-item <?= $currentPage == 'payroll' ? 'active' : '' ?>">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="3"></circle>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+              </svg>
+              <span>Parametres paie</span>
+            </a>
           <?php endif; ?>
           <a href="/parametres" class="nav-item <?= $currentPage == 'parametres' ? 'active' : '' ?>">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -543,9 +563,9 @@
           <div class="user-details">
             <span class="user-name" id="user-name"><?= htmlspecialchars($_SESSION['nom_complet'] ?? '') ?></span>
             <span class="user-role" id="user-role"><?php
-  $r = $_SESSION['role'] ?? '';
-  echo $r === 'super_admin' ? 'Super Admin' : ($r === 'admin' ? 'Administrateur' : 'Vendeur');
-  ?></span>
+                                                    $r = $_SESSION['role'] ?? '';
+                                                    echo $r === 'super_admin' ? 'Super Admin' : ($r === 'admin' ? 'Administrateur' : 'Vendeur');
+                                                    ?></span>
           </div>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-left:auto;opacity:.5">
             <polyline points="9 18 15 12 9 6"></polyline>
@@ -574,6 +594,7 @@
           align-items: center;
           gap: 4px;
         }
+
         .notif-badge {
           position: absolute;
           top: -6px;
@@ -589,6 +610,7 @@
           border-radius: 50%;
           padding: 0 4px;
         }
+
         .notif-dropdown {
           position: absolute;
           top: 48px;
@@ -597,11 +619,12 @@
           max-height: 420px;
           background: var(--card-bg, #fff);
           border-radius: 12px;
-          box-shadow: 0 8px 32px rgba(0,0,0,.18);
+          box-shadow: 0 8px 32px rgba(0, 0, 0, .18);
           z-index: 9999;
           overflow: hidden;
           border: 1px solid var(--border, #e2e8f0);
         }
+
         .notif-dropdown-header {
           display: flex;
           justify-content: space-between;
@@ -610,15 +633,18 @@
           border-bottom: 1px solid var(--border, #e2e8f0);
           font-size: .85rem;
         }
+
         .notif-dropdown-header a {
           font-size: .75rem;
           color: var(--primary, #0B5E88);
           text-decoration: none;
         }
+
         .notif-dropdown-list {
           max-height: 350px;
           overflow-y: auto;
         }
+
         .notif-item {
           padding: 10px 16px;
           border-bottom: 1px solid var(--border, #f1f5f9);
@@ -626,31 +652,65 @@
           transition: background .15s;
           font-size: .82rem;
         }
-        .notif-item:hover { background: var(--hover-bg, #f8fafc); }
-        .notif-item.unread { background: rgba(11,94,136,.05); }
-        .notif-item .notif-title { font-weight: 600; margin-bottom: 2px; }
-        .notif-item .notif-msg { color: var(--muted, #64748b); font-size: .78rem; }
-        .notif-item .notif-time { color: var(--muted, #94a3b8); font-size: .7rem; margin-top: 2px; }
-        .notif-empty { padding: 24px; text-align: center; color: var(--muted, #94a3b8); font-size: .85rem; }
-                /* Dropdown Hôtel — menu déroulant des sous-pages selon le rôle */
-                .nav-dropdown { position: relative; }
-                .nav-dropdown-trigger {
-                  width: 100%;
-                  background: transparent;
-                  border: 0;
-                  cursor: pointer;
-                  color: inherit;
-                  font: inherit;
-                  text-align: left;
-                  /* padding hérité de .nav-item (.75rem 1rem) pour rester
+
+        .notif-item:hover {
+          background: var(--hover-bg, #f8fafc);
+        }
+
+        .notif-item.unread {
+          background: rgba(11, 94, 136, .05);
+        }
+
+        .notif-item .notif-title {
+          font-weight: 600;
+          margin-bottom: 2px;
+        }
+
+        .notif-item .notif-msg {
+          color: var(--muted, #64748b);
+          font-size: .78rem;
+        }
+
+        .notif-item .notif-time {
+          color: var(--muted, #94a3b8);
+          font-size: .7rem;
+          margin-top: 2px;
+        }
+
+        .notif-empty {
+          padding: 24px;
+          text-align: center;
+          color: var(--muted, #94a3b8);
+          font-size: .85rem;
+        }
+
+        /* Dropdown Hôtel — menu déroulant des sous-pages selon le rôle */
+        .nav-dropdown {
+          position: relative;
+        }
+
+        .nav-dropdown-trigger {
+          width: 100%;
+          background: transparent;
+          border: 0;
+          cursor: pointer;
+          color: inherit;
+          font: inherit;
+          text-align: left;
+          /* padding hérité de .nav-item (.75rem 1rem) pour rester
                      aligné avec les autres options de la sidebar. */
-                }
-                .nav-dropdown-caret {
-                  margin-left: auto;
-                  transition: transform .2s;
-                  flex-shrink: 0;
-                }
-                .nav-dropdown.open .nav-dropdown-caret { transform: rotate(180deg); }
+        }
+
+        .nav-dropdown-caret {
+          margin-left: auto;
+          transition: transform .2s;
+          flex-shrink: 0;
+        }
+
+        .nav-dropdown.open .nav-dropdown-caret {
+          transform: rotate(180deg);
+        }
+
         .nav-dropdown-menu {
           display: flex;
           flex-direction: column;
@@ -670,6 +730,7 @@
             transform .2s ease,
             margin-top .2s ease;
         }
+
         .nav-dropdown.open .nav-dropdown-menu {
           max-height: 600px;
           opacity: 1;
@@ -677,158 +738,172 @@
           margin-top: 4px;
           pointer-events: auto;
         }
-                .nav-dropdown-item {
-                  display: flex;
-                  align-items: center;
-                  gap: 10px;
-                  padding: .55rem .75rem;
-                  border-radius: 8px;
-                  color: var(--text, inherit);
-                  text-decoration: none;
-                  font-size: .85rem;
-                  transition: background .15s;
-                }
-                .nav-dropdown-item:hover { background: var(--hover-bg, rgba(0,0,0,.05)); }
-                .nav-dropdown-item.active {
-                  background: var(--primary-tint, rgba(11,94,136,.08));
-                  color: var(--primary, #0B5E88);
-                  font-weight: 600;
-                }
-                .nav-dropdown-item svg { flex-shrink: 0; }
-                      </style>
 
-                      <script>
-                      (function() {
-                        const dropdown = document.getElementById('hotel-dropdown');
-                        if (!dropdown) return;
-                        const trigger = dropdown.querySelector('.nav-dropdown-trigger');
+        .nav-dropdown-item {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: .55rem .75rem;
+          border-radius: 8px;
+          color: var(--text, inherit);
+          text-decoration: none;
+          font-size: .85rem;
+          transition: background .15s;
+        }
 
-                        function setOpen(open) {
-                          dropdown.classList.toggle('open', open);
-                          trigger.setAttribute('aria-expanded', open ? 'true' : 'false');
-                        }
+        .nav-dropdown-item:hover {
+          background: var(--hover-bg, rgba(0, 0, 0, .05));
+        }
 
-                        trigger.addEventListener('click', function(e) {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  setOpen(!dropdown.classList.contains('open'));
-                                });
+        .nav-dropdown-item.active {
+          background: var(--primary-tint, rgba(11, 94, 136, .08));
+          color: var(--primary, #0B5E88);
+          font-weight: 600;
+        }
 
-                        // Auto-ouvre si on est sur une sous-page hôtel
-                        if (dropdown.querySelector('.nav-dropdown-item.active')) {
-                          setOpen(true);
-                        }
+        .nav-dropdown-item svg {
+          flex-shrink: 0;
+        }
+      </style>
 
-                        // Fermer en cliquant ailleurs
-                        document.addEventListener('click', function(e) {
-                          if (!dropdown.contains(e.target)) setOpen(false);
-                        });
-                        // Fermer avec Escape
-                        document.addEventListener('keydown', function(e) {
-                          if (e.key === 'Escape') setOpen(false);
-                        });
-                      })();
-                      </script>
+      <script>
+        (function() {
+          const dropdown = document.getElementById('hotel-dropdown');
+          if (!dropdown) return;
+          const trigger = dropdown.querySelector('.nav-dropdown-trigger');
 
-                      <script>
-                      (function() {
-        const badge = document.getElementById('notif-badge-mobile');
-        const dropdown = document.getElementById('notif-dropdown');
-        const listEl = document.getElementById('notif-dropdown-list');
-        const markAllBtn = document.getElementById('notif-mark-all');
-        let dropdownOpen = false;
+          function setOpen(open) {
+            dropdown.classList.toggle('open', open);
+            trigger.setAttribute('aria-expanded', open ? 'true' : 'false');
+          }
 
-        // Toggle dropdown
-        document.querySelectorAll('.notif-bell-trigger').forEach(bell => {
-          bell.addEventListener('click', function(e) {
+          trigger.addEventListener('click', function(e) {
             e.preventDefault();
             e.stopPropagation();
-            dropdownOpen = !dropdownOpen;
-            dropdown.style.display = dropdownOpen ? 'block' : 'none';
-            if (dropdownOpen) loadNotifications();
+            setOpen(!dropdown.classList.contains('open'));
           });
-        });
 
-        // Close on outside click
-        document.addEventListener('click', function(e) {
-          if (dropdownOpen && !dropdown.contains(e.target) && !e.target.closest('.notif-bell-trigger')) {
-            dropdownOpen = false;
-            dropdown.style.display = 'none';
+          // Auto-ouvre si on est sur une sous-page hôtel
+          if (dropdown.querySelector('.nav-dropdown-item.active')) {
+            setOpen(true);
           }
-        });
 
-        // Load notifications
-        async function loadNotifications() {
-          try {
-            const res = await fetch(APP_URL + '/api/notifications');
-            const data = await res.json();
-            const notifs = data.data || data || [];
-            if (!Array.isArray(notifs) || notifs.length === 0) {
-              listEl.innerHTML = '<div class="notif-empty">Aucune notification</div>';
-              return;
+          // Fermer en cliquant ailleurs
+          document.addEventListener('click', function(e) {
+            if (!dropdown.contains(e.target)) setOpen(false);
+          });
+          // Fermer avec Escape
+          document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') setOpen(false);
+          });
+        })();
+      </script>
+
+      <script>
+        (function() {
+          const badge = document.getElementById('notif-badge-mobile');
+          const dropdown = document.getElementById('notif-dropdown');
+          const listEl = document.getElementById('notif-dropdown-list');
+          const markAllBtn = document.getElementById('notif-mark-all');
+          let dropdownOpen = false;
+
+          // Toggle dropdown
+          document.querySelectorAll('.notif-bell-trigger').forEach(bell => {
+            bell.addEventListener('click', function(e) {
+              e.preventDefault();
+              e.stopPropagation();
+              dropdownOpen = !dropdownOpen;
+              dropdown.style.display = dropdownOpen ? 'block' : 'none';
+              if (dropdownOpen) loadNotifications();
+            });
+          });
+
+          // Close on outside click
+          document.addEventListener('click', function(e) {
+            if (dropdownOpen && !dropdown.contains(e.target) && !e.target.closest('.notif-bell-trigger')) {
+              dropdownOpen = false;
+              dropdown.style.display = 'none';
             }
-            listEl.innerHTML = notifs.slice(0, 15).map(n => `
+          });
+
+          // Load notifications
+          async function loadNotifications() {
+            try {
+              const res = await fetch(APP_URL + '/api/notifications');
+              const data = await res.json();
+              const notifs = data.data || data || [];
+              if (!Array.isArray(notifs) || notifs.length === 0) {
+                listEl.innerHTML = '<div class="notif-empty">Aucune notification</div>';
+                return;
+              }
+              listEl.innerHTML = notifs.slice(0, 15).map(n => `
               <div class="notif-item ${n.is_read ? '' : 'unread'}" data-id="${n.id}">
                 <div class="notif-title">${escHtml(n.title)}</div>
                 <div class="notif-msg">${escHtml(n.message)}</div>
                 <div class="notif-time">${timeAgo(n.created_at)}</div>
               </div>
             `).join('');
-            // Click to mark read
-            listEl.querySelectorAll('.notif-item.unread').forEach(el => {
-              el.addEventListener('click', async () => {
-                await fetch(APP_URL + '/api/notifications/read/' + el.dataset.id, { method: 'POST' });
-                el.classList.remove('unread');
-                pollUnread();
+              // Click to mark read
+              listEl.querySelectorAll('.notif-item.unread').forEach(el => {
+                el.addEventListener('click', async () => {
+                  await fetch(APP_URL + '/api/notifications/read/' + el.dataset.id, {
+                    method: 'POST'
+                  });
+                  el.classList.remove('unread');
+                  pollUnread();
+                });
               });
-            });
-          } catch(e) { console.error('Notif load error', e); }
-        }
-
-        // Mark all read
-        if (markAllBtn) {
-          markAllBtn.addEventListener('click', async function(e) {
-            e.preventDefault();
-            await fetch(APP_URL + '/api/notifications/read-all', { method: 'POST' });
-            listEl.querySelectorAll('.unread').forEach(el => el.classList.remove('unread'));
-            updateBadge(0);
-          });
-        }
-
-        // Poll unread count
-        async function pollUnread() {
-          try {
-            const res = await fetch(APP_URL + '/api/notifications/unread');
-            const data = await res.json();
-            const count = data.count ?? data.data ?? 0;
-            updateBadge(count);
-          } catch(e) {}
-        }
-
-        function updateBadge(count) {
-          if (badge) {
-            badge.textContent = count;
-            badge.style.display = count > 0 ? '' : 'none';
+            } catch (e) {
+              console.error('Notif load error', e);
+            }
           }
-        }
 
-        function escHtml(s) {
-          const d = document.createElement('div');
-          d.textContent = s || '';
-          return d.innerHTML;
-        }
+          // Mark all read
+          if (markAllBtn) {
+            markAllBtn.addEventListener('click', async function(e) {
+              e.preventDefault();
+              await fetch(APP_URL + '/api/notifications/read-all', {
+                method: 'POST'
+              });
+              listEl.querySelectorAll('.unread').forEach(el => el.classList.remove('unread'));
+              updateBadge(0);
+            });
+          }
 
-        function timeAgo(dateStr) {
-          if (!dateStr) return '';
-          const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
-          if (diff < 60) return 'à l\'instant';
-          if (diff < 3600) return Math.floor(diff/60) + ' min';
-          if (diff < 86400) return Math.floor(diff/3600) + ' h';
-          return Math.floor(diff/86400) + ' j';
-        }
+          // Poll unread count
+          async function pollUnread() {
+            try {
+              const res = await fetch(APP_URL + '/api/notifications/unread');
+              const data = await res.json();
+              const count = data.count ?? data.data ?? 0;
+              updateBadge(count);
+            } catch (e) {}
+          }
 
-        // Poll every 30 seconds
-        pollUnread();
-        setInterval(pollUnread, 30000);
-      })();
+          function updateBadge(count) {
+            if (badge) {
+              badge.textContent = count;
+              badge.style.display = count > 0 ? '' : 'none';
+            }
+          }
+
+          function escHtml(s) {
+            const d = document.createElement('div');
+            d.textContent = s || '';
+            return d.innerHTML;
+          }
+
+          function timeAgo(dateStr) {
+            if (!dateStr) return '';
+            const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
+            if (diff < 60) return 'à l\'instant';
+            if (diff < 3600) return Math.floor(diff / 60) + ' min';
+            if (diff < 86400) return Math.floor(diff / 3600) + ' h';
+            return Math.floor(diff / 86400) + ' j';
+          }
+
+          // Poll every 30 seconds
+          pollUnread();
+          setInterval(pollUnread, 30000);
+        })();
       </script>

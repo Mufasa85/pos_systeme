@@ -605,12 +605,61 @@ class HotelFactureController extends Controller
         $unitTs = $this->computeTaxeSpecifiqueUnit($chTsType, $chTsValue, $prixParNuit);
         $totalTaxeSpecifique = round($unitTs * $nbNuits, 2);
 
-        // Extras saisis en caisse
+        // ── BUG FIX 2026-10-21 — Source 1 des extras : ventes caisse EX ──
+        // Sémantique inchangée : on somme `ventes.total` pour les ventes POS
+        // rattachées au séjour via `sejour_id` et forcées `invoice_type='EX'`
+        // (cf. SaleController::create — flag `sejourId` qui bascule en EX).
+        // Ces ventes représentent un extra facturé côté caisse et déjà inclus
+        // dans le total de la note.
         $extrasRows = $db->fetchAll(
             "SELECT id, total FROM ventes WHERE sejour_id = :sid AND invoice_type = 'EX'",
             [':sid' => $sejourId]
         );
         $totalExtrasCaisse = array_sum(array_map(fn($r) => (float)$r['total'], $extrasRows));
+
+        // ── BUG FIX 2026-10-21 — Source 2 des extras : `hotel_extras` picker ──
+        // PROBLÈME : avant ce fix, `store()` ne lisait QUE la source 1
+        // (`ventes.invoice_type='EX'`), donc les extras imputés depuis la
+        // caisse POS via le picker "Imputer sur la chambre X" étaient
+        // IGNORÉS côté DB — alors qu'ils étaient bien affichés dans la
+        // preview et comptés dans `previewData.extras.total_ht`.
+        //
+        // Mécanisme (cf. HotelExtrasController::extrasFromCart, lignes
+        // 180 + 239) : à la sélection d'un séjour dans le picker, une
+        // ligne est insérée dans `hotel_extras` avec `vente_id = NULL`
+        // (et non dans `ventes`). Donc ces lignes n'apparaissent pas dans
+        // la requête source 1.
+        //
+        // Pourquoi filtrer `vente_id IS NULL` (et pas tout `hotel_extras`) :
+        //   - Quand `SaleController::create` est appelé avec un `sejour_id`,
+        //     il insère À LA FOIS une ligne dans `ventes` ET une ligne dans
+        //     `hotel_extras` avec `vente_id = saleId` (cf. SaleController.php
+        //     lignes 254-268). Si on prenait tout `hotel_extras`, on
+        //     double-compterait ces extras (puisque `ventes.total` est déjà
+        //     compté via source 1). La preview fait d'ailleurs le même
+        //     regroupement par `$key = $vid > 0 ? (string)$vid : ...`
+        //     pour éviter ce double-compte.
+        //   - En filtrant `vente_id IS NULL`, on ne récupère que les extras
+        //     créés via le picker (qui n'existent nulle part ailleurs dans
+        //     le système), ce qui comble exactement le trou observé.
+        //
+        // Cohérence avec la preview : le `montant` stocké sur les lignes
+        // picker correspond à `qty × prix_unitaire` (= HT brut, SANS TS,
+        // SANS TVA — cf. HotelExtrasController::extrasFromCart ligne 235
+        // `$montant = round($qty * $prix, 2)`). C'est exactement ce que
+        // la preview utilise pour `extrasParVente[$key]['montant']`
+        // (HotelFactureController::preview ligne 409). Donc on reproduit
+        // à l'identique la sémantique de la preview → DB et UI convergent.
+        $hotelExtrasPickerRow = $db->fetch(
+            "SELECT COALESCE(SUM(he.montant), 0) AS total
+             FROM hotel_extras he
+             WHERE he.sejour_id = :sid AND he.vente_id IS NULL",
+            [':sid' => $sejourId]
+        );
+        $totalExtrasPicker = (float)($hotelExtrasPickerRow['total'] ?? 0);
+
+        // Total extras caisse = source 1 (ventes EX) + source 2 (picker)
+        $totalExtrasCaisse = round($totalExtrasCaisse + $totalExtrasPicker, 2);
 
         // Extras saisis à la main depuis la page facturation (ajout direct dans la facture,
         // PAS dans la table ventes — ce sont des one-shot non-stock)
@@ -672,6 +721,50 @@ class HotelFactureController extends Controller
         );
         $acompteTotal = (float)($acompteRow['t'] ?? 0);
         $soldeDu = round($totalFinal - $acompteTotal, 2);
+
+        // ── BUG FIX 2026-10-21 — front = source de vérité pour les totaux ──
+        // Le front (hotel-facturation.js::postHotelFacture) calcule déjà
+        // l'intégralité des totaux via `computeSoldeCourant` /
+        // `computeExtrasTotals` / `computeProductTTC` et c'est exactement
+        // ce qui est affiché dans la preview. Plutôt que de dupliquer
+        // cette logique serveur (avec le risque constant de divergence
+        // entre ce que voit l'utilisateur et ce qui est persisté, ce qui
+        // a causé plusieurs bugs successifs ces derniers sprints), on
+        // accepte ici directement les totaux calculés par le front.
+        //
+        // En mode nominal, le front envoie systématiquement `total_final`
+        // + les composants. Si le champ est absent ou invalide (ancienne
+        // version du front, payload incomplet, requête manuelle, tests
+        // automatisés), on RETOMBE sur le recalcul serveur historique
+        // déjà calculé ci-dessus → rétro-compatibilité garantie.
+        //
+        // Conséquence : pour les factures émises depuis une version
+        // récente de hotel-facturation.js, le contenu de
+        // `ventes.total`/`hotel_factures.total_final` correspondra
+        // EXACTEMENT au TOTAL TTC affiché dans la preview, sans aucun
+        // écart possible.
+        $useFrontTotals = isset($input['total_final'])
+            && is_numeric($input['total_final'])
+            && (float)$input['total_final'] > 0;
+        if ($useFrontTotals) {
+            // Override des valeurs serveur par celles du front.
+            $totalNuitsNet     = round((float)($input['total_nuits'] ?? 0), 2);
+            $remisePct         = round((float)($input['remise_pct'] ?? 0), 2);
+            $remiseMontantNuits = round((float)($input['remise_montant'] ?? 0), 2);
+            // total_extras côté front = caisse + manuels (déjà séparés dans
+            // les champs `total_extras` (caisse) et `total_extras_manuels`).
+            $frontExtrasCaisse = round((float)($input['total_extras'] ?? 0), 2);
+            $frontExtrasManuels = round((float)($input['total_extras_manuels'] ?? 0), 2);
+            $totalExtras       = round($frontExtrasCaisse + $frontExtrasManuels, 2);
+            $acompteTotal      = round((float)($input['total_acompte'] ?? $acompteTotal), 2);
+            $tvaMontant        = round((float)($input['tva_montant'] ?? 0), 2);
+            $totalFinal        = round((float)$input['total_final'], 2);
+            // Solde dû : priorité à la valeur front, sinon on recalcule.
+            $soldeDu           = round(
+                (float)($input['solde_du'] ?? ($totalFinal - $acompteTotal)),
+                2
+            );
+        }
 
         // Paiements encaissés à la facturation
         $paiements = $input['paiements'] ?? [];

@@ -308,6 +308,13 @@
     return m[mode] || mode;
   }
 
+  // ── Helper d'arrondi à 2 décimales (utilisé pour les totaux envoyés
+  // au backend via postHotelFacture — évite les flottants 1234.56000000003).
+  // Aligné sur le pattern PHP round(x, 2) utilisé partout dans le backend.
+  function round2(x) {
+    return Math.round((parseFloat(x) || 0) * 100) / 100;
+  }
+
   // ── Picker de séjour ─────────────────────────────────────────────────
   let sTimer = null;
   if (search) {
@@ -1784,11 +1791,61 @@
 
   async function postHotelFacture(dgiResp) {
     var dgiData = (dgiResp && dgiResp.data) ? dgiResp.data : {};
+
+    // ── BUG FIX 2026-10-21 — front = source de vérité pour les totaux
+    // Le front calcule déjà tout (computeSoldeCourant, computeProductTTC,
+    // computeExtrasTotals) et c'est ce que l'utilisateur voit dans la
+    // preview. On envoie ces totaux directement au backend pour qu'il
+    // les persiste tels quels, au lieu de re-dériver un calcul serveur
+    // qui peut diverger (régime B, TS, TVA, multi-sources d'extras...).
+    //
+    // Si le front n'envoie rien (sécurité), le backend retombera sur
+    // son recalcul interne — mais dans le chemin nominal l'envoi est
+    // systématique.
+    var n = previewData.nuits || {};
+    var e = previewData.extras || {};
+    var extrasCaisseTotals = computeExtrasTotals(e.lignes);
+    var extrasManuelsTotal = extrasManuels.reduce(function (s, x) { return s + x.montant; }, 0);
+    // total_nuits TTC = total_avec_ts_et_tva (= lineHT cumulé chambres,
+    // régime B hôtelier : HT + TS + TVA_sur_TS).
+    var totalNuitsTTC = parseFloat(n.total_avec_ts_et_tva) || 0;
+    // total_extras TTC = lineHT cumulé extras caisse (cohérent avec le
+    // calcul facture côté front, miroir posCart.calculateItemTTC).
+    var totalExtrasCaisseTTC = extrasCaisseTotals.total_ttc || 0;
+    var acompteTotal = parseFloat(previewData.acompte_total) || 0;
+    // Total TTC facturé (avant déduction acompte) = nuits + extras caisse + extras manuels
+    var totalFactureTTC = round2(totalNuitsTTC + totalExtrasCaisseTTC + extrasManuelsTotal);
+    // Solde dû = TTC − acompte
+    var soldeDuFront = round2(totalFactureTTC - acompteTotal);
+
     var payload = {
       sejour_id: currentSejourId,
+      // Extras manuels saisis (description + montant)
       extras_manuels: extrasManuels,
+      // Paiements encaissés à la facturation (mode UI)
       paiements: (paiements || []).map(function (p) { return { mode: p.mode, montant: parseFloat(p.montant) || 0 }; }),
+      // ── Totaux calculés par le front (source de vérité) ──
+      // Le backend les persiste tels quels dans ventes + hotel_factures.
+      // Plus de risque de divergence entre ce que l'utilisateur voit
+      // dans la preview et ce qui finit en DB.
+      total_nuits: round2(totalNuitsTTC),
+      total_extras: round2(totalExtrasCaisseTTC),
+      total_extras_manuels: round2(extrasManuelsTotal),
+      total_acompte: round2(acompteTotal),
+      total_final: totalFactureTTC,
+      solde_du: soldeDuFront,
+      // Détail TS/TVA pour info / DGI
+      tva_montant: round2(extrasCaisseTotals.total_tva || 0),
+      // Remise séjour (depuis previewData)
+      remise_pct: parseFloat(n.remise_pct) || 0,
+      remise_montant: round2(parseFloat(n.remise_montant) || 0),
+      // TS chambres cumulée (info, persistée en commentaire si besoin)
+      taxe_specifique_chambres_total: round2(parseFloat(n.taxe_specifique_total) || 0),
+      // Check-out du séjour ?
       check_out: ($('hotel-ft-checkout') && $('hotel-ft-checkout').checked) ? true : false,
+      // Référence manuelle éventuelle
+      notes: (typeof window.hotelRefFacture === 'string' && window.hotelRefFacture) ? window.hotelRefFacture : '',
+      // Données DGI renvoyées par l'API DGI (persistées pour duplicata)
       dgi_data: {
         dateDGI: dgiData.dateDGI || null,
         qrCode: dgiData.qrCode || '',

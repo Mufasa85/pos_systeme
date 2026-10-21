@@ -765,10 +765,15 @@ Router::get('/api/recharge-access', function () {
         'payroll_allowed'  => $accessService->canAccessPayroll(),
         // Sprint 7 — 2026-10-19 : ajout du flag `hotel_allowed` pour le
         // module hôtellerie. Le front utilise ce flag pour cacher/afficher
-        // les liens hôtel dans la sidebar. Si l'API n'expose pas le flag
-        // (compat ascendante), canAccessHotel() retourne true par défaut
-        // et `hotel_allowed` est omis de la réponse.
+        // les liens hôtel dans la sidebar.
+        // BUG FIX 2026-10-20 (round 2) : comportement STRICT — si l'API
+        // n'expose pas le flag `hotel` (ou l'API est injoignable),
+        // `hotel_allowed` vaut false (aligné sur canAccess() /allowed et
+        // payroll_allowed). Le menu Hôtel est alors masqué (header.php).
         'hotel_allowed'    => $accessService->canAccessHotel(),
+        // Exposé pour debug : permet de vérifier d'où vient le refus
+        // sans ouvrir les logs serveur (commande « Tester l'accès »).
+        'debug_flags'      => $accessService->getFlagsForDebug(),
     ]);
 });
 
