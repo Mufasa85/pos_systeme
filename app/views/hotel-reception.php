@@ -20,16 +20,28 @@
 $page = 'hotel-reception';
 ?>
 <style>
-  .hotel-rec-wrap { max-width: 1280px; margin: 1rem auto; padding: 0 1rem; }
+  /* Réception hôtel — conteneur large & spacieux, responsive (desktop/tablette/mobile). */
+  .hotel-rec-wrap {
+    max-width: 1600px;
+    width: 100%;
+    margin: 1rem auto;
+    padding: 0 1.25rem;
+  }
+  @media (max-width: 640px) {
+    .hotel-rec-wrap { padding: 0 .75rem; }
+  }
   .hotel-rec-card { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); padding: 1.25rem; margin-bottom: 1rem; }
 
   /* Timeline 3 colonnes */
   .hotel-rec-timeline {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: .75rem;
+    gap: 1rem;
   }
-  @media (max-width: 900px) {
+  @media (max-width: 1100px) {
+    .hotel-rec-timeline { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 720px) {
     .hotel-rec-timeline { grid-template-columns: 1fr; }
   }
   .hotel-rec-tile {
@@ -37,6 +49,8 @@ $page = 'hotel-reception';
     border-radius: var(--radius);
     padding: .85rem 1rem;
     border: 1px solid var(--border);
+    min-width: 0;            /* Anti-overflow dans la grille parente */
+    overflow: hidden;        /* Coupe tout débordement latéral */
   }
   .hotel-rec-tile h3 {
     margin: 0 0 .5rem 0;
@@ -60,32 +74,87 @@ $page = 'hotel-reception';
     padding: .5rem .65rem;
     margin-bottom: .4rem;
     font-size: .82rem;
-    display: flex; justify-content: space-between; align-items: center; gap: .5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: .5rem;
+    min-width: 0;            /* Anti-overflow flex */
+    overflow: hidden;        /* Coupe tout débordement au niveau de la card */
   }
-  .hotel-rec-item .meta { font-size: .7rem; color: var(--muted); }
-  .hotel-rec-item .actions { display: flex; gap: .25rem; flex-shrink: 0; }
+  /* Contenu texte (à gauche) : peut se compresser et wrapping autorisé. */
+  .hotel-rec-item > div:first-child {
+    min-width: 0;
+    flex: 1 1 auto;
+    overflow-wrap: anywhere;
+  }
+  .hotel-rec-item .meta { font-size: .7rem; color: var(--muted); overflow-wrap: anywhere; }
+  .hotel-rec-item .actions {
+    display: flex;
+    gap: .25rem;
+    flex-shrink: 0;
+    flex-wrap: wrap;        /* Sur mobile : passe à la ligne si trop large */
+    justify-content: flex-end;
+  }
+  .hotel-rec-item .actions > * { min-width: 0; max-width: 100%; }
   .hotel-rec-item-empty {
     font-size: .78rem; color: var(--muted); font-style: italic;
     padding: .35rem 0;
+  }
+
+  /* ── Mobile : la card passe en colonne ────────────────────
+     Sur petit écran, les actions deviennent pleine largeur
+     en dessous du contenu texte : aucun bouton ne sort du cadre. */
+  @media (max-width: 640px) {
+    .hotel-rec-item {
+      flex-direction: column;
+      align-items: stretch;
+      gap: .55rem;
+      padding: .6rem .65rem;
+    }
+    .hotel-rec-item > div:first-child {
+      width: 100%;
+    }
+    .hotel-rec-item .actions {
+      width: 100%;
+      justify-content: flex-start;
+      gap: .35rem;
+    }
+    .hotel-rec-item .actions button,
+    .hotel-rec-item .actions span {
+      font-size: .68rem;
+      padding: 4px 9px;
+      white-space: normal;    /* Le texte "Check-out" peut wrapper si besoin */
+      word-break: break-word;
+      max-width: 100%;
+    }
   }
   .btn-mini {
     padding: 3px 7px; font-size: .7rem;
     border-radius: var(--radius); border: 1px solid var(--border);
     background: var(--card); color: var(--foreground); cursor: pointer;
+    white-space: nowrap;
+    max-width: 100%;
   }
   .btn-mini:hover { background: var(--background); }
   .btn-mini.primary { background: var(--primary); color: #fff; border-color: var(--primary); }
   .btn-mini.danger  { background: var(--danger); color: #fff; border-color: var(--danger); }
   .btn-mini.success { background: var(--success); color: #fff; border-color: var(--success); }
 
-  /* Grille des chambres */
+  /* Grille des chambres — utilise mieux l'espace horizontal, sans étirer les cards. */
   .hotel-rec-grid {
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
-    gap: .6rem;
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+    gap: .65rem;
+    width: 100%;
   }
-  @media (max-width: 900px) {
-    .hotel-rec-grid { grid-template-columns: repeat(2, 1fr); }
+  @media (max-width: 1400px) {
+    .hotel-rec-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  }
+  @media (max-width: 1100px) {
+    .hotel-rec-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  }
+  @media (max-width: 700px) {
+    .hotel-rec-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   }
   .hotel-room-pad {
     background: var(--card);
@@ -96,6 +165,9 @@ $page = 'hotel-reception';
     transition: transform .12s, box-shadow .12s;
     display: flex; flex-direction: column; gap: .3rem;
     min-height: 92px;
+    min-width: 0;
+    overflow: hidden;
+    word-break: break-word;
   }
   .hotel-room-pad:hover { transform: translateY(-1px); box-shadow: var(--shadow); }
   .hotel-room-pad .room-num {

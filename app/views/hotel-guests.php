@@ -14,7 +14,16 @@
 $page = 'hotel-guests';
 ?>
 <style>
-  .hotel-gn-wrap { max-width: 1100px; margin: 1.5rem auto; padding: 0 1rem; }
+  /* Conteneur large & spacieux (SaaS moderne), reste responsive. */
+  .hotel-gn-wrap {
+    max-width: 1600px;
+    width: 100%;
+    margin: 1.25rem auto;
+    padding: 0 1.25rem;
+  }
+  @media (max-width: 640px) {
+    .hotel-gn-wrap { padding: 0 .75rem; }
+  }
   .hotel-gn-card { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); padding: 1.25rem; }
   .hotel-gn-toolbar { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; margin-bottom: 1rem; }
   .hotel-gn-toolbar input[type=text], .hotel-gn-toolbar select {

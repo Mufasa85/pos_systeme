@@ -13,7 +13,16 @@
 $page = 'hotel-chambres';
 ?>
 <style>
-  .hotel-rooms-wrap { max-width: 1100px; margin: 1.5rem auto; padding: 0 1rem; }
+  /* Conteneur large & spacieux (SaaS moderne), reste responsive. */
+  .hotel-rooms-wrap {
+    max-width: 1600px;
+    width: 100%;
+    margin: 1.25rem auto;
+    padding: 0 1.25rem;
+  }
+  @media (max-width: 640px) {
+    .hotel-rooms-wrap { padding: 0 .75rem; }
+  }
   .hotel-rooms-card { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); padding: 1.25rem; }
   .hotel-rooms-table thead th { font-size: .7rem; text-transform: uppercase; color: var(--muted); }
   .hotel-rooms-empty { padding: 3rem; text-align: center; color: var(--muted); }

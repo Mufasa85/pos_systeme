@@ -77,26 +77,50 @@ if (!function_exists('hotel_icon')) {
 ?>
 <style>
   /* =========================================================
-     Hôtel > Tableau de bord — styles présentation uniquement.
-     Aucune logique métier, aucune dépendance hors du bloc.
-     Utilise les variables globales déjà définies dans styles.css.
+     Hôtel > Tableau de bord — layout fluide & anti-overflow.
+
+     Règles clés (inspirées de Stripe / Linear / Vercel /
+     GitHub Enterprise) :
+       - Aucun `max-width` sur le conteneur : il exploite
+         naturellement l'espace à droite de la sidebar.
+       - `box-sizing: border-box` est global → width:100% + padding
+         ne crée jamais d'overflow horizontal.
+       - `overflow-x: hidden` en filet de sécurité.
+       - Tous les enfants de grid/flex importants reçoivent
+         `min-width: 0` pour éviter les débordements induits
+         par leur contenu (text long, icône, etc.).
      ========================================================= */
+
+  /* Container pleine largeur.
+     - width:100% assure qu'on occupe tout l'espace disponible
+       à droite de la sidebar (gérée par .main-content margin-left).
+     - padding horizontal uniforme (24-32px) pour l'aération.
+     - margin-left: auto / margin-right: auto : sans effet ici
+       (pas de flex/grid parent), mais ajoutés en sécurité
+       sémantique pour d'éventuels appels externes. */
   .hotel-dash-wrap {
+    width: 100%;
     max-width: 100%;
     margin: 0;
-    padding: 1.75rem 1.5rem 3rem 0;
+    /* Note : le .main-content parent apporte déjà 1.5rem (24px) de
+       padding sur les 4 côtés. Notre wrap n'ajoute qu'un padding
+       vertical bas pour décoller du footer mobile, et un léger
+       padding haut pour aérer sous le header. */
+    padding: .5rem 0 1.5rem;
+    overflow-x: hidden;          /* Filet de sécurité anti-overflow */
+    overflow-y: visible;         /* Scroll vertical naturel */
   }
-  /* Le .main-content global impose un padding: 1.5rem (24px) sur les
-     4 côtés. Pour cette page on SUPPRIME le padding gauche (et haut
-     pour resserrer contre la sidebar) sur le main-content qui contient
-     notre dashboard. Ciblé via :has() — supporté sur tous les
-     navigateurs modernes (Chrome 105+, Safari 15.4+, Firefox 121+).
-     Override scopé à cette vue uniquement (pas d'effet sur les
-     autres pages). */
-  main.main-content:has(> .hotel-dash-wrap) {
-    padding-left: 0 !important;
-    padding-right: 1.5rem !important;
-    padding-top: 0 !important;
+
+  /* Breakpoints : ajustement très léger du padding vertical.
+     On NE TOUCHE PAS au padding horizontal (0) car le .main-content
+     global fournit déjà un padding uniforme de 24px (24 à 32px sur
+     écrans très larges — déjà géré par les media queries globales
+     si besoin). */
+  @media (max-width: 1280px) {
+    .hotel-dash-wrap { padding: .25rem 0 1.25rem; }
+  }
+  @media (max-width: 768px) {
+    .hotel-dash-wrap { padding: .15rem 0 1rem; }
   }
 
   /* ── Page header ─────────────────────────────────────── */
@@ -109,8 +133,13 @@ if (!function_exists('hotel_icon')) {
     margin-bottom: 1.5rem;
     padding-bottom: 1.25rem;
     border-bottom: 1px solid var(--border);
+    min-width: 0;
+    width: 100%;
   }
-  .hotel-page-header__title-block { display: flex; align-items: center; gap: 1rem; min-width: 0; }
+  .hotel-page-header__title-block { display: flex; align-items: center; gap: 1rem; min-width: 0; flex: 1 1 auto; }
+  .hotel-page-header__title { min-width: 0; overflow-wrap: anywhere; }
+  .hotel-page-header__sub { overflow-wrap: anywhere; }
+  .hotel-page-header__meta { flex-shrink: 0; }
   .hotel-page-header__icon {
     width: 48px; height: 48px;
     border-radius: 12px;
@@ -146,26 +175,50 @@ if (!function_exists('hotel_icon')) {
   .hotel-page-header__meta svg { width: 14px; height: 14px; }
 
   /* ── KPI grid ────────────────────────────────────────── */
+  /* Grille responsive propre :
+       - Desktop large : 4 colonnes (minmax(220px, 1fr) — assez
+         compact pour tenir dans toutes les résolutions, jusqu'à 4K).
+       - Desktop / Laptop étroit : passage à 2 colonnes.
+       - Tablette / mobile : 1 colonne.
+
+     `align-items: stretch` + `min-width: 0` sur les enfants garantit
+     la même hauteur entre cartes et aucun débordement horizontal
+     (un enfant grid a par défaut min-width:auto qui peut le faire
+     déborder si son contenu est large). */
   .hotel-kpi-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 1.25rem;
-    justify-content: start;
-    margin-bottom: 1.75rem;
+    grid-template-columns: repeat(4, minmax(220px, 1fr));
+    gap: 1rem;
+    align-items: stretch;
+    margin-bottom: 1.5rem;
+    width: 100%;
+  }
+  @media (max-width: 1180px) {
+    .hotel-kpi-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  @media (max-width: 640px) {
+    .hotel-kpi-grid {
+      grid-template-columns: 1fr;
+      gap: .85rem;
+    }
   }
   .hotel-kpi {
     background: var(--card, #fff);
     border: 1px solid var(--border);
     border-radius: 16px;
-    padding: 1.5rem 1.5rem 1.25rem 1.5rem;
+    padding: 1.25rem 1.4rem;
     box-shadow: 0 1px 3px rgba(15,23,42,0.06);
     display: flex;
     flex-direction: column;
-    gap: 1.1rem;
+    gap: .9rem;
     position: relative;
-    overflow: hidden;
+    overflow: hidden;             /* Coupe les éléments décoratifs en ::before/::after */
     transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
-    min-height: 168px;
+    min-width: 0;                 /* Anti-overflow grid : empêche tout débordement horizontal */
+    min-height: 152px;
+    align-self: stretch;          /* S'étire pour matcher la hauteur de la rangée du grid parent */
   }
   .hotel-kpi:hover {
     transform: translateY(-2px);
@@ -196,28 +249,34 @@ if (!function_exists('hotel_icon')) {
     font-weight: 600;
     line-height: 1.15;
     margin-top: auto;
+    min-width: 0;
+    overflow-wrap: anywhere;
   }
   .hotel-kpi__value {
-    font-size: 2.35rem;
+    font-size: 2.15rem;
     font-weight: 700;
     color: #0f172a;
     line-height: 1.05;
     font-variant-numeric: tabular-nums;
     letter-spacing: -0.025em;
+    min-width: 0;
+    overflow-wrap: anywhere;
   }
   .hotel-kpi__value-suffix {
-    font-size: 1.1rem;
+    font-size: 1rem;
     color: #64748b;
     font-weight: 500;
     margin-left: 0.3rem;
   }
   .hotel-kpi__hint {
     display: flex; align-items: center; gap: 0.4rem;
-    font-size: 0.82rem;
+    font-size: 0.8rem;
     color: #64748b;
     margin-top: 0.2rem;
+    min-width: 0;
+    overflow-wrap: anywhere;
   }
-  .hotel-kpi__hint svg { width: 13px; height: 13px; }
+  .hotel-kpi__hint svg { width: 13px; height: 13px; flex-shrink: 0; }
   .hotel-kpi__pulse {
     position: absolute;
     top: 12px; right: 12px;
@@ -234,6 +293,10 @@ if (!function_exists('hotel_icon')) {
   }
 
   /* ── Section panel ───────────────────────────────────── */
+  /* Card section : utilise flex column pour étirer le body à la
+     même hauteur entre les deux colonnes du dashboard.
+     `align-self: stretch` (au lieu de `height: 100%`) est plus
+     stable pour matcher la hauteur de la cellule grid parent. */
   .hotel-section {
     background: var(--card, #fff);
     border: 1px solid var(--border);
@@ -241,19 +304,30 @@ if (!function_exists('hotel_icon')) {
     margin-bottom: 1.5rem;
     box-shadow: 0 1px 2px rgba(15,23,42,0.06);
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    align-self: stretch;
+    width: 100%;
   }
+  /* À l'intérieur du 2-cols : supprime la marge du bas (la grille gère l'espacement). */
+  .hotel-dash-cols .hotel-section { margin-bottom: 0; }
   .hotel-section__head {
     display: flex; align-items: center; justify-content: space-between;
-    padding: 1rem 1.25rem;
+    padding: .9rem 1.15rem;
     border-bottom: 1px solid var(--border);
     background: linear-gradient(180deg, #fafbfc 0%, #ffffff 100%);
+    flex-shrink: 0;
+    gap: .5rem;
   }
   .hotel-section__head h3 {
     margin: 0; font-size: 1rem; font-weight: 600;
     color: #0f172a;
     display: flex; align-items: center; gap: 0.55rem;
+    min-width: 0;
+    overflow-wrap: anywhere;
   }
-  .hotel-section__head h3 svg { width: 18px; height: 18px; color: #0B5E88; }
+  .hotel-section__head h3 svg { width: 18px; height: 18px; color: #0B5E88; flex-shrink: 0; }
   .hotel-section__count {
     background: #e0f2fa;
     color: #0B5E88;
@@ -261,8 +335,14 @@ if (!function_exists('hotel_icon')) {
     border-radius: 999px;
     font-size: 0.78rem;
     font-weight: 600;
+    flex-shrink: 0;
   }
-  .hotel-section__body { padding: 1.25rem; }
+  .hotel-section__body {
+    padding: 1.15rem;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;            /* Empêche tout débordement interne */
+  }
 
   /* ── Pills ───────────────────────────────────────────── */
   .hotel-pill {
@@ -282,24 +362,25 @@ if (!function_exists('hotel_icon')) {
   /* ── Empty state ─────────────────────────────────────── */
   .hotel-empty {
     text-align: center;
-    padding: 3rem 1.5rem;
+    padding: 2.5rem 1rem;
     color: #64748b;
   }
   .hotel-empty__icon {
-    width: 64px; height: 64px;
-    margin: 0 auto 1rem;
+    width: 56px; height: 56px;
+    margin: 0 auto .85rem;
     border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
     background: #e0f2fa;
     color: #0B5E88;
+    flex-shrink: 0;
   }
-  .hotel-empty__icon svg { width: 28px; height: 28px; }
+  .hotel-empty__icon svg { width: 26px; height: 26px; }
   .hotel-empty__title {
-    font-size: 0.95rem; font-weight: 600;
+    font-size: .92rem; font-weight: 600;
     color: #0f172a;
-    margin: 0 0 0.35rem 0;
+    margin: 0 0 .35rem 0;
   }
-  .hotel-empty__hint { font-size: 0.82rem; line-height: 1.5; }
+  .hotel-empty__hint { font-size: .8rem; line-height: 1.5; overflow-wrap: anywhere; }
   .hotel-empty__hint a { color: #0B5E88; text-decoration: none; font-weight: 600; }
   .hotel-empty__hint a:hover { text-decoration: underline; }
 
@@ -326,24 +407,31 @@ if (!function_exists('hotel_icon')) {
   .hotel-task__title { font-size: 0.9rem; font-weight: 600; color: #0f172a; margin: 0; }
   .hotel-task__sub   { font-size: 0.78rem; color: #64748b; margin: 2px 0 0; }
 
-  /* ── Two columns layout ─────────────────────────────── */
+  /* ── Two columns layout (pleine largeur, hauteur uniforme) ─────
+     Grille moderne 2fr 1fr :
+       - Séjours en cours : ~65%
+       - Housekeeping du jour : ~35%
+     `minmax(0, …)` est ESSENTIEL : un enfant grid a par défaut
+     `min-width: auto`, ce qui peut le faire déborder si son contenu
+     interne est large (textes longs, badges, etc.). */
   .hotel-dash-cols {
     display: grid;
-    grid-template-columns: 1.6fr 1fr;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
     gap: 1rem;
-    justify-content: start;
+    align-items: stretch;
+    width: 100%;
+    margin: 0;
   }
+  /* Tablette & mobile : 1 colonne. */
   @media (max-width: 980px) {
     .hotel-dash-cols { grid-template-columns: 1fr; }
-    .hotel-dash-wrap { padding: 1rem 1rem 1rem 0; margin-left: 0; }
     .hotel-page-header__title { font-size: 1.25rem; }
     .hotel-kpi__value { font-size: 1.5rem; }
   }
 
 </style>
 
-<div class="main-content">
-  <div class="hotel-dash-wrap">
+<div class="hotel-dash-wrap">
 
     <header class="hotel-page-header">
       <div class="hotel-page-header__title-block">
@@ -450,4 +538,3 @@ if (!function_exists('hotel_icon')) {
     </div>
 
     </div>
-</div>
