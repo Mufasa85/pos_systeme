@@ -458,8 +458,8 @@ if (!function_exists('hotel_icon')) {
           <div class="hotel-kpi__icon"><?= hotel_icon('bed', 20) ?></div>
         </div>
         <div class="hotel-kpi__label">Chambres occup&eacute;es</div>
-        <div class="hotel-kpi__value">&mdash; <span class="hotel-kpi__value-suffix">/ 20</span></div>
-        <div class="hotel-kpi__hint"><?= hotel_icon('trend-up', 12) ?> Taux d&rsquo;occupation en temps r&eacute;el</div>
+        <div class="hotel-kpi__value" id="kpi-chambres-occupees">&mdash; <span class="hotel-kpi__value-suffix">/ <span id="kpi-chambres-total">?</span></span></div>
+        <div class="hotel-kpi__hint"><?= hotel_icon('trend-up', 12) ?> Taux d&rsquo;occupation <strong id="kpi-taux-occupation">&mdash;</strong></div>
       </article>
 
       <article class="hotel-kpi hotel-kpi--amber">
@@ -467,8 +467,8 @@ if (!function_exists('hotel_icon')) {
           <div class="hotel-kpi__icon"><?= hotel_icon('sparkle', 20) ?></div>
         </div>
         <div class="hotel-kpi__label">&Agrave; nettoyer</div>
-        <div class="hotel-kpi__value">&mdash;</div>
-        <div class="hotel-kpi__hint"><?= hotel_icon('user', 12) ?> T&acirc;ches housekeeping en attente</div>
+        <div class="hotel-kpi__value" id="kpi-a-nettoyer">&mdash;</div>
+        <div class="hotel-kpi__hint"><?= hotel_icon('user', 12) ?> <span id="kpi-housekeeping">0</span> t&acirc;che(s) housekeeping en attente</div>
       </article>
 
       <article class="hotel-kpi hotel-kpi--green">
@@ -477,8 +477,8 @@ if (!function_exists('hotel_icon')) {
           <span class="hotel-kpi__pulse" aria-hidden="true"></span>
         </div>
         <div class="hotel-kpi__label">Recettes du jour</div>
-        <div class="hotel-kpi__value">&mdash; <span class="hotel-kpi__value-suffix">FC</span></div>
-        <div class="hotel-kpi__hint"><?= hotel_icon('trend-up', 12) ?> S&eacute;jours factur&eacute;s aujourd&rsquo;hui</div>
+        <div class="hotel-kpi__value" id="kpi-recettes">&mdash; <span class="hotel-kpi__value-suffix">FC</span></div>
+        <div class="hotel-kpi__hint"><?= hotel_icon('trend-up', 12) ?> <span id="kpi-sejours-factures">0</span> s&eacute;jour(s) factur&eacute;(s) aujourd&rsquo;hui</div>
       </article>
 
       <article class="hotel-kpi hotel-kpi--indigo">
@@ -486,7 +486,7 @@ if (!function_exists('hotel_icon')) {
           <div class="hotel-kpi__icon"><?= hotel_icon('star', 20) ?></div>
         </div>
         <div class="hotel-kpi__label">Extras &amp; services</div>
-        <div class="hotel-kpi__value">&mdash; <span class="hotel-kpi__value-suffix">FC</span></div>
+        <div class="hotel-kpi__value" id="kpi-extras">&mdash; <span class="hotel-kpi__value-suffix">FC</span></div>
         <div class="hotel-kpi__hint"><?= hotel_icon('activity', 12) ?> Services additionnels du jour</div>
       </article>
 
@@ -538,3 +538,6 @@ if (!function_exists('hotel_icon')) {
     </div>
 
     </div>
+
+<?php // Sprint 4 : branchement DB — hydrate les KPI + les 2 sections via GET /api/hotel/dashboard ?>
+<script src="/assets/js/hotel-tableau-bord.js?v=1"></script>

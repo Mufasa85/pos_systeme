@@ -2,6 +2,7 @@
 
 use App\Controllers\AuthController;
 use App\Controllers\HotelChambreController;
+use App\Controllers\HotelDashboardController;
 use App\Controllers\HotelEtagesController;
 use App\Controllers\HotelExtrasController;
 use App\Controllers\HotelFactureController;
@@ -35,6 +36,8 @@ Router::get('/hotel', [PageController::class, 'hotel']);
 Router::get('/hotel/reception', [PageController::class, 'hotelReception']);
 Router::get('/hotel/etages', [PageController::class, 'hotelEtages']);
 Router::get('/hotel/tableau-bord', [PageController::class, 'hotelDashboard']);
+// API tableau de bord hôtelier (KPI + séjours en cours + housekeeping) — Sprint 4
+Router::get('/api/hotel/dashboard', [HotelDashboardController::class, 'index']);
 // Gestion des rôles hôtel (manager / réceptionniste / gouvernante) — ajouté 2026-10-15
 Router::get('/hotel/roles', [PageController::class, 'hotelRoles']);
 Router::post('/api/hotel/role/update', [PageController::class, 'apiHotelUpdateRole']);
