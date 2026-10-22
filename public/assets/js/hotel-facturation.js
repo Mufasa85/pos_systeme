@@ -658,30 +658,37 @@
   //   - Le résultat est donc EXACTEMENT :
   //        TTC_chambres + TTC_extras + extras_manuels − acompte_total
   //     où chaque TTC est en régime B (HT + TS + TVA_sur_TS).
-  function computeSoldeCourant() {
+  // ── BUG FIX 2026-10-21 — helper factorisé pour le TTC brut ──
+  // Calcule le TOTAL TTC facturé (= HT + TS + TVA_sur_TS, régime B hôtelier),
+  // SANS déduction des acomptes. C'est la valeur à afficher dans le bloc
+  // "TOTAL TTC :" de la preview, dans la phrase « Arrêtée la présente
+  // facture à la somme de… », et dans la conversion USD.
+  //
+  // Avant : ce calcul existait DUPLIQUÉ dans `computeSoldeCourant` (ligne
+  // 680) et dans `postHotelFacture` (lignes 1807-1817). Source de bugs
+  // d'incohérence (l'aperçu montrait 0, le persisté était juste, etc.).
+  // On factorise ici pour qu'un seul calcul fasse foi.
+  //
+  // Formule (régime B hôtelier, TVE non collectée sur prix) :
+  //   totalTTC = total_avec_ts_et_tva_chambres         // HT + TS + TVA_sur_TS
+  //            + Σ line_ht(extras caisse)              // HT + TS + TVA_sur_TS
+  //            + Σ extras_manuels.montant
+  //   (toutes les valeurs sont déjà « régime B », donc comparables
+  //    et sommables sans conversion supplémentaire).
+  function computeTotalFactureTTC() {
     if (!previewData) return 0;
     var n = previewData.nuits || {};
     var e = previewData.extras || {};
-    var extrasManualTotal = extrasManuels.reduce(function (s, x) { return s + x.montant; }, 0);
-
-    // 1) Total chambres TTC — exposé par le backend
-    //    (= HT + TS + TVA_sur_TS pour le séjour, sans TVA_sur_prix
-    //      car régime B hôtelier)
     var totalChambresTTC = parseFloat(n.total_avec_ts_et_tva) || 0;
-
-    // 2) Total extras caisse TTC — calculé ICI via computeExtrasTotals
-    //    (= sum(line_ht) des produits = HT + TS + TVA_sur_TS, régime B)
     var extrasTotals = computeExtrasTotals(e.lignes);
     var totalExtrasTTC = extrasTotals.total_ttc || 0;
+    var extrasManualTotal = extrasManuels.reduce(function (s, x) { return s + x.montant; }, 0);
+    return totalChambresTTC + totalExtrasTTC + extrasManualTotal;
+  }
 
-    // 3) Acomptes
+  function computeSoldeCourant() {
     var acompteTotal = parseFloat(previewData.acompte_total) || 0;
-
-    // 4) Total facturé TTC
-    var totalFactureTTC = totalChambresTTC + totalExtrasTTC + extrasManualTotal;
-
-    // 5) Solde dû = total − acomptes
-    return totalFactureTTC - acompteTotal;
+    return computeTotalFactureTTC() - acompteTotal;
   }
   function getTotalPaiements() {
     return paiements.reduce((s, p) => s + (parseFloat(p.montant) || 0), 0);
@@ -827,6 +834,21 @@
   function buildHotelReceiptTotals(total, dgiTotal) {
     var manualTotal = extrasManuels.reduce(function (a, x) { return a + x.montant; }, 0);
     var usdRate = (typeof USD_RATE !== 'undefined' && USD_RATE > 0) ? USD_RATE : 0;
+
+    // BUG FIX 2026-10-21 — normalisation des arguments (défense en profondeur).
+    //   `dgiTotal` est optionnel par design : après validation on reçoit le
+    //   total confirmé par la DGI, mais en PREVIEW il n'existe pas encore et
+    //   l'appelant ne fournissait historiquement qu'un seul argument.
+    //   → On retombe sur `total` (TTC local) quand `dgiTotal` est absent,
+    //     non numérique, ou nul. Sans ça, `fmtFc(undefined)` affichait « 0,00 »
+    //     dans la preview alors que la valeur correcte était disponible.
+    var isNum = function (v) { return typeof v === 'number' && isFinite(v); };
+    if (!isNum(total)) total = isNum(dgiTotal) ? dgiTotal : computeTotalFactureTTC();
+    if (!isNum(dgiTotal) || dgiTotal <= 0) dgiTotal = total;
+    // Idem pour les extras manuels : le montant affiché doit venir des
+    // données réelles, jamais d'un `undefined` cumulé.
+    manualTotal = parseFloat(manualTotal) || 0;
+
     var amountInWords = (typeof posCart !== 'undefined' && posCart.numberToFrenchWords)
       ? posCart.numberToFrenchWords(total)
       : '';
@@ -1412,9 +1434,12 @@
     var s = previewData.sejour;
     var n = previewData.nuits;
     var e = previewData.extras;
-    var total = computeSoldeCourant();
 
-    // Récupère le VRAI n° de facture depuis la base (même pattern que
+    // BUG FIX 2026-10-21 : plus de variable `total = computeSoldeCourant()`
+    // ici — cette fonction renvoyait le SOLDE (TTC − acomptes), qui n'a rien
+    // à faire dans le bloc "TOTAL TTC :" (le TTC brut est affiché, et le
+    // solde reste visible via la ligne "Acomptes" du récap + les paiements).
+    // Le TTC brut est calculé plus bas via `computeTotalFactureTTC()`.
     // app.js:showPreview() pour /caisse) — sinon la preview affiche "(à
     // valider)" et il faut attendre la confirmation. On rend tout le ticket
     // APRÈS la résolution de la promesse pour que le n° soit visible
@@ -1429,7 +1454,25 @@
 
     var itemsHtml = buildHotelReceiptItems(n, e, extrasManuels);
     var infoSection = buildHotelReceiptInfoSection();
-    var totalsHtml = buildHotelReceiptTotals(total);
+    // BUG FIX 2026-10-21 — le TOTAL TTC de la preview affichait 0.
+    // Cause : `buildHotelReceiptTotals(total, dgiTotal)` n'était appelé
+    // qu'avec UN argument dans la preview (`dgiTotal` = undefined), et le
+    // rendu utilise `fmtFc(dgiTotal)` pour la ligne "TOTAL TTC :".
+    // Après validation, le même helper recevait bien `dgiTotal` (retour
+    // DGI) → d'où l'affichage correct uniquement APRÈS validation.
+    //
+    // Fix : en preview on n'a pas encore de retour DGI, donc on fournit le
+    // TTC calculé EN LOCAL (computeTotalFactureTTC = même formule que
+    // celle persistée en base via postHotelFacture). Les deux appels
+    // passent désormais le même montant local en 1er argument (utilisé
+    // pour la conversion USD et la phrase "Arrêtée la présente facture
+    // à la somme de…") et en 2e argument (ligne TOTAL TTC).
+    //
+    // Note : on affiche ici le TTC BRUT (avant acomptes) — le solde dû
+    // reste visible séparément via la ligne "Acomptes déjà versés" du
+    // récap de page et via le bloc paiements.
+    var totalTTC = computeTotalFactureTTC();
+    var totalsHtml = buildHotelReceiptTotals(totalTTC, totalTTC);
     var paymentsHtml = buildHotelReceiptPayments();
     // Sprint 7 — 2026-10-19 : on utilise le type de facture sélectionné
     // par l'utilisateur dans le modal "Informations Facture" (variable
@@ -1813,8 +1856,10 @@
     // calcul facture côté front, miroir posCart.calculateItemTTC).
     var totalExtrasCaisseTTC = extrasCaisseTotals.total_ttc || 0;
     var acompteTotal = parseFloat(previewData.acompte_total) || 0;
-    // Total TTC facturé (avant déduction acompte) = nuits + extras caisse + extras manuels
-    var totalFactureTTC = round2(totalNuitsTTC + totalExtrasCaisseTTC + extrasManuelsTotal);
+    // Total TTC facturé (avant déduction acompte) — réutilise le helper
+    // factorisé (même source de vérité que la preview ET que le rendu de
+    // la page : c'est cette valeur qui est affichée à l'utilisateur).
+    var totalFactureTTC = round2(computeTotalFactureTTC());
     // Solde dû = TTC − acompte
     var soldeDuFront = round2(totalFactureTTC - acompteTotal);
 
@@ -1984,7 +2029,8 @@
     // soit affiché juste à côté du TOTAL TTC dans la facture finale.
     // cf. clé `total` dans la réponse API DGI (ex: 10251870).
     var dgiTotal = (dgiData && typeof dgiData.total === 'number') ? dgiData.total : null;
-    console.log(dgiData)
+    // BUG FIX 2026-10-21 : suppression du `console.log(dgiData)` de debug
+    // qui polluait la console navigateur à chaque ouverture du reçu.
     var totalsHtml = buildHotelReceiptTotals(total, dgiTotal);
     var paymentsHtml = buildHotelReceiptPayments();
     // Sprint 7 — 2026-10-19 : titre dynamique basé sur le type sélectionné
