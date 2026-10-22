@@ -10,7 +10,10 @@
   'use strict';
 
   const APP_URL = window.location.origin;
-  const tbody = document.getElementById('hotel-res-tbody');
+  // Rendu en CARDS : on cible le conteneur grille (et on conserve `tbody` comme fallback
+  // si quelqu'un remet le tableau — pour ne pas casser d'anciens appels).
+  const grid  = document.getElementById('hotel-res-grid');
+  const tbody = document.getElementById('hotel-res-tbody'); // legacy fallback
   const alertEl = document.getElementById('hotel-alert');
 
   const filterStatut = document.getElementById('filter-statut');
@@ -19,7 +22,8 @@
   const btnClear     = document.getElementById('btn-clear-filters');
   const btnNew       = document.getElementById('btn-new-reservation');
 
-  if (!tbody) return; // pas sur la bonne page
+  if (!grid && !tbody) return; // pas sur la bonne page
+  const root = grid || tbody; // conteneur de rendu (cards ou fallback tableau)
 
   function showAlert(msg, type) {
     if (!msg) { alertEl.classList.add('hidden'); return; }
@@ -31,11 +35,11 @@
 
   function statutBadge(s) {
     const labels = {
-      reserve:  ['Réservée',  'hotel-res-statut-reserve'],
-      en_cours: ['En cours',  'hotel-res-statut-en_cours'],
-      termine:  ['Terminée',  'hotel-res-statut-termine'],
-      annule:   ['Annulée',   'hotel-res-statut-annule'],
-      no_show:  ['No-show',   'hotel-res-statut-no_show'],
+      reserve:  ['En attente', 'hotel-res-statut-reserve'],   // orange
+      en_cours: ['Confirmée',  'hotel-res-statut-en_cours'],  // vert
+      termine:  ['Terminée',   'hotel-res-statut-termine'],   // bleu
+      annule:   ['Annulée',    'hotel-res-statut-annule'],    // rouge
+      no_show:  ['No-show',    'hotel-res-statut-no_show'],   // orange foncé
     };
     const it = labels[s] || [s, 'hotel-res-statut-termine'];
     return `<span class="badge ${it[1]}">${it[0]}</span>`;
@@ -74,75 +78,100 @@
     const qs = params.toString();
     const r = await fetchJson('/api/hotel/reservations' + (qs ? '?' + qs : ''));
     if (!r.ok || !r.data || !r.data.success) {
-      tbody.innerHTML = '<tr><td colspan="7" class="hotel-res-empty">Erreur de chargement.</td></tr>';
+      root.innerHTML = '<div class="res-card-empty">Erreur de chargement.</div>';
       showAlert((r.data && r.data.message) || 'Erreur de chargement', 'error');
       return;
     }
     const rows = r.data.data || [];
     if (rows.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="7" class="hotel-res-empty">Aucune réservation.</td></tr>';
+      root.innerHTML = '<div class="res-card-empty">Aucune réservation.</div>';
       return;
     }
-    tbody.innerHTML = rows.map(row => {
+    root.innerHTML = rows.map(row => {
       // Sprint 7 — 2026-10-19 : `row.facture_id` est exposé par le backend
       // (LEFT JOIN hotel_factures dans HotelReservation::list). On l'utilise
       // pour afficher un badge "Facturé" dans la colonne Statut et pour
       // conditionner l'action "Facturer" dans le modal d'actions.
       const factureEmise = !!row.facture_id;
       const factureBadge = factureEmise
-        ? `<span class="badge" style="background:#dcfce7;color:#166534;padding:2px 6px;border-radius:4px;font-size:.7rem;font-weight:500;margin-left:4px;" title="Facture ${escapeHtml(row.facture_numero || '')}">✓ ${escapeHtml(row.facture_numero || '')}</span>`
+        ? `<span class="res-card-facture-badge" title="Facture ${escapeHtml(row.facture_numero || '')}">✓ ${escapeHtml(row.facture_numero || '')}</span>`
         : '';
+      const remise = (row.remise_pct && Number(row.remise_pct) > 0)
+        ? ` <small style="font-weight:400;color:var(--muted);">(-${Number(row.remise_pct).toLocaleString('fr-FR')}%)</small>`
+        : '';
+      const statut = row.statut || 'reserve';
+      const statutSafe = ['reserve','en_cours','termine','annule','no_show'].includes(statut) ? statut : 'reserve';
+      const guestName = `${escapeHtml(row.guest_prenom || '')} ${escapeHtml(row.guest_nom || '')}`.trim() || '—';
+      const chambreNumero = escapeHtml(String(row.chambre_numero || '?'));
+      const chambreType = escapeHtml(row.chambre_type || '');
       return `
-      <tr data-id="${row.id}">
-        <td>
-          <div style="font-weight:500;">${escapeHtml(row.guest_prenom || '')} ${escapeHtml(row.guest_nom || '')}</div>
-          ${row.guest_tel ? `<div style="font-size:.75rem;color:var(--muted);">${escapeHtml(row.guest_tel)}</div>` : ''}
-        </td>
-        <td>
-          <span class="badge">${escapeHtml(String(row.chambre_numero))}</span>
-          <span style="font-size:.75rem;color:var(--muted);">${escapeHtml(row.chambre_type)}</span>
-        </td>
-        <td style="font-size:.85rem;">${fmtDate(row.date_arrivee)}</td>
-        <td style="font-size:.85rem;">${fmtDate(row.date_depart_prevue)}</td>
-        <td style="font-size:.85rem;">${fmtMoney(row.prix_par_nuit)}</td>
-        <td>${statutBadge(row.statut)}${factureBadge}</td>
-        <td style="text-align:right;white-space:nowrap;">
-          <button type="button" class="btn btn-primary btn-small js-actions" data-id="${row.id}" title="Actions">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px;">
-              <circle cx="12" cy="6" r="2"></circle>
-              <circle cx="12" cy="12" r="2"></circle>
-              <circle cx="12" cy="18" r="2"></circle>
-            </svg>
-            Actions
-          </button>
-          <button type="button" class="btn btn-ghost btn-small js-edit" title="Modifier" style="margin-left:4px;">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polygon points="16 3 21 8 8 21 3 21 3 16 16 3"></polygon>
-            </svg>
-          </button>
-          ${(row.statut === 'reserve' || row.statut === 'en_cours') ? `
-            <button type="button" class="btn btn-ghost btn-small js-cancel" title="Annuler" style="color:var(--danger);margin-left:4px;">
+      <article class="res-card s-${statutSafe}" data-id="${row.id}">
+        <header class="res-card-head">
+          <div class="res-card-guest">
+            ${guestName}
+            ${row.guest_tel ? `<div class="meta">${escapeHtml(row.guest_tel)}</div>` : ''}
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
+            ${statutBadge(statut)}
+            ${factureBadge}
+          </div>
+        </header>
+        <div class="res-card-room">
+          <span class="chambre-badge">${chambreNumero}</span>
+          <span>${chambreType}</span>
+        </div>
+        <div class="res-card-dates">
+          <div>
+            <div class="lbl">Arrivée</div>
+            <div class="val">${fmtDate(row.date_arrivee)}</div>
+          </div>
+          <div>
+            <div class="lbl">Départ</div>
+            <div class="val">${fmtDate(row.date_depart_prevue)}</div>
+          </div>
+        </div>
+        <footer class="res-card-foot">
+          <div class="res-card-prix">
+            ${fmtMoney(row.prix_par_nuit)} Fc <small>par nuit</small>${remise}
+          </div>
+          <div class="res-card-actions">
+            <button type="button" class="btn btn-primary btn-small js-actions" data-id="${row.id}" title="Actions">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px;">
+                <circle cx="12" cy="6" r="2"></circle>
+                <circle cx="12" cy="12" r="2"></circle>
+                <circle cx="12" cy="18" r="2"></circle>
+              </svg>
+              Actions
+            </button>
+            <button type="button" class="btn btn-ghost btn-small js-edit" title="Modifier" style="margin-left:2px;">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="3 6 5 6 21 6"></polyline>
-                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                <polygon points="16 3 21 8 8 21 3 21 3 16 16 3"></polygon>
               </svg>
             </button>
-          ` : ''}
-        </td>
-      </tr>
+            ${(statut === 'reserve' || statut === 'en_cours') ? `
+              <button type="button" class="btn btn-ghost btn-small js-cancel" title="Annuler" style="color:var(--danger);margin-left:2px;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="3 6 5 6 21 6"></polyline>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                </svg>
+              </button>
+            ` : ''}
+          </div>
+        </footer>
+      </article>
     `;}).join('');
 
-    tbody.querySelectorAll('.js-edit').forEach(btn => {
+    root.querySelectorAll('.js-edit').forEach(btn => {
       btn.addEventListener('click', () => {
-        const id = btn.closest('tr').dataset.id;
+        const id = btn.closest('[data-id]').dataset.id;
         if (window.HotelReservationForm && typeof window.HotelReservationForm.openForEdit === 'function') {
           window.HotelReservationForm.openForEdit(id);
         }
       });
     });
-    tbody.querySelectorAll('.js-cancel').forEach(btn => {
+    root.querySelectorAll('.js-cancel').forEach(btn => {
       btn.addEventListener('click', async () => {
-        const id = btn.closest('tr').dataset.id;
+        const id = btn.closest('[data-id]').dataset.id;
         if (!confirm('Annuler cette réservation ?')) return;
         const r = await fetchJson('/api/hotel/reservations/' + encodeURIComponent(id) + '/cancel', { method: 'POST' });
         if (r.ok && r.data && r.data.success) {
@@ -154,7 +183,7 @@
       });
     });
     // Sprint 7 — 2026-10-19 : bouton "Actions" → ouvre le modal d'actions
-    tbody.querySelectorAll('.js-actions').forEach(btn => {
+    root.querySelectorAll('.js-actions').forEach(btn => {
       btn.addEventListener('click', () => {
         openActionsModal(parseInt(btn.dataset.id, 10));
       });

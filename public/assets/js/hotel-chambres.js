@@ -58,13 +58,36 @@
     return n.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
   }
   async function jsonFetch(url, opts) {
-    const res = await fetch(APP_URL + url, Object.assign(
-      { credentials: 'same-origin', headers: { 'Accept': 'application/json' } },
-      opts || {}
-    ));
+    let res;
+    try {
+      res = await fetch(APP_URL + url, Object.assign(
+        { credentials: 'same-origin', headers: { 'Accept': 'application/json' } },
+        opts || {}
+      ));
+    } catch (networkErr) {
+      // Crash réseau (serveur injoignable, CORS, etc.)
+      console.error('[hotel-chambres] Network error fetching', url, networkErr);
+      return { ok: false, status: 0, data: null, error: 'network', message: 'Impossible de joindre le serveur.' };
+    }
     let data = null;
-    try { data = await res.json(); } catch(e) { data = null; }
-    return { ok: res.ok, status: res.status, data };
+    let rawText = '';
+    try {
+      rawText = await res.text();
+      data = rawText ? JSON.parse(rawText) : null;
+    } catch(parseErr) {
+      console.error('[hotel-chambres] JSON parse error', parseErr, 'raw:', rawText);
+      return { ok: res.ok, status: res.status, data: null, error: 'parse', message: 'Réponse serveur illisible.' };
+    }
+    if (!res.ok) {
+      console.error('[hotel-chambres] HTTP', res.status, url, data);
+    }
+    return {
+      ok: res.ok,
+      status: res.status,
+      data: data,
+      error: data && data.success === false ? 'api' : null,
+      message: (data && (data.message || data.error)) || null,
+    };
   }
 
   const ETATS = [
@@ -103,15 +126,35 @@
     showAlert(null);
     const r = await jsonFetch('/api/hotel/chambres');
     if (!r.ok || !r.data || !r.data.success) {
-      tbody.innerHTML = '<tr><td colspan="7" class="hotel-rooms-empty">Erreur de chargement.</td></tr>';
-      showAlert((r.data && r.data.message) || 'Erreur de chargement', 'error');
+      // Message d'erreur détaillé pour aider au diagnostic.
+      let msg = 'Erreur de chargement';
+      let hint = '';
+      if (r.status === 401 || r.status === 403) {
+        msg = (r.data && r.data.message) || 'Accès refusé (403). Vérifiez votre session/rôle.';
+        hint = 'Essayez de vous reconnecter, ou demandez à un manager de vous attribuer un rôle hôtel.';
+      } else if (r.status === 404) {
+        msg = 'Endpoint introuvable (404).';
+      } else if (r.status === 500) {
+        msg = 'Erreur serveur (500).';
+        hint = 'Vérifiez que les migrations SQL hôtel ont été exécutées (colonnes taxe_specifique_*, taxe_id). Réessayez dans un instant.';
+      } else if (r.error === 'network') {
+        msg = r.message || 'Réseau indisponible.';
+        hint = 'Vérifiez votre connexion internet ou que le serveur est démarré.';
+      } else if (r.error === 'parse') {
+        msg = r.message || 'Réponse serveur illisible.';
+      } else if (r.message) {
+        msg = r.message;
+      }
+      console.error('[hotel-chambres] loadList failed', r);
+      tbody.innerHTML = `<tr><td colspan="7" class="hotel-rooms-empty">${escapeHtml(msg)}<br>${hint ? `<small style="color:var(--muted);">${escapeHtml(hint)}</small><br>` : ''}<small style="color:var(--muted);">HTTP ${r.status || '—'} — détails dans la console (F12).</small><br><button type="button" class="btn btn-ghost btn-small" onclick="location.reload()" style="margin-top:.5rem;">↻ Réessayer</button></td></tr>`;
+      showAlert(msg, 'error');
       return;
     }
     readOnly = !!r.data.read_only;
     btnNew.style.display = readOnly ? 'none' : '';
     readonlyBanner.classList.toggle('hidden', !readOnly);
 
-    const rows = r.data.data || [];
+    const rows = (r.data && r.data.data) || [];
     if (rows.length === 0) {
       tbody.innerHTML = '<tr><td colspan="7" class="hotel-rooms-empty">Aucune chambre.</td></tr>';
       return;

@@ -25,18 +25,165 @@ if (!function_exists('hr_date')) {
 }
 ?>
 <style>
-  .hotel-res-wrap { max-width: 1100px; margin: 1.5rem auto; padding: 0 1rem; }
+  /* Page des réservations — conteneur large & spacieux (SaaS moderne), reste responsive. */
+  .hotel-res-wrap {
+    max-width: 1600px;
+    width: 100%;
+    margin: 1.25rem auto;
+    padding: 0 1.25rem;
+  }
+  @media (max-width: 640px) {
+    .hotel-res-wrap { padding: 0 .75rem; }
+  }
   .hotel-res-card { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); padding: 1.25rem; }
-  .hotel-res-toolbar { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; margin-bottom: 1rem; }
+  .hotel-res-toolbar { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; margin-bottom: 1.25rem; }
   .hotel-res-toolbar select { padding: 6px 10px; border-radius: var(--radius); border: 1px solid var(--border); background: #fff; font-size: .85rem; }
-  .hotel-res-filters { flex: 1; display: flex; gap: .5rem; }
-  .hotel-res-table thead th { font-size: .7rem; text-transform: uppercase; color: var(--muted); }
+  .hotel-res-filters { flex: 1; display: flex; gap: .5rem; flex-wrap: wrap; }
+
+  /* Mise en page en CARDS (au lieu d'un tableau) : grille responsive. */
+  .hotel-res-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1rem;
+  }
+  @media (max-width: 1400px) {
+    .hotel-res-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  }
+  @media (max-width: 1100px) {
+    .hotel-res-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media (max-width: 700px) {
+    .hotel-res-grid { grid-template-columns: 1fr; }
+  }
+
+  /* Compatibilité : styles tableau neutralisés — on garde uniquement les anciens styles pour les éléments non concernés. */
+  .hotel-res-table { display: none; }
   .hotel-res-empty { padding: 3rem; text-align: center; color: var(--muted); }
-  .hotel-res-statut-reserve   { background: #dbeafe; color: #1e40af; }
-  .hotel-res-statut-en_cours  { background: #dcfce7; color: #166534; }
-  .hotel-res-statut-termine   { background: #f1f5f9; color: #475569; }
-  .hotel-res-statut-annule    { background: #fee2e2; color: #991b1b; }
-  .hotel-res-statut-no_show   { background: #fef3c7; color: #92400e; }
+
+  /* Card réservation — ombre légère, coins arrondis, hiérarchie visuelle claire. */
+  .res-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: 0 1px 2px rgba(15, 23, 42, .04);
+    padding: 1rem 1.1rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: .65rem;
+    transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+    position: relative;
+    overflow: hidden;
+  }
+  .res-card:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow);
+    border-color: #cbd5e1;
+  }
+  /* Bandeau coloré 4px à gauche : rappel visuel du statut, cohérent avec le badge. */
+  .res-card::before {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; bottom: 0;
+    width: 4px;
+    background: var(--muted);
+  }
+  .res-card.s-reserve::before  { background: #f59e0b; } /* En attente = orange */
+  .res-card.s-en_cours::before { background: #10b981; } /* Confirmée (en cours) = vert */
+  .res-card.s-termine::before  { background: #2563eb; } /* Terminée = bleu */
+  .res-card.s-annule::before   { background: #ef4444; } /* Annulée = rouge */
+  .res-card.s-no_show::before  { background: #f97316; } /* No-show = orange soutenu */
+
+  .res-card-head {
+    display: flex; justify-content: space-between; align-items: flex-start; gap: .5rem;
+  }
+  .res-card-guest {
+    font-weight: 600;
+    color: var(--foreground);
+    font-size: .98rem;
+    line-height: 1.25;
+  }
+  .res-card-guest .meta { font-size: .72rem; color: var(--muted); font-weight: 400; margin-top: 2px; }
+
+  .res-card-room {
+    display: flex; align-items: center; gap: .5rem;
+    color: var(--muted);
+    font-size: .8rem;
+  }
+  .res-card-room .chambre-badge {
+    display: inline-flex; align-items: center;
+    background: #f1f5f9;
+    color: #1e293b;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-weight: 600;
+    font-size: .78rem;
+  }
+
+  .res-card-dates {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: .5rem;
+    padding: .5rem .65rem;
+    background: var(--background);
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+  }
+  .res-card-dates .lbl {
+    font-size: .65rem;
+    text-transform: uppercase;
+    color: var(--muted);
+    letter-spacing: .04em;
+    margin-bottom: 2px;
+  }
+  .res-card-dates .val { font-size: .82rem; color: var(--foreground); font-weight: 500; }
+
+  .res-card-foot {
+    display: flex; justify-content: space-between; align-items: center;
+    padding-top: .65rem;
+    border-top: 1px solid var(--border);
+    margin-top: auto;
+  }
+  .res-card-prix {
+    font-size: .85rem;
+    color: var(--foreground);
+    font-weight: 600;
+  }
+  .res-card-prix small { display: block; font-size: .65rem; color: var(--muted); font-weight: 400; }
+  .res-card-actions { display: flex; gap: .25rem; flex-shrink: 0; }
+
+  .res-card-empty {
+    grid-column: 1 / -1;
+    padding: 3rem;
+    text-align: center;
+    color: var(--muted);
+    background: var(--card);
+    border: 1px dashed var(--border);
+    border-radius: var(--radius);
+  }
+
+  /* Badges de statut — palette cohérente avec le design system.
+     - reserve (En attente)         → orange  (#f59e0b)
+     - en_cours (Confirmée)         → vert    (#10b981)
+     - termine (Terminée)           → bleu    (#2563eb)
+     - annule (Annulée)             → rouge   (#ef4444)
+     - no_show (No-show)            → orange foncé (#ea580c)
+  */
+  .hotel-res-statut-reserve   { background: rgba(245, 158, 11, .12); color: #b45309; }
+  .hotel-res-statut-en_cours  { background: rgba(16, 185, 129, .12); color: #047857; }
+  .hotel-res-statut-termine   { background: rgba(37, 99, 235, .12); color: #1d4ed8; }
+  .hotel-res-statut-annule    { background: rgba(239, 68, 68, .12);  color: #b91c1c; }
+  .hotel-res-statut-no_show   { background: rgba(234, 88, 12, .12);  color: #9a3412; }
+
+  /* Badge facture (sprint 7) — vert, sobre. */
+  .res-card-facture-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    background: rgba(16, 185, 129, .12);
+    color: #047857;
+    padding: 2px 7px;
+    border-radius: 999px;
+    font-size: .68rem;
+    font-weight: 600;
+  }
 
   /* Drawer latéral droit — utilise les variables de l'app, pas de redéfinition */
   .hotel-drawer-backdrop {
@@ -131,8 +278,8 @@ if (!function_exists('hr_date')) {
         <label style="font-size:.8rem;color:var(--muted);align-self:center;">Statut :</label>
         <select id="filter-statut">
           <option value="">Toutes</option>
-          <option value="reserve">Réservée</option>
-          <option value="en_cours">En cours</option>
+          <option value="reserve">En attente</option>
+          <option value="en_cours">Confirmée</option>
           <option value="termine">Terminée</option>
           <option value="annule">Annulée</option>
           <option value="no_show">No-show</option>
@@ -147,23 +294,9 @@ if (!function_exists('hr_date')) {
 
     <div id="hotel-alert" class="hotel-alert hidden"></div>
 
-    <div class="table-container">
-      <table class="data-table hotel-res-table" style="width:100%;border-collapse:collapse;">
-        <thead>
-          <tr>
-            <th>Guest</th>
-            <th>Chambre</th>
-            <th>Arrivée</th>
-            <th>Départ</th>
-            <th>Prix / nuit</th>
-            <th>Statut</th>
-            <th style="text-align:right;">Actions</th>
-          </tr>
-        </thead>
-        <tbody id="hotel-res-tbody">
-          <tr><td colspan="7" class="hotel-res-empty">Chargement…</td></tr>
-        </tbody>
-      </table>
+    <!-- Conteneur grille pour le rendu en CARDS (géré par hotel-reservations.js). -->
+    <div id="hotel-res-grid" class="hotel-res-grid">
+      <div class="res-card-empty">Chargement…</div>
     </div>
   </div>
 </main>
