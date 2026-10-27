@@ -2414,7 +2414,7 @@ function saveUser(event) {
 }
 
 function deleteUser(id) {
-    if (confirm('Supprimer definitivement cet utilisateur ?')) {
+    if (confirm('Supprimer definitivement cet utilisateur ?\n\nSes ventes, bulletins de paie et lignes hotel seront CONSERVES (seul son nom sera affiche "Utilisateur supprime").')) {
         const formData = new FormData();
         formData.append('id', id);
         fetch(APP_URL + '/api/delete/user', {
