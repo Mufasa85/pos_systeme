@@ -8,3 +8,4 @@
 ALTER TABLE `hotel_chambres`
   ADD COLUMN `taxe_specifique_type` VARCHAR(10) NULL DEFAULT '%' AFTER `notes`,
   ADD COLUMN `taxe_specifique_value` DECIMAL(10,2) NULL DEFAULT 0.00 AFTER `taxe_specifique_type`;
+
