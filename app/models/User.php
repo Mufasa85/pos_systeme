@@ -4,6 +4,16 @@ namespace App\Models;
 
 class User
 {
+    /**
+     * Libellé affiché à la place d'un nom d'utilisateur absent.
+     *
+     * Depuis la migration 2026_10_25_user_delete_fk_set_null.sql, supprimer un
+     * utilisateur détache son nom des lignes liées (ventes, paie, hôtel) sans
+     * supprimer l'historique : la colonne FK passe à NULL et le `LEFT JOIN`
+     * ne renvoie plus aucun nom. On affiche alors ce libellé.
+     */
+    public const DELETED_LABEL = 'Utilisateur supprimé';
+
     private $db;
 
     public function __construct()
@@ -91,9 +101,77 @@ class User
         return true;
     }
 
+    /**
+     * Supprime un utilisateur.
+     *
+     * Historique conservé : toutes les clés étrangères qui pointent vers
+     * `utilisateurs` sont en `ON DELETE SET NULL` (cf. migration
+     * 2026_10_25_user_delete_fk_set_null.sql). Supprimer un compte ne doit
+     * JAMAIS faire disparaître les factures fiscales, les bulletins de paie
+     * ou les lignes du module hôtel : seul l'auteur est détaché (NULL).
+     *
+     * @return array{success: bool, message?: string}
+     */
     public function delete($id)
     {
-        $this->db->query('DELETE FROM utilisateurs WHERE id = ?', [$id]);
+        $id = (int)$id;
+        if ($id <= 0) {
+            return ['success' => false, 'message' => 'Identifiant utilisateur invalide.'];
+        }
+
+        $pdo = $this->db->getConnection();
+
+        // Si une transaction est déjà ouverte (appel depuis un flux déjà
+        // transactionnel), on ne la commit/rollback pas nous-mêmes : on
+        // participe à la transaction existante.
+        $ownTransaction = !$pdo->inTransaction();
+        if ($ownTransaction) {
+            $pdo->beginTransaction();
+        }
+
+        try {
+            // Suppression idempotente : si l'utilisateur n'existe pas, on ne
+            // lève pas d'exception (l'API doit rester tolérante).
+            $stmt = $pdo->prepare('DELETE FROM utilisateurs WHERE id = ?');
+            $stmt->execute([$id]);
+
+            $deleted = $stmt->rowCount();
+            if ($deleted === 0) {
+                if ($ownTransaction) {
+                    $pdo->rollBack();
+                }
+                return ['success' => false, 'message' => 'Utilisateur inexistant.'];
+            }
+
+            if ($ownTransaction) {
+                $pdo->commit();
+            }
+
+            return ['success' => true];
+        } catch (\PDOException $e) {
+            if ($ownTransaction && $pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+
+            // 1451 = violation de clé étrangère : il reste une contrainte
+            // bloquante (schéma non migré). On renvoie un message clair au
+            // lieu d'afficher une page blanche avec un Fatal error.
+            $sqlState = $e->getCode();
+            if ($sqlState === '23000') {
+                error_log('User::delete - contrainte FK bloquante pour user_id=' . $id . ' : ' . $e->getMessage());
+                return [
+                    'success' => false,
+                    'message' => "Suppression impossible : cet utilisateur est encore référencé par des données liées. "
+                        . 'Vérifiez que la migration 2026_10_25_user_delete_fk_set_null.sql a été appliquée.',
+                ];
+            }
+
+            error_log('User::delete - erreur SQL (' . $sqlState . ') : ' . $e->getMessage());
+            return [
+                'success' => false,
+                'message' => 'Erreur lors de la suppression de l\'utilisateur.',
+            ];
+        }
     }
 
     public function exist($id)

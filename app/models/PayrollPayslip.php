@@ -13,17 +13,22 @@ class PayrollPayslip
 
     public function findByPeriod($periodId, $shopId = null)
     {
-        $sql = 'SELECT pp.*, u.nom_complet, pe.matricule
+        // LEFT JOIN sur `utilisateurs` : depuis la migration
+        // 2026_10_25_user_delete_fk_set_null.sql, `payroll_employees.user_id`
+        // peut être NULL (employé supprimé). Un INNER JOIN masquerait alors
+        // les bulletins de paie de cet employé. Le COALESCE affiche
+        // « Utilisateur supprimé » à la place.
+        $sql = 'SELECT pp.*, COALESCE(u.nom_complet, \'' . User::DELETED_LABEL . '\') as nom_complet, pe.matricule
                 FROM payroll_payslips pp
                 JOIN payroll_employees pe ON pp.employee_id = pe.id
-                JOIN utilisateurs u ON pe.user_id = u.id
+                LEFT JOIN utilisateurs u ON pe.user_id = u.id
                 WHERE pp.payroll_period_id = ?';
         $params = [$periodId];
         if ($shopId) {
             $sql .= ' AND pp.shop_id = ?';
             $params[] = $shopId;
         }
-        $sql .= ' ORDER BY u.nom_complet ASC';
+        $sql .= ' ORDER BY nom_complet ASC';
         return $this->db->fetchAll($sql, $params);
     }
 
@@ -49,10 +54,12 @@ class PayrollPayslip
 
     public function findById($id, $shopId = null)
     {
-        $sql = 'SELECT pp.*, u.nom_complet, pe.matricule, p.month, p.year
+        // LEFT JOIN : `payroll_employees.user_id` peut être NULL si l'employé
+        // a été supprimé (cf. migration 2026_10_25_user_delete_fk_set_null.sql).
+        $sql = 'SELECT pp.*, COALESCE(u.nom_complet, \'' . User::DELETED_LABEL . '\') as nom_complet, pe.matricule, p.month, p.year
                 FROM payroll_payslips pp
                 JOIN payroll_employees pe ON pp.employee_id = pe.id
-                JOIN utilisateurs u ON pe.user_id = u.id
+                LEFT JOIN utilisateurs u ON pe.user_id = u.id
                 JOIN payroll_periods p ON pp.payroll_period_id = p.id
                 WHERE pp.id = ?';
         $params = [$id];

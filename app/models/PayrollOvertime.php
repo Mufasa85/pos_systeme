@@ -13,17 +13,19 @@ class PayrollOvertime
 
     public function findByPeriod($periodId, $shopId = null)
     {
-        $sql = 'SELECT po.*, u.nom_complet
+        // LEFT JOIN : `payroll_employees.user_id` peut être NULL si l'employé
+        // a été supprimé (cf. migration 2026_10_25_user_delete_fk_set_null.sql).
+        $sql = 'SELECT po.*, COALESCE(u.nom_complet, \'' . User::DELETED_LABEL . '\') as nom_complet
                 FROM payroll_overtimes po
                 JOIN payroll_employees pe ON po.employee_id = pe.id
-                JOIN utilisateurs u ON pe.user_id = u.id
+                LEFT JOIN utilisateurs u ON pe.user_id = u.id
                 WHERE po.payroll_period_id = ?';
         $params = [$periodId];
         if ($shopId) {
             $sql .= ' AND po.shop_id = ?';
             $params[] = $shopId;
         }
-        $sql .= ' ORDER BY u.nom_complet ASC, po.work_date ASC';
+        $sql .= ' ORDER BY nom_complet ASC, po.work_date ASC';
         return $this->db->fetchAll($sql, $params);
     }
 

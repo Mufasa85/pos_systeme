@@ -39,7 +39,10 @@ class AuditLog
         $params[] = (int)$limit;
         $params[] = (int)$offset;
 
-        $sql = "SELECT a.*, u.nom_complet as user_name 
+        // LEFT JOIN + COALESCE : `audit_logs.user_id` peut être NULL si
+        // l'utilisateur a été supprimé (cf. migration
+        // 2026_10_25_user_delete_fk_set_null.sql).
+        $sql = "SELECT a.*, COALESCE(u.nom_complet, '" . User::DELETED_LABEL . "') as user_name 
                 FROM audit_logs a
                 LEFT JOIN utilisateurs u ON a.user_id = u.id
                 $where
@@ -50,7 +53,10 @@ class AuditLog
 
     public function getByEntity($entity, $entityId)
     {
-        $sql = 'SELECT a.*, u.nom_complet as user_name 
+        // LEFT JOIN + COALESCE : `audit_logs.user_id` peut être NULL si
+        // l'utilisateur a été supprimé (cf. migration
+        // 2026_10_25_user_delete_fk_set_null.sql).
+        $sql = 'SELECT a.*, COALESCE(u.nom_complet, \'' . User::DELETED_LABEL . '\') as user_name 
                 FROM audit_logs a
                 LEFT JOIN utilisateurs u ON a.user_id = u.id
                 WHERE a.entity = ? AND a.entity_id = ?

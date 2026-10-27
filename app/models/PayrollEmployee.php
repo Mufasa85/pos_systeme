@@ -13,23 +13,33 @@ class PayrollEmployee
 
     public function all($shopId = null, $superAdmin = false)
     {
-        $sql = 'SELECT pe.*, u.nom_complet, u.email, u.telephone, u.nom_utilisateur
+        // LEFT JOIN : `payroll_employees.user_id` peut être NULL si l'employé
+        // a été supprimé (cf. migration 2026_10_25_user_delete_fk_set_null.sql).
+        // La fiche employé (et tout son historique de paie) est conservée.
+        $sql = 'SELECT pe.*, COALESCE(u.nom_complet, \'' . User::DELETED_LABEL . '\') as nom_complet,
+                       COALESCE(u.email, \'\') as email,
+                       COALESCE(u.telephone, \'\') as telephone,
+                       COALESCE(u.nom_utilisateur, \'\') as nom_utilisateur
                 FROM payroll_employees pe
-                JOIN utilisateurs u ON pe.user_id = u.id';
+                LEFT JOIN utilisateurs u ON pe.user_id = u.id';
         $params = [];
         if (!$superAdmin && $shopId) {
             $sql .= ' WHERE pe.shop_id = ?';
             $params[] = $shopId;
         }
-        $sql .= ' ORDER BY u.nom_complet ASC';
+        $sql .= ' ORDER BY nom_complet ASC';
         return $this->db->fetchAll($sql, $params);
     }
 
     public function findById($id, $shopId = null, $superAdmin = false)
     {
-        $sql = 'SELECT pe.*, u.nom_complet, u.email, u.telephone, u.nom_utilisateur
+        // LEFT JOIN : cf. commentaire de all() — l'employé peut avoir été supprimé.
+        $sql = 'SELECT pe.*, COALESCE(u.nom_complet, \'' . User::DELETED_LABEL . '\') as nom_complet,
+                       COALESCE(u.email, \'\') as email,
+                       COALESCE(u.telephone, \'\') as telephone,
+                       COALESCE(u.nom_utilisateur, \'\') as nom_utilisateur
                 FROM payroll_employees pe
-                JOIN utilisateurs u ON pe.user_id = u.id
+                LEFT JOIN utilisateurs u ON pe.user_id = u.id
                 WHERE pe.id = ?';
         $params = [$id];
         if (!$superAdmin && $shopId) {

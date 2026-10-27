@@ -49,7 +49,7 @@ class Sale
             $where = 'WHERE v.shop_id = ?';
             $params[] = $shopId;
         }
-        $sql = "SELECT v.*, u.nom_complet as nom_vendeur, 
+        $sql = "SELECT v.*, COALESCE(u.nom_complet, '" . User::DELETED_LABEL . "') as nom_vendeur,
                        c.nom_client, c.code_client, c.numero as client_numero, c.nif as client_nif,
                        tc.code as client_type_code
                  FROM ventes v 
@@ -83,7 +83,7 @@ class Sale
 
     public function exist($id)
     {
-        $sql = 'SELECT v.*, u.nom_complet as nom_vendeur, 
+        $sql = 'SELECT v.*, COALESCE(u.nom_complet, \'' . User::DELETED_LABEL . '\') as nom_vendeur, 
                        c.nom_client, c.code_client, c.numero as client_numero, c.nif as client_nif, c.adresse as client_adresse,
                        tc.code as client_type_code
                 FROM ventes v 
@@ -99,7 +99,7 @@ class Sale
      */
     public function findByInvoiceNumber($invoiceNumber)
     {
-        $sql = 'SELECT v.*, u.nom_complet as nom_vendeur 
+        $sql = 'SELECT v.*, COALESCE(u.nom_complet, \'' . User::DELETED_LABEL . '\') as nom_vendeur 
                 FROM ventes v 
                 LEFT JOIN utilisateurs u ON v.vendeur_id = u.id 
                 WHERE v.numero_facture = ?';
@@ -117,7 +117,7 @@ class Sale
         $params[] = (int)$limit;
         $params[] = (int)$offset;
 
-        $sql = "SELECT va.*, u.nom_complet as nom_vendeur,
+        $sql = "SELECT va.*, COALESCE(u.nom_complet, '" . User::DELETED_LABEL . "') as nom_vendeur,
                        c.nom_client, c.code_client
                 FROM ventes_archive va
                 LEFT JOIN utilisateurs u ON va.vendeur_id = u.id

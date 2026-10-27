@@ -13,16 +13,18 @@ class PayrollContract
 
     public function all($shopId = null, $superAdmin = false)
     {
-        $sql = 'SELECT pc.*, pe.shop_id, u.nom_complet
+        // LEFT JOIN : `payroll_employees.user_id` peut être NULL si l'employé
+        // a été supprimé (cf. migration 2026_10_25_user_delete_fk_set_null.sql).
+        $sql = 'SELECT pc.*, pe.shop_id, COALESCE(u.nom_complet, \'' . User::DELETED_LABEL . '\') as nom_complet
                 FROM payroll_contracts pc
                 JOIN payroll_employees pe ON pc.employee_id = pe.id
-                JOIN utilisateurs u ON pe.user_id = u.id';
+                LEFT JOIN utilisateurs u ON pe.user_id = u.id';
         $params = [];
         if (!$superAdmin && $shopId) {
             $sql .= ' WHERE pe.shop_id = ?';
             $params[] = $shopId;
         }
-        $sql .= ' ORDER BY u.nom_complet ASC, pc.start_date DESC';
+        $sql .= ' ORDER BY nom_complet ASC, pc.start_date DESC';
         return $this->db->fetchAll($sql, $params);
     }
 

@@ -38,7 +38,7 @@ class HotelReservation
         $sql = "SELECT s.*,
                        g.nom AS guest_nom, g.prenom AS guest_prenom, g.telephone AS guest_tel,
                        c.numero AS chambre_numero, c.type AS chambre_type, c.prix_base AS chambre_prix_base,
-                       u.nom_complet AS user_nom,
+                       COALESCE(u.nom_complet, '" . User::DELETED_LABEL . "') AS user_nom,
                        hf.id AS facture_id, hf.numero_facture AS facture_numero,
                        hf.statut AS facture_statut, hf.total_final AS facture_total
                 FROM hotel_sejours s

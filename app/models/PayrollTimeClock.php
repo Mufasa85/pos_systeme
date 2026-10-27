@@ -26,17 +26,19 @@ class PayrollTimeClock
 
     public function findByPeriod($periodId, $shopId = null)
     {
-        $sql = 'SELECT t.*, u.nom_complet
+        // LEFT JOIN : `payroll_employees.user_id` peut être NULL si l'employé
+        // a été supprimé (cf. migration 2026_10_25_user_delete_fk_set_null.sql).
+        $sql = 'SELECT t.*, COALESCE(u.nom_complet, \'' . User::DELETED_LABEL . '\') as nom_complet
                 FROM payroll_time_clock_events t
                 JOIN payroll_employees pe ON t.employee_id = pe.id
-                JOIN utilisateurs u ON pe.user_id = u.id
+                LEFT JOIN utilisateurs u ON pe.user_id = u.id
                 WHERE t.payroll_period_id = ?';
         $params = [$periodId];
         if ($shopId) {
             $sql .= ' AND t.shop_id = ?';
             $params[] = $shopId;
         }
-        $sql .= ' ORDER BY u.nom_complet ASC, t.event_at ASC';
+        $sql .= ' ORDER BY nom_complet ASC, t.event_at ASC';
         return $this->db->fetchAll($sql, $params);
     }
 

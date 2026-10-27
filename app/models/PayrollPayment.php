@@ -13,11 +13,13 @@ class PayrollPayment
 
     public function findByPeriod($periodId, $shopId = null)
     {
-        $sql = 'SELECT pay.*, u.nom_complet
+        // LEFT JOIN : `payroll_employees.user_id` peut être NULL si l'employé
+        // a été supprimé (cf. migration 2026_10_25_user_delete_fk_set_null.sql).
+        $sql = 'SELECT pay.*, COALESCE(u.nom_complet, \'' . User::DELETED_LABEL . '\') as nom_complet
                 FROM payroll_payments pay
                 JOIN payroll_payslips pp ON pay.payslip_id = pp.id
                 JOIN payroll_employees pe ON pp.employee_id = pe.id
-                JOIN utilisateurs u ON pe.user_id = u.id
+                LEFT JOIN utilisateurs u ON pe.user_id = u.id
                 WHERE pp.payroll_period_id = ?';
         $params = [$periodId];
         if ($shopId) {
