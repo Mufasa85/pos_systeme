@@ -442,7 +442,11 @@ class SaleController extends Controller
         $totals = $db->fetch($sql, $params);
 
         // Ventes par vendeur
-        $sql = "SELECT u.nom_complet, COUNT(*) as nb, COALESCE(SUM(v.total),0) as total
+        // LEFT JOIN + COALESCE : `ventes.vendeur_id` peut être NULL si le
+        // vendeur a été supprimé (cf. migration
+        // 2026_10_25_user_delete_fk_set_null.sql) — la facture est conservée.
+        $sql = "SELECT COALESCE(u.nom_complet, '" . \App\Models\User::DELETED_LABEL . "') AS nom_complet,
+                       COUNT(*) as nb, COALESCE(SUM(v.total),0) as total
                 FROM ventes v LEFT JOIN utilisateurs u ON v.vendeur_id = u.id
                 $where GROUP BY v.vendeur_id ORDER BY total DESC";
         $byVendeur = $db->fetchAll($sql, $params);
@@ -518,7 +522,11 @@ class SaleController extends Controller
         }
 
         $db = \App\Core\Database::getInstance();
-        $sql = "SELECT v.numero_facture, v.date, u.nom_complet as vendeur,
+        // LEFT JOIN + COALESCE : `ventes.vendeur_id` peut être NULL si le
+        // vendeur a été supprimé (cf. migration
+        // 2026_10_25_user_delete_fk_set_null.sql).
+        $sql = "SELECT v.numero_facture, v.date,
+                       COALESCE(u.nom_complet, '" . \App\Models\User::DELETED_LABEL . "') as vendeur,
                        c.nom_client as client, v.sous_total_ht, v.tva, v.total, v.payments
                 FROM ventes v
                 LEFT JOIN utilisateurs u ON v.vendeur_id = u.id

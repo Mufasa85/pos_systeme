@@ -179,7 +179,26 @@ class UserController extends Controller
             return;
         }
 
-        $userModel->delete($id);
+        // Impossible de supprimer l'utilisateur connecté soi-même
+        if ((int)$target['id'] === (int)($_SESSION['user_id'] ?? 0)) {
+            $this->status(400)->json(['error' => 'Impossible de supprimer votre propre compte']);
+            return;
+        }
+
+        // La suppression détachera l'auteur des lignes liées (ventes, paie,
+        // hôtel) sans jamais supprimer l'historique — cf. migration
+        // 2026_10_25_user_delete_fk_set_null.sql. Le modèle renvoie un
+        // message explicite en cas d'échec (contrainte FK non migrée).
+        $result = $userModel->delete($id);
+
+        if (empty($result['success'])) {
+            $this->status(409)->json([
+                'error'   => $result['message'] ?? 'Erreur lors de la suppression de l\'utilisateur',
+                'success' => false,
+            ]);
+            return;
+        }
+
         $this->logAudit('delete', 'utilisateur', $id, ['username' => $target['nom_utilisateur']]);
         $this->json(['success' => true, 'message' => 'Utilisateur supprimé avec succès']);
     }
