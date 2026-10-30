@@ -61,6 +61,25 @@
                             'agentCode' => $_SESSION['agent_code'] ?? '',
                             'shopId' => $_SESSION['shop_id'] ?? null,
                           ]) ?>;
+
+    // ── BUG FIX 2026-10-21 — feature flag « hotel » exposé au JS ──
+    // Même source que $showHotel / $showRecharges calculés plus bas dans
+    // ce fichier (cache de session 'feature_access_cache', TTL 300 s).
+    // Utilisé par le bouton « Extras » de /caisse (imputation hôtel) pour
+    // ne pas ouvrir le picker si l'abonnement hôtel n'est pas actif —
+    // défense en profondeur en plus du masquage serveur du bouton.
+    const FEATURE_FLAGS = <?= json_encode((function () {
+        $fc = $_SESSION['feature_access_cache'] ?? null;
+        if ($fc === null || !isset($fc['expires_at']) || $fc['expires_at'] <= time()) {
+            return ['hotel' => false, 'snelregideso' => false, 'paie' => false];
+        }
+        $f = $fc['flags'] ?? [];
+        return [
+            'hotel'        => !empty($f['hotel']),
+            'snelregideso' => !empty($f['snelregideso']),
+            'paie'         => !empty($f['paie']),
+        ];
+    })()) ?>;
   </script>
 
   <!-- Réhydratation : poll le statut actif du shop côté serveur.
