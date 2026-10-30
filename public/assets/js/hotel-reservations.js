@@ -300,15 +300,21 @@
     const canCheckOut   = s.statut === 'en_cours';
     const canCancel     = (s.statut === 'reserve' || s.statut === 'en_cours') && !factureEmise;
     const canEdit       = s.statut === 'reserve' || s.statut === 'en_cours';
+    // Reçu imprimable (ajouté 2026-10-30) : disponible sur réservation ET
+    // séjour en cours. Format A4, structure dédiée distincte de la facture
+    // DGI. Document NON fiscal — aucune facture n'est générée.
+    const canRecu       = s.statut === 'reserve' || s.statut === 'en_cours';
     const ic = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px;flex-shrink:0;vertical-align:-2px;">';
     const icCheckin  = ic + '<polyline points="20 6 9 17 4 12"></polyline></svg>';
     const icFile     = ic + '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>';
     const icCheckout = ic + '<polyline points="9 11 12 14 22 4"></polyline><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>';
     const icEdit     = ic + '<polygon points="16 3 21 8 8 21 3 21 3 16 16 3"></polygon></svg>';
     const icCancel   = ic + '<polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>';
+    const icPrint    = ic + '<polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>';
     const btn = 'justify-content:flex-start;padding:.55rem .8rem;font-size:.85rem;';
     var actionsHtml = '<div style="display:flex;flex-direction:column;gap:.5rem;margin-top:1rem;">';
     if (canCheckIn)   actionsHtml += '<button type="button" class="btn btn-primary js-act-checkin" style="' + btn + '">' + icCheckin + 'Check-in (marquer comme en cours)</button>';
+    if (canRecu)      actionsHtml += '<button type="button" class="btn btn-secondary js-act-recu" style="' + btn + '">' + icPrint + 'Imprimer le reçu (A4)</button>';
     if (canFacturer)  actionsHtml += '<button type="button" class="btn btn-primary js-act-facturer" style="' + btn + 'background:#0B5E88;">' + icFile + 'Émettre la facture</button>';
     else if (canViewFacture) actionsHtml += '<button type="button" class="btn btn-secondary js-act-view-facture" style="' + btn + '">' + icFile + 'Voir la facture n°' + escapeHtml(s.facture_numero || '') + '</button>';
     if (canCheckOut)  actionsHtml += '<button type="button" class="btn js-act-checkout" style="' + btn + 'background:#f59e0b;color:#fff;">' + icCheckout + escapeHtml(factureEmise ? 'Check-out (chambre → à nettoyer)' : 'Check-out (sans facture)') + '</button>';
@@ -333,6 +339,21 @@
   function bindActionsHandlers(s) {
     const btnCheckin = actionsBody.querySelector('.js-act-checkin');
     if (btnCheckin) btnCheckin.addEventListener('click', () => handleAction(s, 'checkin'));
+    // Reçu imprimable (ajouté 2026-10-30) : ouvre le modal de reçu global
+    // (#receipt-modal). L'utilisateur clique ensuite "Imprimer" → le modal
+    // de format (80 mm / A4) s'ouvre automatiquement.
+    const btnRecu = actionsBody.querySelector('.js-act-recu');
+    if (btnRecu) {
+      btnRecu.addEventListener('click', async () => {
+        if (!window.HotelRecu || typeof window.HotelRecu.print !== 'function') {
+          showAlert('Module de reçu indisponible.', 'error');
+          return;
+        }
+        btnRecu.disabled = true;
+        await window.HotelRecu.print(s.id, msg => showAlert(msg, 'error'));
+        btnRecu.disabled = false;
+      });
+    }
     const btnFacturer = actionsBody.querySelector('.js-act-facturer');
     if (btnFacturer) btnFacturer.addEventListener('click', () => handleAction(s, 'facturer'));
     const btnViewFacture = actionsBody.querySelector('.js-act-view-facture');
