@@ -1,4 +1,30 @@
 <!-- Caisse Page -->
+<?php
+// ── BUG FIX 2026-10-21 — sécurité du bouton « Extras » (imputation hôtel) ──
+// Le bouton « Extras » de la caisse ouvre le picker de séjours hôteliers et
+// appelle /api/hotel/sejours/... . C'est donc une functionality du module
+// HÔTEL : elle doit être conditionnée par le même feature flag API que
+// /recharges (snelregideso), /payroll (paie) et le menu Hôtel (hotel).
+//
+// Pattern identique à app/views/layout/header.php ($showRecharges / $showHotel) :
+//   - on lit le cache de session 'feature_access_cache' ;
+//   - on vérifie que le cache n'est pas expiré (expires_at > time()) ;
+//   - si le flag est absent / false → le bouton n'est PAS rendu.
+//
+// Le backend protège déjà l'API (HotelExtrasController::extrasFromCart →
+// requireFeatureApiAccess('hotel') + isShopActive()), mais ce masque évite
+// à l'utilisateur de cliquer sur un bouton qui ne peut aboutir qu'à un 403.
+//
+// NB : aucun filtre de rôle hôtelier ici — le module hôtel est mono-établissement
+// et l'API hotel est accessible aux caissiers (vendeur) comme aux réceptionsnistes.
+$featureCacheCaisse = $_SESSION['feature_access_cache'] ?? null;
+$showHotelExtras = false;
+if ($featureCacheCaisse !== null
+    && isset($featureCacheCaisse['expires_at'])
+    && $featureCacheCaisse['expires_at'] > time()) {
+  $showHotelExtras = !empty($featureCacheCaisse['flags']['hotel']);
+}
+?>
 <style>
   .products-toolbar {
     display: flex;
@@ -323,7 +349,13 @@
            Ouvre un picker (séjours statut='en_cours'), met posCart.currentSejour
            et change la couleur du bouton "Valider" pour le confirmer.
            Déplacé depuis btn-group-valider pour être accessible avant la
-           composition du panier. -->
+           composition du panier.
+
+           BUG FIX 2026-10-21 — masquage conditionnel (feature flag API `hotel`).
+           Identique au menu Hôtel (header.php) et à /recharges : si l'abonnement
+           hôtel n'est pas actif, le bouton n'est pas rendu (le backend
+           refuserait de toute façon avec un 403). -->
+      <?php if ($showHotelExtras): ?>
       <button id="btn-imputer-sejour"
               type="button"
               class="cart-affect-btn cart-affect-btn-extras"
@@ -336,6 +368,7 @@
         </svg>
         <span>Extras</span>
       </button>
+      <?php endif; ?>
     </div>
     <div id="cart-items" class="cart-items">
       <div class="cart-empty">Le panier est vide</div>
