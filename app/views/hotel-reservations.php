@@ -431,5 +431,9 @@ if (!function_exists('hr_date')) {
   </div>
 </div>
 
+<!-- hotel-recu.js : reçu de séjour A4 (ajouté 2026-10-30).
+     Structure HTML + styles A4 PROPRES (.recu-hotel / .rcu-*), volontairement
+     distinctes de la facture DGI normalisée (paper-type.js). -->
+<script src="/assets/js/hotel-recu.js?v=1"></script>
 <script src="/assets/js/hotel-reservations.js?v=1"></script>
 <script src="/assets/js/hotel-reservation-form.js?v=1"></script>
