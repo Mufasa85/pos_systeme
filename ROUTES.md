@@ -456,6 +456,69 @@ Base URL: `http://localhost:8000/api`
 
 ---
 
+### Synchronisation DGI différée (cas « update »)
+
+Quand la DGI est indisponible, l'API OSAT renvoie un fallback (réponse au format
+« non assujettie » + `store_homologation = 2`) et met la demande en attente de son
+côté. OSAT rejoue la demande auprès de la DGI quand elle redevient disponible,
+puis vient chercher la mise à jour chez nous.
+
+| Méthode | Route | Contrôleur | Action | Auth | Description |
+| ------- | ----- | ---------- | ------ | ---- | ----------- |
+| POST | `/api/dgi/update` | DgiWebhookController | update | Secret partagé | **Route principale** — OSAT pousse la résolution DGI |
+| POST | `/api/vente/[id]/dgi-sync` | DgiSyncController | syncSale | Session | Relance manuelle de la relecture d’une vente |
+| GET | `/api/dgi/pending` | DgiSyncController | pending | Session (admin) | Liste des ventes en attente de résolution |
+| POST | `/api/dgi/sync-all` | DgiSyncController | syncAll | Session (admin) | Relance la relecture par lot |
+
+#### POST `/api/dgi/update`
+
+**Description:** Point d’entrée appelé par OSAT lorsque la DGI redevient
+disponible et que la demande en attente est résolue. Les éléments de sécurité
+(`codeDEFDGI`, `counters`, `nim`, `qrCode`, `dateDGI`) sont écrits sur la ligne
+`ventes` correspondante.
+
+**Authentification:** secret partagé, **sans session** (OSAT est un serveur).
+
+- `X-DGI-Token: <secret>` — secret en clair
+- `X-DGI-Signature: <HMAC-SHA256 du corps>` — variante forte (prioritaire)
+
+Le secret est défini par la constante `DGI_WEBHOOK_TOKEN` dans
+`config/config.php` (ou la variable d’environnement du même nom).
+**Si le secret n’est pas configuré, la route refuse tout appel** (fail-closed).
+
+**Corps de la requête:**
+
+```json
+{
+  "invoice_number": "2026/000123",
+  "store_isf": "A900011T",
+  "data": {
+    "codeDEFDGI": "…",
+    "counters": "…",
+    "nim": "…",
+    "qrCode": "…",
+    "dateDGI": "…",
+    "total": 12500.00,
+    "vtotal": 14500.00
+  },
+  "comment": null
+}
+```
+
+**Réponses:**
+
+| Code | Signification |
+| ---- | ------------- |
+| 200 | Mise à jour effectuée (`updated: true`) |
+| 202 | Vente introuvable (OSAT a résolu avant notre INSERT) — la relecture automatique rattrapera |
+| 400 | Corps JSON invalide ou `invoice_number` manquant |
+| 401 | Secret absent ou invalide |
+
+**Note:** l’opération est idempotente — un rejeu du callback écrase avec les
+mêmes valeurs.
+
+---
+
 ## Authentification
 
 ### Session utilisateur
