@@ -177,7 +177,7 @@
                     </svg>
                     Adresse
                   </label>
-                  <input type="text" id="store-address" name="store_address" value="" placeholder="Ex: 123 Rue Mohammed V, Casablanca">
+                  <input type="text" id="store-address" name="store_address" value="" placeholder="Ex: 123 Rue Mohammed V, Casablanca" readonly>
                 </div>
               </div>
               <div class="form-row">
@@ -189,7 +189,7 @@
                     </svg>
                     Email
                   </label>
-                  <input type="text" id="store-email" name="store_email" value="" placeholder="Ex: contact@magasin.com">
+                  <input type="text" id="store-email" name="store_email" value="" placeholder="Ex: contact@magasin.com" readonly>
                 </div>
                 <div class="form-group">
                   <label>
@@ -199,7 +199,7 @@
                     </svg>
                     Point de vente (PDV)
                   </label>
-                  <input type="text" id="store-pdv" name="pdv" value="" placeholder="Ex: PDV001">
+                  <input type="text" id="store-pdv" name="pdv" value="" placeholder="Ex: PDV001" readonly>
                 </div>
               </div>
               <div class="form-row">
@@ -210,7 +210,7 @@
                     </svg>
                     Téléphone
                   </label>
-                  <input type="text" id="store-phone" name="store_phone" value="" placeholder="Ex: +212 522 123 456">
+                  <input type="text" id="store-phone" name="store_phone" value="" placeholder="Ex: +212 522 123 456" readonly>
                 </div>
                 <div class="form-group">
                   <label>
@@ -220,7 +220,7 @@
                     </svg>
                     ID Nat
                   </label>
-                  <input type="text" id="store-ice" name="store_ice" value="" placeholder="Ex: 001234567890123" style="font-family: 'JetBrains Mono', monospace;">
+                  <input type="text" id="store-ice" name="store_ice" value="" placeholder="Ex: 001234567890123" readonly style="font-family: 'JetBrains Mono', monospace;">
                 </div>
               </div>
               <div class="form-row">
@@ -246,7 +246,7 @@
                     </svg>
                     ISF
                   </label>
-                  <input type="text" id="store-isf" name="store_isf" value="" placeholder="Ex: ISF123456">
+                  <input type="text" id="store-isf" name="store_isf" value="" placeholder="Ex: ISF123456" readonly>
                 </div>
               </div>
             </div>
