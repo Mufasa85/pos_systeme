@@ -6,6 +6,8 @@ use App\Controllers\AuthController;
 use App\Controllers\CategoryController;
 use App\Controllers\ClientController;
 use App\Controllers\CompanyInfoController;
+use App\Controllers\DgiSyncController;
+use App\Controllers\DgiWebhookController;
 use App\Controllers\NotificationController;
 use App\Controllers\PayrollAttendanceController;
 use App\Controllers\PayrollController;
@@ -144,6 +146,23 @@ Router::get('/api/vente/next-invoice', [SaleController::class, 'nextInvoice']);
 Router::get('/api/ventes/archives', [SaleController::class, 'archives']);
 Router::get('/api/cloture', [SaleController::class, 'cloture']);
 Router::get('/api/export/ventes', [SaleController::class, 'exportCsv']);
+
+// ── Synchronisation DGI différée ───────────────────────────────────
+//
+// Cas "update" : la DGI était indisponible au moment de l'émission. OSAT a
+// mis la demande en attente de son côté et revient nous chercher la mise à
+// jour quand la DGI redevient disponible.
+//
+//   POST /api/dgi/update       → OSAT pousse la résolution (route principale,
+//                                protégée par un secret partagé : X-DGI-Token
+//                                ou X-DGI-Signature)
+//   POST /api/vente/[id]/dgi-sync → relance manuelle d'une vente (session)
+//   GET  /api/dgi/pending       → liste des ventes en attente (admin)
+//   POST /api/dgi/sync-all      → relance par lot (admin)
+Router::post('/api/dgi/update', [DgiWebhookController::class, 'update']);
+Router::post('/api/vente/[i:id]/dgi-sync', [DgiSyncController::class, 'syncSale']);
+Router::get('/api/dgi/pending', [DgiSyncController::class, 'pending']);
+Router::post('/api/dgi/sync-all', [DgiSyncController::class, 'syncAll']);
 
 // ── Payroll (employés / vendeurs) ───────────────────────────
 Router::get('/api/payroll/employees', [PayrollEmployeeController::class, 'index']);
