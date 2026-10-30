@@ -90,6 +90,10 @@ Router::get('/hotel/facturation', [PageController::class, 'hotelFacturation']);
 Router::get('/api/hotel/factures/preview', [HotelFactureController::class, 'preview']);
 Router::post('/api/hotel/factures', [HotelFactureController::class, 'store']);
 Router::get('/api/hotel/factures/[i:id]', [HotelFactureController::class, 'show']);
+// Reçu de séjour (impression au check-in) — ajouté 2026-10-30
+// Réutilise l'agrégat de la preview (nuits + extras + acomptes) mais n'écrit
+// rien en base et ne génère AUCUNE facture (pas de DGI, pas de n° fiscal).
+Router::get('/api/hotel/sejours/[i:id]/recu', [HotelFactureController::class, 'recu']);
 // BUG FIX 2026-10-20 (round 6) : route /api/hotel/factures/[i:id]/cancel
 // supprimée — l'annulation de facture n'est plus autorisée depuis l'UI de
 // /hotel/facturation. La méthode HotelFactureController::cancel() est
