@@ -71,6 +71,17 @@ class SaleController extends Controller
                                 $sejourId = isset($data['sejour_id']) && $data['sejour_id'] !== '' ? (int)$data['sejour_id'] : null;
                                 $sejourChambreNumero = null; // pour la description human-friendly de l'extra
                                 if ($sejourId !== null) {
+                                    // ── BUG FIX 2026-10-21 — garde d'accès au module hôtel ──
+                                    // Imputer une vente sur un séjour = functionality du module
+                                    // HÔTEL. On applique donc le même feature flag API que
+                                    // /recharges, /payroll et le menu Hôtel, afin qu'un client
+                                    // sans abonnement hôtel ne puisse pas créer d'extras en
+                                    // postant directement `sejour_id` (le bouton « Extras » de
+                                    // /caisse est masqué côté serveur, mais l'API doit
+                                    // rester le vrai point de contrôle).
+                                    if (!$this->requireFeatureApiAccess('hotel')) {
+                                        return;
+                                    }
                                     $sejour = \App\Core\Database::getInstance()->fetch(
                                         'SELECT s.id, s.guest_id, s.statut, s.date_arrivee, c.numero AS chambre_numero
                                          FROM hotel_sejours s
@@ -133,6 +144,43 @@ class SaleController extends Controller
                 $storeIsf = trim((string)($companyInfo['isf'] ?? ''));
             }
 
+            // ── Statut de synchronisation DGI ───────────────────────────────
+            // Quand la DGI est indisponible, OSAT renvoie un fallback (la
+            // réponse a la forme d'une facture "non assujettie") et signale un
+            // cas d'update via `store_homologation = 2`. OSAT met alors la
+            // demande en attente de son côté et reviendra nous chercher la
+            // mise à jour (POST /api/dgi/update).
+            //
+            // On mémorise dès maintenant :
+            //   - la clé DGI (invoice_number) EXACTEMENT envoyée à OSAT, pour
+            //     pouvoir retrouver la vente plus tard (cf. la divergence
+            //     possible avec numero_facture, regénéré côté serveur) ;
+            //   - le statut, pour lister les factures à resynchroniser.
+            $dgiService = new \App\Services\DgiSyncService();
+
+            $homologation = false;
+            if ($shopId) {
+                $shopRow = (new \App\Models\Shop())->findById($shopId);
+                $homologation = (bool)($shopRow['homologation'] ?? false);
+            }
+
+            $dgiStatus = $dgiService->resolveInitialStatus(
+                is_array($dgiData) ? $dgiData : [],
+                $typeFacture,
+                $homologation
+            );
+
+            // La clé DGI est celle qu'OSAT a mémorisée : on la fige. Le front
+            // la transmet dans dgi_data.dgi_invoice_number ; en son absence
+            // on retombe sur le numéro de facture du serveur.
+            $dgiInvoiceNumber = trim((string)($dgiData['dgi_invoice_number'] ?? ''));
+            if ($dgiInvoiceNumber === '') {
+                $dgiInvoiceNumber = trim((string)($dgiData['invoice_number'] ?? ''));
+            }
+            if ($dgiInvoiceNumber === '') {
+                $dgiInvoiceNumber = $invoiceNum;
+            }
+
             $saleId = $saleModel->create([
                             'numero_facture' => $invoiceNum,
                             'invoice_type'   => $typeFacture,
@@ -153,6 +201,8 @@ class SaleController extends Controller
                             'nim'            => $dgiData['nim'] ?? null,
                             'comment'        => $dgiData['comment'] ?? null,
                             'service'        => $data['providerService'] ?? null,
+                            'dgi_invoice_number' => $dgiInvoiceNumber,
+                            'dgi_status'     => $dgiStatus,
                         ]);
 
             // Si providerService existe (recharges), ne pas enregistrer dans details_vente
