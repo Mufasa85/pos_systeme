@@ -7,6 +7,7 @@
  *   POST   /api/hotel/reservations/{id}/check-out
  *   POST   /api/hotel/reception/rooms/{id}/cleaning-done
  *   POST   /api/hotel/reception/rooms/{id}/out-of-service
+ *   GET    /api/hotel/sejours/{id}/recu   → reçu imprimable (bouton "Reçu")
  */
 (function() {
   'use strict';
@@ -113,6 +114,7 @@
         //   Facturer   : si emit_facture (manager + réceptionniste) ET
         //                pas déjà facturé (s.facture_id null)
         //   Check-out  : si check_in_out
+        //   Reçu       : impression du reçu du séjour (ajouté 2026-10-30)
         actionsHtml = `<button type="button" class="btn-mini js-open-sejour" data-id="${s.id}">Détail</button>`;
         if (capabilities.emit_facture && !factureEmise) {
           actionsHtml += `<button type="button" class="btn-mini primary js-facturer" data-id="${s.id}">Facturer</button>`;
@@ -120,6 +122,7 @@
         if (factureEmise) {
           actionsHtml += factureLabel;
         }
+        actionsHtml += `<button type="button" class="btn-mini js-recu" data-id="${s.id}">Reçu</button>`;
         if (capabilities.check_in_out) {
           actionsHtml += `<button type="button" class="btn-mini danger js-checkout" data-id="${s.id}">Check-out</button>`;
         }
@@ -132,6 +135,9 @@
         } else if (factureEmise) {
           actionsHtml = factureLabel;
         }
+        // Reçu imprimable du séjour (ajouté 2026-10-30) — utile au départ
+        // pour remettre un récapitulatif au client.
+        actionsHtml += `<button type="button" class="btn-mini js-recu" data-id="${s.id}">Reçu</button>`;
         if (capabilities.check_in_out) {
           actionsHtml += `<button type="button" class="btn-mini danger js-checkout" data-id="${s.id}">Check-out</button>`;
         }
@@ -181,6 +187,18 @@
     lists[list].querySelectorAll('.js-facturer').forEach(b => {
       b.addEventListener('click', () => {
         window.location.href = '/hotel/facturation?sejour_id=' + encodeURIComponent(b.dataset.id);
+      });
+    });
+    // Reçu imprimable (ajouté 2026-10-30) : ouvre le modal de reçu global.
+    lists[list].querySelectorAll('.js-recu').forEach(b => {
+      b.addEventListener('click', async () => {
+        if (!window.HotelRecu || typeof window.HotelRecu.print !== 'function') {
+          showAlert('Module de reçu indisponible.', 'error');
+          return;
+        }
+        b.disabled = true;
+        await window.HotelRecu.print(b.dataset.id, msg => showAlert(msg, 'error'));
+        b.disabled = false;
       });
     });
   }
@@ -391,6 +409,13 @@
     if (s.statut === 'en_cours' && capabilities.check_in_out) {
       actionsHtml += `<button type="button" class="btn btn-danger js-drawer-checkout">Check-out</button>`;
     }
+    // Reçu imprimable du séjour (ajouté 2026-10-30) : disponible dès que le
+    // séjour a un prix (réservé ou en cours). Format A4, structure dédiée
+    // distincte de la facture DGI. Le reçu n'est pas un document fiscal —
+    // il ne génère aucune facture (cf. HotelFactureController::recu).
+    if (s.statut === 'reserve' || s.statut === 'en_cours') {
+      actionsHtml += `<button type="button" class="btn btn-secondary js-drawer-recu">Imprimer le reçu (A4)</button>`;
+    }
 
     drawerContent.innerHTML = `
       <div style="margin-bottom:.85rem;font-size:.8rem;color:var(--muted);text-transform:uppercase;">Statut</div>
@@ -433,6 +458,20 @@
         } else {
           showAlert((r2.data && r2.data.message) || 'Erreur', 'error', 'drawer');
         }
+      });
+    });
+    // Reçu imprimable (ajouté 2026-10-30) : ouvre le modal de reçu global
+    // (#receipt-modal) avec le ticket, puis l'utilisateur clique "Imprimer"
+    // → le modal de format (80 mm / A4) s'ouvre automatiquement.
+    drawerContent.querySelectorAll('.js-drawer-recu').forEach(b => {
+      b.addEventListener('click', async () => {
+        if (!window.HotelRecu || typeof window.HotelRecu.print !== 'function') {
+          showAlert('Module de reçu indisponible.', 'error', 'drawer');
+          return;
+        }
+        b.disabled = true;
+        await window.HotelRecu.print(sejourId, msg => showAlert(msg, 'error', 'drawer'));
+        b.disabled = false;
       });
     });
 

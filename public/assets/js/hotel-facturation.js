@@ -1554,6 +1554,13 @@
       if (invData && invData.invoice_number) dgiInvoiceNum = invData.invoice_number;
     } catch (_) { }
 
+    // On expose la clé DGI au global : c'est elle qu'OSAT mémorise, et
+    // c'est elle qu'il renverra lors de la mise à jour différée. Elle doit
+    // donc être persistée telle quelle par le backend
+    // (ventes.dgi_invoice_number), et pas le numéro que le serveur
+    // regénère de son côté.
+    window.hotelDgiInvoiceNum = dgiInvoiceNum;
+
     // Plus besoin d'await loadTaxBRate() ici : la valeur est lue
     // directement depuis previewData.sejour.chambre.taxe_taux (jointure
     // chambre → taxes). Voir getTaxBValueFromPreview().
@@ -1901,6 +1908,19 @@
         vtotal: dgiData.vtotal || null,
         isf: dgiData.isf || null,
         comment: dgiResp.comment || dgiData.comment || null,
+        // Clé DGI figée : c'est l'invoice_number envoyé à OSAT lors de la
+        // validation. Le serveur la stocke dans ventes.dgi_invoice_number
+        // pour pouvoir retrouver la facture quand OSAT reviendra avec la
+        // résolution (cas "update", store_homologation = 2).
+        // ⚠️ C'est la clé OBTENUE PAR LE FRONT (window.hotelDgiInvoiceNum),
+        // pas le numéro regénéré par le serveur : les deux peuvent diverger.
+        dgi_invoice_number: window.hotelDgiInvoiceNum || window.hotelPreviewInvoiceNum || null,
+        // Drapeau OSAT : 1 = homologué, 2 = cas d'update (DGI indisponible
+        // au moment de l'émission), 0 = non homologué. Permet au serveur de
+        // classer la facture (pending / synced / not_applicable).
+        store_homologation: (dgiData.store_homologation !== undefined && dgiData.store_homologation !== null)
+          ? dgiData.store_homologation
+          : null,
       },
     };
     var r = await jsonFetch('/api/hotel/factures', {
@@ -2055,6 +2075,20 @@
         // noms pour la rétrocompatibilité (certains proxies DGI exposent
         // encore `dateDGI`).
         ((dgiData.dateTime || dgiData.dateDGI) ? '<br>DEF Heure : ' + escapeHtml(dgiData.dateTime || dgiData.dateDGI) : '') +
+        '</div></div>';
+    }
+
+    // Avertissement : la facture a été émise pendant une indisponibilité de
+    // la DGI (OSAT a signalé un cas d'update, store_homologation = 2). Les
+    // éléments de sécurité seront complétés automatiquement (callback OSAT ou
+    // relecture automatique). On le dit au client pour qu'il sache que le
+    // duplicata pourra être réimprimé complet plus tard.
+    if (saleData.dgi_status === 'pending') {
+      dgiInfoHtml +=
+        '<div style="background:#fef3c7; border:1px solid #f59e0b; border-radius:8px; padding:10px; margin:10px 0; text-align:center;">' +
+        '<div style="color:#92400e; font-weight:bold; font-size:11px;">⏳ FACTURE EN ATTENTE DE VALIDATION DGI</div>' +
+        '<div style="font-size:10px; color:#78350f; margin-top:4px;">' +
+        'La DGI était momentanément indisponible à l\'émission. Les éléments de sécurité seront complétés automatiquement.' +
         '</div></div>';
     }
 

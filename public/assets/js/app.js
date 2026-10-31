@@ -960,8 +960,25 @@ const posCart = {
     // Appeler l'API DGI pour valider la facture
     async validateWithDGI() {
         try {
-            // Generer le numero de facture
-            const invoiceNum = 'FACTURE n°' + Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
+            // S'assurer qu'on dispose d'un numéro de facture stable AVANT
+            // d'appeler OSAT. C'est cette clé (invoice_number) que l'API OSAT
+            // mémorise : si la DGI est indisponible, OSAT met la demande en
+            // attente et la rejoue plus tard sous cette même clé. Sans clé
+            // stable, la facture devient introuvable côté DGI.
+            if (!this.currentInvoiceNum) {
+                try {
+                    const invRes = await fetch(APP_URL + '/api/vente/next-invoice');
+                    const invData = await invRes.json();
+                    if (invData && invData.invoice_number) {
+                        this.currentInvoiceNum = invData.invoice_number;
+                    }
+                } catch (e) {
+                    console.warn('Erreur récupération numéro facture (DGI):', e);
+                }
+            }
+            if (!this.currentInvoiceNum) {
+                this.currentInvoiceNum = 'FAC-' + Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
+            }
 
             // Obtenir le nom du vendeur
             const sellerName = (typeof CURRENT_USER !== 'undefined' && CURRENT_USER.fullName) ? CURRENT_USER.fullName : STORE_INFO.name;
@@ -1021,7 +1038,14 @@ const posCart = {
                 store_name: STORE_INFO.name,
                 amount: this.currentTotals.total,
                 client_number: clientNumero,
-                invoice_number: this.currentInvoiceNum,
+                // Clé de la facture chez OSAT. Elle doit être stable : c'est la
+                // clé que l'API OSAT mémorise pour pouvoir rejouer la demande
+                // plus tard (cas "update", store_homologation = 2) et c'est
+                // celle qu'OSAT renverra lors de la mise à jour.
+                // Si /api/vente/next-invoice a échoué, currentInvoiceNum est
+                // vide : on envoie alors un numéro de secours, sinon OSAT
+                // recevrait une clé vide (le JSON la supprimerait).
+                invoice_number: this.currentInvoiceNum || ('FAC-' + Math.floor(Math.random() * 1000000).toString().padStart(6, '0')),
                 invoice_type: invoiceType,
                 invoice_refs: invoiceRefs,
                 invoice_ref: invoiceRefs[0] || '',
@@ -1809,7 +1833,16 @@ const posCart = {
                         total: dgiResponse.data ? dgiResponse.data.total : null,
                         vtotal: dgiResponse.data ? dgiResponse.data.vtotal : null,
                         isf: dgiResponse.data ? dgiResponse.data.isf : null,
-                        comment: dgiResponse.comment || (dgiResponse.data ? dgiResponse.data.comment : null)
+                        comment: dgiResponse.comment || (dgiResponse.data ? dgiResponse.data.comment : null),
+                        // Clé DGI figée : c'est l'invoice_number envoyé à OSAT.
+                        // Le serveur la stocke dans ventes.dgi_invoice_number
+                        // pour pouvoir retrouver la vente quand OSAT revient
+                        // avec la résolution (cas "update", store_homologation=2).
+                        dgi_invoice_number: dgiResponse.data?.invoice_number || this.currentInvoiceNum || null,
+                        // Drapeau OSAT : 1 = homologué, 2 = cas d'update
+                        // (DGI indisponible au moment de l'émission), 0 = non
+                        // homologué. Permet au serveur de classer la vente.
+                        store_homologation: dgiResponse.data?.store_homologation ?? null
                     }
                 })
             });
@@ -2915,6 +2948,48 @@ function renderServiceBillContent(data, sale) {
 
 // ==================== SALE DETAILS ====================
 
+// Relance la synchronisation DGI d'une vente en attente.
+// La DGI était indisponible au moment de l'émission : OSAT a mis la demande
+// en attente de son côté et reviendra vers nous. Cette action relit la
+// facture auprès d'OSAT et écrit les éléments de sécurité en base.
+async function resyncDgi(saleId, badgeEl) {
+    const previous = badgeEl ? badgeEl.innerHTML : '';
+    if (badgeEl) {
+        badgeEl.innerHTML = '⏳ Synchronisation...';
+        badgeEl.style.pointerEvents = 'none';
+    }
+
+    try {
+        const res = await fetch(APP_URL + '/api/vente/' + saleId + '/dgi-sync', {
+            method: 'POST',
+            headers: { 'Accept': 'application/json' }
+        });
+        const data = await res.json();
+
+        if (data.success && data.status === 'synced') {
+            alert('Facture synchronisée avec la DGI.');
+            // Recharger la page pour afficher le compteur / code DEF/DGI
+            window.location.reload();
+            return;
+        }
+
+        const message = data.message || 'La facture est toujours en attente de résolution DGI.';
+        alert(message);
+
+        if (badgeEl) {
+            badgeEl.innerHTML = previous;
+            badgeEl.style.pointerEvents = '';
+        }
+    } catch (e) {
+        console.error('[DGI SYNC] Erreur:', e);
+        alert('Erreur lors de la synchronisation DGI : ' + e.message);
+        if (badgeEl) {
+            badgeEl.innerHTML = previous;
+            badgeEl.style.pointerEvents = '';
+        }
+    }
+}
+
 // Affiche le contenu d'un détail de vente (PROFORMA via DGI uniquement)
 async function viewSaleDetails(saleId) {
     const response = await fetch(APP_URL + '/api/vente/' + saleId + '/details');
@@ -3267,6 +3342,26 @@ function showCaisseToast(message, type, duration) {
 // Aucune DGI n'est émise : pas d'encaissement, le client paiera au check-out.
 
 async function openSejourPicker() {
+    // ── BUG FIX 2026-10-21 — garde d'accès (feature flag API « hotel ») ──
+    // Le picker de séjours hôteliers est une fonctionnalité du module HÔTEL :
+    // elle doit être conditionnée par le même abonnement que le menu Hôtel
+    // et /recharges. Le bouton est déjà masqué côté serveur (caisse.php,
+    // $showHotelExtras), mais cette garde couvre les cas où :
+    //   - le HTML est servi depuis le cache du navigateur (page mise en cache
+    //     avant l'expiration du flag) ;
+    //   - l'abonnement hôtel a expiré entre le rendu de la page et le clic ;
+    //   - la fonction est appelée programmatiquement (console, autre script).
+    // Le backend refuse de toute façon (HotelExtrasController → 403), mais on
+    // évite d'ouvrir un modal qui ne pourra pas aboutir.
+    if (typeof FEATURE_FLAGS !== 'undefined' && FEATURE_FLAGS && !FEATURE_FLAGS.hotel) {
+        if (typeof showCaisseToast === 'function') {
+            showCaisseToast('Module hôtel non activé pour cette boutique.', 'error');
+        } else {
+            alert('Module hôtel non activé pour cette boutique.');
+        }
+        return;
+    }
+
     const modal = $('#sejour-picker-modal');
     const list = $('#sejour-picker-list');
     const empty = $('#sejour-picker-empty');
