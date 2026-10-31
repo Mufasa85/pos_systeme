@@ -11,6 +11,7 @@ use App\Controllers\Controller;
  *   GET  /api/hotel/factures/preview?sejour_id=X   → agrège séjour + extras + acomptes
  *   POST /api/hotel/factures                       → émet la facture officielle
  *   GET  /api/hotel/factures/[i:id]                → détail d'une facture émise
+ *   GET  /api/hotel/sejours/[i:id]/recu            → reçu imprimable du séjour (check-in)
  *   POST /api/hotel/factures/[i:id]/cancel         → annule (passe statut='annulee')
  *
  * Permissions :
@@ -110,7 +111,7 @@ class HotelFactureController extends Controller
         // pour renvoyer un JSON propre avec un status 500 et un message
         // lisible. Le log_error() aide au diagnostic côté serveur.
         try {
-            $this->buildPreviewData($sejourId);
+            $data = $this->buildPreviewData($sejourId);
         } catch (\Throwable $e) {
             error_log('[hotel-fac preview] ' . $e->getMessage() . ' @ ' . $e->getFile() . ':' . $e->getLine());
             $this->jsonOut([
@@ -118,19 +119,66 @@ class HotelFactureController extends Controller
                 'message' => 'Erreur lors du calcul de la prévisualisation : ' . $e->getMessage(),
             ], 500);
         }
+        $this->jsonOut(['success' => true, 'data' => $data]);
+    }
+
+    /**
+     * GET /api/hotel/sejours/[id]/recu
+     *
+     * Reçu d'un séjour — agrégat strictement identique à la preview
+     * (/api/hotel/factures/preview), mais destiné à l'impression d'un
+     * reçu de check-in (pas de facture, pas de DGI, pas d'écriture en base).
+     *
+     * L'agrégation est Factorisée : buildPreviewData() est réutilisé tel
+     * quel → le reçu affiche exactement les mêmes montants que la future
+     * facture, sans jamais dupliquer la logique de calcul (cf. AGENT.md :
+     * ne jamais réinventer la facturation).
+     *
+     * Le reçu n'est PAS un document fiscal : aucun numéro de facture n'est
+     * généré, aucune ligne n'est insérée dans `ventes` / `hotel_factures`.
+     * Il porte un numéro de séjour (`SEJOUR n°X`) à la place.
+     */
+    public function recu($id): void
+    {
+        if (!$this->guardRead()) $this->jsonOut(['success' => false, 'message' => 'Accès refusé'], 403);
+
+        $sejourId = is_array($id) ? (int)($id['id'] ?? 0) : (int)$id;
+        if ($sejourId <= 0) $this->jsonOut(['success' => false, 'message' => 'Séjour invalide'], 422);
+
+        try {
+            $data = $this->buildPreviewData($sejourId);
+        } catch (\Throwable $e) {
+            error_log('[hotel-fac recu] ' . $e->getMessage() . ' @ ' . $e->getFile() . ':' . $e->getLine());
+            $this->jsonOut([
+                'success' => false,
+                'message' => 'Erreur lors de la génération du reçu : ' . $e->getMessage(),
+            ], 500);
+        }
+
+        // Le reçu reprend les mêmes agrégats que la preview. On ajoute
+        // seulement les métadonnées utiles à l'impression :
+        //  - `recu_ref`  : référence lisible (SEJOUR n°X) — pas un n° fiscal
+        //  - `emitted_at` : horodatage d'émission du reçu
+        $data['recu_ref']      = 'SEJOUR n°' . $sejourId;
+        $data['emitted_at']    = date('Y-m-d H:i:s');
+        $data['existing_facture'] = $data['existing_facture'] ?? null;
+
+        $this->jsonOut(['success' => true, 'data' => $data]);
     }
 
     /**
      * Construit le payload de prévisualisation pour un séjour donné.
      * Méthode extraite de preview() pour pouvoir l'envelopper dans un
-     * try/catch global (cf. note dans preview()). Renvoie via jsonOut()
-     * (donc exit) en cas de succès.
+     * try/catch global (cf. note dans preview()) ET pour être réutilisée
+     * par l'endpoint "reçu" (cf. recu()).
+     *
+     * Renvoie le tableau 'data' (sans wrapper success).
      *
      * Throw n'importe quel \Throwable pour les erreurs attendues :
-     * PDOException, RuntimeException, etc. Le caller (preview()) traduit
-     * en JSON 500 lisible.
+     * PDOException, RuntimeException, etc. Le caller (preview() / recu())
+     * traduit en JSON 500 lisible.
      */
-    private function buildPreviewData(int $sejourId): void
+    private function buildPreviewData(int $sejourId): array
     {
         $db = \App\Core\Database::getInstance();
 
@@ -357,8 +405,17 @@ class HotelFactureController extends Controller
             $produitId    = (int)($row['produit_id'] ?? 0);
             $qty          = isset($row['quantite']) && $row['quantite'] !== null ? (float)$row['quantite'] : null;
             $prixUnit     = isset($row['prix_unitaire']) && $row['prix_unitaire'] !== null ? (float)$row['prix_unitaire'] : null;
-            $tsType       = $row['taxe_specifique_type'] ?? '%';
-            $tsValue      = (float)($row['taxe_specifique_value'] ?? 0);
+            // BUG FIX 2026-10-30 : on Renomme ces variables (`exTsType` /
+            // `exTsValue` au lieu de `tsType` / `tsValue`). Avant, la boucle
+            // des extras ÉCRASSAIT les variables de la taxe spécifique de la
+            // CHAMBRE ($tsType / $tsValue, utilisées plus bas pour exposer
+            // `nuits.taxe_specifique_type` / `nuits.taxe_specifique_value`).
+            // Concrètement : sur un séjour avec une TS de chambre (ex: 10 %)
+            // et au moins un extra dont la TS est à 0, le reçu / la preview
+            // affichait "TS 0" alors que la facture émise en appliquait bien
+            // 10 %. On isole donc les variables par préfixe.
+            $exTsType     = $row['taxe_specifique_type'] ?? '%';
+            $exTsValue    = (float)($row['taxe_specifique_value'] ?? 0);
             $rType        = $row['remise_type'] ?? '%';
             $rValue       = (float)($row['remise_value'] ?? 0);
             $taxRate      = (float)($row['tax_rate'] ?? $row['produit_tax_rate_db'] ?? 0);
@@ -400,8 +457,8 @@ class HotelFactureController extends Controller
                 'prix_unitaire'        => $prixUnit,
                 'remise_type'          => $rType,
                 'remise_value'         => $rValue,
-                'taxe_specifique_type' => $tsType,
-                'taxe_specifique_value'=> $tsValue,
+                'taxe_specifique_type' => $exTsType,
+                'taxe_specifique_value'=> $exTsValue,
                 'tax_rate'             => $taxRate,
                 'taxe_etiquette'       => $taxEtiq,
                 'prod_service'         => $prodService,
@@ -438,9 +495,7 @@ class HotelFactureController extends Controller
         $totalFinal    = $totalBrut;
         $soldeDu       = round($totalFinal - $acompteTotal, 2);
 
-        $this->jsonOut([
-            'success' => true,
-            'data'    => [
+        return [
             'sejour'            => [
                 'id'          => (int)$sejour['id'],
                 'statut'      => $sejour['statut'],
@@ -525,8 +580,7 @@ class HotelFactureController extends Controller
                 'statut'        => $existing['statut'],
                 'total_final'   => (float)$existing['total_final'],
             ] : null,
-            ],
-        ]);
+        ];
     }
 
     /**
@@ -823,6 +877,45 @@ class HotelFactureController extends Controller
             $numeroFacture = $this->generateNumeroFacture();
             $clientId = !empty($sejour['guest_client_id']) ? (int)$sejour['guest_client_id'] : null;
 
+            // ── Statut de synchronisation DGI ───────────────────────────────
+            // Même logique que la caisse POS (cf. SaleController::create) :
+            // quand la DGI est indisponible, OSAT renvoie un fallback
+            // (store_homologation = 2) et met la demande en attente de son
+            // côté. On fige la clé DGI (invoice_number) ET on note le statut
+            // pour que la facture puisse être complétée plus tard, soit par le
+            // callback OSAT (POST /api/dgi/update), soit par la relecture
+            // automatique (scripts/sync_dgi_pending.php).
+            //
+            // Attention : la clé DGI est celle OBTENUE PAR LE FRONT lors de
+            // l'appel à OSAT (/api/vente/next-invoice), pas le numéro
+            // regénéré par le serveur plus bas — les deux peuvent diverger
+            // (deux caisses simultanées). Le front la transmet dans
+            // dgi_data.dgi_invoice_number.
+            $dgiService = new \App\Services\DgiSyncService();
+
+            $homologation = false;
+            if ($shopId) {
+                $shopRow = (new \App\Models\Shop())->findById($shopId);
+                $homologation = (bool)($shopRow['homologation'] ?? false);
+            }
+
+            // Type de facture hôtel = 'HB' (régime B). Ce n'est PAS un 'EX'
+            // (extra) : une facture hôtel est bien une facture fiscale et
+            // doit donc pouvoir être synchronisée.
+            $dgiStatus = $dgiService->resolveInitialStatus(
+                is_array($dgiData) ? $dgiData : [],
+                'HB',
+                $homologation
+            );
+
+            $dgiInvoiceNumber = trim((string)($dgiData['dgi_invoice_number'] ?? ''));
+            if ($dgiInvoiceNumber === '') {
+                $dgiInvoiceNumber = trim((string)($dgiData['invoice_number'] ?? ''));
+            }
+            if ($dgiInvoiceNumber === '') {
+                $dgiInvoiceNumber = $numeroFacture;
+            }
+
             // 1. INSERT ventes (invoice_type='HB')
             $saleId = (new \App\Models\Sale())->create([
                 'numero_facture' => $numeroFacture,
@@ -845,6 +938,9 @@ class HotelFactureController extends Controller
                 'codeDEFDGI' => $dgiData['codeDEFDGI'] ?? null,
                 'counters'   => $dgiData['counters'] ?? null,
                 'nim'        => $dgiData['nim'] ?? null,
+                // --- Synchronisation DGI différée ---
+                'dgi_invoice_number' => $dgiInvoiceNumber,
+                'dgi_status'     => $dgiStatus,
             ]);
 
             // 1bis. INSERT details_vente — une ligne par nuitée (Sprint 6 — 2026-10-18).
@@ -957,6 +1053,10 @@ class HotelFactureController extends Controller
             'total_final'     => $totalFinal,
             'solde_du'        => $soldeDu,
             'check_out_done'  => $doCheckOut,
+            // Statut de synchronisation DGI : 'pending' signifie que la DGI
+            // était indisponible au moment de l'émission et que la facture
+            // sera complétée plus tard (callback OSAT ou relecture auto).
+            'dgi_status'      => $dgiStatus,
             // URL d'impression — réutilise InvoiceController existant
             'print_url'       => '/facture/' . $saleId,
         ], 201);

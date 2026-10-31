@@ -15,8 +15,8 @@ class Sale
 
     public function create($data)
         {
-            $sql = 'INSERT INTO ventes (numero_facture, invoice_type, client_id, sejour_id, sous_total_ht, tva, total, payments, vendeur_id, shop_id, store_isf, date, dateDGI, qrCode, codeDEFDGI, counters, nim, comment, service) 
-                    VALUES (:numero_facture, :invoice_type, :client_id, :sejour_id, :sous_total_ht, :tva, :total, :payments, :vendeur_id, :shop_id, :store_isf, :date, :dateDGI, :qrCode, :codeDEFDGI, :counters, :nim, :comment, :service)';
+            $sql = 'INSERT INTO ventes (numero_facture, invoice_type, client_id, sejour_id, sous_total_ht, tva, total, payments, vendeur_id, shop_id, store_isf, date, dateDGI, qrCode, codeDEFDGI, counters, nim, comment, service, dgi_invoice_number, dgi_status) 
+                    VALUES (:numero_facture, :invoice_type, :client_id, :sejour_id, :sous_total_ht, :tva, :total, :payments, :vendeur_id, :shop_id, :store_isf, :date, :dateDGI, :qrCode, :codeDEFDGI, :counters, :nim, :comment, :service, :dgi_invoice_number, :dgi_status)';
             $this->db->query($sql, [
                 ':numero_facture' => $data['numero_facture'],
                 ':invoice_type'   => $data['invoice_type'] ?? 'FV',
@@ -37,6 +37,11 @@ class Sale
                 ':nim'            => $data['nim'] ?? null,
                 ':comment'        => $data['comment'] ?? null,
                 ':service'        => $data['service'] ?? null,
+                // Clé DGI figée : c'est l'invoice_number envoyé à OSAT. Elle
+                // permet de retrouver la vente quand OSAT revient avec la
+                // résolution (cf. DgiSyncService::findSaleByDgiKey).
+                ':dgi_invoice_number' => $data['dgi_invoice_number'] ?? null,
+                ':dgi_status'     => $data['dgi_status'] ?? null,
             ]);
             return $this->db->getConnection()->lastInsertId();
         }
