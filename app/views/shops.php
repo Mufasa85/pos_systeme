@@ -16,6 +16,7 @@
   .shop-badge-dot { width:6px; height:6px; border-radius:50%; background:currentColor }
   .shop-badge-homologuee { display:inline-flex; align-items:center; gap:4px; font-size:.7rem; font-weight:600; padding:2px 8px; border-radius:20px; background:#dbeafe; color:#1d4ed8 }
   .shop-badge-non-homologuee { display:inline-flex; align-items:center; gap:4px; font-size:.7rem; font-weight:600; padding:2px 8px; border-radius:20px; background:#f1f5f9; color:#64748b }
+  .shop-badge-extras { display:inline-flex; align-items:center; gap:4px; font-size:.7rem; font-weight:600; padding:2px 8px; border-radius:20px; background:#cffafe; color:#0e7490 }
   .homologation-toggle { display:flex; align-items:center; gap:.5rem; padding:.6rem .75rem; background:var(--background,#f8fafc); border:1px solid var(--border,#e2e8f0); border-radius:8px }
   .homologation-toggle input { width:auto; margin:0 }
   .shop-legal { display:flex; gap:.75rem; flex-wrap:wrap; padding:0 1.25rem; margin-top:.25rem }
@@ -125,6 +126,12 @@
             </span>
           <?php else: ?>
             <span class="shop-badge-non-homologuee">Non assujetti à la taxe de la DGI</span>
+          <?php endif; ?>
+          <?php if (!empty($shop['acces_extras'])): ?>
+            <span class="shop-badge-extras" title="Le bouton Extras de la caisse est disponible pour cette boutique">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+              Extras activés
+            </span>
           <?php endif; ?>
         </div>
         <div class="shop-card-code"><?= htmlspecialchars($shop['code']) ?></div>
@@ -280,6 +287,15 @@
           </span>
         </label>
 
+        <!-- Accès à la fonctionnalité « Extras » (imputation hôtel depuis la caisse) -->
+        <label class="homologation-toggle" style="margin-bottom:.75rem;cursor:pointer">
+          <input type="checkbox" id="shop-acces-extras">
+          <span>
+            <strong style="font-size:.8rem;display:block">Accès aux Extras</strong>
+            <span style="font-size:.72rem;color:var(--muted,#94a3b8)">À cocher pour afficher le bouton « Extras » dans la caisse de cette boutique et autoriser l&apos;imputation d&apos;une vente sur un séjour hôtelier. Sans authentification, cette option reste désactivée.</span>
+          </span>
+        </label>
+
         <!-- Statut -->
         <div class="form-group" style="margin-bottom:0;margin-top:1rem">
           <label style="font-size:.8rem;font-weight:600">Statut</label>
@@ -371,6 +387,7 @@ function openEditShopModal(shop) {
   document.getElementById('shop-port').value = shop.port || '';
   document.getElementById('shop-service-type').value = shop.service_type_id || '';
   document.getElementById('shop-homologation').checked = !!(shop.homologation && shop.homologation !== '0');
+  document.getElementById('shop-acces-extras').checked = !!(shop.acces_extras && shop.acces_extras !== '0');
   document.getElementById('shop-actif').value = shop.actif ?? '1';
   document.getElementById('shop-error').style.display = 'none';
   document.getElementById('shop-modal').classList.add('active');
@@ -403,6 +420,7 @@ async function saveShop(e) {
     port: document.getElementById('shop-port').value.trim(),
     service_type_id: document.getElementById('shop-service-type').value || null,
     homologation: document.getElementById('shop-homologation').checked,
+    acces_extras: document.getElementById('shop-acces-extras').checked,
     actif: parseInt(document.getElementById('shop-actif').value)
   };
 

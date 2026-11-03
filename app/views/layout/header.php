@@ -62,23 +62,45 @@
                             'shopId' => $_SESSION['shop_id'] ?? null,
                           ]) ?>;
 
-    // ── BUG FIX 2026-10-21 — feature flag « hotel » exposé au JS ──
-    // Même source que $showHotel / $showRecharges calculés plus bas dans
-    // ce fichier (cache de session 'feature_access_cache', TTL 300 s).
-    // Utilisé par le bouton « Extras » de /caisse (imputation hôtel) pour
-    // ne pas ouvrir le picker si l'abonnement hôtel n'est pas actif —
-    // défense en profondeur en plus du masquage serveur du bouton.
-    const FEATURE_FLAGS = <?= json_encode((function () {
+    // ── Feature flags exposés au JS ──────────────────────────────────
+    // `hotel`, `snelregideso` et `paie` proviennent du cache de session
+    // 'feature_access_cache' (TTL 300 s), alimenté par l'API OSAT.
+    //
+    // `extras` est un cas particulier : il ne dépend PAS de l'API mais de la
+    // configuration par boutique (`shops.acces_extras`, cochée par le
+    // super_admin dans /shops). Il est calculé côté serveur par
+    // PageController::render() (la boutique y est déjà chargée) et reflété
+    // ici pour être consommé par le JS.
+    // Utilisé par le bouton « Extras » de /caisse (imputation hôtel).
+    const FEATURE_FLAGS = <?= json_encode((function () use ($data) {
         $fc = $_SESSION['feature_access_cache'] ?? null;
-        if ($fc === null || !isset($fc['expires_at']) || $fc['expires_at'] <= time()) {
-            return ['hotel' => false, 'snelregideso' => false, 'paie' => false];
+        $apiFlags = ['hotel' => false, 'snelregideso' => false, 'paie' => false];
+        if ($fc !== null && isset($fc['expires_at']) && $fc['expires_at'] > time()) {
+            $f = $fc['flags'] ?? [];
+            $apiFlags = [
+                'hotel'        => !empty($f['hotel']),
+                'snelregideso' => !empty($f['snelregideso']),
+                'paie'         => !empty($f['paie']),
+            ];
         }
-        $f = $fc['flags'] ?? [];
-        return [
-            'hotel'        => !empty($f['hotel']),
-            'snelregideso' => !empty($f['snelregideso']),
-            'paie'         => !empty($f['paie']),
-        ];
+
+        // PageController::render() fournit déjà la valeur (boutique déjà
+        // chargée). Les autres points d'entrée du layout (InvoiceController)
+        // ne la fournissent pas : on retombe alors sur le modèle.
+        $extrasAllowed = !empty($data['shopHasExtrasAccess']);
+        if (!array_key_exists('shopHasExtrasAccess', $data)) {
+            $shopId = $_SESSION['shop_id'] ?? null;
+            if ($shopId) {
+                try {
+                    $extrasAllowed = (new \App\Models\Shop())->hasExtrasAccess($shopId);
+                } catch (\Throwable $e) {
+                    error_log('FEATURE_FLAGS extras error: ' . $e->getMessage());
+                    $extrasAllowed = false;
+                }
+            }
+        }
+
+        return array_merge($apiFlags, ['extras' => $extrasAllowed]);
     })()) ?>;
   </script>
 

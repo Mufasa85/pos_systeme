@@ -1,29 +1,23 @@
 <!-- Caisse Page -->
 <?php
-// ── BUG FIX 2026-10-21 — sécurité du bouton « Extras » (imputation hôtel) ──
+// ── Bouton « Extras » — accès configuré par boutique ────────────────────
 // Le bouton « Extras » de la caisse ouvre le picker de séjours hôteliers et
-// appelle /api/hotel/sejours/... . C'est donc une functionality du module
-// HÔTEL : elle doit être conditionnée par le même feature flag API que
-// /recharges (snelregideso), /payroll (paie) et le menu Hôtel (hotel).
+// appelle /api/hotel/sejours/... . Son accès est désormais piloté par la
+// configuration de la BOUTIQUE (`shops.acces_extras`), cochée par le
+// super_admin dans /shops — et NON plus par le feature flag API « hotel ».
 //
-// Pattern identique à app/views/layout/header.php ($showRecharges / $showHotel) :
-//   - on lit le cache de session 'feature_access_cache' ;
-//   - on vérifie que le cache n'est pas expiré (expires_at > time()) ;
-//   - si le flag est absent / false → le bouton n'est PAS rendu.
+// L'authentification reste obligatoire : « public » ici signifie accessible
+// aux utilisateurs authentifiés de la boutique cochée, y compris via l'API.
 //
-// Le backend protège déjà l'API (HotelExtrasController::extrasFromCart →
-// requireFeatureApiAccess('hotel') + isShopActive()), mais ce masque évite
-// à l'utilisateur de cliquer sur un bouton qui ne peut aboutir qu'à un 403.
+// Pattern de calcul : la valeur est calculée par PageController::render()
+// (la boutique y est déjà chargée) et injectée dans la vue sous le nom
+// `shopHasExtrasAccess`. Le backend protège déjà l'API (HotelExtrasController
+// + SaleController → requireShopExtrasAccess()), mais ce masque évite à
+// l'utilisateur de cliquer sur un bouton qui ne peut aboutir qu'à un 403.
 //
-// NB : aucun filtre de rôle hôtelier ici — le module hôtel est mono-établissement
-// et l'API hotel est accessible aux caissiers (vendeur) comme aux réceptionsnistes.
-$featureCacheCaisse = $_SESSION['feature_access_cache'] ?? null;
-$showHotelExtras = false;
-if ($featureCacheCaisse !== null
-    && isset($featureCacheCaisse['expires_at'])
-    && $featureCacheCaisse['expires_at'] > time()) {
-  $showHotelExtras = !empty($featureCacheCaisse['flags']['hotel']);
-}
+// NB : aucun filtre de rôle hôtelier ici — les extras sont un outil de caisse,
+// accessible aux caissiers (vendeur) comme aux réceptionnistes.
+$showHotelExtras = !empty($shopHasExtrasAccess);
 ?>
 <style>
   .products-toolbar {
@@ -351,10 +345,8 @@ if ($featureCacheCaisse !== null
            Déplacé depuis btn-group-valider pour être accessible avant la
            composition du panier.
 
-           BUG FIX 2026-10-21 — masquage conditionnel (feature flag API `hotel`).
-           Identique au menu Hôtel (header.php) et à /recharges : si l'abonnement
-           hôtel n'est pas actif, le bouton n'est pas rendu (le backend
-           refuserait de toute façon avec un 403). -->
+           Accès conditionné par la configuration de la boutique
+           (`shops.acces_extras`, cochée par le super_admin dans /shops). -->
       <?php if ($showHotelExtras): ?>
       <button id="btn-imputer-sejour"
               type="button"
