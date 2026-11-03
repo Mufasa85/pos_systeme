@@ -22,8 +22,13 @@ use App\Models\HotelReservation;
  *
  * Règles :
  *   - Pas de duplication de la logique hôtel : on s'appuie sur
- *     HotelReservation et HotelReservation::chambresAvecSejourActif()
- *     qui est déjà utilisé par la page Réception.
+ *     HotelReservation et HotelReservation::sejoursImputablesAuxExtras()
+ *     qui réutilise la jointure de chambresAvecSejourActif() (déjà utilisée
+ *     par la page Réception).
+ *   - ⚠️ Un séjour DÉJÀ FACTURÉ n'est plus imputable : il est retiré de la
+ *     liste du picker (`enCours`) ET refusé à l'écriture (`extras-from-cart`
+ *     + `SaleController::create`). La facture hôtel peut être émise sans
+ *     check-out : le séjour reste alors `en_cours` mais sa note est close.
  *   - Lecture seule pour la liste, accessible à tous les rôles authentifiés
  *     (la caisse sert aussi bien aux vendeurs qu'aux réceptionnistes).
  *   - Écriture (`extras-from-cart`) : authentifié + boutique active (même
@@ -40,6 +45,11 @@ class HotelExtrasController extends Controller
      * Retourne les séjours actifs (`statut='en_cours'`) avec le minimum
      * d'infos nécessaires au picker : id du séjour, n° de chambre,
      * nom du client.
+     *
+     * ⚠️ Règle métier : les séjours DÉJÀ FACTURÉS sont EXCLUS de la liste,
+     * même s'ils sont toujours `en_cours`. C'est le cas quand la facture
+     * hôtel a été émise SANS check-out : le séjour reste en cours mais sa
+     * note est close, donc plus aucun extra ne peut lui être imputé.
      *
      * Format de réponse :
      *   { "success": true, "data": [ {id, chambre_numero, guest_nom, guest_prenom, ...}, ... ] }
@@ -58,34 +68,9 @@ class HotelExtrasController extends Controller
 
         // Réutilise la jointure existante chambres + séjour en_cours + guest
         // déjà servie à la page Réception — pas de duplication de SQL.
-        $rows = (new HotelReservation())->chambresAvecSejourActif();
-
-        // La jointure LEFT JOIN chambres / séjours en_cours / guests renvoie
-        // aussi les chambres vides (sejour_id NULL). On filtre pour ne garder
-        // que les séjours effectivement en cours, qui sont les seuls
-        // candidats à une imputation d'extra.
-        $sejours = [];
-        foreach ($rows as $r) {
-            if (empty($r['sejour_id'])) {
-                continue;
-            }
-            $sejours[] = [
-                'id'              => (int)$r['sejour_id'],
-                'chambre_id'      => (int)$r['chambre_id'],
-                'chambre_numero'  => (string)$r['numero'],
-                'chambre_type'    => $r['type'],
-                'guest_id'        => (int)$r['guest_id'],
-                'guest_nom'       => $r['guest_nom'],
-                'guest_prenom'    => $r['guest_prenom'],
-                'guest_telephone' => $r['guest_tel'],
-                'date_arrivee'    => $r['date_arrivee'],
-            ];
-        }
-
-        // Tri pratique pour le caissier : par n° de chambre croissant.
-        usort($sejours, function ($a, $b) {
-            return strcmp((string)$a['chambre_numero'], (string)$b['chambre_numero']);
-        });
+        // SejoursImputablesAuxExtras() filtre en plus les séjours déjà
+        // facturés (le LEFT JOIN `hotel_factures` y est déjà présent).
+        $sejours = (new HotelReservation())->sejoursImputablesAuxExtras();
 
         $this->json([
             'success' => true,
@@ -169,6 +154,22 @@ class HotelExtrasController extends Controller
             $this->status(422)->json([
                 'success' => false,
                 'message' => 'Séjour clôturé (' . $sejour['statut'] . ') — imputation impossible.',
+            ]);
+            return;
+        }
+        // ── Séjour déjà facturé : la note est close ────────────────────────
+        // Un séjour peut être facturé SANS être clôturé (facture émise sans
+        // check-out) : il reste alors `en_cours` mais plus aucun extra ne
+        // peut lui être imputé, sinon le total de la facture déjà émise
+        // serait faux. Le picker ne liste plus ces séjours (enCours()), mais
+        // on re-vérifie ici : c'est le vrai point de contrôle côté écriture.
+        $facture = (new HotelReservation())->factureActive($sejourId);
+        if ($facture) {
+            $this->status(422)->json([
+                'success' => false,
+                'error'   => 'sejour_deja_facture',
+                'message' => 'Ce séjour est déjà facturé (' . $facture['numero_facture']
+                             . ') — impossible d\'ajouter un extra.',
             ]);
             return;
         }

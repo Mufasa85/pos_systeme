@@ -97,6 +97,22 @@ class SaleController extends Controller
                                         $this->status(422)->json(['error' => 'Séjour clôturé — impossible d\'ajouter un extra']);
                                         return;
                                     }
+                                    // ── Séjour déjà facturé : la note est close ─────────────
+                                    // Une facture hôtel peut être émise SANS check-out : le
+                                    // séjour reste alors `en_cours` mais sa note est close.
+                                    // Aucun extra ne peut donc plus lui être imputé, sinon
+                                    // le total de la facture déjà émise serait faux.
+                                    // (Le picker de la caisse ne liste plus ces séjours :
+                                    //  HotelExtrasController::enCours().)
+                                    $factureSejour = (new \App\Models\HotelReservation())->factureActive($sejourId);
+                                    if ($factureSejour) {
+                                        $this->status(422)->json([
+                                            'error'   => 'sejour_deja_facture',
+                                            'message' => 'Ce séjour est déjà facturé (' . $factureSejour['numero_facture']
+                                                         . ') — impossible d\'ajouter un extra.',
+                                        ]);
+                                        return;
+                                    }
                                     // Forcer le type EX (extra hôtel) — pas de DGI à émettre (pas
                                     // d'encaissement, le client paiera au check-out).
                                     $typeFacture = 'EX';
