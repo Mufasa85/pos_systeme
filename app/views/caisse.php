@@ -749,6 +749,10 @@ $showHotelExtras = !empty($shopHasExtrasAccess);
       <div style="padding: 1.25rem;">
         <p style="font-size: 0.85rem; color: #475569; margin-bottom: 0.75rem;">
           Sélectionnez le séjour auquel imputer cette vente. Le client paiera au check-out.
+          <br>
+          <span style="font-size: 0.78rem; color: #94a3b8;">
+            Les séjours déjà facturés n'apparaissent pas : leur note est close.
+          </span>
         </p>
 
         <div id="sejour-picker-list" style="max-height: 360px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.5rem;">
@@ -756,7 +760,10 @@ $showHotelExtras = !empty($shopHasExtrasAccess);
         </div>
 
         <div id="sejour-picker-empty" style="display: none; padding: 1.5rem; text-align: center; color: #94a3b8; font-size: 0.85rem;">
-          Aucun séjour en cours actuellement.
+          Aucun séjour imputable actuellement.<br>
+          <span style="font-size: 0.78rem;">
+            Soit aucun séjour n'est en cours, soit tous les séjours en cours sont déjà facturés.
+          </span>
         </div>
 
         <div id="sejour-picker-error" style="display: none; padding: 0.75rem; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; color: #b91c1c; font-size: 0.8rem; margin-top: 0.5rem;"></div>
