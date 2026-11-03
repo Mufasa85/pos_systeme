@@ -3342,22 +3342,23 @@ function showCaisseToast(message, type, duration) {
 // Aucune DGI n'est émise : pas d'encaissement, le client paiera au check-out.
 
 async function openSejourPicker() {
-    // ── BUG FIX 2026-10-21 — garde d'accès (feature flag API « hotel ») ──
-    // Le picker de séjours hôteliers est une fonctionnalité du module HÔTEL :
-    // elle doit être conditionnée par le même abonnement que le menu Hôtel
-    // et /recharges. Le bouton est déjà masqué côté serveur (caisse.php,
-    // $showHotelExtras), mais cette garde couvre les cas où :
+    // ── Garde d'accès « Extras » (configuration par boutique) ──
+    // Le picker de séjours hôteliers est conditionné par la configuration de
+    // la boutique (`shops.acces_extras`, cochée par le super_admin dans
+    // /shops) — et NON par le feature flag API « hotel ».
+    // Le bouton est déjà masqué côté serveur (caisse.php, $showHotelExtras),
+    // mais cette garde couvre les cas où :
     //   - le HTML est servi depuis le cache du navigateur (page mise en cache
-    //     avant l'expiration du flag) ;
-    //   - l'abonnement hôtel a expiré entre le rendu de la page et le clic ;
+    //     avant le changement de configuration) ;
+    //   - le super_admin retire l'accès alors que l'onglet est déjà ouvert ;
     //   - la fonction est appelée programmatiquement (console, autre script).
     // Le backend refuse de toute façon (HotelExtrasController → 403), mais on
     // évite d'ouvrir un modal qui ne pourra pas aboutir.
-    if (typeof FEATURE_FLAGS !== 'undefined' && FEATURE_FLAGS && !FEATURE_FLAGS.hotel) {
+    if (typeof FEATURE_FLAGS !== 'undefined' && FEATURE_FLAGS && !FEATURE_FLAGS.extras) {
         if (typeof showCaisseToast === 'function') {
-            showCaisseToast('Module hôtel non activé pour cette boutique.', 'error');
+            showCaisseToast('Les Extras ne sont pas activés pour votre boutique.', 'error');
         } else {
-            alert('Module hôtel non activé pour cette boutique.');
+            alert('Les Extras ne sont pas activés pour votre boutique.');
         }
         return;
     }
