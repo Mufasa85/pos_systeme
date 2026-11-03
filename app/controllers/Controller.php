@@ -136,6 +136,42 @@ class Controller
     }
 
     /**
+     * Vérifie que la boutique courante a accès à la fonctionnalité « Extras »
+     * (imputation d'une vente sur un séjour hôtelier depuis la caisse).
+     *
+     * Ce contrôle REMPLACE le feature flag API « hotel » pour les extras :
+     * l'accès est désormais configuré par boutique via `shops.acces_extras`,
+     * cochée par le super_admin dans /shops.
+     *
+     * L'authentification reste obligatoire : ce n'est pas une route anonyme.
+     * Un utilisateur non authentifié ou d'une boutique non cochée reçoit un 403.
+     *
+     * @param bool $json true pour une réponse JSON (API), false pour une page 403
+     */
+    protected function requireShopExtrasAccess(bool $json = true): bool
+    {
+        $shopId = $this->getShopId();
+        $allowed = (new \App\Models\Shop())->hasExtrasAccess($shopId);
+
+        if (!$allowed) {
+            if ($json) {
+                self::status(403)->json([
+                    'success' => false,
+                    'error'   => 'extras_not_allowed',
+                    'message' => 'La fonctionnalité Extras n\'est pas activée pour votre boutique.',
+                ]);
+            } else {
+                http_response_code(403);
+                require_once dirname(__DIR__) . DIRECTORY_SEPARATOR . 'views' . DIRECTORY_SEPARATOR . '403.php';
+                exit;
+            }
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
      * Vérifie que le shop de l'utilisateur connecté est toujours actif.
      * - super_admin : jamais bloqué (pas lié à un shop)
      * - utilisateur sans shop_id : autorisé

@@ -56,6 +56,7 @@ class ShopController extends Controller
             'port'            => $this->sanitaze($input['port'] ?? ''),
             'service_type_id' => isset($input['service_type_id']) ? (int)$input['service_type_id'] : null,
             'actif'           => (int)($input['actif'] ?? 1),
+            'acces_extras'    => !empty($input['acces_extras']) ? 1 : 0,
         ]);
 
         $this->logAudit('create', 'shop', $id, ['nom' => $nom, 'code' => $code]);
@@ -88,12 +89,12 @@ class ShopController extends Controller
         }
 
         $data = [];
-        $allowed = ['nom', 'code', 'adresse', 'telephone', 'email', 'ice', 'rccm', 'isf', 'homologation', 'pdv', 'nid', 'token', 'port', 'service_type_id', 'actif'];
+        $allowed = ['nom', 'code', 'adresse', 'telephone', 'email', 'ice', 'rccm', 'isf', 'homologation', 'pdv', 'nid', 'token', 'port', 'service_type_id', 'actif', 'acces_extras'];
         foreach ($allowed as $field) {
             if (isset($input[$field])) {
                 if ($field === 'service_type_id') {
                     $data[$field] = (int)$input[$field];
-                } elseif ($field === 'homologation') {
+                } elseif ($field === 'homologation' || $field === 'acces_extras') {
                     $data[$field] = !empty($input[$field]) ? 1 : 0;
                 } else {
                     $data[$field] = $this->sanitaze($input[$field]);

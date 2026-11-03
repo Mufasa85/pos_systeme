@@ -28,6 +28,9 @@ use App\Models\HotelReservation;
  *     (la caisse sert aussi bien aux vendeurs qu'aux réceptionnistes).
  *   - Écriture (`extras-from-cart`) : authentifié + boutique active (même
  *     protection que SaleController::create).
+ *   - Accès à la fonctionnalité « Extras » : contrôlé par la configuration
+ *     par boutique `shops.acces_extras` (cochée par le super_admin dans
+ *     /shops), et NON par le feature flag API « hotel ».
  */
 class HotelExtrasController extends Controller
 {
@@ -46,8 +49,10 @@ class HotelExtrasController extends Controller
         if (!$this->requireAuth()) {
             return;
         }
-        // Sprint 7 — 2026-10-19 : check API hôtel avant traitement.
-        if (!$this->requireFeatureApiAccess('hotel')) {
+        // Accès aux Extras : configuration par boutique (`shops.acces_extras`),
+        // cochée par le super_admin dans /shops. Ce contrôle remplace le
+        // feature flag API « hotel » pour cette fonctionnalité.
+        if (!$this->requireShopExtrasAccess()) {
             return;
         }
 
@@ -106,8 +111,10 @@ class HotelExtrasController extends Controller
         if (!$this->requireAuth()) {
             return;
         }
-        // Sprint 7 — 2026-10-19 : check API hôtel avant traitement.
-        if (!$this->requireFeatureApiAccess('hotel')) {
+        // Accès aux Extras : configuration par boutique (`shops.acces_extras`),
+        // cochée par le super_admin dans /shops. Ce contrôle remplace le
+        // feature flag API « hotel » pour cette fonctionnalité.
+        if (!$this->requireShopExtrasAccess()) {
             return;
         }
         if (!$this->isShopActive()) {

@@ -71,15 +71,15 @@ class SaleController extends Controller
                                 $sejourId = isset($data['sejour_id']) && $data['sejour_id'] !== '' ? (int)$data['sejour_id'] : null;
                                 $sejourChambreNumero = null; // pour la description human-friendly de l'extra
                                 if ($sejourId !== null) {
-                                    // ── BUG FIX 2026-10-21 — garde d'accès au module hôtel ──
-                                    // Imputer une vente sur un séjour = functionality du module
-                                    // HÔTEL. On applique donc le même feature flag API que
-                                    // /recharges, /payroll et le menu Hôtel, afin qu'un client
-                                    // sans abonnement hôtel ne puisse pas créer d'extras en
-                                    // postant directement `sejour_id` (le bouton « Extras » de
-                                    // /caisse est masqué côté serveur, mais l'API doit
-                                    // rester le vrai point de contrôle).
-                                    if (!$this->requireFeatureApiAccess('hotel')) {
+                                    // ── Accès aux Extras : configuration par boutique ──────
+                                    // Imputer une vente sur un séjour = fonctionnalité « Extras ».
+                                    // L'accès dépend désormais de `shops.acces_extras`, cochée par
+                                    // le super_admin dans /shops (et NON du feature flag API
+                                    // « hotel »). Un client ne peut donc pas créer d'extras
+                                    // en postant directement `sejour_id` si sa boutique n'a
+                                    // pas l'accès : le bouton « Extras » est masqué côté
+                                    // serveur, mais l'API reste le vrai point de contrôle.
+                                    if (!$this->requireShopExtrasAccess()) {
                                         return;
                                     }
                                     $sejour = \App\Core\Database::getInstance()->fetch(

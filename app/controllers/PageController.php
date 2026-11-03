@@ -50,6 +50,7 @@ class PageController extends Controller
         // dans la navbar quand le magasin n'est pas homologue. Par defaut
         // (super_admin sans boutique, info indisponible) on affiche le lien.
         $storeHomologation = true;
+        $shop = null;
         if ($shopId) {
             $shop = $shopModel->findById($shopId);
             if ($shop) {
@@ -64,6 +65,14 @@ class PageController extends Controller
             }
         }
         $data['storeHomologation'] = $storeHomologation;
+        // Accès à la fonctionnalité « Extras » (imputation hôtel depuis la caisse).
+        // Configuré par boutique via `shops.acces_extras` (coché par le
+        // super_admin dans /shops) — indépendant du feature flag API « hotel ».
+        // Calculé ici car la boutique est déjà chargée : évite une requête
+        // SQL supplémentaire dans le header et dans la vue caisse.
+        $data['shopHasExtrasAccess'] = $shopId
+            ? (bool)($shop['acces_extras'] ?? false)
+            : false;
         // Company info (super_admin) pour l'affichage du nom entreprise dans le layout
         if ($this->isSuperAdmin()) {
             try {
