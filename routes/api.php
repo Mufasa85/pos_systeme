@@ -110,6 +110,8 @@ Router::post('/api/notifications/read-all', [NotificationController::class, 'mar
 Router::post('/api/notifications/delete/[i:id]', [NotificationController::class, 'delete']);
 
 // ── Users extra ──────────────────────────────────────────────
+// Contexte complet de l'utilisateur connecté (session + boutique + NIF).
+Router::get('/api/me', [UserController::class, 'me']);
 Router::post('/api/user/change-password', [UserController::class, 'changePassword']);
 Router::post('/api/user/update-profile', [UserController::class, 'updateProfile']);
 Router::post('/api/user/upload-profile-image', [UserController::class, 'uploadProfileImage']);
@@ -313,7 +315,8 @@ Router::post('/api/bill-payment', function () {
                         null,
                         ['reason' => 'shop_desactive', 'ip' => $_SERVER['REMOTE_ADDR'] ?? null]
                     );
-                } catch (\Exception $e) { /* noop */ }
+                } catch (\Exception $e) { /* noop */
+                }
 
                 // Destruction de session pour expulser l'utilisateur
                 $_SESSION = [];

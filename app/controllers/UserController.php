@@ -253,6 +253,35 @@ class UserController extends Controller
         $this->json(['success' => true, 'message' => 'Profil mis à jour avec succès']);
     }
 
+    /**
+     * Contexte complet de l'utilisateur connecté, en JSON.
+     *
+     * Route : GET /api/me
+     *
+     * Retourne en un seul appel :
+     *  - la session PHP (rôle, boutique, agent_code, expiration)
+     *  - la fiche utilisateur complète relue en BDD
+     *  - la boutique d'affectation
+     *  - les identifiants légaux (NIF/ISF, ICE, RCCM, NID, PDV) résolus
+     *    automatiquement selon le rôle (company_info pour le super_admin,
+     *    shops pour un utilisateur de boutique).
+     *
+     * Les colonnes sensibles (mot de passe, token API) ne sont jamais exposées.
+     */
+    public function me()
+    {
+        if (!$this->requireAuth()) {
+            return;
+        }
+
+        $context = (new \App\Services\CurrentUserService())->getContext();
+
+        $this->json([
+            'success' => true,
+            'data'    => $context,
+        ]);
+    }
+
     public function changePassword()
     {
         if (!$this->requireAuth()) {

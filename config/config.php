@@ -23,7 +23,7 @@ define('BASE_PATH', dirname(__DIR__) . '/');
 //   2. variable d'environnement  → DGI_WEBHOOK_TOKEN
 //   3. chaîne vide                → route fermée
 //
-// ⚠️ PHP ne permet PAS de redéfinir une constante (la 1re valeur gagne,
+//  PHP ne permet PAS de redéfinir une constante (la 1re valeur gagne,
 // avec un warning). Le secret est donc résolu ICI, avant toute définition,
 // pour que config.local.php puisse le fournir sans conflit.
 $dgiWebhookToken = false !== ($v = getenv('DGI_WEBHOOK_TOKEN')) ? $v : '';
@@ -40,4 +40,3 @@ if (is_file(__DIR__ . '/config.local.php')) {
 }
 
 define('DGI_WEBHOOK_TOKEN', (string)$dgiWebhookToken);
-
