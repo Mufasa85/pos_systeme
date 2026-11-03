@@ -84,6 +84,8 @@ Router::get('/api/hotel/clients/search', [HotelGuestController::class, 'searchCl
 Router::get('/api/hotel/sejours/en-cours', [HotelExtrasController::class, 'enCours']);
 // Imputation immédiate du panier sur un séjour (clic sur "Extras" → sélection séjour).
 // Crée les lignes dans `hotel_extras` à la sélection, pas seulement à la validation finale.
+// Accès contrôlé par la configuration par boutique `shops.acces_extras`
+// (cochée par le super_admin dans /shops) — et NON par le feature flag API « hotel ».
 Router::post('/api/hotel/sejours/[i:id]/extras-from-cart', [HotelExtrasController::class, 'extrasFromCart']);
 // Facturation hôtel — page + API CRUD — ajouté 2026-10-17
 Router::get('/hotel/facturation', [PageController::class, 'hotelFacturation']);
