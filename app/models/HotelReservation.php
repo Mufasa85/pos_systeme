@@ -91,6 +91,82 @@ class HotelReservation
     }
 
     /**
+     * Facture hôtel ACTIVE d'un séjour, ou null si le séjour n'est pas
+     * encore facturé.
+     *
+     * Un séjour est considéré comme « déjà facturé » dès qu'une ligne
+     * existe dans `hotel_factures` avec un statut différent de 'annulee'
+     * — c'est la même convention que les LEFT JOIN `hf.statut != 'annulee'`
+     * utilisés dans list(), findById(), chambresAvecSejourActif() et
+     * sejoursAujourdhui().
+     *
+     * Tant que cette facture existe, on ne peut plus imputer d'extra sur
+     * le séjour : la note est close, un nouvel extra fausserait le total
+     * de la facture déjà émise.
+     */
+    public function factureActive(int $sejourId): ?array
+    {
+        $row = $this->db->fetch(
+            "SELECT id, numero_facture, statut, total_final, created_at
+             FROM hotel_factures
+             WHERE sejour_id = :sid AND statut != 'annulee'
+             LIMIT 1",
+            [':sid' => $sejourId]
+        );
+        return $row ?: null;
+    }
+
+    /**
+     * Séjours « en_cours » sur lesquels le caissier peut ENCORE imputer un
+     * extra depuis la caisse.
+     *
+     * Règle métier : un séjour déjà facturé est EXCLU, même s'il est toujours
+     * « en_cours » (cas d'une facture émise sans check-out : le séjour reste
+     * en cours mais sa note est close).
+     *
+     * On réutilise la jointure de chambresAvecSejourActif() (chambres +
+     * séjour en_cours + guest + facture) pour ne pas dupliquer la logique SQL.
+     */
+    public function sejoursImputablesAuxExtras(): array
+    {
+        $rows = $this->chambresAvecSejourActif();
+
+        $sejours = [];
+        foreach ($rows as $r) {
+            // Chambre vide : pas de séjour en cours.
+            if (empty($r['sejour_id'])) {
+                continue;
+            }
+            // Séjour déjà facturé → plus imputable (même s'il est en_cours).
+            if (!empty($r['facture_id'])) {
+                continue;
+            }
+            $sejours[] = [
+                'id'              => (int)$r['sejour_id'],
+                'chambre_id'      => (int)$r['chambre_id'],
+                'chambre_numero'  => (string)$r['numero'],
+                'chambre_type'    => $r['type'],
+                'guest_id'        => (int)$r['guest_id'],
+                'guest_nom'       => $r['guest_nom'],
+                'guest_prenom'    => $r['guest_prenom'],
+                'guest_telephone' => $r['guest_tel'],
+                'date_arrivee'    => $r['date_arrivee'],
+                // Normalement NULL (les séjours facturés sont filtrés plus
+                // haut) : exposé pour que le front fasse un double contrôle.
+                'facture_id'      => $r['facture_id'] !== null ? (int)$r['facture_id'] : null,
+                'facture_numero'  => $r['facture_numero'],
+            ];
+        }
+
+        // Tri pratique pour le caissier : par n° de chambre croissant.
+        usort($sejours, function ($a, $b) {
+            return strcmp((string)$a['chambre_numero'], (string)$b['chambre_numero']);
+        });
+
+        return $sejours;
+    }
+
+    /**
      * Détecte un conflit : un autre séjour actif (reserve ou en_cours)
      * qui chevauche la période [arrivee, depart] sur la même chambre.
      * Convention : date_arrivee = DATETIME (heure d'arrivée),
