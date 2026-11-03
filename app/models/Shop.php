@@ -36,10 +36,43 @@ class Shop
         return $this->db->fetch('SELECT * FROM shops WHERE isf = ?', [$isf]);
     }
 
+    /**
+     * Indique si la boutique dispose de l'accès à la fonctionnalité « Extras »
+     * (imputation d'une vente sur un séjour hôtelier depuis la caisse).
+     *
+     * La configuration vit dans `shops.acces_extras` et est cochée par le
+     * super_admin dans /shops. Elle remplace le feature flag API « hotel »
+     * pour cette seule fonctionnalité.
+     *
+     * Règles :
+     *   - Boutique introuvable / sans identifiant → false (fail-closed).
+     *   - super_admin sans boutique rattachée → false : le contrôle d'accès
+     *     s'applique aux boutiques, pas au rôle global du super_admin.
+     *   - Erreur SQL → false (fail-closed), le caller peut renvoyer un 403.
+     */
+    public function hasExtrasAccess($shopId): bool
+    {
+        if (!$shopId) {
+            return false;
+        }
+
+        try {
+            $shop = $this->db->fetch(
+                'SELECT acces_extras FROM shops WHERE id = ? LIMIT 1',
+                [(int)$shopId]
+            );
+        } catch (\Throwable $e) {
+            error_log('Shop::hasExtrasAccess error: ' . $e->getMessage());
+            return false;
+        }
+
+        return $shop && !empty($shop['acces_extras']);
+    }
+
     public function create($data)
     {
-        $sql = "INSERT INTO shops (nom, code, adresse, telephone, email, ice, rccm, isf, homologation, pdv, nid, token, port, service_type_id, actif)
-                VALUES (:nom, :code, :adresse, :telephone, :email, :ice, :rccm, :isf, :homologation, :pdv, :nid, :token, :port, :service_type_id, :actif)";
+        $sql = "INSERT INTO shops (nom, code, adresse, telephone, email, ice, rccm, isf, homologation, pdv, nid, token, port, service_type_id, actif, acces_extras)
+                VALUES (:nom, :code, :adresse, :telephone, :email, :ice, :rccm, :isf, :homologation, :pdv, :nid, :token, :port, :service_type_id, :actif, :acces_extras)";
         $this->db->query($sql, [
             ':nom'             => $data['nom'],
             ':code'            => $data['code'],
@@ -56,6 +89,7 @@ class Shop
             ':port'            => $data['port'] ?? null,
             ':service_type_id' => $data['service_type_id'] ?? null,
             ':actif'           => $data['actif'] ?? 1,
+            ':acces_extras'    => !empty($data['acces_extras']) ? 1 : 0,
         ]);
         return $this->db->lastInsertId();
     }
@@ -65,7 +99,7 @@ class Shop
         $fields = [];
         $params = [':id' => $id];
 
-        $allowed = ['nom', 'code', 'adresse', 'telephone', 'email', 'ice', 'rccm', 'isf', 'homologation', 'pdv', 'nid', 'logo', 'token', 'port', 'service_type_id', 'actif'];
+        $allowed = ['nom', 'code', 'adresse', 'telephone', 'email', 'ice', 'rccm', 'isf', 'homologation', 'pdv', 'nid', 'logo', 'token', 'port', 'service_type_id', 'actif', 'acces_extras'];
         foreach ($allowed as $field) {
             if (isset($data[$field])) {
                 $fields[] = "$field = :$field";
