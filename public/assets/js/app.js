@@ -3390,13 +3390,22 @@ async function openSejourPicker() {
             throw new Error(data.message || ('HTTP ' + res.status));
         }
         const sejours = data.data || [];
-        if (sejours.length === 0) {
+        // ── Double contrôle « déjà facturé » (le backend filtre déjà) ──────
+        // Le backend (HotelExtrasController::enCours) retire les séjours
+        // déjà facturés, même s'ils sont toujours `en_cours` (facture émise
+        // sans check-out). On refiltre côté client pour être sûr qu'un
+        // séjour avec une note close n'apparaisse jamais dans le picker,
+        // même en cas de réponse API inattendue (cache, ancien backend).
+        const sejoursImputables = sejours.filter(function (s) {
+            return !s.facture_id;
+        });
+        if (sejoursImputables.length === 0) {
             list.innerHTML = '';
             if (empty) empty.style.display = 'block';
             return;
         }
         // Génération de la liste
-        list.innerHTML = sejours.map(function (s) {
+        list.innerHTML = sejoursImputables.map(function (s) {
             const chambre = escapeHtml(String(s.chambre_numero || '?'));
             const nom = escapeHtml(((s.guest_prenom ? s.guest_prenom + ' ' : '') + (s.guest_nom || '')).trim() || 'Client');
             const tel = s.guest_telephone ? escapeHtml(s.guest_telephone) : '';
