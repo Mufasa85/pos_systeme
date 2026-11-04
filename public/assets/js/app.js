@@ -3559,7 +3559,20 @@ async function imputeCartToSejour(sejour, onDone) {
         } else {
             const msg = (data && data.message) ? data.message : ('HTTP ' + response.status);
             if (typeof showCaisseToast === 'function') {
-                showCaisseToast('Erreur : ' + msg, 'error');
+                // ── Stock insuffisant (2026-11-04) ──────────────────────
+                // Le backend refuse l'imputation si un produit est en
+                // rupture (HTTP 409 / error='stock_insuffisant') et
+                // indique le stock réellement disponible. On affiche un
+                // message dédié + on recharge les produits pour que le
+                // stock affiché dans la caisse soit à jour.
+                if (data && data.error === 'stock_insuffisant') {
+                    showCaisseToast('Stock insuffisant — ' + msg, 'error');
+                    if (posCart && typeof posCart.loadProducts === 'function') {
+                        posCart.loadProducts();
+                    }
+                } else {
+                    showCaisseToast('Erreur : ' + msg, 'error');
+                }
             }
             // On ne ferme PAS le modal pour que le caissier puisse réessayer ou
             // choisir un autre séjour. Mais on reset le séjour mémorisé pour
