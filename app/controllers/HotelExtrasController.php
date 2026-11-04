@@ -3,6 +3,7 @@
 namespace App\Controllers;
 
 use App\Models\HotelReservation;
+use App\Models\ProductBatch;
 
 /**
  * Pont Caisse POS ↔ Hôtel : APIs légères pour le picker d'imputation
@@ -19,6 +20,19 @@ use App\Models\HotelReservation;
  *     C'est ce que le bouton "Extras" appelle quand le caissier sélectionne
  *     un séjour dans le picker : l'enregistrement se fait à la sélection,
  *     pas seulement à la validation finale de la vente (cf. Sprint 5 / 2026-10-18).
+ *
+ *   ⚠️ GESTION DU STOCK (2026-11-04) :
+ *     Un extra consomme PHYSIQUEMENT un produit (minibar, room service…) :
+ *     le stock est donc contrôlé PUIS déduit au moment de l'imputation,
+ *     comme pour une vente POS classique (cf. SaleController::create).
+ *     - Contrôle préalable de tous les produits AVANT toute déduction :
+ *       si un seul produit est en rupture, rien n'est déduit et rien n'est
+ *       écrit (HTTP 409, error='stock_insuffisant').
+ *     - Déduction FIFO sur les lots non périmés (ProductBatch::deductStock),
+ *       dans la MÊME transaction que l'insertion des hotel_extras :
+ *       atomique (rollback complet en cas d'échec).
+ *     - Notification « stock faible » aux admins après commit si un produit
+ *       passe sous son seuil de réapprovisionnement.
  *
  * Règles :
  *   - Pas de duplication de la logique hôtel : on s'appuie sur
@@ -121,7 +135,11 @@ class HotelExtrasController extends Controller
             return;
         }
 
-        $input = json_decode(file_get_contents('php://input'), true);
+        // Lecture du body : JSON (appel AJAX) avec repli sur $_POST.
+        // Le repli rend la méthode testable en CLI (php://input n'est pas
+        // lisible hors contexte HTTP) — même pattern que
+        // HotelReservationController::jsonInput().
+        $input = $this->jsonInput();
         if (!is_array($input)) {
             $this->status(422)->json(['success' => false, 'message' => 'Payload JSON invalide']);
             return;
@@ -185,6 +203,65 @@ class HotelExtrasController extends Controller
             $pdo = $db->getConnection();
             $pdo->beginTransaction();
 
+            // ── Stock : vérification préalable + déduction FIFO ──────────
+            // Un extra consomme physiquement un produit (minibar, room
+            // service…) : le stock doit être contrôlé ET déduit au moment
+            // de l'imputation, exactement comme pour une vente POS classique
+            // (cf. SaleController::create). Sans cela, le stock POS reste
+            // inchangé alors que la marchandise est déjà consommée.
+            //
+            // On travaille sur le MÊME PDO que la transaction (Database est
+            // un singleton) → la déduction des lots est atomique avec
+            // l'insertion des hotel_extras : si l'une des deux échoue, on
+            // rollback tout (stock restauré + aucune ligne créée).
+            $batchModel = new ProductBatch();
+
+            // 2a. Contrôle préalable de TOUS les produits avant toute
+            //     déduction : on ne veut pas déduire le stock du produit A
+            //     puis découvrir que le produit B est en rupture.
+            $stockErrors = [];
+            foreach ($articles as $item) {
+                $produitId = (int)($item['produit_id'] ?? 0);
+                $qty       = (float)($item['quantite'] ?? 0);
+                if ($produitId <= 0 || $qty <= 0) {
+                    continue; // ligne invalide : ignorée plus bas (comme avant)
+                }
+
+                $available = $batchModel->getAvailableStock($produitId);
+                if ($available < $qty) {
+                    $productRow = $db->fetch(
+                        'SELECT nom FROM produits WHERE id = :id',
+                        [':id' => $produitId]
+                    );
+                    $stockErrors[] = [
+                        'produit_id'   => $produitId,
+                        'nom'          => (string)($productRow['nom'] ?? ('Produit #' . $produitId)),
+                        'demande'      => $qty,
+                        'disponible'   => $available,
+                    ];
+                }
+            }
+
+            if (!empty($stockErrors)) {
+                $pdo->rollBack();
+                $details = [];
+                foreach ($stockErrors as $err) {
+                    $details[] = sprintf(
+                        '%s (demandé : %s, disponible : %s)',
+                        $err['nom'],
+                        rtrim(rtrim(number_format($err['demande'], 3, ',', ' '), '0'), ','),
+                        rtrim(rtrim(number_format($err['disponible'], 3, ',', ' '), '0'), ',')
+                    );
+                }
+                $this->status(409)->json([
+                    'success' => false,
+                    'error'   => 'stock_insuffisant',
+                    'message' => 'Stock insuffisant pour : ' . implode(' ; ', $details),
+                    'details' => $stockErrors,
+                ]);
+                return;
+            }
+
             $stmtInsert = $pdo->prepare(
                 'INSERT INTO hotel_extras
                     (sejour_id, vente_id, produit_id, quantite, prix_unitaire,
@@ -211,6 +288,15 @@ class HotelExtrasController extends Controller
                 $rValue  = isset($item['remise_value']) ? (float)$item['remise_value'] : null;
                 $tRate   = isset($item['tax_rate']) ? (float)$item['tax_rate'] : null;
 
+                // Normalisation de la convention de remise : l'ancienne
+                // convention ('percent' / 'amount') peut encore traîner dans
+                // `produits.remise_type` (DEFAULT de la colonne). Or
+                // `hotel_extras.remise_type` est un ENUM('%','CDF') → une
+                // valeur hors enum provoque une troncature SQL (500).
+                // On ramène donc toujours à '%' ou 'CDF' avant l'insertion.
+                // ⚠️ Placé APRÈS le fallback sur la table produits : celui-ci
+                // peut réinjecter une valeur 'percent' non normalisée.
+
                 if ($produitId > 0 && ($tsType === null || $tsValue === null || $tRate === null)) {
                     $row = $db->fetch(
                         'SELECT p.taxe_specifique_type, p.taxe_specifique_value,
@@ -230,12 +316,48 @@ class HotelExtrasController extends Controller
                     }
                 }
 
+                // Normalisation de la convention de remise : l'ancienne
+                // convention ('percent' / 'amount') peut encore traîner dans
+                // `produits.remise_type` (DEFAULT de la colonne). Or
+                // `hotel_extras.remise_type` est un ENUM('%','CDF') → une
+                // valeur hors enum provoque une troncature SQL (500).
+                // On ramène donc toujours à '%' ou 'CDF' avant l'insertion.
+                // ⚠️ Placé APRÈS le fallback sur la table produits : celui-ci
+                // peut réinjecter une valeur 'percent' non normalisée.
+                if ($rType === 'amount') {
+                    $rType = 'CDF';
+                }
+                if (!in_array($rType, ['%', 'CDF'], true)) {
+                    $rType = '%';
+                }
+
                 if ($produitId <= 0 || $qty <= 0) {
                     continue;
                 }
                 if ($nom === '') {
                     $row = $db->fetch('SELECT nom FROM produits WHERE id = :id', [':id' => $produitId]);
                     $nom = $row['nom'] ?? ('Produit #' . $produitId);
+                }
+
+                // 2b. Déduction effective du stock (FIFO sur les lots non
+                //     périmés) — dans la MÊME transaction que l'insertion
+                //     du hotel_extras. Si la déduction échoue (rupture
+                //     survenue entre le contrôle et l'écriture), on
+                //     rollback : aucune ligne créée, aucun stock perdu.
+                if (!$batchModel->deductStock($produitId, $qty)) {
+                    $pdo->rollBack();
+                    $this->status(409)->json([
+                        'success' => false,
+                        'error'   => 'stock_insuffisant',
+                        'message' => 'Stock insuffisant pour le produit « ' . $nom . ' ».',
+                        'details' => [[
+                            'produit_id' => $produitId,
+                            'nom'        => $nom,
+                            'demande'    => $qty,
+                            'disponible' => $batchModel->getAvailableStock($produitId),
+                        ]],
+                    ]);
+                    return;
                 }
 
                 $description = ($chambreNumero !== '' ? 'Ch. ' . $chambreNumero . ' — ' : '')
@@ -283,6 +405,31 @@ class HotelExtrasController extends Controller
             return;
         }
 
+        // ── Notification « stock faible » ────────────────────────────────
+        // Alerte les admins de la boutique quand un produit passe sous
+        // son seuil de réapprovisionnement (même règle que la vente POS
+        // classique, cf. SaleController::create). Appelé APRÈS le commit :
+        // la notification ne doit pas être envoyée si la transaction a
+        // été annulée.
+        foreach ($articles as $item) {
+            $produitId = (int)($item['produit_id'] ?? 0);
+            $qty       = (float)($item['quantite'] ?? 0);
+            if ($produitId <= 0 || $qty <= 0) {
+                continue;
+            }
+            $product = (new \App\Models\Product())->findById($produitId);
+            if ($product && (float)$product['stock'] <= (float)$product['stock_minimum']) {
+                $this->notifyShopAdmins(
+                    $this->getShopId(),
+                    'stock_low',
+                    'Stock faible : ' . $product['nom'],
+                    'Le produit "' . $product['nom'] . '" n\'a plus que ' . $product['stock']
+                        . ' unités (minimum: ' . $product['stock_minimum'] . ')',
+                    '/produits'
+                );
+            }
+        }
+
         $this->logAudit('create', 'hotel_extras', null, [
             'sejour_id' => $sejourId,
             'count'     => $count,
@@ -296,5 +443,26 @@ class HotelExtrasController extends Controller
             'total'     => round($total, 2),
             'ids'       => $createdIds,
         ]);
+    }
+
+    /**
+     * Lit le body de la requête : JSON (appel AJAX) avec repli sur $_POST.
+     *
+     * Le repli sert à rendre la méthode testable en CLI : `php://input` n'est
+     * pas lisible hors contexte HTTP, alors que `$_POST` l'est. Même pattern
+     * que `HotelReservationController::jsonInput()`.
+     *
+     * @return array|null Tableau décodé, ou null si le payload est invalide.
+     */
+    private function jsonInput(): ?array
+    {
+        $raw = file_get_contents('php://input');
+        if ($raw) {
+            $decoded = json_decode($raw, true);
+            if (is_array($decoded)) {
+                return $decoded;
+            }
+        }
+        return !empty($_POST) ? $_POST : null;
     }
 }
