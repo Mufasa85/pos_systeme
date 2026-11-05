@@ -116,9 +116,10 @@ class PageController extends Controller
             $data['unreadNotifications'] = 0;
         }
 
-        // Pré-charger le cache d'accès aux recharges pour la sidebar.
-        // Le warmup charge TOUS les flags (snelregideso, paie, hotel) en
-        // une seule requête API, donc on l'appelle une seule fois ici.
+        // Pré-charger le cache d'accès aux modules payants pour la sidebar.
+        // Le warmup charge TOUS les flags (snelregideso, paie, hotel,
+        // pressing) en une seule requête API, donc on l'appelle une seule
+        // fois ici.
         try {
             $rechargeAccessService = new \App\Services\RechargeAccessService();
             $rechargeAccessService->warmupCache();
@@ -747,6 +748,24 @@ class PageController extends Controller
         $shopId = $this->isSuperAdmin() ? null : $this->getShopId();
         $ventes = $saleModel->getAllSales($shopId);
         $this->render('historique', ['ventes' => $ventes]);
+    }
+
+    /**
+     * Page Pressing — suivi des commandes de pressing.
+     *
+     * La page ne charge que la coquille HTML : le contenu vient de fetch()
+     * vers /api/pressing/* (PressingController).
+     *
+     * L'accès est contrôlé par le flag `pressing` de l'API OSAT
+     * (`RechargeAccessService::canAccessPressing()`), exactement comme
+     * `/recharges` et `/hotel` : pas de réglage par boutique.
+     */
+    public function pressing()
+    {
+        if (!$this->requireShopPressingAccess(false)) {
+            return;
+        }
+        $this->render('pressing', []);
     }
 
     /**

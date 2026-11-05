@@ -172,6 +172,46 @@ class Controller
     }
 
     /**
+     * Vérifie que l'utilisateur courant a accès à la fonctionnalité « Pressing »
+     * (suivi des commandes de pressing).
+     *
+     * Même mécanisme que « Recharges », « Paie » et « Hôtel » : l'accès est
+     * piloté par le flag `pressing` renvoyé par l'API OSAT
+     * (`option_client/feedback.php` → `data.pressing`), via
+     * `RechargeAccessService::canAccessPressing()`.
+     *
+     * Règles :
+     *   - Flag API vrai → accès accordé.
+     *   - Flag API faux / absent / erreur réseau → false (fail-closed),
+     *     le caller renvoie un 403.
+     *   - L'authentification reste obligatoire : ce n'est pas une route anonyme.
+     *
+     * @param bool $json true pour une réponse JSON (API), false pour une page 403
+     */
+    protected function requireShopPressingAccess(bool $json = true): bool
+    {
+        $accessService = new \App\Services\RechargeAccessService();
+        $allowed = $accessService->canAccessPressing();
+
+        if (!$allowed) {
+            if ($json) {
+                self::status(403)->json([
+                    'success' => false,
+                    'error'   => 'pressing_not_allowed',
+                    'message' => 'La fonctionnalité Pressing n\'est pas activée pour votre boutique.',
+                ]);
+            } else {
+                http_response_code(403);
+                require_once dirname(__DIR__) . DIRECTORY_SEPARATOR . 'views' . DIRECTORY_SEPARATOR . '403.php';
+                exit;
+            }
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
      * Vérifie que le shop de l'utilisateur connecté est toujours actif.
      * - super_admin : jamais bloqué (pas lié à un shop)
      * - utilisateur sans shop_id : autorisé
