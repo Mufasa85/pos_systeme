@@ -10,6 +10,7 @@ use App\Controllers\HotelGuestController;
 use App\Controllers\HotelReceptionController;
 use App\Controllers\HotelReservationController;
 use App\Controllers\PageController;
+use App\Controllers\PressingController;
 use App\Core\Router;
 
 Router::get('/', [AuthController::class, 'showLogin']);
@@ -109,6 +110,14 @@ Router::get('/rapport-ticket', [PageController::class, 'rapportTicket']);
 Router::get('/shops', [PageController::class, 'shops']);
 Router::get('/payroll', [PageController::class, 'payroll']);
 Router::get('/payroll/[:view]', [PageController::class, 'payroll']);
+
+// ============================================================================
+// Module Pressing — suivi des commandes de pressing
+// Référence : docs/PLAN_PRESSING.md
+// ============================================================================
+// L'accès est contrôlé par boutique (`shops.acces_pressing`, cochée par le
+// super_admin dans /shops) : voir Controller::requireShopPressingAccess().
+Router::get('/pressing', [PageController::class, 'pressing']);
 Router::get('/scanner', [PageController::class, 'scanner']);
 Router::get('/new-scanner', [PageController::class, 'newScanner']);
 Router::get('/facture/[i:id]', [\App\Controllers\InvoiceController::class, 'show']);

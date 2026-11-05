@@ -16,6 +16,7 @@ use App\Controllers\PayrollPaymentController;
 use App\Controllers\PayrollPayslipController;
 use App\Controllers\PayrollReportController;
 use App\Controllers\PayrollTimeClockController;
+use App\Controllers\PressingController;
 use App\Controllers\ProductBatchController;
 use App\Controllers\ProductController;
 use App\Controllers\ReportController;
@@ -827,3 +828,22 @@ Router::get('/api/reports/a-report', [ReportController::class, 'generateAReport'
 Router::get('/api/reports/a-history', [ReportController::class, 'getAReportHistory']);
 Router::get('/api/reports/history', [ReportController::class, 'getReportHistory']);
 Router::get('/api/reports/print/[i:id]', [ReportController::class, 'printReport']);
+
+// ── Module Pressing — suivi des commandes de pressing ───
+// Référence : docs/PLAN_PRESSING.md
+//
+// Portage de l'appli autonome `pressing/` (9 actions `?api=`) vers des
+// routes REST. Accès contrôlé par boutique (`shops.acces_pressing`) :
+// voir Controller::requireShopPressingAccess().
+//
+Router::get('/api/pressing/stats',                    [PressingController::class, 'stats']);
+Router::get('/api/pressing/commandes',                [PressingController::class, 'index']);
+Router::get('/api/pressing/commandes/[i:id]',         [PressingController::class, 'show']);
+Router::post('/api/pressing/commandes',               [PressingController::class, 'store']);
+Router::post('/api/pressing/commandes/[i:id]/advance-all', [PressingController::class, 'advanceAll']);
+Router::post('/api/pressing/commandes/[i:id]/pay',         [PressingController::class, 'pay']);
+Router::post('/api/pressing/commandes/[i:id]/delete',      [PressingController::class, 'destroy']);
+Router::post('/api/pressing/articles/[i:id]/advance',      [PressingController::class, 'advance']);
+Router::post('/api/pressing/articles/[i:id]/recede',        [PressingController::class, 'recede']);
+Router::post('/api/pressing/facture/lookup',           [PressingController::class, 'lookupFacture']);
+Router::get('/api/pressing/ventes-sans-commande',      [PressingController::class, 'ventesSansCommande']);
