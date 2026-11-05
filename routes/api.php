@@ -833,7 +833,8 @@ Router::get('/api/reports/print/[i:id]', [ReportController::class, 'printReport'
 // Référence : docs/PLAN_PRESSING.md
 //
 // Portage de l'appli autonome `pressing/` (9 actions `?api=`) vers des
-// routes REST. Accès contrôlé par boutique (`shops.acces_pressing`) :
+// routes REST. Accès contrôlé par le flag API `pressing` (comme
+// /recharges et /hotel) :
 // voir Controller::requireShopPressingAccess().
 //
 Router::get('/api/pressing/stats',                    [PressingController::class, 'stats']);

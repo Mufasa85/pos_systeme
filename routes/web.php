@@ -115,8 +115,8 @@ Router::get('/payroll/[:view]', [PageController::class, 'payroll']);
 // Module Pressing — suivi des commandes de pressing
 // Référence : docs/PLAN_PRESSING.md
 // ============================================================================
-// L'accès est contrôlé par boutique (`shops.acces_pressing`, cochée par le
-// super_admin dans /shops) : voir Controller::requireShopPressingAccess().
+// L'accès est contrôlé par le flag API `pressing` (comme /recharges et
+// /hotel) : voir Controller::requireShopPressingAccess().
 Router::get('/pressing', [PageController::class, 'pressing']);
 Router::get('/scanner', [PageController::class, 'scanner']);
 Router::get('/new-scanner', [PageController::class, 'newScanner']);
