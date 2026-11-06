@@ -20,16 +20,35 @@ use App\Controllers\Controller;
  *   - gouvernante : lecture seule
  *
  * Notes fiscales :
- *   - Type de facture = HB (Hotel Bill), régime TVA type B hôtellerie
- *     (TVA non collectée ; tva_montant reste à 0).
- *   - La facture vit dans `ventes` (invoice_type='HB') pour réutiliser l'impression
- *     / PDF / QR DGI existants. Le contexte hôtelier (nuit(s), extras, acompte) est
- *     dans la table `hotel_factures` qui pointe sur la vente.
+ *   - Le type de facture est le TYPE FISCAL RÉEL choisi par l'utilisateur
+ *     dans le modal « Informations Facture » (FV, EV, FT, FA, EA, ET), whitelisté
+ *     côté serveur. Ce n'est plus 'HB' : 'HB' n'existe pas à la DGI et
+ *     polluait les regroupements par type de facture des rapports.
+ *   - La facture vit dans `ventes` pour réutiliser l'impression / PDF / QR DGI
+ *     existants. Le marqueur « c'est une facture hôtel » est porté par
+ *     `ventes.est_hotel` (indépendant du type fiscal).
+ *   - Le régime TVA est celui de l'hôtellerie (type B) : `tva_montant` reste
+ *     à 0 sur les nuitées (TVA non collectée).
+ *   - Le contexte hôtelier (nuit(s), extras, acompte) est dans la table
+ *     `hotel_factures` qui pointe sur la vente.
  */
 class HotelFactureController extends Controller
 {
     private function jsonOut($payload, int $status = 200): void
     {
+        // ⚠️ PROTECTION DE LA RÉPONSE JSON
+        // Avec `display_errors` actif (config PHP de développement), un
+        // Warning PHP est imprimé AVANT le JSON → le body n'est plus du JSON
+        // valide → le front affiche « Erreur <status> » au lieu de la
+        // facture (alors que la facture a bien été créée en base).
+        //
+        // On purge donc toute sortie parasite déjà produite, et on désactive
+        // l'affichage des erreurs pour le reste de la requête.
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
+        @ini_set('display_errors', '0');
+
         http_response_code($status);
         header('Content-Type: application/json; charset=utf-8');
         echo json_encode($payload, JSON_UNESCAPED_UNICODE);
@@ -588,6 +607,7 @@ class HotelFactureController extends Controller
      * Body JSON :
      *   {
      *     sejour_id: int,
+     *     invoice_type?: string                           // type fiscal choisi (FV, EV, FT, FA, EA, ET)
      *     remise_pct?: float (par défaut: celle du séjour),
      *     extras_manuels?: [{ description, montant }]   // ajoutés à la volée
      *     paiements?: [{ mode, montant }]               // modes de paiement encaissés
@@ -595,7 +615,7 @@ class HotelFactureController extends Controller
      *     notes?: string
      *   }
      *
-     * Crée la facture officielle (ventes.invoice_type='HB') et la ligne
+     * Crée la facture officielle (ventes + details_vente) et la ligne
      * hotel_factures qui la complète.
      */
     public function store(): void
@@ -608,11 +628,24 @@ class HotelFactureController extends Controller
         $sejourId = (int)($input['sejour_id'] ?? 0);
         if ($sejourId <= 0) $this->jsonOut(['success' => false, 'message' => 'sejour_id requis'], 422);
 
+        // ── Type fiscal de la facture ──────────────────────────────────────
+        // Le type est choisi par l'utilisateur dans le modal « Informations
+        // Facture » (window.hotelInvoiceType côté front). On le whitelist
+        // strictement : 'HB' n'est PAS un type fiscal DGI valide (FV, EV, FT,
+        // FA, EA, ET) — c'était jusqu'ici la source de pollution des
+        // rapports. Repli sur 'FV' si absent ou invalide.
+        $invoiceType = strtoupper(trim((string)($input['invoice_type'] ?? '')));
+        if (!in_array($invoiceType, ['FV', 'EV', 'FT', 'FA', 'EA', 'ET'], true)) {
+            $invoiceType = 'FV';
+        }
+
         $db = \App\Core\Database::getInstance();
         $sejour = $db->fetch(
-            "SELECT s.*, g.client_id AS guest_client_id, g.id AS guest_id
+            "SELECT s.*, g.client_id AS guest_client_id, g.id AS guest_id,
+                    c.numero AS chambre_numero
              FROM hotel_sejours s
              INNER JOIN hotel_guests g ON g.id = s.guest_id
+             INNER JOIN hotel_chambres c ON c.id = s.chambre_id
              WHERE s.id = :id",
             [':id' => $sejourId]
         );
@@ -665,8 +698,29 @@ class HotelFactureController extends Controller
         // (cf. SaleController::create — flag `sejourId` qui bascule en EX).
         // Ces ventes représentent un extra facturé côté caisse et déjà inclus
         // dans le total de la note.
+        //
+        // ⚠️ On récupère le DÉTAIL (lignes `details_vente` + snapshots de
+        // taxe) et pas seulement le total : ces lignes seront re-créées dans
+        // la facture hôtel comme lignes de détail (voir plus bas), pour que
+        // les extras apparaissent dans le rapport « Par groupe de taxation »
+        // et dans l'A-rapport.
         $extrasRows = $db->fetchAll(
-            "SELECT id, total FROM ventes WHERE sejour_id = :sid AND invoice_type = 'EX'",
+            "SELECT v.id AS vente_id, v.total,
+                    d.produit_id, d.quantite AS d_quantite, d.prix AS d_prix,
+                    d.remise_type AS d_remise_type, d.remise_value AS d_remise_value,
+                    d.taxe_specifique_type AS d_ts_type, d.taxe_specifique_value AS d_ts_value,
+                    d.tax_rate AS d_tax_rate, d.tax_etiquette AS d_tax_etiquette,
+                    d.tax_groupe AS d_tax_groupe, d.libelle AS d_libelle,
+                    p.nom AS produit_nom,
+                    t.taux AS produit_tax_rate,
+                    t.etiquette AS produit_tax_etiquette,
+                    t.groupe_taxe AS produit_tax_groupe
+             FROM ventes v
+             LEFT JOIN details_vente d ON d.vente_id = v.id
+             LEFT JOIN produits p ON p.id = d.produit_id
+             LEFT JOIN taxes   t ON t.id = p.taxe_id
+             WHERE v.sejour_id = :sid AND v.invoice_type = 'EX'
+             ORDER BY v.id ASC, d.id ASC",
             [':sid' => $sejourId]
         );
         $totalExtrasCaisse = array_sum(array_map(fn($r) => (float)$r['total'], $extrasRows));
@@ -704,13 +758,27 @@ class HotelFactureController extends Controller
         // la preview utilise pour `extrasParVente[$key]['montant']`
         // (HotelFactureController::preview ligne 409). Donc on reproduit
         // à l'identique la sémantique de la preview → DB et UI convergent.
-        $hotelExtrasPickerRow = $db->fetch(
-            "SELECT COALESCE(SUM(he.montant), 0) AS total
+        $hotelExtrasPickerRows = $db->fetchAll(
+            "SELECT he.id, he.description, he.montant, he.produit_id,
+                    he.quantite, he.prix_unitaire,
+                    he.remise_type, he.remise_value,
+                    he.taxe_specifique_type, he.taxe_specifique_value,
+                    he.tax_rate,
+                    p.nom AS produit_nom,
+                    t.taux AS produit_tax_rate,
+                    t.etiquette AS produit_tax_etiquette,
+                    t.groupe_taxe AS produit_tax_groupe
              FROM hotel_extras he
-             WHERE he.sejour_id = :sid AND he.vente_id IS NULL",
+             LEFT JOIN produits p ON p.id = he.produit_id
+             LEFT JOIN taxes   t ON t.id = p.taxe_id
+             WHERE he.sejour_id = :sid AND he.vente_id IS NULL
+             ORDER BY he.date_consommation ASC, he.id ASC",
             [':sid' => $sejourId]
         );
-        $totalExtrasPicker = (float)($hotelExtrasPickerRow['total'] ?? 0);
+        $totalExtrasPicker = array_sum(array_map(
+            fn($r) => (float)$r['montant'],
+            $hotelExtrasPickerRows
+        ));
 
         // Total extras caisse = source 1 (ventes EX) + source 2 (picker)
         $totalExtrasCaisse = round($totalExtrasCaisse + $totalExtrasPicker, 2);
@@ -733,6 +801,102 @@ class HotelFactureController extends Controller
 
         $totalExtras = round($totalExtrasCaisse + $totalExtrasManuels, 2);
 
+        // ─────────────────────────────────────────────────────────────────
+        // LIGNES D'EXTRAS DE LA FACTURE HÔTEL
+        // ─────────────────────────────────────────────────────────────────
+        // Les extras sont historiquement stockés ailleurs (ventes 'EX',
+        // table `hotel_extras`) et n'avaient AUCUNE ligne dans
+        // `details_vente` rattachée à la facture hôtel. Conséquence : ils
+        // étaient INVISIBLES dans le rapport « Par groupe de taxation » et
+        // dans l'A-rapport (qui n'agrège que les lignes de détail).
+        //
+        // On crée donc, à la facturation, une ligne `details_vente` par extra
+        // — avec le snapshot de son groupe de taxation. C'est cette ligne
+        // qui fait apparaître les extras dans les rapports, dans le groupe
+        // de taxation de leur produit.
+        //
+        // ⚠️ RÈGLE DE NON-DOUBLE-COMPTE : ces lignes sont la SEULE source
+        // retenue par les rapports pour les extras. Les ventes 'EX' et les
+        // lignes `hotel_extras` en restent les sources de RÉFÉRENCE (pour la
+        // preview et la consolidation), mais les rapports les EXCLURONT
+        // (cf. Report::getSalesByTaxGroup et getHotelBreakdown).
+        $lignesExtras = [];
+
+        // Source 1 : ventes caisse 'EX' → on reprend les lignes de détail.
+        foreach ($extrasRows as $r) {
+            // Une vente EX sans ligne de détail (cas dégradé) : on retombe sur
+            // une ligne unique au montant de la vente.
+            if ($r['d_prix'] === null && (float)$r['total'] > 0) {
+                $lignesExtras[] = [
+                    'produit_id'    => null,
+                    'quantite'      => 1,
+                    'prix'          => (float)$r['total'],
+                    'libelle'       => 'Extra',
+                    'remise_type'   => '%',
+                    'remise_value'  => 0,
+                    'ts_type'       => '%',
+                    'ts_value'      => 0,
+                    'tax_rate'      => (float)($r['produit_tax_rate'] ?? 0),
+                    'tax_etiquette' => (string)($r['produit_tax_etiquette'] ?? ''),
+                    'tax_groupe'    => (string)($r['produit_tax_groupe'] ?? ''),
+                ];
+                continue;
+            }
+            $lignesExtras[] = [
+                'produit_id'    => $r['produit_id'] !== null ? (int)$r['produit_id'] : null,
+                'quantite'      => (float)($r['d_quantite'] ?? 1),
+                'prix'          => (float)($r['d_prix'] ?? 0),
+                'libelle'       => (string)($r['d_libelle'] ?? $r['produit_nom'] ?? 'Extra'),
+                'remise_type'   => (string)($r['d_remise_type'] ?? '%'),
+                'remise_value'  => (float)($r['d_remise_value'] ?? 0),
+                'ts_type'       => (string)($r['d_ts_type'] ?? '%'),
+                'ts_value'      => (float)($r['d_ts_value'] ?? 0),
+                // Snapshot de la ligne d'origine, sinon celui du produit.
+                'tax_rate'      => (float)($r['d_tax_rate'] ?? $r['produit_tax_rate'] ?? 0),
+                'tax_etiquette' => (string)($r['d_tax_etiquette'] ?? $r['produit_tax_etiquette'] ?? ''),
+                'tax_groupe'    => (string)($r['d_tax_groupe'] ?? $r['produit_tax_groupe'] ?? ''),
+            ];
+        }
+
+        // Source 2 : extras du picker (`hotel_extras`, vente_id IS NULL).
+        foreach ($hotelExtrasPickerRows as $r) {
+            $lignesExtras[] = [
+                'produit_id'    => $r['produit_id'] !== null ? (int)$r['produit_id'] : null,
+                'quantite'      => (float)($r['quantite'] ?? 1),
+                'prix'          => (float)($r['prix_unitaire'] ?? 0),
+                'libelle'       => (string)($r['produit_nom'] ?? $r['description'] ?? 'Extra'),
+                'remise_type'   => (string)($r['remise_type'] ?? '%'),
+                'remise_value'  => (float)($r['remise_value'] ?? 0),
+                'ts_type'       => (string)($r['taxe_specifique_type'] ?? '%'),
+                'ts_value'      => (float)($r['taxe_specifique_value'] ?? 0),
+                'tax_rate'      => (float)($r['tax_rate'] ?? $r['produit_tax_rate'] ?? 0),
+                'tax_etiquette' => (string)($r['produit_tax_etiquette'] ?? ''),
+                'tax_groupe'    => (string)($r['produit_tax_groupe'] ?? ''),
+            ];
+        }
+
+        // Source 3 : extras saisis à la main depuis la page de facturation.
+        // Ils n'étaient stockés NULLE PART : ils disparaissaient totalement
+        // des rapports. On les matérialise enfin en lignes de détail.
+        foreach ($manuelsNormalises as $m) {
+            $lignesExtras[] = [
+                'produit_id'    => null,
+                'quantite'      => 1,
+                'prix'          => (float)$m['montant'],
+                'libelle'       => (string)$m['description'],
+                'remise_type'   => '%',
+                'remise_value'  => 0,
+                'ts_type'       => '%',
+                'ts_value'      => 0,
+                // Pas de produit → pas de taxe : on laisse le groupe par
+                // défaut du rapport (B) en attendant que le produit soit
+                // identifié (ligne « extra_manuel »).
+                'tax_rate'      => 0,
+                'tax_etiquette' => '',
+                'tax_groupe'    => '',
+            ];
+        }
+
         // Total aligné sur le pattern app.js (posCart.calculateItemTTC) :
         //   lineHT  = prix × qty + TS + TVA_sur_TS   (TS affectée par la TVA)
         //   lineTTC = lineHT + TVA_sur_prix × qty
@@ -751,12 +915,19 @@ class HotelFactureController extends Controller
         // Taux du groupe de taxation de la chambre (Sprint 7 — lu via FK
         // chambre.taxe_id → taxes.taux). Si NULL ou 0, pas de TVA théorique.
         $chTaxRow = $db->fetch(
-            'SELECT t.taux FROM hotel_chambres c
+            'SELECT t.taux, t.etiquette, t.groupe_taxe FROM hotel_chambres c
              LEFT JOIN taxes t ON t.id = c.taxe_id
              WHERE c.id = :cid',
             [':cid' => (int)$sejour['chambre_id']]
         );
         $chTaxRate = (float)($chTaxRow['taux'] ?? 0);
+        // Étiquette + groupe de taxation de la chambre : on les FIGE sur la
+        // ligne de détail (cf. migration 2026_11_06). C'est ce snapshot qui
+        // permet aux NUITÉES d'apparaître dans le rapport « Par groupe de
+        // taxation » : une chambre n'a pas de produit, donc la jointure via
+        // `produits.taxe_id` ne peut pas donner son taux.
+        $chTaxEtiquette = (string)($chTaxRow['etiquette'] ?? '');
+        $chTaxGroupe    = (string)($chTaxRow['groupe_taxe'] ?? '');
         // TVA théorique sur la TS (cohérent avec lineHT de app.js) :
         // = TS_cumulé × tax_rate / 100
         $tvaSurTS = round($totalTaxeSpecifique * $chTaxRate / 100, 2);
@@ -899,12 +1070,15 @@ class HotelFactureController extends Controller
                 $homologation = (bool)($shopRow['homologation'] ?? false);
             }
 
-            // Type de facture hôtel = 'HB' (régime B). Ce n'est PAS un 'EX'
-            // (extra) : une facture hôtel est bien une facture fiscale et
-            // doit donc pouvoir être synchronisée.
+            // Une facture hôtel est bien une facture fiscale et doit donc
+            // pouvoir être synchronisée avec la DGI. On passe le type fiscal
+            // RÉEL (choisi par l'utilisateur) : `resolveInitialStatus()` ne
+            // s'intéresse qu'au cas 'EX' (extra, aucune facture fiscale émise).
+            // Avant, on passait 'HB' — ce n'est pas un type fiscal DGI et cela
+            // polluait les regroupements par type de facture des rapports.
             $dgiStatus = $dgiService->resolveInitialStatus(
                 is_array($dgiData) ? $dgiData : [],
-                'HB',
+                $invoiceType,
                 $homologation
             );
 
@@ -916,12 +1090,21 @@ class HotelFactureController extends Controller
                 $dgiInvoiceNumber = $numeroFacture;
             }
 
-            // 1. INSERT ventes (invoice_type='HB')
+            // 1. INSERT ventes
+            //    - `invoice_type` = type fiscal choisi par l'utilisateur
+            //      (FV, EV, FT, FA, EA, ET) : c'est cette valeur qui doit
+            //      apparaître dans les rapports.
+            //    - `est_hotel` = 1 : marqueur MÉTIER "c'est une facture hôtel",
+            //      indépendant du type fiscal (remplace l'ancien 'HB').
+            //    - `sejour_id` = $sejourId : rattache la facture à son séjour.
+            //      (Colonne déjà utilisée pour les EXTRA hôtel 'EX' — ici c'est
+            //      sans ambiguïté : le type 'EX' distingue les deux usages.)
             $saleId = (new \App\Models\Sale())->create([
                 'numero_facture' => $numeroFacture,
-                'invoice_type'   => 'HB',
+                'invoice_type'   => $invoiceType,
+                'est_hotel'      => 1,
                 'client_id'      => $clientId,
-                'sejour_id'      => null, // la facture HB n'est PAS un extra
+                'sejour_id'      => $sejourId,
                 'sous_total_ht'  => $totalFinal,
                 'tva'            => $tvaMontant,
                 'total'          => $totalFinal,
@@ -952,14 +1135,36 @@ class HotelFactureController extends Controller
             // automatiquement sur la facture imprimée.
             //
             // Pour une chambre, `produit_id` est NULL (pas de produit stocké) :
-            // le libellé "Nuitée chambre N°X — JJ/MM" est généré côté vue via
-            // COALESCE / fallback (cf. app/views/facture.php:118). La colonne
-            // `details_vente.produit_id` a été rendue NULLABLE par la migration
-            // 2026_10_19_details_vente_nullable_produit_id.sql, alignée sur le
-            // pattern `hotel_extras.produit_id` (déjà nullable depuis Sprint 6).
+            // la colonne `details_vente.produit_id` a été rendue NULLABLE par la
+            // migration 2026_10_19_details_vente_nullable_produit_id.sql, alignée
+            // sur le pattern `hotel_extras.produit_id` (déjà nullable depuis
+            // Sprint 6).
+            //
+            // TRACABILITÉ HÔTEL (migration 2026_11_05) : on renseigne désormais
+            // `sejour_id`, `chambre_id`, `ligne_type` et `libelle` pour que la
+            // ligne de détail soit rattachée à son séjour et à sa chambre, et
+            // qu'elle porte son propre libellé (« Nuit 05/11 - Chambre 12 »).
+            // Le libellé est FIGÉ ici : la facture imprimée ne dépend plus
+            // d'un `produits.nom` (qui peut être renommé après coup) ni d'un
+            // test fragile sur le type de facture.
+            //
             // On évite de gérer la remise ici — remise gérée au niveau séjour.
+            $chambreId = (int)$sejour['chambre_id'];
+            $chambreNumero = (string)($sejour['chambre_numero'] ?? '');
+            if ($chambreNumero === '') {
+                $chRowNum = $db->fetch(
+                    'SELECT numero FROM hotel_chambres WHERE id = :cid',
+                    [':cid' => $chambreId]
+                );
+                $chambreNumero = (string)($chRowNum['numero'] ?? '');
+            }
             $saleDetailModel = new \App\Models\SaleDetail();
             for ($i = 0; $i < $nbNuits; $i++) {
+                // Date de la nuitée i (les nuits sont insérées dans l'ordre
+                // chronologique, comme dans buildPreviewData()).
+                $nuitDate = (clone $start)->modify('+' . $i . ' day')->format('Y-m-d');
+                $libelleNuit = 'Nuit ' . date('d/m', strtotime($nuitDate))
+                    . ' - Chambre ' . $chambreNumero;
                 $saleDetailModel->create([
                     'vente_id'             => $saleId,
                     'produit_id'           => null,
@@ -969,6 +1174,45 @@ class HotelFactureController extends Controller
                     'remise_value'         => 0,
                     'taxe_specifique_type' => $chTsType,
                     'taxe_specifique_value' => $chTsValue,
+                    'sejour_id'            => $sejourId,
+                    'chambre_id'           => $chambreId,
+                    'ligne_type'           => 'nuit',
+                    'libelle'              => $libelleNuit,
+                    // Snapshot du groupe de taxation de la chambre (migration
+                    // 2026_11_06) : c'est ce qui fait apparaître les nuitées
+                    // dans le rapport « Par groupe de taxation ».
+                    'tax_rate'             => $chTaxRate,
+                    'tax_etiquette'        => $chTaxEtiquette,
+                    'tax_groupe'           => $chTaxGroupe,
+                ]);
+            }
+
+            // 1ter. INSERT details_vente — une ligne par EXTRA de la facture.
+            //
+            // C'est ce qui rend les extras visibles dans le rapport « Par
+            // groupe de taxation » (dans le groupe de leur produit) et dans
+            // l'A-rapport. Avant, les extras vivaient uniquement dans les
+            // ventes 'EX' / `hotel_extras` : aucune ligne de détail ne
+            // rattachait l'extra à la facture hôtel, donc les rapports ne
+            // voyaient que les nuitées.
+            foreach ($lignesExtras as $ex) {
+                $saleDetailModel->create([
+                    'vente_id'             => $saleId,
+                    'produit_id'           => $ex['produit_id'],
+                    'quantite'             => $ex['quantite'],
+                    'prix'                 => $ex['prix'],
+                    'remise_type'          => $ex['remise_type'],
+                    'remise_value'         => $ex['remise_value'],
+                    'taxe_specifique_type' => $ex['ts_type'],
+                    'taxe_specifique_value' => $ex['ts_value'],
+                    'sejour_id'            => $sejourId,
+                    'chambre_id'           => $chambreId,
+                    'ligne_type'           => 'extra',
+                    'libelle'              => $ex['libelle'],
+                    // Snapshot du groupe de taxation de l'extra.
+                    'tax_rate'             => $ex['tax_rate'],
+                    'tax_etiquette'        => $ex['tax_etiquette'],
+                    'tax_groupe'           => $ex['tax_groupe'],
                 ]);
             }
 
@@ -989,7 +1233,11 @@ class HotelFactureController extends Controller
                 ':sejour_id'      => $sejourId,
                 ':vente_id'       => $saleId,
                 ':numero'         => $numeroFacture,
-                ':type'           => 'HB',
+                // Type fiscal réel choisi par l'utilisateur (FV, EV, FT, FA,
+                // EA, ET) — plus le 'HB' qui n'est pas un type DGI valide.
+                // Le marqueur "facture hôtel" est porté par `ventes.est_hotel`
+                // et par la présence de la ligne dans `hotel_factures`.
+                ':type'           => $invoiceType,
                 ':total_nuits'    => $totalNuitsNet,
                 ':total_extras'   => $totalExtras,
                 ':remise_pct'     => $remisePct,
