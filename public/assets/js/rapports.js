@@ -192,6 +192,61 @@ const ReportsManager = {
             html += `</tbody></table></div>`;
         }
 
+        // ── BLOCS HÔTEL ────────────────────────────────────────────────
+        // Le CA hôtelier est intégré aux rapports : les nuitées apparaissent
+        // dans leur groupe de taxation et le CA est ventilé par chambre.
+        const hotel = data.hotel_breakdown;
+        if (hotel && hotel.factures && hotel.factures.nb_factures > 0) {
+            html += `<div class="rpt-section"><h4>Hôtel — synthèse</h4>
+                <div class="rpt-stats-grid">
+                    <div class="rpt-stat-pill">
+                        <div class="rpt-stat-label">Factures hôtel</div>
+                        <div class="rpt-stat-value">${this.number(hotel.factures.nb_factures)}</div>
+                    </div>
+                    <div class="rpt-stat-pill">
+                        <div class="rpt-stat-label">Nuitées</div>
+                        <div class="rpt-stat-value">${this.number(hotel.nuites.nb_nuitees)}</div>
+                    </div>
+                    <div class="rpt-stat-pill">
+                        <div class="rpt-stat-label">CA nuitées (HT)</div>
+                        <div class="rpt-stat-value">${this.money(hotel.nuites.total_ht)}</div>
+                    </div>
+                    <div class="rpt-stat-pill rpt-stat-accent">
+                        <div class="rpt-stat-label">CA hôtel (TTC)</div>
+                        <div class="rpt-stat-value">${this.money(hotel.factures.total_ttc)}</div>
+                    </div>
+                </div>
+                <p style="font-size:11.5px;color:var(--muted);margin:8px 0 0">
+                    Total des factures hôtel (nuitées + extras consolidés).
+                    Les extras ci-dessous sont DÉJÀ inclus dans ce total : ils ne sont pas additionnés une seconde fois.
+                </p></div>`;
+        }
+        if (data.hotel_by_room?.length) {
+            html += `<div class="rpt-section"><h4>Hôtel — par chambre</h4>
+                <table class="rpt-table">
+                <thead><tr><th>Chambre</th><th>Type</th><th style="text-align:right">Nuitées</th><th style="text-align:right">Factures</th><th style="text-align:right">HT</th><th style="text-align:right">Taxe</th><th style="text-align:right">TTC</th></tr></thead><tbody>`;
+            data.hotel_by_room.forEach(r => {
+                html += `<tr><td><strong>${r.chambre_numero || '-'}</strong></td><td>${r.chambre_type || '-'}</td>
+                    <td style="text-align:right">${this.number(r.nb_nuitees)}</td><td style="text-align:right">${r.nb_factures}</td>
+                    <td style="text-align:right">${this.money(r.total_ht)}</td><td style="text-align:right">${this.money(r.total_tax)}</td>
+                    <td style="text-align:right">${this.money(r.total_ttc)}</td></tr>`;
+            });
+            html += `</tbody></table></div>`;
+        }
+
+        if (data.hotel_extras?.length) {
+            html += `<div class="rpt-section"><h4>Hôtel — extras (déjà inclus dans les factures hôtel)</h4>
+                <table class="rpt-table">
+                <thead><tr><th>Article</th><th style="text-align:right">Qté</th><th style="text-align:right">HT</th><th style="text-align:right">Taxe</th></tr></thead><tbody>`;
+            data.hotel_extras.forEach(x => {
+                html += `<tr><td>${x.article_nom || '-'}</td>
+                    <td style="text-align:right">${this.number(x.quantite)}</td>
+                    <td style="text-align:right">${this.money(x.total_ht)}</td>
+                    <td style="text-align:right">${this.money(x.total_tax)}</td></tr>`;
+            });
+            html += `</tbody></table></div>`;
+        }
+
         if (data.by_payment_method?.length) {
             html += `<div class="rpt-section"><h4>Par mode de paiement</h4>
                 <table class="rpt-table">
