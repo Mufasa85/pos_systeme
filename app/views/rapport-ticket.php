@@ -141,6 +141,37 @@
             html += `<div class="separator"></div>`;
         }
 
+        // ── BLOCS HÔTEL ────────────────────────────────────────────────
+        // Le CA hôtelier est intégré au rapport : synthèse, ventilation par
+        // chambre, et détail des extras (déjà inclus dans les factures hôtel).
+        const hotel = data.hotel_breakdown;
+        if (hotel && hotel.factures && hotel.factures.nb_factures > 0) {
+            html += `<div class="section-title">HOTEL - SYNTHESE</div>`;
+            html += `<div class="row"><span>Factures hotel:</span><span>${hotel.factures.nb_factures}</span></div>`;
+            html += `<div class="row"><span>Nuitees:</span><span>${fmtNum(hotel.nuites.nb_nuitees)}</span></div>`;
+            html += `<div class="row"><span>CA nuitees (HT):</span><span>${fmtMoney(hotel.nuites.total_ht)}</span></div>`;
+            html += `<div class="row"><span>CA hotel (TTC):</span><span>${fmtMoney(hotel.factures.total_ttc)}</span></div>`;
+            html += `<div class="separator"></div>`;
+        }
+
+        if (data.hotel_by_room?.length) {
+            html += `<div class="section-title">HOTEL - PAR CHAMBRE</div>`;
+            html += `<table><thead><tr><th>Chambre</th><th class="right">Nuitees</th><th class="right">HT</th><th class="right">Taxe</th><th class="right">TTC</th></tr></thead><tbody>`;
+            data.hotel_by_room.forEach(r => {
+                html += `<tr><td>${r.chambre_numero || '-'}</td><td class="right">${fmtNum(r.nb_nuitees)}</td><td class="right">${fmtMoney(r.total_ht)}</td><td class="right">${fmtMoney(r.total_tax)}</td><td class="right">${fmtMoney(r.total_ttc)}</td></tr>`;
+            });
+            html += `</tbody></table><div class="separator"></div>`;
+        }
+
+        if (data.hotel_extras?.length) {
+            html += `<div class="section-title">HOTEL - EXTRAS (DEJA INCLUS DANS LES FACTURES HOTEL)</div>`;
+            html += `<table><thead><tr><th>Article</th><th class="right">Qte</th><th class="right">HT</th><th class="right">Taxe</th></tr></thead><tbody>`;
+            data.hotel_extras.forEach(x => {
+                html += `<tr><td>${x.article_nom || '-'}</td><td class="right">${fmtNum(x.quantite)}</td><td class="right">${fmtMoney(x.total_ht)}</td><td class="right">${fmtMoney(x.total_tax)}</td></tr>`;
+            });
+            html += `</tbody></table><div class="separator"></div>`;
+        }
+
         // Reductions
         if (data.discounts && (data.discounts.invoices_with_discount > 0 || data.discounts.total_discount_amount > 0)) {
             html += `<div class="section-title">REDUCTIONS COMMERCIALES</div>`;
