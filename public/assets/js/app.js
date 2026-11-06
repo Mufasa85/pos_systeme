@@ -172,6 +172,63 @@ const formatQty = (q, isPoids) => isPoids ? truncateDecimals(q).toFixed(3) : q;
 // DGI API Configuration - utilise le proxy local pour eviter CORS
 const DGI_API_URL = APP_URL + '/api/dgi';
 
+// ---------------------------------------------------------------------------
+// NUMÉRO DE FACTURE — source de vérité unique
+// ---------------------------------------------------------------------------
+// Le numéro de facture est ATTRIBUÉ PAR LE SERVEUR (compteur `ventes`) via
+// GET /api/vente/next-invoice. Il ne doit JAMAIS être fabriqué côté client :
+//   - un numéro bidon (`FAC-xxxxxx` aléatoire) ne correspond à aucun
+//     enregistrement en base ;
+//   - c'est la clé `invoice_number` que l'API OSAT mémorise : sans clé
+//     stable et valide, la facture devient introuvable côté DGI.
+//
+// Donc : si l'API ne renvoie pas de numéro, on remonte une ERREUR explicite
+// et l'appelant abandonne l'opération (aucune vente n'est enregistrée).
+async function fetchNextInvoiceNumber() {
+    let res;
+    try {
+        res = await fetch(APP_URL + '/api/vente/next-invoice');
+    } catch (e) {
+        console.error('[Facture] Échec réseau /api/vente/next-invoice:', e);
+        throw new Error('Impossible de contacter le serveur pour obtenir le numéro de facture. Vérifiez la connexion puis réessayez.');
+    }
+
+    if (!res.ok) {
+        console.error('[Facture] /api/vente/next-invoice → HTTP ' + res.status);
+        throw new Error('Le serveur n\'a pas pu générer de numéro de facture (erreur ' + res.status + ').');
+    }
+
+    let data;
+    try {
+        data = await res.json();
+    } catch (e) {
+        console.error('[Facture] Réponse non-JSON de /api/vente/next-invoice:', e);
+        throw new Error('Réponse invalide du serveur pour le numéro de facture.');
+    }
+
+    const invoiceNumber = data && data.invoice_number ? String(data.invoice_number).trim() : '';
+    if (!invoiceNumber) {
+        console.error('[Facture] /api/vente/next-invoice n\'a renvoyé aucun numéro :', data);
+        throw new Error('Aucun numéro de facture disponible. Réessayez dans un instant.');
+    }
+
+    return invoiceNumber;
+}
+
+// Affiche une erreur « numéro de facture indisponible » à l'utilisateur.
+// Utilise le toast de la caisse quand il est présent (page /caisse), sinon
+// un alert() — les autres pages (/recharges, /hôtel) n'ont pas ce conteneur.
+function showInvoiceNumberError(message) {
+    const msg = message || 'Impossible d\'obtenir le numéro de facture.';
+    console.error('[Facture] ' + msg);
+    const hasToastContainer = typeof document !== 'undefined'
+        && document.getElementById('caisse-toast-container');
+    if (hasToastContainer && typeof showCaisseToast === 'function') {
+        showCaisseToast(msg, 'error', 6000);
+    }
+    alert(msg);
+}
+
 // Fonction pour jouer un beep lors du scan
 function playScanBeep() {
     try {
@@ -965,19 +1022,17 @@ const posCart = {
             // mémorise : si la DGI est indisponible, OSAT met la demande en
             // attente et la rejoue plus tard sous cette même clé. Sans clé
             // stable, la facture devient introuvable côté DGI.
+            //
+            // ⚠️ Aucun numéro de secours n'est fabriqué ici : si le serveur
+            // n'attribue pas de numéro, on remonte une erreur et la vente est
+            // abandonnée (jamais de facture fantôme côté DGI).
             if (!this.currentInvoiceNum) {
                 try {
-                    const invRes = await fetch(APP_URL + '/api/vente/next-invoice');
-                    const invData = await invRes.json();
-                    if (invData && invData.invoice_number) {
-                        this.currentInvoiceNum = invData.invoice_number;
-                    }
+                    this.currentInvoiceNum = await fetchNextInvoiceNumber();
                 } catch (e) {
-                    console.warn('Erreur récupération numéro facture (DGI):', e);
+                    console.error('[DGI] Numéro de facture indisponible:', e);
+                    return { success: false, message: e.message };
                 }
-            }
-            if (!this.currentInvoiceNum) {
-                this.currentInvoiceNum = 'FAC-' + Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
             }
 
             // Obtenir le nom du vendeur
@@ -1042,10 +1097,9 @@ const posCart = {
                 // clé que l'API OSAT mémorise pour pouvoir rejouer la demande
                 // plus tard (cas "update", store_homologation = 2) et c'est
                 // celle qu'OSAT renverra lors de la mise à jour.
-                // Si /api/vente/next-invoice a échoué, currentInvoiceNum est
-                // vide : on envoie alors un numéro de secours, sinon OSAT
-                // recevrait une clé vide (le JSON la supprimerait).
-                invoice_number: this.currentInvoiceNum || ('FAC-' + Math.floor(Math.random() * 1000000).toString().padStart(6, '0')),
+                // Elle a été obtenue via /api/vente/next-invoice juste au-dessus
+                // (jamais fabriquée ici) : le champ ne peut pas être vide.
+                invoice_number: this.currentInvoiceNum,
                 invoice_type: invoiceType,
                 invoice_refs: invoiceRefs,
                 invoice_ref: invoiceRefs[0] || '',
@@ -1469,16 +1523,15 @@ const posCart = {
             return;
         }
 
-        // Récupérer le numéro de facture depuis la base de données
+        // Récupérer le numéro de facture depuis la base de données.
+        // ⚠️ Pas de numéro de repli : sans numéro attribué par le serveur,
+        // on interrompt l'opération et on previent l'utilisateur.
         try {
-            const res = await fetch(APP_URL + '/api/vente/next-invoice');
-            const data = await res.json();
-            if (data.invoice_number) {
-                this.currentInvoiceNum = data.invoice_number;
-
-            }
+            this.currentInvoiceNum = await fetchNextInvoiceNumber();
         } catch (e) {
-            console.warn('Erreur récupération numéro facture:', e);
+            console.error('[Caisse] Numéro de facture indisponible:', e);
+            showInvoiceNumberError(e.message);
+            return;
         }
 
         const formattedDate = new Date().toLocaleString('fr-FR', {
@@ -1486,7 +1539,7 @@ const posCart = {
             hour: '2-digit', minute: '2-digit'
         });
 
-        const invoiceNum = this.currentInvoiceNum || 'FAC-000001';
+        const invoiceNum = this.currentInvoiceNum;
 
         // Logique de négation visuelle: si la facture N'est PAS FA ou EA, on
         // affiche les quantités et le total en négatif dans la preview
@@ -1627,19 +1680,19 @@ const posCart = {
     },
 
     // Afficher le modal de paiement (popup séparé)
-    showPaymentModal() {
+    async showPaymentModal() {
         if (this.items.length === 0) return;
 
-        // Récupérer le numéro de facture depuis la base de données
-        let invoiceNum = 'FAC-000001';
-        fetch(APP_URL + '/api/vente/next-invoice')
-            .then(res => res.json())
-            .then(data => {
-                if (data.invoice_number) {
-                    this.currentInvoiceNum = data.invoice_number;
-                }
-            })
-            .catch(() => { });
+        // Récupérer le numéro de facture depuis la base de données.
+        // ⚠️ Pas de numéro de repli : le modal n'est ouvert que si le serveur
+        // a attribué un numéro, sinon on interrompt et on previent l'utilisateur.
+        try {
+            this.currentInvoiceNum = await fetchNextInvoiceNumber();
+        } catch (e) {
+            console.error('[Caisse] Numéro de facture indisponible:', e);
+            showInvoiceNumberError(e.message);
+            return;
+        }
 
         // Afficher le modal
         const modal = $('#payment-modal');
