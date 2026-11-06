@@ -15,11 +15,15 @@ class Sale
 
     public function create($data)
         {
-            $sql = 'INSERT INTO ventes (numero_facture, invoice_type, client_id, sejour_id, sous_total_ht, tva, total, payments, vendeur_id, shop_id, store_isf, date, dateDGI, qrCode, codeDEFDGI, counters, nim, comment, service, dgi_invoice_number, dgi_status) 
-                    VALUES (:numero_facture, :invoice_type, :client_id, :sejour_id, :sous_total_ht, :tva, :total, :payments, :vendeur_id, :shop_id, :store_isf, :date, :dateDGI, :qrCode, :codeDEFDGI, :counters, :nim, :comment, :service, :dgi_invoice_number, :dgi_status)';
+            $sql = 'INSERT INTO ventes (numero_facture, invoice_type, est_hotel, client_id, sejour_id, sous_total_ht, tva, total, payments, vendeur_id, shop_id, store_isf, date, dateDGI, qrCode, codeDEFDGI, counters, nim, comment, service, dgi_invoice_number, dgi_status) 
+                    VALUES (:numero_facture, :invoice_type, :est_hotel, :client_id, :sejour_id, :sous_total_ht, :tva, :total, :payments, :vendeur_id, :shop_id, :store_isf, :date, :dateDGI, :qrCode, :codeDEFDGI, :counters, :nim, :comment, :service, :dgi_invoice_number, :dgi_status)';
             $this->db->query($sql, [
                 ':numero_facture' => $data['numero_facture'],
                 ':invoice_type'   => $data['invoice_type'] ?? 'FV',
+                // Marqueur métier « facture hôtel » (0 = vente POS classique).
+                // Indépendant du type fiscal : une facture hôtel peut être de
+                // type FV, EV, FT, FA, EA ou ET selon le choix de l'utilisateur.
+                ':est_hotel'      => !empty($data['est_hotel']) ? 1 : 0,
                 ':client_id'      => $data['client_id'] ?? null,
                 ':sejour_id'      => $data['sejour_id'] ?? null,
                 ':sous_total_ht'  => $data['sous_total_ht'],

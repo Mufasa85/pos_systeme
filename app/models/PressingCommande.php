@@ -493,7 +493,56 @@ class PressingCommande
 
         $sql .= ' ORDER BY v.date DESC LIMIT ' . (int)$limit;
 
-        return $this->db->fetchAll($sql, $params);
+        $ventes = $this->db->fetchAll($sql, $params);
+
+        if (empty($ventes)) {
+            return [];
+        }
+
+        // Charge les lignes de vente (articles) en une seule requete : sans
+        // elles, le dossier cree depuis la facture serait vide et son total
+        // a 0 (le pressing facture le linge, pas la vente POS).
+        $ids = array_map(static fn ($v) => (int)$v['id'], $ventes);
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+
+        $lignes = $this->db->fetchAll(
+            "SELECT d.vente_id, d.quantite, d.prix, d.remise_type, d.remise_value,
+                    pr.nom AS article_nom
+             FROM details_vente d
+             LEFT JOIN produits pr ON pr.id = d.produit_id
+             WHERE d.vente_id IN ($placeholders)
+             ORDER BY d.id ASC",
+            $ids
+        );
+
+        // Regroupe les articles par vente.
+        $parVente = [];
+        foreach ($lignes as $l) {
+            $prix = (float)$l['prix'];
+
+            // La remise de la ligne de vente s'applique au prix pressing.
+            $remiseType = (string)($l['remise_type'] ?? '');
+            $remiseValue = (float)($l['remise_value'] ?? 0);
+            if ($remiseType === 'percent' && $remiseValue > 0) {
+                $prix -= $prix * ($remiseValue / 100);
+            } elseif ($remiseType === 'montant' && $remiseValue > 0) {
+                $prix -= $remiseValue;
+            }
+            $prix = max(0.0, round($prix, 2));
+
+            $parVente[(int)$l['vente_id']][] = [
+                'name'     => (string)($l['article_nom'] ?? 'Service pressing'),
+                'quantity' => max(1, (int)$l['quantite']),
+                'price'    => $prix,
+            ];
+        }
+
+        foreach ($ventes as &$v) {
+            $v['articles'] = $parVente[(int)$v['id']] ?? [];
+        }
+        unset($v);
+
+        return $ventes;
     }
 
     /**
