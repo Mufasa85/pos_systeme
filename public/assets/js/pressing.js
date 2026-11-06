@@ -624,16 +624,22 @@
       + rows.length + ' facture(s) sans dossier de pressing. '
       + 'Cliquez sur « Démarrer » pour créer le dossier depuis cette facture.</div>'
       + '<table class="pr-table"><thead><tr><th>Facture</th><th>Client</th>'
-      + '<th class="num">Montant</th><th></th></tr></thead><tbody>';
+      + '<th class="num">Montant</th><th>Articles</th><th></th></tr></thead><tbody>';
 
     rows.forEach((v) => {
+      const arts = v.articles || [];
+      const nbArt = arts.length
+        ? arts.length + ' art. — ' + arts.map((a) => `${esc(a.name)} ×${a.quantity}`).join(', ')
+        : 'aucun article';
       html += '<tr>'
         + '<td class="mono">' + esc(v.numero_facture) + '</td>'
         + '<td>' + esc(v.nom_client || '—') + '</td>'
         + '<td class="num">' + esc(fc(v.total)) + '</td>'
+        + '<td class="pr-serie">' + nbArt + '</td>'
         + '<td><button type="button" class="btn btn-secondary btn-small js-demarrer" data-fact="'
           + esc(v.numero_facture) + '" data-nom="' + esc(v.nom_client || '')
-          + '" data-tel="' + esc(v.telephone || '') + '">Démarrer</button></td>'
+          + '" data-tel="' + esc(v.telephone || '') + '" data-articles="'
+          + esc(JSON.stringify(arts)) + '">Démarrer</button></td>'
         + '</tr>';
     });
 
@@ -646,7 +652,22 @@
         $('#pr-f-facture').value = b.dataset.fact;
         $('#pr-f-nom').value = b.dataset.nom;
         $('#pr-f-tel').value = b.dataset.tel;
+
+        // Pré-remplit les articles de la vente : sans ça, le dossier
+        // serait créé avec une ligne vide (prix 0) et son total à 0.
+        let arts = [];
+        try {
+          arts = JSON.parse(b.dataset.articles || '[]');
+        } catch (e) {
+          arts = [];
+        }
+
         ouvrirNouvelleCommande();
+
+        if (Array.isArray(arts) && arts.length) {
+          $('#pr-articles').innerHTML = '';
+          arts.forEach((a) => ajouterLigneArticle(a));
+        }
       };
     });
   }
