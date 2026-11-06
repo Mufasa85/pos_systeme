@@ -115,10 +115,12 @@ $page = 'pressing';
   .pr-form-grid input[readonly] { background: var(--background, #f8fafc); color: var(--muted, #64748b); cursor: not-allowed; }
 
   /* ---------- Lignes d'articles ---------- */
-  .pr-art-row { display: grid; grid-template-columns: minmax(90px, 1.3fr) minmax(80px, 1fr) 56px minmax(80px, 1fr) minmax(90px, 1fr) 62px minmax(86px, auto) 30px; gap: .35rem; align-items: end; padding: .5rem; background: var(--background, #f8fafc); border: 1px solid var(--border, #e2e8f0); border-radius: var(--radius, 8px); margin-bottom: .4rem; }
+  /* L'ordre des colonnes suit l'ordre du HTML de `ajouterLigneArticle()` :
+     Type, Couleur, Qté, Prix unit., Coef., Total majoré, Délai, × */
+  .pr-art-row { display: grid; grid-template-columns: minmax(90px, 1.3fr) minmax(80px, 1fr) 56px minmax(80px, 1fr) 58px minmax(112px, auto) minmax(100px, 1.1fr) 30px; gap: .35rem; align-items: end; padding: .5rem; background: var(--background, #f8fafc); border: 1px solid var(--border, #e2e8f0); border-radius: var(--radius, 8px); margin-bottom: .4rem; }
   .pr-art-row label { display: flex; flex-direction: column; gap: .15rem; font-size: .6rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--muted, #64748b); }
   .pr-art-row input, .pr-art-row select { padding: .35rem .5rem; border: 1px solid var(--border, #e2e8f0); border-radius: var(--radius, 8px); background: #fff; font-size: .8rem; width: 100%; min-width: 0; }
-  .pr-f-total { display: flex !important; align-items: center; justify-content: flex-end; padding: .35rem .5rem; margin-left: .15rem; border-radius: var(--radius, 8px); background: #eef2ff; color: #4338ca; font-size: .8rem; font-weight: 800; white-space: nowrap; }
+  .pr-f-total { display: flex !important; align-items: center; justify-content: flex-end; padding: .35rem .5rem; margin-left: .15rem; border-radius: var(--radius, 8px); background: #eef2ff; color: #4338ca; font-size: .8rem; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .pr-art-del { border: 0; background: #fee2e2; color: #dc2626; border-radius: var(--radius, 8px); width: 30px; height: 30px; cursor: pointer; font-size: 1rem; line-height: 1; }
   .pr-art-del:hover { background: #fecaca; }
 
