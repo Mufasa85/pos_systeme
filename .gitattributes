@@ -1,0 +1,21 @@
+# Fins de ligne normalisées en LF pour tout le dépôt.
+# Indispensable sur Windows : le hook pre-commit (php-cs-fixer, règle
+# `line_ending`) exige LF, alors que `core.autocrlf=true` reconvertit
+# les fichiers en CRLF à chaque checkout et fait échouer le commit.
+* text=auto eol=lf
+
+# Fichiers binaires : ne jamais toucher
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.svg binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
+*.pdf binary
+*.zip binary
+*.xlsx binary
+*.dump binary
