@@ -433,16 +433,17 @@ class BillPayment {
             const service = this.currentProvider === 1 ? 'ELECTRICITE' : 'EAU';
             const sellerName = (typeof CURRENT_USER !== 'undefined' && CURRENT_USER.fullName) ? CURRENT_USER.fullName : STORE_INFO.name;
 
-            // Récupérer le numéro de facture
+            // Récupérer le numéro de facture (attribué par le serveur).
+            // ⚠️ Aucun numéro de secours : si /api/vente/next-invoice échoue,
+            // on remonte une erreur et la vente est abandonnée.
             let invoiceNum = this.currentInvoiceNum;
             if (!invoiceNum) {
                 try {
-                    const invRes = await fetch(APP_URL + '/api/vente/next-invoice');
-                    const invData = await invRes.json();
-                    invoiceNum = invData.invoice_number || 'FAC-' + Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
+                    invoiceNum = await fetchNextInvoiceNumber();
                     this.currentInvoiceNum = invoiceNum;
                 } catch (e) {
-                    invoiceNum = 'FAC-' + Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
+                    console.error('[Recharges] Numéro de facture indisponible:', e);
+                    return { success: false, message: e.message };
                 }
             }
 
@@ -1186,18 +1187,18 @@ class BillPayment {
 
     // Générer et afficher le preview (après confirmation client)
     async showPreviewFinal() {
-        // Récupérer le numéro de facture depuis la base de données
-        let invoiceNum = 'FAC-000001';
+        // Récupérer le numéro de facture depuis la base de données.
+        // ⚠️ Pas de numéro de repli : sans numéro attribué par le serveur,
+        // le preview n'est pas affiché et l'utilisateur est prévenu.
+        let invoiceNum;
         try {
-            const res = await fetch(APP_URL + '/api/vente/next-invoice');
-            const data = await res.json();
-            if (data.invoice_number) {
-                invoiceNum = data.invoice_number;
-            }
+            invoiceNum = await fetchNextInvoiceNumber();
+            this.currentInvoiceNum = invoiceNum;
         } catch (e) {
-            console.warn('Erreur récupération numéro facture:', e);
+            console.error('[Recharges] Numéro de facture indisponible:', e);
+            this.showError(e.message);
+            return;
         }
-        this.currentInvoiceNum = invoiceNum;
 
         const total = this.selectedMonths.reduce((acc, m) => acc + m.montant, 0);
         const service = this.currentProvider === 1 ? 'ELECTRICITE' : 'EAU';
