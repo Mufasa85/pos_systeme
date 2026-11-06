@@ -464,6 +464,33 @@
             <span>ELECTRICITE/EAU</span>
           </a>
         <?php endif; ?>
+
+        <?php
+        // Module Pressing — visible uniquement si le flag API `pressing` est
+        // actif (même mécanisme que Recharges / Paie / Hôtel). Même logique
+        // de lecture du cache que $showHotel : on lit directement
+        // $_SESSION['feature_access_cache'] pour ne pas déclencher un
+        // appel réseau dans le header.
+        $pressingAccess = false;
+        $featureCachePressing = $_SESSION['feature_access_cache'] ?? null;
+        if ($featureCachePressing !== null
+            && isset($featureCachePressing['expires_at'])
+            && $featureCachePressing['expires_at'] > time()) {
+          $pressingAccess = !empty($featureCachePressing['flags']['pressing']);
+        }
+        ?>
+        <?php if ($pressingAccess): ?>
+          <a href="/pressing" class="nav-item <?= $currentPage == 'pressing' ? 'active' : '' ?>">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="6" cy="6" r="3"></circle>
+              <circle cx="6" cy="18" r="3"></circle>
+              <line x1="20" y1="4" x2="8.12" y2="15.88"></line>
+              <line x1="14.47" y1="14.48" x2="20" y2="20"></line>
+              <line x1="8.12" y1="8.12" x2="12" y2="12"></line>
+            </svg>
+            <span>Pressing</span>
+          </a>
+        <?php endif; ?>
         <a href="/produits" class="nav-item <?= $currentPage == 'produits' ? 'active' : '' ?>">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
