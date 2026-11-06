@@ -295,10 +295,13 @@
     carte: 'CARTEBANCAIRE',
     autre: 'AUTRE',
   };
-  // Numéro de facture envoyé à la DGI : on garde la nomenclature existante
-  // (FV = Facture de Vente). Le DGI ne connaît pas 'HB' ; le backend transcrit
-  // 'HB' dans ventes.invoice_type (cf. HotelFactureController::store()).
-  const DGI_INVOICE_TYPE = 'FV';
+  // Type fiscal envoyé à la DGI : c'est celui choisi par l'utilisateur dans
+  // le modal « Informations Facture » (window.hotelInvoiceType), et non une
+  // valeur figée. La DGI ne connaît pas 'HB' (qui n'est pas un type fiscal) :
+  // le type réel est persisté dans `ventes.invoice_type` par le backend
+  // (cf. HotelFactureController::store()).
+  // ⚠️ Constante volontairement SUPPRIMÉE : le type est désormais dynamique,
+  // la lire ici figerait de nouveau la facture sur 'FV'.
 
   function paymentLabel(mode) {
     if (typeof getPaymentTypeLabel === 'function') {
@@ -1444,12 +1447,19 @@
     // valider)" et il faut attendre la confirmation. On rend tout le ticket
     // APRÈS la résolution de la promesse pour que le n° soit visible
     // dès l'ouverture de la preview.
-    var previewInvoiceNum = 'HB-' + Date.now();
+    // Numéro de facture attribué par le serveur (/api/vente/next-invoice).
+    // ⚠️ Pas de numéro de repli : sans numéro valide, la preview n'est pas
+    // affichée et l'utilisateur est prévenu (aucune facture fantôme).
+    var previewInvoiceNum;
     try {
-      var invRes = await fetch(APP_URL + '/api/vente/next-invoice');
-      var invData = await invRes.json();
-      if (invData && invData.invoice_number) previewInvoiceNum = invData.invoice_number;
-    } catch (_) { /* tolé rant : on garde le placeholder */ }
+      previewInvoiceNum = await fetchNextInvoiceNumber();
+    } catch (e) {
+      console.error('[hotel-ft] Numéro de facture indisponible:', e);
+      if (typeof hideLoading === 'function') hideLoading();
+      showAlert(e.message, 'error');
+      alert(e.message);
+      return;
+    }
     window.hotelPreviewInvoiceNum = previewInvoiceNum;
 
     var itemsHtml = buildHotelReceiptItems(n, e, extrasManuels);
@@ -1547,12 +1557,19 @@
     if (typeof showLoading === 'function') showLoading('Validation DGI…');
     else if ($('hotel-ft-overlay-loader')) $('hotel-ft-overlay-loader').style.display = 'flex';
 
-    var dgiInvoiceNum = 'FAC-' + Date.now();
+    // Numéro de facture attribué par le serveur (/api/vente/next-invoice).
+    // ⚠️ Pas de numéro de secours : si l'attribution échoue, on interrompt
+    // l'émission (rien n'est envoyé à la DGI, aucune facture fantôme).
+    var dgiInvoiceNum;
     try {
-      var invRes = await fetch(APP_URL + '/api/vente/next-invoice');
-      var invData = await invRes.json();
-      if (invData && invData.invoice_number) dgiInvoiceNum = invData.invoice_number;
-    } catch (_) { }
+      dgiInvoiceNum = await fetchNextInvoiceNumber();
+    } catch (e) {
+      console.error('[hotel-ft] Numéro de facture indisponible:', e);
+      if (typeof hideLoading === 'function') hideLoading();
+      showAlert(e.message, 'error');
+      alert(e.message);
+      return;
+    }
 
     // On expose la clé DGI au global : c'est elle qu'OSAT mémorise, et
     // c'est elle qu'il renverra lors de la mise à jour différée. Elle doit
@@ -1565,7 +1582,15 @@
     // directement depuis previewData.sejour.chambre.taxe_taux (jointure
     // chambre → taxes). Voir getTaxBValueFromPreview().
 
-    var dgiPayload = buildDgiPayload(dgiInvoiceNum, 'FV');
+    // Type fiscal choisi par l'utilisateur dans le modal « Informations
+    // Facture » (window.hotelInvoiceType). On l'envoie à la DGI pour que le
+    // type fiscal soit cohérent entre la DGI, la base (`ventes.invoice_type`)
+    // et la facture imprimée. Repli 'FV' si absent.
+    var dgiInvoiceType = (typeof window.hotelInvoiceType === 'string' && window.hotelInvoiceType)
+      ? window.hotelInvoiceType
+      : 'FV';
+
+    var dgiPayload = buildDgiPayload(dgiInvoiceNum, dgiInvoiceType);
     var dgiResp = await postToDgi(dgiPayload);
     if (!dgiResp || !dgiResp.success) {
       var msg = (dgiResp && dgiResp.message) || 'Échec validation DGI';
@@ -1872,6 +1897,15 @@
 
     var payload = {
       sejour_id: currentSejourId,
+      // Type fiscal choisi par l'utilisateur dans le modal « Informations
+      // Facture » (window.hotelInvoiceType, posé par confirmHotelInvoiceInfo).
+      // Le backend le whitelist (FV, EV, FT, FA, EA, ET) et le persiste dans
+      // `ventes.invoice_type` + `hotel_factures.invoice_type`.
+      // Avant, le backend forçait 'HB' (qui n'est pas un type fiscal DGI) :
+      // les factures hôtel polluaient les regroupements des rapports.
+      invoice_type: (typeof window.hotelInvoiceType === 'string' && window.hotelInvoiceType)
+        ? window.hotelInvoiceType
+        : 'FV',
       // Extras manuels saisis (description + montant)
       extras_manuels: extrasManuels,
       // Paiements encaissés à la facturation (mode UI)
