@@ -126,7 +126,7 @@ $isHomologueeLocal = !empty($storeInfo['homologation']);
             </div>
             <div class="receipt-meta">
                 <span><?= htmlspecialchars($sale['numero_facture'] ?? '') ?></span>
-                <span><?= htmlspecialchars($sale['type_facture'] ?? 'FV') ?></span>
+                <span><?= htmlspecialchars($sale['invoice_type'] ?? $sale['type_facture'] ?? 'FV') ?></span>
             </div>
             <div class="receipt-items receipt-items-grid">
                 <?php foreach (($details ?? []) as $item):
