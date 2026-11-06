@@ -38,6 +38,7 @@ class RechargeAccessService
         'snelregideso' => false,
         'paie'         => false,
         'hotel'        => false,
+        'pressing'     => false,
     ];
 
     public function __construct(?int $cacheTtl = null)
@@ -81,6 +82,23 @@ class RechargeAccessService
     {
         return $this->getFeatureFlag('hotel');
     }
+
+    /**
+     * Vérifie l'accès à /pressing (flag `pressing`).
+     *
+     * Même sémantique stricte que canAccess() / canAccessPayroll() /
+     * canAccessHotel() : flag truthy → accès accordé, flag falsy / absent /
+     * null → accès refusé (403).
+     *
+     * Le flag `pressing` est déjà exposé par l'API OSAT
+     * (`option_client/feedback.php` → `data.pressing`) : aucun changement
+     * côté serveur OSAT n'est nécessaire.
+     */
+    public function canAccessPressing(): bool
+    {
+        return $this->getFeatureFlag('pressing');
+    }
+
 /**
      * Récupère un flag depuis le cache ou depuis l'API.
      * Délègue à getAllFlags() pour mutualiser la logique de cache.
@@ -139,6 +157,13 @@ class RechargeAccessService
             // Cache "legacy" : hotel n'est pas un booléen → on invalide.
             if (!is_bool($flags['hotel'] ?? null)) {
                 error_log('[FeatureAccessService] Cache legacy détecté (hotel non-booléen) → re-fetch immédiat');
+                return $this->fetchFromApi();
+            }
+            // Cache antérieur à l'ajout du module pressing : le flag
+            // `pressing` est absent → on invalide pour aller le re-fetcher
+            // (sinon le module resterait verrouillé jusqu'au TTL).
+            if (!array_key_exists('pressing', $flags)) {
+                error_log('[FeatureAccessService] Cache sans flag pressing → re-fetch immédiat');
                 return $this->fetchFromApi();
             }
             return $flags;
@@ -236,6 +261,12 @@ class RechargeAccessService
                 // les flags → canAccessHotel() le verra comme "absent" et
                 // autorisera (fail-open pour compat ascendante).
                 'hotel'        => array_key_exists('hotel', $payload) ? !empty($payload['hotel']) : null,
+                // pressing : même traitement que `hotel` — l'API OSAT
+                // l'expose déjà (`data.pressing`). On le met à `false` quand
+                // la clé est absente pour que le cache reste un booléen :
+                // `getAllFlags()` invalide un cache dont la valeur n'est pas
+                // booléenne, ce qui provoquerait un refetch à chaque appel.
+                'pressing'     => array_key_exists('pressing', $payload) ? !empty($payload['pressing']) : false,
             ];
 
             $this->storeCache($flags);

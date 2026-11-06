@@ -30,6 +30,20 @@ class ReportService
         $creditNotes = $this->reportModel->getCreditNotes($shopId, $startDate, $endDate);
         $incompleteSales = $this->reportModel->getIncompleteSalesCount($shopId, $startDate, $endDate);
 
+        // ── Blocs HÔTEL ───────────────────────────────────────────────
+        // Le CA hôtelier est désormais intégré aux rapports : les factures
+        // hôtel portent leur vrai type fiscal (`ventes.invoice_type`) et
+        // leurs nuitées apparaissent dans le groupe de taxation de la chambre
+        // (snapshot `details_vente.tax_rate`).
+        //
+        // ⚠️ Règle de non-double-compte : les EXTRA hôtel (`invoice_type='EX'`)
+        // sont EXCLUS des totaux consolidés (types de facture, groupes de
+        // taxation, paiements) car ils sont déjà inclus dans le total des
+        // factures hôtel. Ils restent visibles dans le bloc dédié « Extras ».
+        $hotelBreakdown = $this->reportModel->getHotelBreakdown($shopId, $startDate, $endDate);
+        $hotelByRoom = $this->reportModel->getHotelReportByRoom($shopId, $startDate, $endDate);
+        $hotelExtras = $this->reportModel->getHotelExtrasReport($shopId, $startDate, $endDate);
+
         // Paiements : parsing JSON en PHP
         $rawPayments = $this->reportModel->getPaymentsParsed($shopId, $startDate, $endDate);
         $paymentsByMethod = [];
@@ -68,6 +82,15 @@ class ReportService
             ],
             'by_invoice_type' => $salesByInvoiceType,
             'by_tax_group' => $salesByTaxGroup,
+            // ── Blocs hôtel ───────────────────────────────────────────
+            // `hotel_breakdown` : ventilation nuitées / extras / total
+            // `hotel_by_room`   : CA hôtelier par chambre
+            // `hotel_extras`    : détail des extras (déjà inclus dans le
+            //                      total des factures hôtel → affiché pour
+            //                      information, jamais additionné)
+            'hotel_breakdown' => $hotelBreakdown,
+            'hotel_by_room' => $hotelByRoom,
+            'hotel_extras' => $hotelExtras,
             'by_payment_method' => array_map(function ($k, $v) use ($paymentLabels) {
                 return [
                     'method' => $k,

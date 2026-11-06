@@ -456,6 +456,103 @@ class DgiSyncService
     }
 
     /**
+     * Relit une facture DGI auprès d'OSAT, SANS écriture en base.
+     *
+     * Utilisé par le module Pressing : le gérant saisit le numéro de
+     * facture du client, le système récupère le nom, le téléphone et les
+     * articles pour pré-remplir le dossier de pressing.
+     *
+     * L'appli autonome `pressing/` faisait la même chose, mais interrogeait
+     * directement la base `u138949110_osat.facture_dgi_ok` (absente de ce
+     * projet). On passe par le même endpoint OSAT que le reste du POS, avec
+     * la même cascade de résolution du token.
+     *
+     * @param string      $invoiceNumber Numéro de facture DGI (ex. 2026/000849)
+     * @param string      $storeIsf      ISF de la boutique émettrice
+     * @param array       $sale          Vente POS de repli (pour le token)
+     *
+     * @return array{success:bool, status:string, data:array|null, message:string}
+     */
+    public function lookupFacture(string $invoiceNumber, string $storeIsf, array $sale = []): array
+    {
+        $invoiceNumber = trim($invoiceNumber);
+        $storeIsf = trim($storeIsf);
+
+        if ($invoiceNumber === '' || $storeIsf === '') {
+            return [
+                'success' => false,
+                'status'  => 'missing_key',
+                'data'    => null,
+                'message' => 'Numéro de facture ou ISF manquant',
+            ];
+        }
+
+        $token = $this->resolveToken($storeIsf, $sale);
+        if ($token === '') {
+            return [
+                'success' => false,
+                'status'  => 'missing_token',
+                'data'    => null,
+                'message' => 'Token DGI non configuré pour cette boutique',
+            ];
+        }
+
+        $url = self::OSAT_FACTURE_URL
+            . '?store_isf=' . urlencode($storeIsf)
+            . '&invoice_number=' . urlencode($invoiceNumber)
+            . '&token=' . urlencode($token);
+
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_HTTPGET, true);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, ['Accept: application/json']);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curlError = curl_error($ch);
+        curl_close($ch);
+
+        if ($response === false || trim((string)$response) === '') {
+            return [
+                'success' => false,
+                'status'  => 'network_error',
+                'data'    => null,
+                'message' => 'Erreur connexion API DGI: ' . $curlError,
+            ];
+        }
+
+        $data = json_decode($response, true);
+
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            return [
+                'success' => false,
+                'status'  => 'invalid_response',
+                'data'    => null,
+                'message' => 'Réponse DGI invalide (HTTP ' . $httpCode . ')',
+            ];
+        }
+
+        if (empty($data['success'])) {
+            return [
+                'success' => false,
+                'status'  => 'not_found',
+                'data'    => $data,
+                'message' => (string)($data['message'] ?? 'Facture introuvable'),
+            ];
+        }
+
+        return [
+            'success' => true,
+            'status'  => 'ok',
+            'data'    => $data['data'] ?? $data,
+            'message' => '',
+        ];
+    }
+
+    /**
      * Resynchronise une vente : relit auprès d'OSAT et écrit le résultat.
      *
      * @param int  $saleId
