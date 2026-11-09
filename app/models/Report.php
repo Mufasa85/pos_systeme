@@ -137,24 +137,157 @@ class Report
     // rapport hôtel.
     public function getSalesByTaxGroup($shopId, $startDate, $endDate)
     {
-        $sql = 'SELECT COALESCE(dv.tax_groupe, t.groupe_taxe, "Groupe B") as groupe_taxe,
-                       COALESCE(dv.tax_etiquette, t.etiquette, "B") as etiquette,
-                       COALESCE(dv.tax_rate, t.taux, 0) as taux,
+        // Le taux est calculé par `tauxSql()` : le snapshot `dv.tax_rate`
+        // (0 par défaut) ne doit pas masquer le taux du produit/chambre.
+        $tauxSql = $this->tauxSql('dv');
+
+        // ⚠️ Même logique pour l'étiquette et le groupe : une ligne legacy
+        // (avant le snapshot) a `tax_etiquette` / `tax_groupe` à '' (chaîne
+        // vide, non NULL) → un simple COALESCE renverrait '' au lieu de
+        // l'étiquette du produit. On ne prend la valeur snapshot que si elle
+        // est réellement renseignée.
+        $etiquetteSql = $this->groupeSql('dv', 'tax_etiquette', 't.etiquette', '"B"');
+        $groupeSql    = $this->groupeSql('dv', 'tax_groupe', 't.groupe_taxe', '"Groupe B"');
+
+        $sql = 'SELECT ' . $groupeSql . ' as groupe_taxe,
+                       ' . $etiquetteSql . ' as etiquette,
+                       ' . $tauxSql . ' as taux,
                        COUNT(DISTINCT v.id) as invoice_count,
                        COALESCE(SUM(dv.quantite * dv.prix), 0) as total_ht,
-                       COALESCE(SUM(dv.quantite * dv.prix * COALESCE(dv.tax_rate, t.taux, 0) / 100), 0) as total_tax,
-                       COALESCE(SUM(dv.quantite * dv.prix * (1 + COALESCE(dv.tax_rate, t.taux, 0) / 100)), 0) as total_ttc
+                       COALESCE(SUM(dv.quantite * dv.prix * (' . $tauxSql . ') / 100), 0) as total_tax,
+                       COALESCE(SUM(dv.quantite * dv.prix * (1 + (' . $tauxSql . ') / 100)), 0) as total_ttc,
+                       ' . $this->tsTotaleSql('dv') . ' as total_ts
                 FROM details_vente dv
                 INNER JOIN ventes v ON dv.vente_id = v.id
                 LEFT JOIN produits p ON dv.produit_id = p.id
                 LEFT JOIN taxes t ON p.taxe_id = t.id
                 WHERE v.date BETWEEN ? AND ? AND (? IS NULL OR v.shop_id = ?)
                   AND (v.invoice_type IS NULL OR v.invoice_type != "EX")
-                GROUP BY COALESCE(dv.tax_groupe, t.groupe_taxe, "Groupe B"),
-                         COALESCE(dv.tax_etiquette, t.etiquette, "B"),
-                         COALESCE(dv.tax_rate, t.taux, 0)
+                GROUP BY ' . $groupeSql . ', ' . $etiquetteSql . ', ' . $tauxSql . '
                 ORDER BY groupe_taxe';
         return $this->db->fetchAll($sql, [$startDate, $endDate, $shopId, $shopId]);
+    }
+
+    /**
+     * Fragment SQL : taux de TVA applicable à une ligne de détail.
+     *
+     * ⚠️ `COALESCE(dv.tax_rate, t.taux, 0)` NE MARCHE PAS :
+     * `details_vente.tax_rate` a été créée avec `DEFAULT 0.00` → la valeur 0
+     * est stockée (et non NULL) → le COALESCE renvoyait TOUJOURS 0 et
+     * jamais le taux du produit/chambre (le rapport affichait « 0.00% » et
+     * une taxe à 0, alors que la ligne était bien taxée).
+     *
+     * Logique appliquée (règle unique, valable pour les ventes POS ET hôtel) :
+     *
+     *   1. snapshot > 0
+     *        → le taux FIGÉ au moment de la facturation. C'est la source de
+     *          vérité : la facture émise ne doit pas changer si la taxe du
+     *          produit ou de la chambre est modifiée après coup.
+     *
+     *   2. snapshot = 0 ET une étiquette de groupe est renseignée
+     *        → ligne RÉELLEMENT non taxée (groupe A, exonéré) : taux 0.
+     *
+     *   3. snapshot = 0 (ou NULL) ET aucune étiquette
+     *        → ligne LEGACY : le snapshot n'a jamais été écrit (le POS
+     *          n'alimentait pas la colonne avant le correctif). On RETOMBE
+     *          sur la taxe du produit (`t.taux`) — et sur celle de la chambre
+     *          (`ct.taux`) pour les nuitées, si la jointure est disponible.
+     *
+     * Le cas 3 est ce qui rendait le rapport faux : une vente POS classique
+     * d'un produit du Groupe B (16 %) était comptée à 0 % / taxe 0.
+     *
+     * @param string $alias         Alias de la table des lignes de détail
+     * @param bool   $avecProduit   true si `produits`/`taxes` est jointe (repli `t.taux`)
+     * @param bool   $avecChambre   true si `hotel_chambres`/`taxes` est jointe (repli `ct.taux`)
+     */
+    private function tauxSql(
+        string $alias = 'dv',
+        bool $avecProduit = true,
+        bool $avecChambre = false
+    ): string {
+        // Cas 2 : snapshot à 0 MAIS groupe identifié → exonéré (taux 0).
+        $exonere = 'WHEN ' . $alias . '.tax_rate IS NOT NULL
+                         AND ' . $alias . '.tax_rate = 0
+                         AND ((' . $alias . '.tax_etiquette IS NOT NULL AND ' . $alias . '.tax_etiquette != "")
+                           OR (' . $alias . '.tax_groupe IS NOT NULL AND ' . $alias . '.tax_groupe != ""))
+                        THEN 0';
+
+        // Repli : produit d'abord, puis chambre (une nuitée n'a pas de produit).
+        $repli = [];
+        if ($avecProduit) {
+            $repli[] = 't.taux';
+        }
+        if ($avecChambre) {
+            $repli[] = 'ct.taux';
+        }
+        $repliSql = $repli ? 'COALESCE(' . implode(', ', $repli) . ', ' . $alias . '.tax_rate, 0)'
+                           : 'COALESCE(' . $alias . '.tax_rate, 0)';
+
+        // Cas 1 : snapshot > 0 → snapshot.
+        // Cas 2 : snapshot = 0 + groupe identifié → 0.
+        // Cas 3 : sinon → repli produit/chambre.
+        return 'CASE
+                    WHEN ' . $alias . '.tax_rate IS NOT NULL AND ' . $alias . '.tax_rate > 0
+                        THEN ' . $alias . '.tax_rate
+                    ' . $exonere . '
+                    ELSE ' . $repliSql . '
+                END';
+    }
+
+    /**
+     * Fragment SQL : étiquette (ou groupe) d'une ligne de détail.
+     *
+     * Prend la valeur SNAPSHOT si elle est réellement renseignée, sinon celle
+     * du produit (`taxes`). Les lignes créées avant la migration
+     * 2026_11_06 ont une chaîne vide (et non NULL) → un simple COALESCE
+     * renverrait '' au lieu de l'étiquette du produit.
+     *
+     * ⚠️ On n'utilise pas `NULLIF()` ici : le CASE contient déjà des
+     * comparaisons avec des littéraux (`!= ""`) et MySQLinterpretait alors
+     * mal le nombre d'arguments de NULLIF (erreur 1582). Le CASE est donc
+     * directement imbriqué dans le COALESCE.
+     *
+     * @param string $alias      Alias de la table des lignes de détail
+     * @param string $colonne    Colonne snapshot (`tax_etiquette`, `tax_groupe`…)
+     * @param string $colProduit Colonne du produit/chambre (`t.etiquette`…)
+     * @param string $defaut     Valeur par défaut (littéral SQL entre guillemets)
+     */
+    private function groupeSql(
+        string $alias,
+        string $colonne,
+        string $colProduit,
+        string $defaut = '"B"'
+    ): string {
+        return 'COALESCE(CASE
+                    WHEN ' . $alias . '.' . $colonne . ' IS NOT NULL
+                         AND ' . $alias . '.' . $colonne . ' != ""
+                        THEN ' . $alias . '.' . $colonne . '
+                    WHEN ' . $colProduit . ' IS NOT NULL AND ' . $colProduit . ' != ""
+                        THEN ' . $colProduit . '
+                    ELSE ' . $defaut . '
+                END)';
+    }
+
+    /**
+     * Fragment SQL : somme de la TAXE SPÉCIFIQUE (TS) d'un ensemble de lignes.
+     *
+     * La TS unitaire est calculée comme dans app/views/facture.php (ligne 119)
+     * et dans posCart.calculateSpecificTaxUnit() (app.js) :
+     *   - type 'CDF' : la valeur est un montant fixe par unité ;
+     *   - type '%'   : prix × valeur / 100.
+     *
+     * ⚠️ On multiplie par `quantite` : la TS est appliquée à chaque unité
+     * vendue (une nuitée = 1 unité, un extra de 3 unités = 3 TS).
+     *
+     * @param string $alias Alias de la table des lignes de détail
+     */
+    private function tsTotaleSql(string $alias): string
+    {
+        return 'COALESCE(SUM(' . $alias . '.quantite * CASE
+                    WHEN ' . $alias . '.taxe_specifique_type = "CDF"
+                        THEN ' . $alias . '.taxe_specifique_value
+                    ELSE ' . $alias . '.prix * ' . $alias . '.taxe_specifique_value / 100
+                END), 0)';
     }
 
     // ── HÔTEL : CA par chambre ──────────────────────────────────
@@ -167,17 +300,25 @@ class Report
     // hôtel — les compter ici reviendrait à double-compter.
     public function getHotelReportByRoom($shopId, $startDate, $endDate)
     {
+        // Le taux vient du SNAPSHOT de la ligne. Pour les nuitées antérieures
+        // au snapshot (ligne sans groupe renseigné), on RETOMBE sur le taux
+        // de la chambre (`ct.taux`) : une chambre n'est pas un produit, donc
+        // le repli via `produits.taxe_id` n'existe pas ici.
+        $tauxSql = $this->tauxSql('dv', false, true);
+
         $sql = 'SELECT c.id as chambre_id,
                        c.numero as chambre_numero,
                        c.type as chambre_type,
                        COUNT(DISTINCT v.id) as nb_factures,
                        COALESCE(SUM(dv.quantite), 0) as nb_nuitees,
                        COALESCE(SUM(dv.quantite * dv.prix), 0) as total_ht,
-                       COALESCE(SUM(dv.quantite * dv.prix * COALESCE(dv.tax_rate, 0) / 100), 0) as total_tax,
-                       COALESCE(SUM(dv.quantite * dv.prix * (1 + COALESCE(dv.tax_rate, 0) / 100)), 0) as total_ttc
+                       COALESCE(SUM(dv.quantite * dv.prix * (' . $tauxSql . ') / 100), 0) as total_tax,
+                       COALESCE(SUM(dv.quantite * dv.prix * (1 + (' . $tauxSql . ') / 100)), 0) as total_ttc,
+                       ' . $this->tsTotaleSql('dv') . ' as total_ts
                 FROM details_vente dv
                 INNER JOIN ventes v ON dv.vente_id = v.id
                 INNER JOIN hotel_chambres c ON c.id = dv.chambre_id
+                LEFT JOIN taxes ct ON ct.id = c.taxe_id
                 WHERE v.date BETWEEN ? AND ? AND (? IS NULL OR v.shop_id = ?)
                   AND v.est_hotel = 1
                   AND dv.ligne_type = "nuit"
@@ -198,14 +339,25 @@ class Report
     // seconde fois au CA consolidé.
     public function getHotelBreakdown($shopId, $startDate, $endDate)
     {
+        // Nuitées : le taux vient du snapshot de la ligne, avec repli sur le
+        // taux de la chambre (une nuitée n'a pas de produit).
+        $tauxNuites = $this->tauxSql('dv', false, true);
+
+        // Extras : le taux vient du snapshot de la ligne, avec repli sur le
+        // taux du produit de l'extra.
+        $tauxExtras = $this->tauxSql('dv', true);
+
         // Nuitées : HT des lignes de nuit des factures hôtel.
         $nuites = $this->db->fetch(
             'SELECT COUNT(DISTINCT v.id) as nb_factures,
                     COALESCE(SUM(dv.quantite), 0) as nb_nuitees,
                     COALESCE(SUM(dv.quantite * dv.prix), 0) as total_ht,
-                    COALESCE(SUM(dv.quantite * dv.prix * COALESCE(dv.tax_rate, 0) / 100), 0) as total_tax
+                    COALESCE(SUM(dv.quantite * dv.prix * (' . $tauxNuites . ') / 100), 0) as total_tax,
+                    ' . $this->tsTotaleSql('dv') . ' as total_ts
              FROM details_vente dv
              INNER JOIN ventes v ON dv.vente_id = v.id
+             LEFT JOIN hotel_chambres c ON c.id = dv.chambre_id
+             LEFT JOIN taxes ct ON ct.id = c.taxe_id
              WHERE v.date BETWEEN ? AND ? AND (? IS NULL OR v.shop_id = ?)
                AND v.est_hotel = 1
                AND dv.ligne_type = "nuit"',
@@ -223,9 +375,12 @@ class Report
         $extras = $this->db->fetch(
             'SELECT COUNT(*) as nb_lignes,
                     COALESCE(SUM(dv.quantite * dv.prix), 0) as total_ht,
-                    COALESCE(SUM(dv.quantite * dv.prix * COALESCE(dv.tax_rate, 0) / 100), 0) as total_tax
+                    COALESCE(SUM(dv.quantite * dv.prix * (' . $tauxExtras . ') / 100), 0) as total_tax,
+                    ' . $this->tsTotaleSql('dv') . ' as total_ts
              FROM details_vente dv
              INNER JOIN ventes v ON dv.vente_id = v.id
+             LEFT JOIN produits p ON p.id = dv.produit_id
+             LEFT JOIN taxes t ON t.id = p.taxe_id
              WHERE v.date BETWEEN ? AND ? AND (? IS NULL OR v.shop_id = ?)
                AND v.est_hotel = 1
                AND dv.ligne_type = "extra"',
@@ -255,12 +410,14 @@ class Report
                 'nb_nuitees' => (float)($nuites['nb_nuitees'] ?? 0),
                 'total_ht'   => (float)($nuites['total_ht'] ?? 0),
                 'total_tax'  => (float)($nuites['total_tax'] ?? 0),
+                'total_ts'   => (float)($nuites['total_ts'] ?? 0),
             ],
             // ⚠️ Informationnel : déjà inclus dans le total des factures hôtel.
             'extras' => [
                 'nb_lignes' => (int)($extras['nb_lignes'] ?? 0),
                 'total_ht'  => (float)($extras['total_ht'] ?? 0),
                 'total_tax' => (float)($extras['total_tax'] ?? 0),
+                'total_ts'  => (float)($extras['total_ts'] ?? 0),
             ],
         ];
     }
@@ -274,10 +431,12 @@ class Report
     // source que le « Par groupe de taxation » → une seule vérité).
     public function getHotelExtrasReport($shopId, $startDate, $endDate)
     {
+        $tauxSql = $this->tauxSql('dv');
+
         $sql = 'SELECT COALESCE(p.nom, dv.libelle, "Extra") as article_nom,
                        COALESCE(SUM(dv.quantite), 0) as quantite,
                        COALESCE(SUM(dv.quantite * dv.prix), 0) as total_ht,
-                       COALESCE(SUM(dv.quantite * dv.prix * COALESCE(dv.tax_rate, t.taux, 0) / 100), 0) as total_tax
+                       COALESCE(SUM(dv.quantite * dv.prix * (' . $tauxSql . ') / 100), 0) as total_tax
                 FROM details_vente dv
                 INNER JOIN ventes v ON dv.vente_id = v.id
                 LEFT JOIN produits p ON p.id = dv.produit_id
@@ -401,15 +560,19 @@ class Report
 
         // Nuitées d'hôtel : agrégées par chambre, présentées comme des
         // « articles » de la catégorie Hôtel.
+        // Le taux vient du snapshot de la ligne, avec repli sur le taux de
+        // la chambre (une nuitée n'a pas de produit).
+        $tauxNuites = $this->tauxSql('dv', false, true);
+
         $sqlNuites = 'SELECT
                     NULL as id,
                     CONCAT("CH-", c.numero) as article_code,
                     CONCAT("Nuitée chambre ", c.numero) as article_name,
                     AVG(dv.prix) as unit_price,
                     NULL as stock_quantity,
-                    COALESCE(dv.tax_rate, 0) as tax_rate,
-                    COALESCE(dv.tax_groupe, "Groupe B") as groupe_taxe,
-                    COALESCE(dv.tax_etiquette, "B") as tax_etiquette,
+                    ' . $tauxNuites . ' as tax_rate,
+                    ' . $this->groupeSql('dv', 'tax_groupe', 'ct.groupe_taxe', '"Groupe B"') . ' as groupe_taxe,
+                    ' . $this->groupeSql('dv', 'tax_etiquette', 'ct.etiquette', '"B"') . ' as tax_etiquette,
                     NULL as category_id,
                     "Hôtel" as category_name,
                     COALESCE(SUM(dv.quantite), 0) as quantite_vendue,
@@ -418,26 +581,31 @@ class Report
                 FROM details_vente dv
                 INNER JOIN ventes v ON dv.vente_id = v.id
                 INNER JOIN hotel_chambres c ON c.id = dv.chambre_id
+                LEFT JOIN taxes ct ON ct.id = c.taxe_id
                 WHERE dv.ligne_type = "nuit"
                   AND v.est_hotel = 1
                   AND v.date BETWEEN ? AND ?
                   AND (? IS NULL OR v.shop_id = ?)
-                GROUP BY c.id, c.numero, dv.tax_rate, dv.tax_groupe, dv.tax_etiquette';
+                GROUP BY c.id, c.numero, ' . $tauxNuites . ',
+                         ' . $this->groupeSql('dv', 'tax_groupe', 'ct.groupe_taxe', '"Groupe B"') . ',
+                         ' . $this->groupeSql('dv', 'tax_etiquette', 'ct.etiquette', '"B"');
 
         // Extras d'hôtel : agrégés par produit, dans la catégorie
         // « Hôtel - Extras ». Ce sont les LIGNES de la facture hôtel
         // (`ligne_type = 'extra'`) → même source que le « Par groupe de
         // taxation » → les produits consommés en extra apparaissent
         // enfin dans l'A-rapport.
+        $tauxExtras = $this->tauxSql('dv');
+
         $sqlExtras = 'SELECT
                     NULL as id,
                     COALESCE(p.code_barres, CONCAT("EX-", dv.produit_id)) as article_code,
                     COALESCE(p.nom, dv.libelle, "Extra") as article_name,
                     AVG(dv.prix) as unit_price,
                     NULL as stock_quantity,
-                    COALESCE(dv.tax_rate, t.taux, 0) as tax_rate,
-                    COALESCE(dv.tax_groupe, t.groupe_taxe, "Groupe B") as groupe_taxe,
-                    COALESCE(dv.tax_etiquette, t.etiquette, "B") as tax_etiquette,
+                    ' . $tauxExtras . ' as tax_rate,
+                    ' . $this->groupeSql('dv', 'tax_groupe', 't.groupe_taxe', '"Groupe B"') . ' as groupe_taxe,
+                    ' . $this->groupeSql('dv', 'tax_etiquette', 't.etiquette', '"B"') . ' as tax_etiquette,
                     NULL as category_id,
                     "Hôtel - Extras" as category_name,
                     COALESCE(SUM(dv.quantite), 0) as quantite_vendue,
@@ -453,7 +621,9 @@ class Report
                   AND (? IS NULL OR v.shop_id = ?)
                 GROUP BY dv.produit_id, COALESCE(p.code_barres, CONCAT("EX-", dv.produit_id)),
                          COALESCE(p.nom, dv.libelle, "Extra"),
-                         dv.tax_rate, dv.tax_groupe, dv.tax_etiquette';
+                         ' . $tauxExtras . ',
+                         ' . $this->groupeSql('dv', 'tax_groupe', 't.groupe_taxe', '"Groupe B"') . ',
+                         ' . $this->groupeSql('dv', 'tax_etiquette', 't.etiquette', '"B"');
 
         $sql = $sqlProduits . ' ORDER BY c.category, p.nom';
         $params = [

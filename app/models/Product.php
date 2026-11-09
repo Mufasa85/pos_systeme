@@ -55,7 +55,11 @@ class Product
 
     public function findById($id)
     {
-        $product = $this->db->fetch('SELECT p.*, t.taux AS tax_rate, t.etiquette AS tax_etiquette
+        // `t.groupe_taxe AS tax_groupe` : le groupe complet ("Groupe B") est
+        // nécessaire pour FIGER le groupe de taxation sur la ligne de vente
+        // (cf. SaleController::create() et la migration 2026_11_06).
+        // Sans lui, la ligne de détail n'avait que l'étiquette ("B").
+        $product = $this->db->fetch('SELECT p.*, t.taux AS tax_rate, t.etiquette AS tax_etiquette, t.groupe_taxe AS tax_groupe
             FROM produits p
             LEFT JOIN taxes t ON p.taxe_id = t.id
             LEFT JOIN shops s ON p.shop_id = s.id

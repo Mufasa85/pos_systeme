@@ -75,19 +75,23 @@ class Sale
         // Format: AAAA/xxxxxx (ex: 2026/000001) - Compteur global annuel
         $year = date('Y');
 
-        // Récupérer le dernier numéro de l'année en cours
-        $sql = 'SELECT numero_facture FROM ventes 
-                WHERE YEAR(date) = YEAR(CURDATE())
-                ORDER BY id DESC LIMIT 1';
-        $last = $this->db->fetch($sql);
+        // On prend le MAXIMUM des numéros de l'année (et non le dernier
+        // par `id DESC`) : une vente dont le numéro n'a pas le format
+        // attendu (donnée de test, facture archivée, numéro saisi
+        // manuellement...) faisait échouer le regex, et le compteur
+        // repartait alors à 1 → collision sur `ventes.numero_facture`
+        // (UNIQUE) → « Duplicate entry '2026/000001' ».
+        //
+        // On ne considère que les numéros au format AAAA/xxxxxx, et on
+        // démarre à 0 s'il n'y en a aucun.
+        $sql = 'SELECT COALESCE(MAX(CAST(SUBSTRING(numero_facture, 6) AS UNSIGNED)), 0) AS max_seq
+                FROM ventes
+                WHERE numero_facture REGEXP ?
+                  AND YEAR(date) = YEAR(CURDATE())';
+        $row = $this->db->fetch($sql, ['^[0-9]{4}/[0-9]+$']);
+        $seq = (int)($row['max_seq'] ?? 0) + 1;
 
-        if ($last && preg_match('/^(\d{4})\/(\d+)$/', $last['numero_facture'], $m)) {
-            $seq = intval($m[2]) + 1;
-        } else {
-            $seq = 1;
-        }
-
-        return $year . '/' . str_pad($seq, 6, '0', STR_PAD_LEFT);
+        return $year . '/' . str_pad((string)$seq, 6, '0', STR_PAD_LEFT);
     }
 
     public function exist($id)
