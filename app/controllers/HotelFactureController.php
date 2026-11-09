@@ -100,6 +100,48 @@ class HotelFactureController extends Controller
     }
 
     /**
+     * Résout le taux de TVA d'une ligne d'extra à figer sur la facture.
+     *
+     * Règle (identique à `Report::tauxSql()`) :
+     *   - snapshot > 0                        → on garde le taux FIGÉ ;
+     *   - snapshot = 0 ET groupe identifié    → ligne réellement exonérée
+     *     (groupe A) : on garde 0 ;
+     *   - snapshot absent (NULL) ou = 0 sans groupe → on RETOMBE sur le
+     *     taux du produit (`$tauxProduit`).
+     *
+     * ⚠️ Pourquoi ce helper est nécessaire : les colonnes `tax_rate` ont un
+     * `DEFAULT 0.00`. La clé existe donc TOUJOURS dans le tableau du résultat
+     * SQL, avec la valeur 0 → l'opérateur `??` ne bascule jamais sur le
+     * produit. Résultat : un extra d'un produit du Groupe B (16 %) était figé
+     * à 0 % (faux exonéré) et sa TVA disparaissait du rapport fiscal.
+     *
+     * @param float|null $snapshot      Taux déjà figé sur la ligne d'origine
+     * @param string|null $etiquette     Étiquette du groupe d'origine
+     * @param string|null $groupe        Groupe de taxation d'origine
+     * @param float|null $tauxProduit   Taux du produit (repli)
+     */
+    private function taxRateSnapshot(
+        $snapshot,
+        $etiquette = null,
+        $groupe = null,
+        $tauxProduit = null
+    ): float {
+        $snap = ($snapshot === null || $snapshot === '') ? null : (float)$snapshot;
+
+        if ($snap !== null && $snap > 0) {
+            return $snap; // Snapshot exploitable : source de vérité.
+        }
+
+        $groupeConnu = (($etiquette !== null && $etiquette !== '') || ($groupe !== null && $groupe !== ''));
+        if ($snap !== null && $snap === 0.0 && $groupeConnu) {
+            return 0.0; // Exonéré explicite (groupe A) : on garde 0.
+        }
+
+        // Pas de snapshot (ou 0 sans groupe) → on retombe sur le produit.
+        return (float)($tauxProduit ?? 0);
+    }
+
+    /**
      * Génère le numero_facture officiel pour la facture hôtel.
      * Délègue à Sale::generateInvoiceNumber() pour rester sur le compteur
      * annuel officiel (format `AAAA/xxxxxx`) partagé avec /caisse. C'est
@@ -622,7 +664,15 @@ class HotelFactureController extends Controller
     {
         if (!$this->guardWrite()) $this->jsonOut(['success' => false, 'message' => 'Accès refusé'], 403);
 
-        $input = json_decode(file_get_contents('php://input'), true);
+        // Lecture du payload JSON.
+        // En CLI / tests, `php://input` n'est pas alimenté : on accepte alors
+        // une payload injectée via la globale `__HOTEL_STORE_PAYLOAD__`
+        // (utilisée par les tests d'intégration pour appeler store() sans
+        // passer par HTTP).
+        $rawInput = isset($GLOBALS['__HOTEL_STORE_PAYLOAD__'])
+            ? (string)$GLOBALS['__HOTEL_STORE_PAYLOAD__']
+            : (string)file_get_contents('php://input');
+        $input = json_decode($rawInput, true);
         if (!is_array($input)) $this->jsonOut(['success' => false, 'message' => 'Payload invalide'], 422);
 
         $sejourId = (int)($input['sejour_id'] ?? 0);
@@ -852,7 +902,20 @@ class HotelFactureController extends Controller
                 'ts_type'       => (string)($r['d_ts_type'] ?? '%'),
                 'ts_value'      => (float)($r['d_ts_value'] ?? 0),
                 // Snapshot de la ligne d'origine, sinon celui du produit.
-                'tax_rate'      => (float)($r['d_tax_rate'] ?? $r['produit_tax_rate'] ?? 0),
+                //
+                // ⚠️ Le `??` seul ne suffit PAS : `details_vente.tax_rate` et
+                // `hotel_extras.tax_rate` ont `DEFAULT 0.00` → la clé EXISTE
+                // avec la valeur 0 → `??` ne bascule jamais sur le produit.
+                // Résultat : un extra d'un produit du Groupe B (16 %) était
+                // figé à 0 % (faux exonéré) et disparaissait de la taxe du
+                // rapport. On ne bascule sur le produit que si le snapshot
+                // est réellement absent (NULL) OU nul SANS groupe identifié.
+                'tax_rate'      => $this->taxRateSnapshot(
+                                        $r['d_tax_rate'] ?? null,
+                                        $r['d_tax_etiquette'] ?? null,
+                                        $r['d_tax_groupe'] ?? null,
+                                        $r['produit_tax_rate'] ?? null
+                                    ),
                 'tax_etiquette' => (string)($r['d_tax_etiquette'] ?? $r['produit_tax_etiquette'] ?? ''),
                 'tax_groupe'    => (string)($r['d_tax_groupe'] ?? $r['produit_tax_groupe'] ?? ''),
             ];
@@ -869,7 +932,15 @@ class HotelFactureController extends Controller
                 'remise_value'  => (float)($r['remise_value'] ?? 0),
                 'ts_type'       => (string)($r['taxe_specifique_type'] ?? '%'),
                 'ts_value'      => (float)($r['taxe_specifique_value'] ?? 0),
-                'tax_rate'      => (float)($r['tax_rate'] ?? $r['produit_tax_rate'] ?? 0),
+                // Même correction que ci-dessus : `hotel_extras.tax_rate` a
+                // `DEFAULT 0.00` → la clé existe à 0 → le `??` ne basculait
+                // jamais sur le produit (faux exonéré à 0 %).
+                'tax_rate'      => $this->taxRateSnapshot(
+                                        $r['tax_rate'] ?? null,
+                                        null,
+                                        null,
+                                        $r['produit_tax_rate'] ?? null
+                                    ),
                 'tax_etiquette' => (string)($r['produit_tax_etiquette'] ?? ''),
                 'tax_groupe'    => (string)($r['produit_tax_groupe'] ?? ''),
             ];
@@ -888,10 +959,11 @@ class HotelFactureController extends Controller
                 'remise_value'  => 0,
                 'ts_type'       => '%',
                 'ts_value'      => 0,
-                // Pas de produit → pas de taxe : on laisse le groupe par
-                // défaut du rapport (B) en attendant que le produit soit
-                // identifié (ligne « extra_manuel »).
-                'tax_rate'      => 0,
+                // Pas de produit → pas de taxe rattachée. On laisse le taux
+                // à NULL (« pas de snapshot ») et le groupe vide : le rapport
+                // retombera sur son groupe par défaut, et la ligne restera
+                // distinguishable d'un extra RÉELLEMENT exonéré (groupe A).
+                'tax_rate'      => null,
                 'tax_etiquette' => '',
                 'tax_groupe'    => '',
             ];

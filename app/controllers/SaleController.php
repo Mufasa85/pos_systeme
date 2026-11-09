@@ -232,9 +232,22 @@ class SaleController extends Controller
                     // Vérifier le stock uniquement pour les ventes positives
                     // (pour les avoirs/annulations avec quantité négative, on ne vérifie pas)
                     $batchModel = new ProductBatch();
+
+                    // On charge TOUJOURS le produit : il porte le groupe de
+                    // taxation (tax_rate / tax_etiquette) qu'on fige dans la
+                    // ligne de détail. Sans cela, la ligne aurait un taux à 0
+                    // et le rapport « Par groupe de taxation » l'afficherait
+                    // sans taxe. (Le produit est aussi nécessaire pour les
+                    // avoirs, où le stock n'est pas vérifié.)
+                    $product = $productModel->findById($produitId);
+                    if (!$product) {
+                        $db->rollBack();
+                        $this->status(400)->json(['error' => 'Produit introuvable: ' . $item['produit_id']]);
+                        return;
+                    }
+
                     if ($quantite > 0) {
-                        $product = $productModel->findById($produitId);
-                        if (!$product || !$batchModel->hasEnoughStock($produitId, $quantite)) {
+                        if (!$batchModel->hasEnoughStock($produitId, $quantite)) {
                             $db->rollBack();
                             $this->status(400)->json([
                                 'error' => 'Stock insuffisant pour le produit: ' . ($product['nom'] ?? $item['produit_id']),
@@ -282,6 +295,15 @@ class SaleController extends Controller
                                             'remise_value' => $item['remise_value'] ?? 0,
                                             'taxe_specifique_type' => $item['taxe_specifique_type'] ?? '%',
                                             'taxe_specifique_value' => $item['taxe_specifique_value'] ?? 0,
+                                            // Snapshot du groupe de taxation (migration
+                                            // 2026_11_06) : sans lui, le rapport « Par
+                                            // groupe de taxation » ne pouvait pas
+                                            // retrouver le taux du produit (le
+                                            // produit peut être re-taxé après coup,
+                                            // la facture émise ne doit pas changer).
+                                            'tax_rate'      => (float)($product['tax_rate'] ?? 0),
+                                            'tax_etiquette' => (string)($product['tax_etiquette'] ?? ''),
+                                            'tax_groupe'    => (string)($product['tax_groupe'] ?? ''),
                                         ]);
                                     }
                                 }
