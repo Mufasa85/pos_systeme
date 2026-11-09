@@ -70,7 +70,7 @@ const ReportsManager = {
                 <h2>${label}</h2>
                 <div class="rpt-meta-row">
                     <span class="rpt-meta-tag">${h.denomination}</span>
-                    <span>NIF: ${h.nif}</span>
+                    <span>NIF:</span>
                     <span>ISF: ${h.isf}</span>
                 </div>
                 <div class="rpt-meta-row" style="margin-top:4px">
@@ -157,6 +157,10 @@ const ReportsManager = {
                     <div class="rpt-stat-label">Total Taxe</div>
                     <div class="rpt-stat-value">${this.money(data.totals.total_tax)}</div>
                 </div>
+                <div class="rpt-stat-pill">
+                    <div class="rpt-stat-label">TS totale</div>
+                    <div class="rpt-stat-value">${this.money(data.totals.total_ts)}</div>
+                </div>
                 <div class="rpt-stat-pill rpt-stat-accent">
                     <div class="rpt-stat-label">TOTAL TTC</div>
                     <div class="rpt-stat-value">${this.money(data.totals.total_ttc)}</div>
@@ -182,11 +186,12 @@ const ReportsManager = {
         if (data.by_tax_group?.length) {
             html += `<div class="rpt-section"><h4>Par groupe de taxation</h4>
                 <table class="rpt-table">
-                <thead><tr><th>Groupe</th><th>Etiquette</th><th style="text-align:right">Taux</th><th style="text-align:right">Nb</th><th style="text-align:right">HT</th><th style="text-align:right">Taxe</th><th style="text-align:right">TTC</th></tr></thead><tbody>`;
+                <thead><tr><th>Groupe</th><th>Etiquette</th><th style="text-align:right">Taux</th><th style="text-align:right">Nb</th><th style="text-align:right">HT</th><th style="text-align:right">Taxe</th><th style="text-align:right">TS</th><th style="text-align:right">TTC</th></tr></thead><tbody>`;
             data.by_tax_group.forEach(g => {
                 html += `<tr><td>${g.groupe_taxe || '-'}</td><td>${g.etiquette || '-'}</td>
-                    <td style="text-align:right">${g.taux || 0}%</td><td style="text-align:right">${g.invoice_count}</td>
+                    <td style="text-align:right">${this.percent(g.taux)}</td><td style="text-align:right">${g.invoice_count}</td>
                     <td style="text-align:right">${this.money(g.total_ht)}</td><td style="text-align:right">${this.money(g.total_tax)}</td>
+                    <td style="text-align:right">${this.money(g.total_ts)}</td>
                     <td style="text-align:right">${this.money(g.total_ttc)}</td></tr>`;
             });
             html += `</tbody></table></div>`;
@@ -211,6 +216,10 @@ const ReportsManager = {
                         <div class="rpt-stat-label">CA nuitées (HT)</div>
                         <div class="rpt-stat-value">${this.money(hotel.nuites.total_ht)}</div>
                     </div>
+                    <div class="rpt-stat-pill">
+                        <div class="rpt-stat-label">TS hôtel</div>
+                        <div class="rpt-stat-value">${this.money((hotel.nuites.total_ts || 0) + (hotel.extras.total_ts || 0))}</div>
+                    </div>
                     <div class="rpt-stat-pill rpt-stat-accent">
                         <div class="rpt-stat-label">CA hôtel (TTC)</div>
                         <div class="rpt-stat-value">${this.money(hotel.factures.total_ttc)}</div>
@@ -224,11 +233,12 @@ const ReportsManager = {
         if (data.hotel_by_room?.length) {
             html += `<div class="rpt-section"><h4>Hôtel — par chambre</h4>
                 <table class="rpt-table">
-                <thead><tr><th>Chambre</th><th>Type</th><th style="text-align:right">Nuitées</th><th style="text-align:right">Factures</th><th style="text-align:right">HT</th><th style="text-align:right">Taxe</th><th style="text-align:right">TTC</th></tr></thead><tbody>`;
+                <thead><tr><th>Chambre</th><th>Type</th><th style="text-align:right">Nuitées</th><th style="text-align:right">Factures</th><th style="text-align:right">HT</th><th style="text-align:right">Taxe</th><th style="text-align:right">TS</th><th style="text-align:right">TTC</th></tr></thead><tbody>`;
             data.hotel_by_room.forEach(r => {
                 html += `<tr><td><strong>${r.chambre_numero || '-'}</strong></td><td>${r.chambre_type || '-'}</td>
                     <td style="text-align:right">${this.number(r.nb_nuitees)}</td><td style="text-align:right">${r.nb_factures}</td>
                     <td style="text-align:right">${this.money(r.total_ht)}</td><td style="text-align:right">${this.money(r.total_tax)}</td>
+                    <td style="text-align:right">${this.money(r.total_ts)}</td>
                     <td style="text-align:right">${this.money(r.total_ttc)}</td></tr>`;
             });
             html += `</tbody></table></div>`;
@@ -295,6 +305,14 @@ const ReportsManager = {
     number(v) { return new Intl.NumberFormat('fr-FR').format(v || 0); },
 
     money(v) { return new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(v || 0) + ' FC'; },
+
+    // Taux de taxation : toujours affiché avec 2 décimales (« 16.00% »),
+    // comme dans les documents fiscaux. Le `|| 0` brut affichait « 0% »
+    // ou « 16% » sans décimales.
+    percent(v) {
+        const n = parseFloat(v);
+        return (isNaN(n) ? 0 : n).toFixed(2) + '%';
+    },
 
     print() {
         const w = window.open('/rapport-ticket', '_blank');
