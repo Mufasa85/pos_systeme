@@ -19,3 +19,9 @@ screenshots/
 /nul
 nul
 /public/nul
+
+# ── Secrets locaux ─────────────────────────────────────────────────
+# Le fichier de secrets n'est JAMAIS versionné : il contient le secret
+# partagé avec l'API OSAT (X-DGI-Token) et les identifiants de production.
+# Un modèle versionné (config/config.local.example.php) sert de référence.
+config/config.local.php

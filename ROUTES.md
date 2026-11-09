@@ -40,6 +40,14 @@
 
 **Note:** Les pages d'administration sont accessibles uniquement aux utilisateurs avec le rôle `admin`. Les utilisateurs non-admin sont redirigés vers `/dashboard`.
 
+### Module Pressing
+
+| Méthode | Route      | Contrôleur     | Action   | Description                                | Accès            |
+| ------- | ---------- | -------------- | -------- | ------------------------------------------ | ---------------- |
+| GET     | `/pressing` | PageController | pressing | Suivi des commandes de pressing            | Boutique cochée |
+
+L'accès est contrôlé par boutique (`shops.acces_pressing`) : le super-admin coche la case dans `/shops`. Sans accès, la page renvoie une 403 et le lien n'apparaît pas dans la sidebar.
+
 ---
 
 ## Routes API (Backend)
@@ -423,6 +431,74 @@ Base URL: `http://localhost:8000/api`
 
 ---
 
+### Extras (imputation d'une vente sur un séjour hôtelier)
+
+| Méthode | Route                                            | Contrôleur              | Action          | Description                          |
+| ------- | ------------------------------------------------ | ----------------------- | --------------- | ------------------------------------ |
+| GET     | `/api/hotel/sejours/en-cours`                     | HotelExtrasController   | enCours         | Liste les séjours en cours imputables (picker) |
+| POST    | `/api/hotel/sejours/{id}/extras-from-cart`         | HotelExtrasController   | extrasFromCart  | Impute le panier sur un séjour       |
+
+**Authentification requise:** Oui (session PHP + boutique active).
+
+**Contrôle d'accès :** ces deux routes sont conditionnées par la
+configuration **par boutique** `shops.acces_extras` (cochée par le super_admin
+dans `/shops`), et **NON** par le feature flag API `hotel` utilisé pour le
+reste du module Hôtel. Le bouton « Extras » de `/caisse` suit la même règle.
+
+**Règle métier — séjour déjà facturé :** un séjour qui possède une facture
+hôtel **active** (`hotel_factures.statut != 'annulee'`) n'est **plus imputable**
+aux extras, même s'il est toujours `en_cours`. C'est le cas quand la facture a
+été émise **sans check-out** : la note est close, un nouvel extra fausserait le
+total de la facture déjà émise.
+
+- `GET /api/hotel/sejours/en-cours` → ces séjours sont **retirés de la liste**
+  (le picker de `/caisse` ne les affiche donc pas).
+- `POST /api/hotel/sejours/{id}/extras-from-cart` → **422** `sejour_deja_facture`.
+- `POST /api/vente` avec un `sejour_id` → **422** `sejour_deja_facture`
+  (même garde, cf. `SaleController::create`).
+
+Une facture **annulée** ne bloque pas l'imputation : elle n'est plus active.
+
+**403 — accès non autorisé :**
+
+```json
+{
+  "success": false,
+  "error": "extras_not_allowed",
+  "message": "La fonctionnalité Extras n'est pas activée pour votre boutique."
+}
+```
+
+**422 — séjour déjà facturé :**
+
+```json
+{
+  "success": false,
+  "error": "sejour_deja_facture",
+  "message": "Ce séjour est déjà facturé (2026/001004) — impossible d'ajouter un extra."
+}
+```
+
+**POST `/api/hotel/sejours/{id}/extras-from-cart` — corps JSON :**
+
+| Paramètre | Type | Requis | Description                                  |
+| --------- | ---- | ------ | -------------------------------------------- |
+| articles  | array | Oui   | Articles du panier (`produit_id`, `quantite`, `prix`, …) |
+
+**Réponse :**
+
+```json
+{
+  "success": true,
+  "sejour_id": 47,
+  "count": 1,
+  "total": 100,
+  "ids": [54]
+}
+```
+
+---
+
 ### Proxy DGI (API Externe)
 
 | Méthode | Route  | Contrôleur | Action | Description                  |
@@ -516,6 +592,66 @@ Le secret est défini par la constante `DGI_WEBHOOK_TOKEN` dans
 
 **Note:** l’opération est idempotente — un rejeu du callback écrase avec les
 mêmes valeurs.
+
+---
+
+### Pressing (suivi des commandes de pressing)
+
+Module d'intégration de l'appli autonome `pressing/`. Référence :
+`docs/PLAN_PRESSING.md`.
+
+**Accès :** authentifié + flag API `pressing` actif
+(`Controller::requireShopPressingAccess()` →
+`RechargeAccessService::canAccessPressing()`), exactement comme
+`/recharges` et `/hotel`. Le flag vient de l'API OSAT
+(`option_client/feedback.php` → `data.pressing`), mis en cache 5 min en
+session. Le lien de la sidebar est masqué quand le flag est faux.
+La suppression est réservée à `admin` / `super_admin`.
+
+| Méthode | Route                                          | Contrôleur           | Action          | Description                          |
+| ------- | ---------------------------------------------- | -------------------- | --------------- | ------------------------------------ |
+| GET     | `/pressing`                                    | PageController      | pressing        | Tableau de bord du pressing          |
+| GET     | `/api/pressing/stats`                          | PressingController  | stats           | Compteurs (total, encours, prêtes…)  |
+| GET     | `/api/pressing/commandes`                      | PressingController  | index           | Liste + recherche (`q`) + filtre (`f`)|
+| GET     | `/api/pressing/commandes/[i:id]`               | PressingController  | show            | Détail d'un dossier                  |
+| POST    | `/api/pressing/commandes`                      | PressingController  | store           | Crée un dossier de pressing          |
+| POST    | `/api/pressing/commandes/[i:id]/advance-all`    | PressingController  | advanceAll      | Avance tous les vêtements d'un dossier|
+| POST    | `/api/pressing/commandes/[i:id]/pay`            | PressingController  | pay             | Encaissement (partiel ou total)      |
+| POST    | `/api/pressing/commandes/[i:id]/delete`         | PressingController  | destroy         | Suppression (dossier entièrement remis)|
+| POST    | `/api/pressing/articles/[i:id]/advance`         | PressingController  | advance         | Avance un vêtement d'une étape       |
+| POST    | `/api/pressing/articles/[i:id]/recede`          | PressingController  | recede          | Recule un vêtement d'une étape       |
+| POST    | `/api/pressing/facture/lookup`                 | PressingController  | lookupFacture   | Relit une facture DGI auprès d'OSAT  |
+| GET     | `/api/pressing/ventes-sans-commande`           | PressingController  | ventesSansCommande | Ventes POS sans dossier de pressing |
+
+**Règles métier :**
+
+- La remise au client (étape 6) est **refusée** tant que le dossier n'est pas
+  entièrement payé : « Remise impossible : la commande n'est pas entièrement
+  payée (solde X FC). »
+- La suppression est **refusée** tant qu'un vêtement n'est pas remis :
+  « Suppression impossible : le dossier n'est pas entièrement remis au client. »
+- L'historique des étapes est écrit dans `audit_logs`
+  (`entity = 'pressing_article'`), pas dans une table dédiée.
+
+**Multi-boutique :**
+
+- Le périmètre passe par `shop_id` (colonne de `pressing_commandes`), jamais
+  par un ISF codé en dur.
+- L'ISF utilisé pour le lookup facture DGI est **celui de l'utilisateur
+  connecté** : `shops.isf` de sa boutique (`$_SESSION['shop_id']`). Pour un
+  `super_admin` sans boutique rattachée, `company_info.isf` sert de repli.
+- Un dossier est toujours rattaché à la boutique de l'utilisateur qui le
+  crée. La création est refusée (422) si aucune boutique n'est sélectionnée.
+- Le `total` d'un dossier = `Σ (quantité × prix_unitaire stocké)`. Le prix
+  stocké est **déjà majoré** : le contrôleur calcule `prix de base ×
+  coefficient` à la création. `prix_unitaire` envoyé à l'API = prix de base.
+
+**Query de la liste :**
+
+| Paramètre | Valeurs                                     | Défaut |
+| --------- | ------------------------------------------- | ------ |
+| `q`       | recherche (dossier, facture, nom, tél.)    | vide   |
+| `f`       | `encours` `prete` `retard` `remise` `all`   | `all`  |
 
 ---
 
