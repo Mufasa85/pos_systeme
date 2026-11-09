@@ -566,7 +566,7 @@ const posCart = {
         let lastPage = 0;
         pages.forEach(i => {
             if (i - lastPage > 1) {
-                html += '<span class="page-ellipsis">â€¦</span>';
+                html += '<span class="page-ellipsis">...</span>';
             }
             html += '<button type="button" class="page-btn' + (i === this.currentPage ? ' active' : '') + '" onclick="posCart.goToPage(' + i + ')">' + i + '</button>';
             lastPage = i;
@@ -708,7 +708,7 @@ const posCart = {
                 <line x1="12" y1="8" x2="12" y2="12"></line>
                 <line x1="12" y1="16" x2="12.01" y2="16"></line>
             </svg>
-            <span>âš ï¸ Stock épuisé: ${productName}</span>
+            <span>Stock épuisé: ${productName}</span>
         `;
 
         notification.style.display = 'flex';
@@ -3182,7 +3182,7 @@ function renderProductBatches(batches) {
             expText = new Date(batch.date_expiration).toLocaleDateString('fr-FR') + (diffDays < 0 ? ' (p&eacute;rim&eacute;)' : ' (' + diffDays + 'j)');
         }
         html += '<tr>';
-        html += '<td style="padding:0.5rem; border-bottom:1px solid #eee;">' + (batch.batch_number || 'â€”') + '</td>';
+        html += '<td style="padding:0.5rem; border-bottom:1px solid #eee;">' + (batch.batch_number || '— ”') + '</td>';
         html += '<td style="text-align:center; padding:0.5rem; border-bottom:1px solid #eee;">' + parseFloat(batch.stock).toFixed(2) + '</td>';
         html += '<td style="padding:0.5rem; border-bottom:1px solid #eee; color:' + expColor + '">' + expText + '</td>';
         html += '<td style="text-align:center; padding:0.5rem; border-bottom:1px solid #eee;">';
