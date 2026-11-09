@@ -61,8 +61,11 @@
     let html = '';
 
     // En-tete
+    // ⚠️ Le NIF est volontairement MASQUÉ sur le rapport (le libellé reste
+    // affiché, sans valeur) : seule l'ISF est imprimé, comme sur la facture
+    // finale (cf. app/views/facture.php, ligne « ISF: »).
     html += `<div class="center bold large">${h.denomination}</div>`;
-    html += `<div class="center">NIF: ${h.nif}</div>`;
+    html += `<div class="center">NIF:</div>`;
     html += `<div class="center">ISF: ${h.isf}</div>`;
     if (h.adresse) html += `<div class="center">${h.adresse}</div>`;
     if (h.telephone) html += `<div class="center">Tel: ${h.telephone}</div>`;
@@ -108,6 +111,7 @@
         html += `<div class="section-title">TOTAUX GENERAUX</div>`;
         html += `<div class="row"><span>Total HT:</span><span>${fmtMoney(data.totals.total_ht)}</span></div>`;
         html += `<div class="row"><span>Total Taxe:</span><span>${fmtMoney(data.totals.total_tax)}</span></div>`;
+        html += `<div class="row"><span>TS totale:</span><span>${fmtMoney(data.totals.total_ts || 0)}</span></div>`;
         html += `<div class="row total-row"><span>TOTAL TTC:</span><span>${fmtMoney(data.totals.total_ttc)}</span></div>`;
         html += `<div class="row"><span>Factures:</span><span>${data.totals.total_invoices}</span></div>`;
         html += `<div class="separator"></div>`;
@@ -125,9 +129,9 @@
         // Par groupe de taxation
         if (data.by_tax_group?.length) {
             html += `<div class="section-title">PAR GROUPE DE TAXATION</div>`;
-            html += `<table><thead><tr><th>Etiquette</th><th class="right">Taux</th><th class="right">Nb</th><th class="right">HT</th><th class="right">Taxe</th><th class="right">TTC</th></tr></thead><tbody>`;
+            html += `<table><thead><tr><th>Etiquette</th><th class="right">Taux</th><th class="right">Nb</th><th class="right">HT</th><th class="right">Taxe</th><th class="right">TS</th><th class="right">TTC</th></tr></thead><tbody>`;
             data.by_tax_group.forEach(g => {
-                html += `<tr><td>${g.etiquette || '-'}</td><td class="right">${g.taux || 0}%</td><td class="right">${g.invoice_count}</td><td class="right">${fmtMoney(g.total_ht)}</td><td class="right">${fmtMoney(g.total_tax)}</td><td class="right">${fmtMoney(g.total_ttc)}</td></tr>`;
+                html += `<tr><td>${g.etiquette || '-'}</td><td class="right">${fmtPercent(g.taux)}</td><td class="right">${g.invoice_count}</td><td class="right">${fmtMoney(g.total_ht)}</td><td class="right">${fmtMoney(g.total_tax)}</td><td class="right">${fmtMoney(g.total_ts || 0)}</td><td class="right">${fmtMoney(g.total_ttc)}</td></tr>`;
             });
             html += `</tbody></table><div class="separator"></div>`;
         }
@@ -150,15 +154,16 @@
             html += `<div class="row"><span>Factures hotel:</span><span>${hotel.factures.nb_factures}</span></div>`;
             html += `<div class="row"><span>Nuitees:</span><span>${fmtNum(hotel.nuites.nb_nuitees)}</span></div>`;
             html += `<div class="row"><span>CA nuitees (HT):</span><span>${fmtMoney(hotel.nuites.total_ht)}</span></div>`;
+            html += `<div class="row"><span>TS hotel:</span><span>${fmtMoney((hotel.nuites.total_ts || 0) + (hotel.extras.total_ts || 0))}</span></div>`;
             html += `<div class="row"><span>CA hotel (TTC):</span><span>${fmtMoney(hotel.factures.total_ttc)}</span></div>`;
             html += `<div class="separator"></div>`;
         }
 
         if (data.hotel_by_room?.length) {
             html += `<div class="section-title">HOTEL - PAR CHAMBRE</div>`;
-            html += `<table><thead><tr><th>Chambre</th><th class="right">Nuitees</th><th class="right">HT</th><th class="right">Taxe</th><th class="right">TTC</th></tr></thead><tbody>`;
+            html += `<table><thead><tr><th>Chambre</th><th class="right">Nuitees</th><th class="right">HT</th><th class="right">Taxe</th><th class="right">TS</th><th class="right">TTC</th></tr></thead><tbody>`;
             data.hotel_by_room.forEach(r => {
-                html += `<tr><td>${r.chambre_numero || '-'}</td><td class="right">${fmtNum(r.nb_nuitees)}</td><td class="right">${fmtMoney(r.total_ht)}</td><td class="right">${fmtMoney(r.total_tax)}</td><td class="right">${fmtMoney(r.total_ttc)}</td></tr>`;
+                html += `<tr><td>${r.chambre_numero || '-'}</td><td class="right">${fmtNum(r.nb_nuitees)}</td><td class="right">${fmtMoney(r.total_ht)}</td><td class="right">${fmtMoney(r.total_tax)}</td><td class="right">${fmtMoney(r.total_ts || 0)}</td><td class="right">${fmtMoney(r.total_ttc)}</td></tr>`;
             });
             html += `</tbody></table><div class="separator"></div>`;
         }
@@ -202,6 +207,12 @@
 
     function fmtNum(v) { return new Intl.NumberFormat('fr-FR').format(v || 0); }
     function fmtMoney(v) { return new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(v || 0) + ' Fc'; }
+    // Taux de taxation avec 2 décimales (« 16.00% ») : le `|| 0` brut
+    // affichait « 0% » / « 16% » sans décimales.
+    function fmtPercent(v) {
+        const n = parseFloat(v);
+        return (isNaN(n) ? 0 : n).toFixed(2) + '%';
+    }
 
     // Impression automatique
     setTimeout(() => window.print(), 300);

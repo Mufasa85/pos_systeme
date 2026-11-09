@@ -105,7 +105,7 @@ $clientNif = $sale['client_nif'] ?? '';
         <!-- Receipt Meta -->
         <div class="receipt-meta">
             <span><?= htmlspecialchars($sale['numero_facture'] ?? '') ?></span>
-            <span><?= htmlspecialchars($sale['type_facture'] ?? 'FV') ?></span>
+            <span><?= htmlspecialchars($sale['invoice_type'] ?? $sale['type_facture'] ?? 'FV') ?></span>
         </div>
 
         <!-- Receipt Items -->
@@ -130,16 +130,28 @@ $clientNif = $sale['client_nif'] ?? '';
                 <div class="receipt-item">
                     <span class="item-name">
                         <?php
-                            // Sprint 7 — 2026-10-19 : les lignes de type "nuit" (hôtel)
-                            // ont produit_id = NULL et produit_nom = NULL. On garde
-                            // un fallback explicite "Nuitée chambre" pour ne pas
-                            // afficher "Produit" (libellé par défaut) sur la
-                            // facture imprimée. La distinction se fait via le
-                            // `produit_id` (NULL = nuit hôtel) + le fait que la
-                            // facture hôtel est de type 'HB'.
-                            $itemName = $item['produit_nom'] ?? null;
+                            // Les lignes d'une facture hôtel (nuitées) ont
+                            // `produit_id = NULL` (pas de produit stocké) mais
+                            // portent un libellé FIGÉ dans `details_vente.libelle`
+                            // (« Nuit 05/11 - Chambre 12 ») — cf. migration
+                            // 2026_11_05 et HotelFactureController::store().
+                            //
+                            // On lit ce libellé en priorité : il est stable même si
+                            // la chambre est renommée ou le séjour supprimé
+                            // après coup. Le fallback 'Nuitée chambre' ne sert
+                            // que pour les anciennes factures (antérieures à la
+                            // migration, sans libellé).
+                            //
+                            // ⚠️ On ne teste PLUS `type_facture === 'HB'` : le type
+                            // de facture est désormais le type fiscal réel
+                            // (FV, EV, FT, FA, EA, ET) et la colonne `type_facture`
+                            // n'existe pas dans `ventes` (c'est `invoice_type`).
+                            $itemName = $item['libelle'] ?? null;
                             if (empty($itemName)) {
-                                $isHotel = (($sale['type_facture'] ?? '') === 'HB');
+                                $itemName = $item['produit_nom'] ?? null;
+                            }
+                            if (empty($itemName)) {
+                                $isHotel = !empty($item['sejour_id']) || !empty($sale['est_hotel']);
                                 $itemName = $isHotel ? 'Nuitée chambre' : 'Article';
                             }
                             echo htmlspecialchars($itemName);

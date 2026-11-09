@@ -95,7 +95,7 @@
         <!-- Receipt Meta -->
         <div class="receipt-meta">
             <span><?= htmlspecialchars($saleData['numero_facture'] ?? '') ?></span>
-            <span><?= htmlspecialchars($saleData['type_facture'] ?? 'FV') ?></span>
+            <span><?= htmlspecialchars($saleData['invoice_type'] ?? $saleData['type_facture'] ?? 'FV') ?></span>
         </div>
 
         <!-- Receipt Items -->
