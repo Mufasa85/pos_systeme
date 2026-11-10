@@ -832,6 +832,15 @@ Router::get('/api/reports/a-history', [ReportController::class, 'getAReportHisto
 Router::get('/api/reports/history', [ReportController::class, 'getReportHistory']);
 Router::get('/api/reports/print/[i:id]', [ReportController::class, 'printReport']);
 
+// Rapports DGI aggregés fournis par OSAT.
+// - X : periode personnalisée, en lecture seule.
+// - Z : consultation (lecture seule) de la période à clôturer.
+// - POST Z : clôture DGI (persistance + chaînage de la période suivante).
+Router::get('/api/reports/dgi/x', [ReportController::class, 'generateDgiXReport']);
+Router::get('/api/reports/dgi/z', [ReportController::class, 'generateDgiZReport']);
+Router::post('/api/reports/dgi/z', [ReportController::class, 'generateDgiZClosure']);
+Router::get('/api/reports/dgi/z-history', [ReportController::class, 'getDgiZHistory']);
+
 // ── Module Pressing — suivi des commandes de pressing ───
 // Référence : docs/PLAN_PRESSING.md
 //
