@@ -1,6 +1,7 @@
 const ReportsManager = {
     init() {
         this.bindEvents();
+        this.initDgiDates();
         this.loadHistory();
     },
 
@@ -9,6 +10,9 @@ const ReportsManager = {
         document.getElementById('btn-a-report')?.addEventListener('click', () => this.generateA());
         document.getElementById('btn-x-daily')?.addEventListener('click', () => this.generateXD());
         document.getElementById('btn-x-periodic')?.addEventListener('click', () => this.generateXP());
+        document.getElementById('btn-dgi-x-report')?.addEventListener('click', () => this.generateDgiX());
+        document.getElementById('btn-dgi-z-report')?.addEventListener('click', () => this.generateDgiZ());
+        document.getElementById('btn-dgi-z-closure')?.addEventListener('click', () => this.closeDgiZ());
         document.getElementById('report-shop-filter')?.addEventListener('change', () => {
             document.getElementById('report-content').innerHTML = `
                 <div class="rpt-empty-state">
@@ -48,6 +52,115 @@ const ReportsManager = {
         this.fetch(this.withShopParam(`/api/reports/x-report/periodic?from=${from}&to=${to}`), 'X-rapport periodique');
     },
 
+    initDgiDates() {
+        const today = new Date();
+        const value = [
+            today.getFullYear(),
+            String(today.getMonth() + 1).padStart(2, '0'),
+            String(today.getDate()).padStart(2, '0')
+        ].join('-');
+        const from = document.getElementById('dgi-report-from');
+        const to = document.getElementById('dgi-report-to');
+        if (from && !from.value) from.value = value;
+        if (to && !to.value) to.value = value;
+    },
+
+    isDgiSuperAdmin() {
+        return document.getElementById('dgi-report-panel')?.dataset.superAdmin === '1';
+    },
+
+    /**
+     * Affiche la durée de la requête DGI.
+     */
+    updateDgiDuration(data) {
+        const target = document.getElementById('dgi-report-duration');
+        if (!target) return;
+
+        const ms = Number(data?.meta?.duration_ms);
+        if (!Number.isFinite(ms)) {
+            target.textContent = '—';
+            return;
+        }
+
+        const seconds = ms / 1000;
+        target.textContent = seconds >= 1
+            ? `${seconds.toFixed(2)} s (${ms} ms)`
+            : `${ms} ms`;
+    },
+
+    generateDgiX() {
+        const from = document.getElementById('dgi-report-from')?.value;
+        const to = document.getElementById('dgi-report-to')?.value;
+        if (!from || !to) {
+            this.showDgiError('Sélectionnez une période.');
+            return;
+        }
+        if (from > to) {
+            this.showDgiError('La date de début doit précéder la date de fin.');
+            return;
+        }
+        if (this.isDgiSuperAdmin() && !this.getShopId()) {
+            this.showDgiError('Sélectionnez une boutique avant de générer le rapport DGI.');
+            return;
+        }
+
+        const url = this.withShopParam(
+            `/api/reports/dgi/x?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`
+        );
+        this.fetchDgi(url, 'Rapport DGI / OSAT — X');
+    },
+
+    generateDgiZ() {
+        if (this.isDgiSuperAdmin() && !this.getShopId()) {
+            this.showDgiError('Sélectionnez une boutique avant de générer le rapport DGI.');
+            return;
+        }
+        this.fetchDgi(
+            this.withShopParam('/api/reports/dgi/z'),
+            'Rapport DGI / OSAT — période Z à clôturer'
+        );
+    },
+
+    /**
+     * Clôture DGI : enregistre la période auprès de la DGI.
+     */
+    async closeDgiZ() {
+        if (this.isDgiSuperAdmin() && !this.getShopId()) {
+            this.showDgiError('Sélectionnez une boutique avant de clôturer la période DGI.');
+            return;
+        }
+        if (!confirm(
+            'Clôturer la période Z auprès de la DGI ?\n\n'
+            + 'La période sera enregistrée et la suivante démarrera à sa fin.'
+        )) {
+            return;
+        }
+
+        const c = document.getElementById('report-content');
+        c.innerHTML = '<div class="rpt-loading"><div class="rpt-spinner"></div><p>Clôture DGI en cours...</p></div>';
+
+        try {
+            const response = await fetch(this.withShopParam('/api/reports/dgi/z'), {
+                method: 'POST',
+                credentials: 'same-origin',
+                cache: 'no-store',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            let payload = null;
+            try {
+                payload = await response.json();
+            } catch (e) {
+                throw new Error('Réponse invalide du serveur de rapports.');
+            }
+            if (!response.ok || !payload?.success) {
+                throw new Error(payload?.message || payload?.error || `Erreur HTTP ${response.status}.`);
+            }
+            this.display(payload.data, 'Clôture DGI / OSAT');
+        } catch (e) {
+            this.showDgiError(e.message || 'La clôture DGI a échoué.');
+        }
+    },
+
     fetch(url, label) {
         const c = document.getElementById('report-content');
         c.innerHTML = '<div class="rpt-loading"><div class="rpt-spinner"></div><p>Generation en cours...</p></div>';
@@ -58,28 +171,73 @@ const ReportsManager = {
         }).catch(e => { c.innerHTML = `<div class="rpt-error">Erreur: ${e.message}</div>`; });
     },
 
+    async fetchDgi(url, label) {
+        const c = document.getElementById('report-content');
+        c.innerHTML = '<div class="rpt-loading"><div class="rpt-spinner"></div><p>Consultation du rapport DGI en cours...</p></div>';
+
+        try {
+            const response = await fetch(url, {
+                credentials: 'same-origin',
+                cache: 'no-store'
+            });
+            let payload = null;
+            try {
+                payload = await response.json();
+            } catch (e) {
+                throw new Error('Réponse invalide du serveur de rapports.');
+            }
+
+            if (!response.ok || !payload?.success) {
+                throw new Error(payload?.message || payload?.error || `Erreur HTTP ${response.status}.`);
+            }
+
+            this.display(payload.data, label);
+        } catch (e) {
+            this.showDgiError(e.message || 'Le rapport DGI est momentanément indisponible.');
+        }
+    },
+
+    showDgiError(message) {
+        const c = document.getElementById('report-content');
+        if (!c) return;
+        c.innerHTML = `<div class="rpt-error">${this.escapeHtml(message)}</div>`;
+    },
+
+    escapeHtml(value) {
+        if (value === null || value === undefined) return '';
+        return String(value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    },
+
     display(data, label) {
         window._currentReportData = data;
         window._currentReportLabel = label;
         const c = document.getElementById('report-content');
         const h = data.header;
         const isAReport = h.type === 'A';
+        const isDgiReport = data.source === 'dgi' || h.type === 'X_DGI' || h.type === 'Z_DGI';
 
         let html = `
             <div class="rpt-report-header">
-                <h2>${label}</h2>
+                <h2>${this.escapeHtml(label)}</h2>
                 <div class="rpt-meta-row">
-                    <span class="rpt-meta-tag">${h.denomination}</span>
+                    <span class="rpt-meta-tag">${this.escapeHtml(h.denomination)}</span>
                     <span>NIF:</span>
-                    <span>ISF: ${h.isf}</span>
+                    <span>ISF: ${this.escapeHtml(h.isf)}</span>
                 </div>
                 <div class="rpt-meta-row" style="margin-top:4px">
-                    <span>Periode: ${h.period_start} &rarr; ${h.period_end}</span>
-                    <span>Genere le: ${h.generated_at}</span>
+                    <span>Periode: ${this.escapeHtml(h.period_start)} &rarr; ${this.escapeHtml(h.period_end)}</span>
+                    <span>Genere le: ${this.escapeHtml(h.generated_at)}</span>
                 </div>
             </div>`;
 
-        if (isAReport) {
+        if (isDgiReport) {
+            html += this.displayDgiReport(data);
+        } else if (isAReport) {
             html += this.displayAReport(data);
         } else {
             html += this.displayZXReport(data);
@@ -94,6 +252,108 @@ const ReportsManager = {
             Imprimer
         </button>`;
         c.innerHTML = html;
+    },
+
+    displayDgiReport(data) {
+        const totals = data.totals || {};
+        let html = '<div class="rpt-dgi-source">Source : DGI / OSAT</div>';
+
+        // Met à jour la durée de la requête DGI.
+        this.updateDgiDuration(data);
+
+        html += `
+            <div class="rpt-stats-grid">
+                <div class="rpt-stat-pill">
+                    <div class="rpt-stat-label">Total HT</div>
+                    <div class="rpt-stat-value">${this.money(totals.ht)}</div>
+                </div>
+                <div class="rpt-stat-pill">
+                    <div class="rpt-stat-label">TVA</div>
+                    <div class="rpt-stat-value">${this.money(totals.tva)}</div>
+                </div>
+                <div class="rpt-stat-pill">
+                    <div class="rpt-stat-label">TS total</div>
+                    <div class="rpt-stat-value">${this.money(totals.ts_total)}</div>
+                </div>
+                <div class="rpt-stat-pill rpt-stat-accent">
+                    <div class="rpt-stat-label">TOTAL TTC</div>
+                    <div class="rpt-stat-value">${this.money(totals.ttc)}</div>
+                </div>
+                <div class="rpt-stat-pill rpt-stat-success">
+                    <div class="rpt-stat-label">Factures</div>
+                    <div class="rpt-stat-value">${this.number(totals.invoice_count)}</div>
+                </div>
+                <div class="rpt-stat-pill rpt-stat-danger">
+                    <div class="rpt-stat-label">Remises</div>
+                    <div class="rpt-stat-value">${this.money(totals.discount_total)}</div>
+                </div>
+            </div>`;
+
+        if (data.by_invoice_type?.length) {
+            html += '<div class="rpt-section"><h4>Par type de facture</h4>';
+            html += '<table class="rpt-table"><thead><tr>'
+                + '<th>Type</th><th style="text-align:right">Factures</th>'
+                + '<th style="text-align:right">HT</th><th style="text-align:right">TVA</th>'
+                + '<th style="text-align:right">TS</th><th style="text-align:right">TTC</th>'
+                + '<th style="text-align:right">Remise</th></tr></thead><tbody>';
+            data.by_invoice_type.forEach((type) => {
+                const typeTotals = type.totals || {};
+                html += '<tr>'
+                    + `<td><strong>${this.escapeHtml(type.type)}</strong><br><small style="color:var(--muted)">${this.escapeHtml(type.label || '')}</small></td>`
+                    + `<td style="text-align:right">${this.number(typeTotals.invoice_count)}</td>`
+                    + `<td style="text-align:right">${this.money(typeTotals.ht)}</td>`
+                    + `<td style="text-align:right">${this.money(typeTotals.tva)}</td>`
+                    + `<td style="text-align:right">${this.money(typeTotals.ts_total)}</td>`
+                    + `<td style="text-align:right">${this.money(typeTotals.ttc)}</td>`
+                    + `<td style="text-align:right">${this.money(typeTotals.discount_total)}</td>`
+                    + '</tr>';
+            });
+            html += '</tbody></table></div>';
+        }
+
+        const taxGroups = (data.tax_groups || []).filter((group) =>
+            Math.abs(Number(group.amount) || 0) > 0.001
+            || Math.abs(Number(group.tva) || 0) > 0.001
+            || Math.abs(Number(group.ts) || 0) > 0.001
+        );
+        if (taxGroups.length) {
+            html += '<div class="rpt-section"><h4>Par catégorie fiscale DGI</h4>';
+            html += '<table class="rpt-table"><thead><tr>'
+                + '<th>Catégorie</th><th>Libellé</th><th style="text-align:right">Taux</th>'
+                + '<th style="text-align:right">HT</th>'
+                + '<th style="text-align:right">TVA</th><th style="text-align:right">TS</th>'
+                + '</tr></thead><tbody>';
+            taxGroups.forEach((group) => {
+                html += '<tr>'
+                    + `<td><strong>${this.escapeHtml(group.code)}</strong></td>`
+                    + `<td>${this.escapeHtml(group.label || '')}</td>`
+                    + `<td style="text-align:right">${this.percent(group.rate)}</td>`
+                    + `<td style="text-align:right">${this.money(group.amount)}</td>`
+                    + `<td style="text-align:right">${this.money(group.tva)}</td>`
+                    + `<td style="text-align:right">${this.money(group.ts)}</td>`
+                    + '</tr>';
+            });
+            html += '</tbody></table></div>';
+        }
+
+        if (data.warnings?.length) {
+            html += '<div class="rpt-warning-box"><strong>Avertissements de cohérence</strong><ul>';
+            data.warnings.forEach((warning) => {
+                html += `<li>${this.escapeHtml(warning)}</li>`;
+            });
+            html += '</ul></div>';
+        }
+
+        if (data.header?.official_closure === true) {
+            html += '<div class="rpt-warning-box"><strong>Clôture DGI enregistrée</strong>'
+                + '<ul><li>Période : '
+                + `${this.escapeHtml(data.header.period_start)} → ${this.escapeHtml(data.header.period_end)}`
+                + `</li><li>Numéro de clôture : ${this.escapeHtml(data.header.closure_counter)}</li></ul></div>`;
+        } else if (data.header?.official_closure === false) {
+            html += '<div class="rpt-dgi-note">Consultation en lecture seule : la période n\'a pas été clôturée auprès de la DGI.</div>';
+        }
+
+        return html;
     },
 
     displayAReport(data) {
