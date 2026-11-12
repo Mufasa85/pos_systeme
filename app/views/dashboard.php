@@ -24,8 +24,9 @@
             </div>
             <div class="stat-info">
               <span class="stat-label">Ventes du jour</span>
-              <span class="stat-value" id="stat-today"><?= number_format($ventes_jour ?? 0, 2) ?> Fc</span>
-              <span class="stat-count"><?= $nb_ventes_jour ?? 0 ?> transactions</span>
+              <span class="stat-value" id="stat-today" data-dgi-stat="day">— Fc</span>
+              <span class="stat-period" id="stat-today-period" data-dgi-stat-period="day">—</span>
+              <span class="stat-count" id="stat-today-count" data-dgi-stat-count="day">Chargement…</span>
             </div>
           </div>
 
@@ -38,8 +39,9 @@
             </div>
             <div class="stat-info">
               <span class="stat-label">Cette semaine</span>
-              <span class="stat-value" id="stat-week"><?= number_format($ventes_semaine ?? 0, 2) ?> Fc</span>
-              <span class="stat-count"><?= $nb_ventes_semaine ?? 0 ?> transactions</span>
+              <span class="stat-value" id="stat-week" data-dgi-stat="week">— Fc</span>
+              <span class="stat-period" id="stat-week-period" data-dgi-stat-period="week">—</span>
+              <span class="stat-count" id="stat-week-count" data-dgi-stat-count="week">Chargement…</span>
             </div>
           </div>
 
@@ -54,8 +56,9 @@
             </div>
             <div class="stat-info">
               <span class="stat-label">Ce mois</span>
-              <span class="stat-value" id="stat-month"><?= number_format($ventes_mois ?? 0, 2) ?> Fc</span>
-              <span class="stat-count"><?= $nb_ventes_mois ?? 0 ?> transactions</span>
+              <span class="stat-value" id="stat-month" data-dgi-stat="month">— Fc</span>
+              <span class="stat-period" id="stat-month-period" data-dgi-stat-period="month">—</span>
+              <span class="stat-count" id="stat-month-count" data-dgi-stat-count="month">Chargement…</span>
             </div>
           </div>
 
@@ -140,9 +143,6 @@
                     <tr>
                       <th>Boutique</th>
                       <th>Code</th>
-                      <th>Ventes aujourd'hui</th>
-                      <th>Nb transactions</th>
-                      <th>Ventes ce mois</th>
                       <th>Produits</th>
                     </tr>
                   </thead>
@@ -151,9 +151,6 @@
                       <tr>
                         <td><strong><?= htmlspecialchars($ss['nom']) ?></strong></td>
                         <td><?= htmlspecialchars($ss['code']) ?></td>
-                        <td><?= number_format($ss['ventes_jour'], 2) ?> Fc</td>
-                        <td><?= $ss['nb_ventes_jour'] ?></td>
-                        <td><?= number_format($ss['ventes_mois'], 2) ?> Fc</td>
                         <td><?= $ss['produits'] ?></td>
                       </tr>
                     <?php endforeach; ?>
@@ -169,6 +166,7 @@
       </div>
 
       <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+      <script src="/assets/js/dashboard.js?v=1"></script>
       <script>
         // Données du graphique
         const labels = <?= $chart_labels ?? '[]' ?>;
