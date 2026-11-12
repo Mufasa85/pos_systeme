@@ -142,22 +142,17 @@ class PageController extends Controller
         $ventes = $saleModel->getAllSales($shopId);
         $produits = $productModel->getAll($shopId);
 
-        $today = date('Y-m-d');
-        $today_start = date('Y-m-d 00:00:00');
-        $today_end = date('Y-m-d 23:59:59');
-        $semaine_start = date('Y-m-d', strtotime('-6 days'));
-        $semaine_start_dt = date('Y-m-d 00:00:00', strtotime('-6 days'));
-        $semaine_end = date('Y-m-d 23:59:59');
-        $mois_start = date('Y-m-01 00:00:00');
-        $mois_end = date('Y-m-t 23:59:59');
+        // ⚠️ Aucune borne de période locale n'est calculée ici : les
+        // indicateurs de ventes sont fournis par la DGI (cf.
+        // `GET /api/dashboard/dgi-stats`).
 
-        // Calculs des ventes par période
-        $ventes_jour = 0;
-        $ventes_semaine = 0;
-        $ventes_mois = 0;
-        $nb_ventes_jour = 0;
-        $nb_ventes_semaine = 0;
-        $nb_ventes_mois = 0;
+        // ⚠️ Les indicateurs « Ventes du jour / Cette semaine / Ce mois »
+        // ne sont PLUS calculés ici : ils sont fournis par la DGI (API
+        // OSAT) et injectés par `public/assets/js/dashboard.js` à partir de
+        // `GET /api/dashboard/dgi-stats`.
+        //
+        // Seuls le graphique (7 derniers jours) et les alertes restent en
+        // local : ils ne sont pas des indicateurs fiscaux officiels.
 
         // Données pour le graphique des 7 derniers jours
         $chart_data = [];
@@ -167,26 +162,7 @@ class PageController extends Controller
         }
 
         foreach ($ventes as $v) {
-            $v_date = strtotime($v['date']);
-            $v_date_str = date('Y-m-d', $v_date);
-
-            // Aujourd'hui
-            if ($v_date >= strtotime($today_start) && $v_date <= strtotime($today_end)) {
-                $ventes_jour += $v['total'];
-                $nb_ventes_jour++;
-            }
-
-            // Cette semaine
-            if ($v_date >= strtotime($semaine_start_dt) && $v_date <= strtotime($semaine_end)) {
-                $ventes_semaine += $v['total'];
-                $nb_ventes_semaine++;
-            }
-
-            // Ce mois
-            if ($v_date >= strtotime($mois_start) && $v_date <= strtotime($mois_end)) {
-                $ventes_mois += $v['total'];
-                $nb_ventes_mois++;
-            }
+            $v_date_str = date('Y-m-d', strtotime($v['date']));
 
             // Graphique - 7 derniers jours
             if (isset($chart_data[$v_date_str])) {
@@ -204,6 +180,10 @@ class PageController extends Controller
         }
 
         // Multi-boutique stats pour super_admin
+        //
+        // ⚠️ Aucun MONTANT de vente n'est calculé ici : les chiffres de ventes
+        // ne sont affichés que pour la boutique connectée (API DGI). On ne
+        // garde donc que l'inventaire (nombre de produits) par boutique.
         $shopStats = [];
         if ($this->isSuperAdmin()) {
             $shopModel = new \App\Models\Shop();
@@ -211,14 +191,6 @@ class PageController extends Controller
             $db = \App\Core\Database::getInstance();
             foreach ($allShops as $shop) {
                 $sid = $shop['id'];
-                $row = $db->fetch(
-                    'SELECT COUNT(*) as nb, COALESCE(SUM(total),0) as total FROM ventes WHERE shop_id = ? AND DATE(date) = ?',
-                    [$sid, $today]
-                );
-                $rowMonth = $db->fetch(
-                    'SELECT COALESCE(SUM(total),0) as total FROM ventes WHERE shop_id = ? AND date BETWEEN ? AND ?',
-                    [$sid, $mois_start, $mois_end]
-                );
                 $prodCount = $db->fetch(
                     'SELECT COUNT(*) as c FROM produits WHERE shop_id = ?',
                     [$sid]
@@ -227,9 +199,6 @@ class PageController extends Controller
                     'id' => $sid,
                     'nom' => $shop['nom'],
                     'code' => $shop['code'],
-                    'ventes_jour' => $row['total'] ?? 0,
-                    'nb_ventes_jour' => $row['nb'] ?? 0,
-                    'ventes_mois' => $rowMonth['total'] ?? 0,
                     'produits' => $prodCount['c'] ?? 0,
                 ];
             }
@@ -242,12 +211,9 @@ class PageController extends Controller
         $this->render('dashboard', [
             'ventes' => $ventes,
             'produits_compte' => count($produits),
-            'ventes_jour' => $ventes_jour,
-            'ventes_semaine' => $ventes_semaine,
-            'ventes_mois' => $ventes_mois,
-            'nb_ventes_jour' => $nb_ventes_jour,
-            'nb_ventes_semaine' => $nb_ventes_semaine,
-            'nb_ventes_mois' => $nb_ventes_mois,
+            // ⚠️ Pas de `ventes_jour` / `ventes_semaine` / `ventes_mois` :
+            // ces indicateurs proviennent de la DGI et sont injectés par le
+            // frontend (cf. `public/assets/js/dashboard.js`).
             'chart_labels' => json_encode($chart_labels),
             'chart_values' => json_encode($chart_values),
             'stock_faible' => array_filter($produits, function ($p) {
@@ -470,7 +436,7 @@ class PageController extends Controller
         $this->render('hotel-calendrier', [
             'calFrom'    => $from,
             'calTo'      => $to,
-            'calChambres'=> $chambres,
+            'calChambres' => $chambres,
             'calSejours' => $sejours,
         ]);
     }
@@ -556,11 +522,11 @@ class PageController extends Controller
                 ? (int)$_GET['shop_id']
                 : $sessionShopId;
             // Si super_admin n'a pas de boutique par défaut, on prend
-                            // la première boutique avec utilisateurs hôtel.
-                            if (!$targetShopId) {
-                                $first = $userModel->firstShopIdWithUsers();
-                                $targetShopId = (int)($first ?? 0);
-                            }
+            // la première boutique avec utilisateurs hôtel.
+            if (!$targetShopId) {
+                $first = $userModel->firstShopIdWithUsers();
+                $targetShopId = (int)($first ?? 0);
+            }
         } else {
             $targetShopId = $sessionShopId;
         }
@@ -596,7 +562,9 @@ class PageController extends Controller
 
         $userId = (int)($_POST['user_id'] ?? 0);
         $newRole = $_POST['hotel_role'] ?? null;
-        if ($newRole === '' || $newRole === 'null') $newRole = null;
+        if ($newRole === '' || $newRole === 'null') {
+            $newRole = null;
+        }
 
         $sessionShopId = (int)($_SESSION['shop_id'] ?? 0);
         if (!$sessionShopId) {
@@ -665,8 +633,12 @@ class PageController extends Controller
         $app = $_SESSION['role'] ?? '';
         $hotel = $_SESSION['hotel_role'] ?? null;
 
-        if ($app === 'super_admin') return 'super_admin';
-        if ($app === 'admin')       return 'manager';
+        if ($app === 'super_admin') {
+            return 'super_admin';
+        }
+        if ($app === 'admin') {
+            return 'manager';
+        }
 
         if (in_array($hotel, ['manager', 'receptionniste', 'gouvernante'], true)) {
             return $hotel;
@@ -682,7 +654,7 @@ class PageController extends Controller
     {
         $hr = $this->resolveHotelRole();
         if (!in_array($hr, $allowedRoles, true)) {
-            $_SESSION['flash_error'] = "Accès au module hôtel non autorisé pour votre rôle.";
+            $_SESSION['flash_error'] = 'Accès au module hôtel non autorisé pour votre rôle.';
             $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
             $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
             header('Location: ' . $protocol . '://' . $host . '/dashboard');
@@ -721,7 +693,9 @@ class PageController extends Controller
      */
     private function listAllShops(): array
     {
-        if (!$this->isSuperAdmin()) return [];
+        if (!$this->isSuperAdmin()) {
+            return [];
+        }
         try {
             $shopModel = new \App\Models\Shop();
             return $shopModel->getAll() ?? [];
@@ -732,7 +706,9 @@ class PageController extends Controller
 
     private function resolveShopName(int $shopId): string
     {
-        if (!$shopId) return '—';
+        if (!$shopId) {
+            return '—';
+        }
         try {
             $shopModel = new \App\Models\Shop();
             $shop = $shopModel->findById($shopId);
@@ -740,7 +716,7 @@ class PageController extends Controller
         } catch (\Throwable $e) {
             return "Boutique #$shopId";
         }
-        }
+    }
 
     public function historique()
     {

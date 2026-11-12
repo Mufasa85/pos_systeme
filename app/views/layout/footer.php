@@ -1085,7 +1085,8 @@
     <script src="/assets/js/app.js?v=1.0.99889989999999999999999999999999999999999999999999999999999999999999"></script>
     <script src="/assets/js/recharges.js?v=1.0.1199"></script>
     <script src="/assets/js/paper-type.js?v=1.0.599"></script>
-    <script src="/assets/js/rapports.js?v=1.0.1"></script>
+    <script src="/assets/js/rapports.js?v=1.0.2"></script>
+    <script src="/assets/js/product-import.js?v=1.0.1"></script>
 
     </body>
 
