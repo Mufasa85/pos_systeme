@@ -580,6 +580,14 @@ body {
   color: var(--foreground);
 }
 
+/* Intervalle de dates couvert par un indicateur (ex. « 05/11 → 11/11 ») */
+.stat-period {
+  font-size: 0.72rem;
+  color: var(--muted);
+  opacity: 0.85;
+  margin-top: 1px;
+}
+
 .dashboard-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -2431,3 +2439,245 @@ body {
     height: 28px;
   }
 }
+
+/* ============================================
+   IMPORT DE PRODUITS (Excel / CSV)
+   ============================================ */
+/* Le modal d'import utilise des classes dédiées `pi-` pour ne pas
+   hériter du `max-width: 500px` de `.modal-content` (qui décalait
+   le contenu par rapport à l'en-tête). */
+
+.pi-modal {
+  max-width: 620px;
+  width: 100%;
+}
+
+/* Sur mobile, le modal doit occuper toute la largeur disponible
+   (le `max-width` seul ne suffit pas : le conteneur `.modal` a un padding). */
+@media (max-width: 640px) {
+  .pi-modal {
+    max-width: 100%;
+  }
+
+  .pi-body {
+    padding: 1rem;
+  }
+
+  .pi-summary {
+    grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  }
+}
+
+.pi-body {
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.pi-section {
+  background: var(--background);
+  border-radius: var(--radius);
+  padding: 1rem;
+}
+
+.pi-section-title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--muted);
+  margin-bottom: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* ── Sélecteur de fichier (remplace le <input type="file"> natif) ── */
+.pi-file-label {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.7rem 0.9rem;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
+  color: var(--foreground);
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.pi-file-label:hover {
+  border-color: var(--primary);
+  background: var(--background);
+}
+
+.pi-file-label svg {
+  flex-shrink: 0;
+  color: var(--primary);
+}
+
+/* Le <input> natif est masqué (le label déclenche le dialogue). */
+.pi-file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.pi-file-label.is-selected {
+  border-style: solid;
+  border-color: var(--primary);
+}
+
+.pi-file-label.is-selected span {
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Champs ── */
+.pi-field {
+  margin-bottom: 0.9rem;
+}
+
+.pi-field:last-of-type {
+  margin-bottom: 0.5rem;
+}
+
+.pi-field label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--foreground);
+  margin-bottom: 0.35rem;
+}
+
+.pi-field select {
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
+  color: var(--foreground);
+  font-size: 0.875rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.pi-field select:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(11, 94, 136, 0.12);
+}
+
+.pi-hint {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--muted);
+  margin-top: 0.35rem;
+}
+
+/* ── Case à cocher ── */
+.pi-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--foreground);
+  cursor: pointer;
+}
+
+.pi-check input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+
+/* ── Rappel des colonnes ── */
+.pi-columns {
+  font-size: 0.8rem;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.pi-columns strong {
+  display: block;
+  color: var(--foreground);
+  font-size: 0.82rem;
+  margin-bottom: 0.35rem;
+}
+
+.pi-columns code {
+  display: inline-block;
+  padding: 0.1rem 0.35rem;
+  margin: 0 0.1rem;
+  background: var(--background);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 0.75rem;
+  color: var(--foreground);
+}
+
+.pi-columns .pi-hint {
+  margin-top: 0.5rem;
+}
+
+.pi-template-btn {
+  align-self: flex-start;
+}
+
+/* ── Étape 2 : rapport ── */
+.pi-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 0.6rem;
+}
+
+.pi-summary-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.6rem 0.7rem;
+  text-align: center;
+}
+
+.pi-summary-value {
+  font-size: 1.35rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.pi-summary-label {
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  margin-top: 0.15rem;
+}
+
+.pi-report {
+  max-height: 320px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.pi-report .data-table th,
+.pi-report .data-table td {
+  padding: 0.55rem 0.75rem;
+  font-size: 0.82rem;
+}
+
+.pi-report .data-table td:last-child {
+  color: var(--muted);
+}
+
+/* ── Actions ── */
+.pi-actions {
+  margin-top: 0;
+}
+
