@@ -58,25 +58,103 @@
 
     const h = data.header;
     const isAReport = h.type === 'A';
+    const isDgiReport = data.source === 'dgi' || h.type === 'X_DGI' || h.type === 'Z_DGI';
     let html = '';
 
     // En-tete
     // ⚠️ Le NIF est volontairement MASQUÉ sur le rapport (le libellé reste
     // affiché, sans valeur) : seule l'ISF est imprimé, comme sur la facture
     // finale (cf. app/views/facture.php, ligne « ISF: »).
-    html += `<div class="center bold large">${h.denomination}</div>`;
+    html += `<div class="center bold large">${esc(h.denomination)}</div>`;
     html += `<div class="center">NIF:</div>`;
-    html += `<div class="center">ISF: ${h.isf}</div>`;
-    if (h.adresse) html += `<div class="center">${h.adresse}</div>`;
-    if (h.telephone) html += `<div class="center">Tel: ${h.telephone}</div>`;
+    html += `<div class="center">ISF: ${esc(h.isf)}</div>`;
+    if (h.adresse) html += `<div class="center">${esc(h.adresse)}</div>`;
+    if (h.telephone) html += `<div class="center">Tel: ${esc(h.telephone)}</div>`;
     html += `<div class="separator"></div>`;
-    html += `<div class="center bold large">${label}</div>`;
-    html += `<div class="center">Genere le: ${h.generated_at}</div>`;
-    html += `<div class="center">Periode: ${h.period_start}</div>`;
-    html += `<div class="center">au ${h.period_end}</div>`;
+    html += `<div class="center bold large">${esc(label)}</div>`;
+    html += `<div class="center">Genere le: ${esc(h.generated_at)}</div>`;
+    html += `<div class="center">Periode: ${esc(h.period_start)}</div>`;
+    html += `<div class="center">au ${esc(h.period_end)}</div>`;
     html += `<div class="double-separator"></div>`;
 
-    if (isAReport) {
+    if (isDgiReport) {
+        const totals = data.totals || {};
+        html += '<div class="section-title">TOTAUX DGI / OSAT</div>';
+        html += `<div class="row"><span>Total HT:</span><span>${fmtMoney(totals.ht)}</span></div>`;
+        html += `<div class="row"><span>TVA:</span><span>${fmtMoney(totals.tva)}</span></div>`;
+        html += `<div class="row"><span>TS total:</span><span>${fmtMoney(totals.ts_total)}</span></div>`;
+        html += `<div class="row total-row"><span>TOTAL TTC:</span><span>${fmtMoney(totals.ttc)}</span></div>`;
+        html += `<div class="row"><span>Factures:</span><span>${fmtNum(totals.invoice_count)}</span></div>`;
+        html += `<div class="row"><span>Remises:</span><span>${fmtMoney(totals.discount_total)}</span></div>`;
+        html += '<div class="separator"></div>';
+
+        if (data.payments?.length) {
+            html += '<div class="section-title">PAR MODE DE PAIEMENT</div>';
+            html += '<table><thead><tr><th>Mode</th><th class="right">Montant</th></tr></thead><tbody>';
+            data.payments.forEach((payment) => {
+                html += '<tr>'
+                    + `<td>${esc(payment.label || payment.code)}<br><small>${esc(payment.code)}</small></td>`
+                    + `<td class="right">${fmtMoney(payment.total)}</td>`
+                    + '</tr>';
+            });
+            html += '</tbody></table><div class="separator"></div>';
+        }
+
+        if (data.by_invoice_type?.length) {
+            html += '<div class="section-title">PAR TYPE DE FACTURE</div>';
+            html += '<table><thead><tr><th>Type</th><th class="right">Factures</th><th class="right">HT</th><th class="right">TVA</th><th class="right">TS</th><th class="right">TTC</th><th class="right">Remise</th></tr></thead><tbody>';
+            data.by_invoice_type.forEach((type) => {
+                const typeTotals = type.totals || {};
+                html += '<tr>'
+                    + `<td>${esc(type.type)}<br><small>${esc(type.label || '')}</small></td>`
+                    + `<td class="right">${fmtNum(typeTotals.invoice_count)}</td>`
+                    + `<td class="right">${fmtMoney(typeTotals.ht)}</td>`
+                    + `<td class="right">${fmtMoney(typeTotals.tva)}</td>`
+                    + `<td class="right">${fmtMoney(typeTotals.ts_total)}</td>`
+                    + `<td class="right">${fmtMoney(typeTotals.ttc)}</td>`
+                    + `<td class="right">${fmtMoney(typeTotals.discount_total)}</td>`
+                    + '</tr>';
+            });
+            html += '</tbody></table><div class="separator"></div>';
+        }
+
+        const groups = (data.tax_groups || []).filter((group) =>
+            Math.abs(Number(group.amount) || 0) > 0.001
+            || Math.abs(Number(group.tva) || 0) > 0.001
+            || Math.abs(Number(group.ts) || 0) > 0.001
+        );
+        if (groups.length) {
+            html += '<div class="section-title">PAR CATEGORIE FISCALE DGI</div>';
+            html += '<table><thead><tr><th>Cat.</th><th>Libelle</th><th class="right">Taux</th><th class="right">HT</th><th class="right">TVA</th><th class="right">TS</th></tr></thead><tbody>';
+            groups.forEach((group) => {
+                html += '<tr>'
+                    + `<td>${esc(group.code)}</td>`
+                    + `<td>${esc(group.label || '')}</td>`
+                    + `<td class="right">${fmtPercent(group.rate)}</td>`
+                    + `<td class="right">${fmtMoney(group.amount)}</td>`
+                    + `<td class="right">${fmtMoney(group.tva)}</td>`
+                    + `<td class="right">${fmtMoney(group.ts)}</td>`
+                    + '</tr>';
+            });
+            html += '</tbody></table><div class="separator"></div>';
+        }
+
+        if (data.warnings?.length) {
+            html += '<div class="section-title">AVERTISSEMENTS DE COHERENCE</div><ul>';
+            data.warnings.forEach((warning) => {
+                html += `<li>${esc(warning)}</li>`;
+            });
+            html += '</ul><div class="separator"></div>';
+        }
+
+        if (data.header?.official_closure === true) {
+            html += '<p><strong>Cloture DGI enregistree.</strong> '
+                + `Cloture n° ${esc(data.header.closure_counter)}`
+                + ` — periode ${esc(data.header.period_start)} au ${esc(data.header.period_end)}.</p>`;
+        } else if (data.header?.official_closure === false) {
+            html += '<p><strong>Consultation en lecture seule.</strong> La periode n\'a pas ete cloturee aupres de la DGI.</p>';
+        }
+    } else if (isAReport) {
         // A-rapport : tableau des articles
         html += `<div class="section-title">DETAIL DES ARTICLES</div>`;
         html += `<div class="row"><span>Total articles:</span><span>${data.totals.articles_count}</span></div>`;
@@ -205,6 +283,15 @@
 
     document.getElementById('ticket-content').innerHTML = html;
 
+    function esc(value) {
+        if (value === null || value === undefined) return '';
+        return String(value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
     function fmtNum(v) { return new Intl.NumberFormat('fr-FR').format(v || 0); }
     function fmtMoney(v) { return new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(v || 0) + ' Fc'; }
     // Taux de taxation avec 2 décimales (« 16.00% ») : le `|| 0` brut
