@@ -67,6 +67,8 @@ Base URL: `http://localhost:8000/api`
 | POST    | `/produit`        | ProductController | create | Crée un nouveau produit   | Admin |
 | POST    | `/produit/update` | ProductController | update | Modifie un produit        | Admin |
 | POST    | `/produit/delete` | ProductController | delete | Supprime un produit       | Admin |
+| POST    | `/api/produit/import` | ProductImportController | import | Importe des produits (Excel/CSV) | Admin |
+| GET     | `/api/produit/import/template` | ProductImportController | template | Modèle Excel à remplir | Admin |
 
 #### GET `/api/produits`
 
@@ -188,6 +190,81 @@ Base URL: `http://localhost:8000/api`
   "success": true
 }
 ```
+
+---
+
+### Import de produits (Excel / CSV)
+
+| Méthode | Route                              | Contrôleur               | Action   | Description                        | Auth  |
+| ------- | ---------------------------------- | ------------------------ | -------- | ---------------------------------- | ----- |
+| POST    | `/api/produit/import`              | ProductImportController  | import   | Importe des produits depuis un fichier | Admin |
+| GET     | `/api/produit/import/template`     | ProductImportController  | template | Télécharge le modèle `.xlsx`       | Admin |
+
+#### POST `/api/produit/import`
+
+**Description:** Importe un catalogue de produits depuis un fichier Excel (`.xlsx`,
+`.xls`) ou CSV. Chaque ligne est traitée indépendamment : une ligne invalide
+n'annule pas les autres.
+
+**Authentification requise:** Oui (rôle admin ou super_admin)
+
+**Paramètres (multipart/form-data):**
+| Param | Type | Requis | Description |
+|-------|------|--------|-------------|
+| file | file | Oui | Fichier `.xlsx`, `.xls` ou `.csv` (5 Mo maximum) |
+| mode | string | Non | `create` (défaut) ignore les produits existants, `update` les met à jour |
+| category_id | int | Non | Catégorie par défaut si la colonne est vide |
+| tax_id | int | Non | Taxe par défaut si la colonne est vide |
+| create_categories | bool | Non | Crée les catégories absentes du catalogue |
+| shop_id | int | Non | Boutique cible (super_admin uniquement) |
+
+**Colonnes attendues** (les en-têtes sont normalisés : insensibles à la casse et
+aux accents) :
+
+| Colonne | Obligatoire | Description |
+|---------|-------------|-------------|
+| `code_barres` | Non | Généré automatiquement si vide. Doit être unique. |
+| `nom` | Oui | Nom du produit. |
+| `categorie` | Oui | Catégorie existante (insensible à la casse). |
+| `prix` | Oui | Prix de vente en Fc. |
+| `stock` | Non | Stock initial (0 par défaut). |
+| `stock_minimum` | Non | Seuil d'alerte de stock (0 par défaut). |
+| `taxe` | Non | Étiquette (A, B, C…) ou groupe de taxe. Groupe A par défaut. |
+| `product_type` | Non | `unite` ou `coupe`. |
+| `prod_service` | Non | `BIE`, `SER` ou `TAX`. |
+| `remise_type` | Non | `%` ou `CDF`. |
+| `remise_value` | Non | Valeur de la remise. |
+| `taxe_specifique_type` | Non | `%` ou `CDF`. |
+| `taxe_specifique_value` | Non | Valeur de la taxe spécifique. |
+| `date_expiration` | Non | Format `YYYY-MM-DD` ou `JJ/MM/AAAA`. |
+
+**Réponse:**
+
+```json
+{
+  "success": true,
+  "summary": {
+    "total": 2,
+    "created": 2,
+    "updated": 0,
+    "skipped": 0,
+    "errors": 0,
+    "categories_created": 0
+  },
+  "rows": [
+    { "line": 2, "status": "created", "nom": "Lait Frais 1L", "message": "Produit créé" }
+  ]
+}
+```
+
+#### GET `/api/produit/import/template`
+
+**Description:** Télécharge le modèle Excel à remplir (en-têtes + ligne d'exemple
++ onglet « Aide »).
+
+**Authentification requise:** Oui (rôle admin)
+
+**Réponse:** un fichier `.xlsx` (`application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`).
 
 ---
 
@@ -529,6 +606,149 @@ Une facture **annulée** ne bloque pas l'imputation : elle n'est plus active.
   "message": "Erreur de connexion DGI"
 }
 ```
+
+---
+
+### Rapports DGI/OSAT
+
+Les agrégats fiscaux DGI sont consultables via un proxy backend authentifié.
+Le navigateur ne contacte jamais directement le provider OSAT et ne peut pas
+choisir librement un NIF : l'ISF est résolu depuis `shops.isf`.
+
+| Méthode | Route | Contrôleur | Action | Auth | Description |
+| ------- | ----- | ---------- | ------ | ---- | ----------- |
+| GET | `/api/reports/dgi/x` | ReportController | generateDgiXReport | Admin | Rapport DGI pour une période personnalisée |
+| GET | `/api/reports/dgi/z` | ReportController | generateDgiZReport | Admin | Agrégat DGI de la période à clôturer (lecture seule) |
+| POST | `/api/reports/dgi/z` | ReportController | generateDgiZClosure | Admin | Clôture DGI : enregistrement + chaînage de la période |
+| GET | `/api/reports/dgi/z-history` | ReportController | getDgiZHistory | Admin | Historique des clôtures DGI |
+
+> ⚠️ **Le Z local est désactivé.** La route `GET /api/reports/z-report` a été
+> retirée : la clôture de référence est **uniquement** la clôture DGI
+> (`POST /api/reports/dgi/z`). Conserver les deux aurait permis de clôturer
+> deux fois la même période (donc de compter les mêmes ventes en double).
+>
+> Le **X local a également été retiré** (bouton « X-rapport », barre
+> « X-rapport périodique », routes `/api/reports/x-report/daily` et
+> `/api/reports/x-report/periodic`) : le **X DGI**
+> (`GET /api/reports/dgi/x`) fait désormais foi. La période ouverte de
+> référence reste la dernière clôture DGI.
+
+### Tableau de bord — indicateurs DGI/OSAT
+
+| Méthode | Route | Contrôleur | Action | Auth | Description |
+| ------- | ----- | ---------- | ------ | ---- | ----------- |
+| GET | `/api/dashboard/dgi-stats` | DashboardController | dgiStats | Authentifié | Agrégats DGI des 3 périodes du tableau de bord (jour, semaine, mois) |
+
+Les cartes « Ventes du jour / Cette semaine / Ce mois » du tableau de bord
+n'affichent **plus** les agrégats SQL locaux : elles affichent les montants officiels
+fournis par la DGI.
+
+**Paramètres query :**
+
+| Paramètre | Type | Requis | Description |
+| --------- | ---- | ------ | ----------- |
+| `shop_id` | int | Super-admin | Restreint à une boutique (sinon : ISF de l'entreprise) |
+
+> Le super_admin interroge **son ISF d'entreprise** (`company_info.isf`) par
+> défaut : une seule requête HTTP, pas d'agrégation multi-boutiques.
+
+**Réponse :**
+
+```json
+{
+  "success": true,
+  "data": {
+    "success": true,
+    "periods": {
+      "day":   { "ht": 15986210.54, "ttc": 16080004.25, "invoice_count": 19, "error": null },
+      "week":  { "ht": 48396056.83, "ttc": 49735933.60, "invoice_count": 45, "error": null },
+      "month": { "ht": 50681542.21, "ttc": 52034633.60, "invoice_count": 50, "error": null }
+    },
+    "meta": {
+      "cached": false,
+      "fetched_at": "2026-11-11 00:12:03",
+      "shops_count": 3,
+      "timezone": "Africa/Kinshasa"
+    }
+  }
+}
+```
+
+> ⚠️ **Chargement asynchrone** : 3 périodes × N boutiques = autant d'appels
+> provider (~1,7 s chacun). Les appels sont lancés **en parallèle**, par lots
+> de 4, avec un timeout de 20 s et un retry sur erreur transitoire (le
+> provider OSAT est mutualisé et sature au-delà de quelques appels
+> simultanés). Un résultat est mis en cache 60 s en session.
+>
+> La page s'affiche immédiatement avec un état « Chargement… » : les valeurs
+> sont injectées par `public/assets/js/dashboard.js`.
+>
+> Le token d'accès transmis au provider est celui de la boutique interrogée
+> (`shops.token`, repli `company_info.token`), résolu à partir de l'ISF. Il
+> **n'apparaît jamais** dans les réponses JSON.
+
+#### GET `/api/reports/dgi/x`
+
+**Paramètres query :**
+
+| Paramètre | Type | Requis | Description |
+| --------- | ---- | ------ | ----------- |
+| `from` | `YYYY-MM-DD` | Non | Début de période (défaut : aujourd'hui) |
+| `to` | `YYYY-MM-DD` | Non | Fin de période (défaut : aujourd'hui) |
+| `types` | `FV,FT,...` | Non | Filtre par type de facture |
+| `shop_id` | int | Super-admin | Boutique à interroger |
+
+Un `admin` utilise toujours sa propre boutique et ne peut pas changer de
+périmètre via `shop_id`. Un `super_admin` doit sélectionner une boutique.
+
+Le filtre `types` est appliqué côté POS (le provider renvoie toujours tous les
+types) : les totaux affichés sont recalculés sur les types retenus. Un type
+inconnu est refusé (`400`).
+
+#### GET `/api/reports/dgi/z`
+
+Période = fin de la dernière clôture DGI → maintenant (repli : première vente
+réelle de la boutique, sinon un an).
+Consultation seule : cette route ne clôture rien.
+
+#### POST `/api/reports/dgi/z`
+
+**Clôture DGI.** Appelle le provider sur la période à clôturer, enregistre la
+clôture en base (`dgi_z_reports` : compteur, bornes, totaux, snapshot),
+archive la clôture précédente, journalise l'opération et **chaîne la période
+suivante** sur la fin de cette clôture.
+
+**Réponse (succès) :**
+
+```json
+{
+  "success": true,
+  "data": {
+    "source": "dgi",
+    "header": {
+      "type": "X_DGI",
+      "nif": "A1720894F",
+      "isf": "A1720894F",
+      "official_closure": false
+    },
+    "totals": {
+      "ht1": 57090793.26,
+      "tva": 9252760.95,
+      "ts_total": 5264859,
+      "ttc": 128507893.21,
+      "invoice_count": 163,
+      "discount_total": 72810
+    },
+    "tax_groups": [],
+    "by_invoice_type": [],
+    "warnings": []
+  }
+}
+```
+
+**Erreurs :** `400` (période/boutique), `403` (rôle), `404` (boutique),
+`422` (ISF absent), `502` (provider invalide), `503` (désactivé),
+`504` (timeout). Le corps brut du provider n'est jamais exposé.
 
 ---
 
