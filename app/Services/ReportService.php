@@ -2,15 +2,18 @@
 
 namespace App\Services;
 
+use App\Models\DgiZReport;
 use App\Models\Report;
 
 class ReportService
 {
     private $reportModel;
+    private $dgiZReportModel;
 
     public function __construct()
     {
         $this->reportModel = new Report();
+        $this->dgiZReportModel = new DgiZReport();
     }
 
     /**
@@ -142,7 +145,9 @@ class ReportService
         ];
         foreach ($rawPayments as $row) {
             $payments = json_decode($row['payments'] ?? '[]', true);
-            if (!is_array($payments)) continue;
+            if (!is_array($payments)) {
+                continue;
+            }
             foreach ($payments as $p) {
                 $typeP = $p['type'] ?? ($p['mode'] ?? 'ESPECES');
                 $amount = floatval($p['amount'] ?? 0);
@@ -201,37 +206,50 @@ class ReportService
         ];
     }
 
-    // ── Z-rapport : clôture la période et enregistre en base ───
 
-    public function generateZReport($shopId)
+    /**
+     * Début de la période ouverte (non encore clôturée).
+     *
+     * Source unique de vérité : la dernière clôture DGI. Sans clôture DGI,
+     * on prend le début de la journée (et non un an en arrière : les
+     * rapportX ne couvrent que la journée en cours).
+     */
+    public function resolveOpenPeriodStart($shopId): string
     {
-        $last = $this->reportModel->getLastZReport($shopId);
-        $periodStart = $last ? $last['period_end'] : date('Y-m-d 00:00:00', strtotime('-1 year'));
-        $periodEnd = date('Y-m-d H:i:s');
-        $data = $this->generate($shopId, 'Z', $periodStart, $periodEnd);
-        $this->reportModel->createZReport($shopId, $periodStart, $periodEnd, [
-            'total_ht' => $data['totals']['total_ht'],
-            'total_tax' => $data['totals']['total_tax'],
-            'total_ttc' => $data['totals']['total_ttc'],
-            'invoice_count' => $data['totals']['total_invoices'],
-        ]);
-        return $data;
+        $lastClosure = $this->dgiZReportModel->getLastWithInvoices(
+            $shopId !== null ? (int)$shopId : null
+        );
+        if ($lastClosure && !empty($lastClosure['period_end'])) {
+            return (string)$lastClosure['period_end'];
+        }
+
+        return date('Y-m-d 00:00:00');
     }
 
-    // ── X-rapport quotidien ────────────────────────────────────
-
-    public function generateXReportDaily($shopId)
+    /**
+     * Point de départ de la PREMIÈRE clôture DGI (aucune clôture antérieure).
+     *
+     * On ancre la période sur la première vente réelle de la boutique plutôt
+     * que sur « un an en arrière » : la première clôture ne doit englober que
+     * l'exercice de la boutique, pas un an d'historique.
+     *
+     * À défaut de vente connue (boutique sans vente, ou données indisponibles)
+     * on conserve le repli « un an en arrière », plus sûr qu'une date vide.
+     */
+    public function resolveFirstClosureStart($shopId): string
     {
-        $last = $this->reportModel->getLastZReport($shopId);
-        $periodStart = $last ? $last['period_end'] : date('Y-m-d 00:00:00');
-        return $this->generate($shopId, 'X_DAILY', $periodStart, date('Y-m-d H:i:s'));
-    }
+        try {
+            $firstSale = $this->reportModel->getFirstSaleDate(
+                $shopId !== null ? (int)$shopId : null
+            );
+            if (!empty($firstSale)) {
+                return (string)$firstSale;
+            }
+        } catch (\Exception $e) {
+            error_log('[ReportService] Date de première vente introuvable: ' . $e->getMessage());
+        }
 
-    // ── X-rapport périodique ───────────────────────────────────
-
-    public function generateXReportPeriodic($shopId, $startDate, $endDate)
-    {
-        return $this->generate($shopId, 'X_PERIODIC', $startDate, $endDate);
+        return date('Y-m-d H:i:s', strtotime('-1 year'));
     }
 
     // ── A-rapport : détail par article (clôture la période A) ──
