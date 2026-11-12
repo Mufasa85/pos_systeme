@@ -431,9 +431,9 @@ Endpoints du contrôleur :
 
 | Méthode | Route | Fonction |
 |---------|-------|----------|
-| GET | `/api/reports/z-report` | `generateZReport()` — Générer Z-rapport |
-| GET | `/api/reports/x-report/daily` | `generateXReportDaily()` — X quotidien |
-| GET | `/api/reports/x-report/periodic` | `generateXReportPeriodic()` — X périodique |
+| ~~GET~~ | ~~`/api/reports/z-report`~~ | ⚠️ **RETIRÉ** — le Z local est désactivé ; la clôture de référence est la clôture DGI (`POST /api/reports/dgi/z`). |
+| ~~GET~~ | ~~`/api/reports/x-report/daily`~~ | ⚠️ **RETIRÉ** — le X DGI (`GET /api/reports/dgi/x`) fait désormais foi. |
+| ~~GET~~ | ~~`/api/reports/x-report/periodic`~~ | ⚠️ **RETIRÉ** — idem : le X DGI couvre une période personnalisée. |
 | GET | `/api/reports/a-report` | `generateAReport()` — Générer A-rapport |
 | GET | `/api/reports/history` | `getReportHistory()` — Historique Z-rapports |
 | GET | `/api/reports/a-history` | `getAReportHistory()` — Historique A-rapports |
