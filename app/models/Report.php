@@ -14,43 +14,15 @@ class Report
     }
 
     // ── Z-rapports ──────────────────────────────────────────────
-
-    public function getLastZReport($shopId)
-    {
-        $sql = 'SELECT * FROM z_reports WHERE shop_id = ? AND status = "active" ORDER BY issued_at DESC LIMIT 1';
-        return $this->db->fetch($sql, [$shopId]);
-    }
-
-    public function createZReport($shopId, $periodStart, $periodEnd, $data)
-    {
-        // Archiver l'ancien Z-rapport actif
-        $this->db->execute(
-            'UPDATE z_reports SET status = "archived" WHERE shop_id = ? AND status = "active"',
-            [$shopId]
-        );
-
-        // Calculer le compteur séquentiel
-        $counter = $this->db->fetch(
-            'SELECT COALESCE(MAX(counter), 0) + 1 as next FROM z_reports WHERE shop_id = ?',
-            [$shopId]
-        );
-        $nextCounter = $counter['next'] ?? 1;
-
-        $sql = 'INSERT INTO z_reports (shop_id, period_start, period_end, counter, total_sales_ht, total_tax, total_ttc, invoice_count, status)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, "active")';
-        $this->db->execute($sql, [
-            $shopId,
-            $periodStart,
-            $periodEnd,
-            $nextCounter,
-            $data['total_ht'] ?? 0,
-            $data['total_tax'] ?? 0,
-            $data['total_ttc'] ?? 0,
-            $data['invoice_count'] ?? 0,
-        ]);
-
-        return $this->db->lastInsertId();
-    }
+    //
+    // ⚠️ Le Z LOCAL est DÉSACTIVÉ : la clôture de référence est celle de la
+    // DGI (`dgi_z_reports`, cf. `App\Models\DgiZReport`). La table
+    // `z_reports` n'est plus écrite : elle ne contient que l'historique des
+    // anciennes clôtures POS (affiché avec le badge « POS »).
+    //
+    // Conserver un second chemin d'écriture aurait permis de clôturer deux
+    // fois la même période (une fois côté POS, une fois côté DGI), donc de
+    // compter les mêmes ventes en double.
 
     // ── A-rapports ──────────────────────────────────────────────
 
@@ -89,6 +61,24 @@ class Report
         ]);
 
         return $this->db->lastInsertId();
+    }
+
+    /**
+     * Date de la première vente d'une boutique.
+     *
+     * Utilisée comme point de départ de la PREMIÈRE clôture DGI : sans cet
+     * ancrage, la période commencerait un an en arrière et engloberait des
+     * exercices antérieurs hors périmètre de la boutique.
+     *
+     * @return string|null
+     */
+    public function getFirstSaleDate($shopId)
+    {
+        $sql = 'SELECT MIN(v.date) as first_date FROM ventes v
+                WHERE (? IS NULL OR v.shop_id = ?)';
+        $result = $this->db->fetch($sql, [$shopId, $shopId]);
+
+        return ($result['first_date'] ?? null) ?: null;
     }
 
     // ── Ventes par type de facture ──────────────────────────────
