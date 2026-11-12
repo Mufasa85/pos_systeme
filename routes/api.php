@@ -6,6 +6,7 @@ use App\Controllers\AuthController;
 use App\Controllers\CategoryController;
 use App\Controllers\ClientController;
 use App\Controllers\CompanyInfoController;
+use App\Controllers\DashboardController;
 use App\Controllers\DgiSyncController;
 use App\Controllers\DgiWebhookController;
 use App\Controllers\NotificationController;
@@ -19,6 +20,7 @@ use App\Controllers\PayrollTimeClockController;
 use App\Controllers\PressingController;
 use App\Controllers\ProductBatchController;
 use App\Controllers\ProductController;
+use App\Controllers\ProductImportController;
 use App\Controllers\ReportController;
 use App\Controllers\SaleController;
 use App\Controllers\ServiceTypeController;
@@ -122,6 +124,10 @@ Router::get('/api/produit', [ProductController::class, 'find']);
 Router::post('/api/produit', [ProductController::class, 'create']);
 Router::post('/api/produit/update', [ProductController::class, 'update']);
 Router::post('/api/produit/delete', [ProductController::class, 'delete']);
+
+// Import de produits depuis un fichier Excel / CSV
+Router::post('/api/produit/import', [ProductImportController::class, 'import']);
+Router::get('/api/produit/import/template', [ProductImportController::class, 'template']);
 
 Router::get('/api/product-batches', [ProductBatchController::class, 'index']);
 Router::post('/api/product-batches', [ProductBatchController::class, 'create']);
@@ -823,10 +829,15 @@ Router::post('/api/feature-access/reset', function () {
         'message' => 'Cache réinitialisé',
     ]);
 });
-// ── Rapports Fiscaux (Z/X/A) ────────────────────────────
-Router::get('/api/reports/z-report', [ReportController::class, 'generateZReport']);
-Router::get('/api/reports/x-report/daily', [ReportController::class, 'generateXReportDaily']);
-Router::get('/api/reports/x-report/periodic', [ReportController::class, 'generateXReportPeriodic']);
+// ── Rapports Fiscaux (A) ────────────────────────────────
+//
+// ⚠️ Routes retirées :
+// - `/api/reports/z-report` (Z LOCAL) : la clôture de référence est
+//   désormais celle de la DGI (`POST /api/reports/dgi/z`). Conserver les deux
+//   aurait permis de clôturer deux fois la même période.
+// - `/api/reports/x-report/daily` et `/api/reports/x-report/periodic`
+//   (X LOCAL) : l'interface ne les expose plus, le X DGI
+//   (`GET /api/reports/dgi/x`) fait désormais foi.
 Router::get('/api/reports/a-report', [ReportController::class, 'generateAReport']);
 Router::get('/api/reports/a-history', [ReportController::class, 'getAReportHistory']);
 Router::get('/api/reports/history', [ReportController::class, 'getReportHistory']);
@@ -841,6 +852,13 @@ Router::get('/api/reports/dgi/z', [ReportController::class, 'generateDgiZReport'
 Router::post('/api/reports/dgi/z', [ReportController::class, 'generateDgiZClosure']);
 Router::get('/api/reports/dgi/z-history', [ReportController::class, 'getDgiZHistory']);
 
+// ── Tableau de bord : indicateurs DGI/OSAT (jour, semaine, mois) ──
+//
+// Remplace les agrégats SQL locaux par les montants officiels DGI.
+// ⚠️ 3 périodes = 3 appels provider (~1,7 s chacun) : la page ne doit pas
+// attendre, le frontend injecte les valeurs après le rendu.
+Router::get('/api/dashboard/dgi-stats', [DashboardController::class, 'dgiStats']);
+
 // ── Module Pressing — suivi des commandes de pressing ───
 // Référence : docs/PLAN_PRESSING.md
 //
@@ -849,14 +867,14 @@ Router::get('/api/reports/dgi/z-history', [ReportController::class, 'getDgiZHist
 // /recharges et /hotel) :
 // voir Controller::requireShopPressingAccess().
 //
-Router::get('/api/pressing/stats',                    [PressingController::class, 'stats']);
-Router::get('/api/pressing/commandes',                [PressingController::class, 'index']);
-Router::get('/api/pressing/commandes/[i:id]',         [PressingController::class, 'show']);
-Router::post('/api/pressing/commandes',               [PressingController::class, 'store']);
+Router::get('/api/pressing/stats', [PressingController::class, 'stats']);
+Router::get('/api/pressing/commandes', [PressingController::class, 'index']);
+Router::get('/api/pressing/commandes/[i:id]', [PressingController::class, 'show']);
+Router::post('/api/pressing/commandes', [PressingController::class, 'store']);
 Router::post('/api/pressing/commandes/[i:id]/advance-all', [PressingController::class, 'advanceAll']);
-Router::post('/api/pressing/commandes/[i:id]/pay',         [PressingController::class, 'pay']);
-Router::post('/api/pressing/commandes/[i:id]/delete',      [PressingController::class, 'destroy']);
-Router::post('/api/pressing/articles/[i:id]/advance',      [PressingController::class, 'advance']);
-Router::post('/api/pressing/articles/[i:id]/recede',        [PressingController::class, 'recede']);
-Router::post('/api/pressing/facture/lookup',           [PressingController::class, 'lookupFacture']);
-Router::get('/api/pressing/ventes-sans-commande',      [PressingController::class, 'ventesSansCommande']);
+Router::post('/api/pressing/commandes/[i:id]/pay', [PressingController::class, 'pay']);
+Router::post('/api/pressing/commandes/[i:id]/delete', [PressingController::class, 'destroy']);
+Router::post('/api/pressing/articles/[i:id]/advance', [PressingController::class, 'advance']);
+Router::post('/api/pressing/articles/[i:id]/recede', [PressingController::class, 'recede']);
+Router::post('/api/pressing/facture/lookup', [PressingController::class, 'lookupFacture']);
+Router::get('/api/pressing/ventes-sans-commande', [PressingController::class, 'ventesSansCommande']);
