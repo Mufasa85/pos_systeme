@@ -6,10 +6,7 @@ const ReportsManager = {
     },
 
     bindEvents() {
-        document.getElementById('btn-z-report')?.addEventListener('click', () => this.generateZ());
         document.getElementById('btn-a-report')?.addEventListener('click', () => this.generateA());
-        document.getElementById('btn-x-daily')?.addEventListener('click', () => this.generateXD());
-        document.getElementById('btn-x-periodic')?.addEventListener('click', () => this.generateXP());
         document.getElementById('btn-dgi-x-report')?.addEventListener('click', () => this.generateDgiX());
         document.getElementById('btn-dgi-z-report')?.addEventListener('click', () => this.generateDgiZ());
         document.getElementById('btn-dgi-z-closure')?.addEventListener('click', () => this.closeDgiZ());
@@ -33,23 +30,9 @@ const ReportsManager = {
         return url + (url.includes('?') ? '&' : '?') + 'shop_id=' + encodeURIComponent(shopId);
     },
 
-    generateZ() {
-        if (!confirm('Generer un Z-rapport va cloturer la periode. Continuer ?')) return;
-        this.fetch(this.withShopParam('/api/reports/z-report'), 'Z-rapport');
-    },
-
     generateA() {
         if (!confirm('Generer un A-rapport va cloturer la periode articles. Continuer ?')) return;
         this.fetch(this.withShopParam('/api/reports/a-report'), 'A-rapport (detail articles)');
-    },
-
-    generateXD() { this.fetch(this.withShopParam('/api/reports/x-report/daily'), 'X-rapport quotidien'); },
-
-    generateXP() {
-        const from = document.getElementById('report-from')?.value;
-        const to = document.getElementById('report-to')?.value;
-        if (!from || !to) { alert('Selectionnez une periode.'); return; }
-        this.fetch(this.withShopParam(`/api/reports/x-report/periodic?from=${from}&to=${to}`), 'X-rapport periodique');
     },
 
     initDgiDates() {
@@ -156,6 +139,8 @@ const ReportsManager = {
                 throw new Error(payload?.message || payload?.error || `Erreur HTTP ${response.status}.`);
             }
             this.display(payload.data, 'Clôture DGI / OSAT');
+            // L'historique des Z-rapports est fusionné (POS + DGI) : on le recharge.
+            this.loadHistory();
         } catch (e) {
             this.showDgiError(e.message || 'La clôture DGI a échoué.');
         }
@@ -289,15 +274,34 @@ const ReportsManager = {
                 </div>
             </div>`;
 
+        if (data.payments?.length) {
+            html += '<div class="rpt-section"><h4>Par mode de paiement</h4>';
+            html += '<table class="rpt-table"><thead><tr>'
+                + '<th>Mode</th><th style="text-align:right">Montant</th>'
+                + '</tr></thead><tbody>';
+            data.payments.forEach((payment) => {
+                html += '<tr>'
+                    + `<td>${this.escapeHtml(payment.label || payment.code)}`
+                    + `<br><small style="color:var(--muted)">${this.escapeHtml(payment.code)}</small></td>`
+                    + `<td style="text-align:right">${this.money(payment.total)}</td>`
+                    + '</tr>';
+            });
+            html += '</tbody></table></div>';
+        }
+
         if (data.by_invoice_type?.length) {
             html += '<div class="rpt-section"><h4>Par type de facture</h4>';
             html += '<table class="rpt-table"><thead><tr>'
                 + '<th>Type</th><th style="text-align:right">Factures</th>'
                 + '<th style="text-align:right">HT</th><th style="text-align:right">TVA</th>'
                 + '<th style="text-align:right">TS</th><th style="text-align:right">TTC</th>'
-                + '<th style="text-align:right">Remise</th></tr></thead><tbody>';
+                + '<th style="text-align:right">Remise</th>'
+                + '<th>Paiements</th></tr></thead><tbody>';
             data.by_invoice_type.forEach((type) => {
                 const typeTotals = type.totals || {};
+                const payments = (type.payments || [])
+                    .map((p) => `${p.label || p.code} : ${this.money(p.total)}`)
+                    .join('<br>');
                 html += '<tr>'
                     + `<td><strong>${this.escapeHtml(type.type)}</strong><br><small style="color:var(--muted)">${this.escapeHtml(type.label || '')}</small></td>`
                     + `<td style="text-align:right">${this.number(typeTotals.invoice_count)}</td>`
@@ -306,6 +310,7 @@ const ReportsManager = {
                     + `<td style="text-align:right">${this.money(typeTotals.ts_total)}</td>`
                     + `<td style="text-align:right">${this.money(typeTotals.ttc)}</td>`
                     + `<td style="text-align:right">${this.money(typeTotals.discount_total)}</td>`
+                    + `<td><small>${payments || '—'}</small></td>`
                     + '</tr>';
             });
             html += '</tbody></table></div>';
@@ -328,7 +333,7 @@ const ReportsManager = {
                     + `<td><strong>${this.escapeHtml(group.code)}</strong></td>`
                     + `<td>${this.escapeHtml(group.label || '')}</td>`
                     + `<td style="text-align:right">${this.percent(group.rate)}</td>`
-                    + `<td style="text-align:right">${this.money(group.amount)}</td>`
+                    + `<td style="text-align:right">${this.money(group.amount - group.tva)}</td>`
                     + `<td style="text-align:right">${this.money(group.tva)}</td>`
                     + `<td style="text-align:right">${this.money(group.ts)}</td>`
                     + '</tr>';
@@ -594,7 +599,7 @@ const ReportsManager = {
                 this._histData.z = resp.data;
                 this._histPage.z = 1;
                 this.renderHistoryPage('z');
-            }).catch(() => {});
+            }).catch(() => { });
         }
 
         const aList = document.getElementById('a-report-history-list');
@@ -604,17 +609,25 @@ const ReportsManager = {
                 this._histData.a = resp.data;
                 this._histPage.a = 1;
                 this.renderHistoryPage('a');
-            }).catch(() => {});
+            }).catch(() => { });
         }
     },
 
     renderHistoryPage(type) {
-        const container = document.getElementById(type === 'z' ? 'report-history-list' : 'a-report-history-list');
+        const containers = {
+            z: 'report-history-list',
+            a: 'a-report-history-list'
+        };
+        const container = document.getElementById(containers[type]);
         if (!container) return;
 
-        const data = this._histData[type];
+        const data = this._histData[type] || [];
         if (!data.length) {
-            container.innerHTML = `<p class="rpt-history-empty">Aucun ${type === 'z' ? 'Z' : 'A'}-rapport genere.</p>`;
+            const labels = {
+                z: 'Aucun Z-rapport genere.',
+                a: 'Aucun A-rapport genere.'
+            };
+            container.innerHTML = `<p class="rpt-history-empty">${labels[type] || 'Aucun rapport.'}</p>`;
             return;
         }
 
@@ -633,9 +646,27 @@ const ReportsManager = {
         if (type === 'z') {
             html += `<thead><tr><th>#</th>${shopHeader}<th>Date</th><th>Periode</th><th style="text-align:right">TTC</th><th style="text-align:right">Factures</th></tr></thead><tbody>`;
             pageItems.forEach(z => {
-                html += `<tr><td><strong>${z.counter}</strong></td>${shopCell(z)}<td>${z.issued_at}</td>
+                const originBadge = z.origin === 'dgi'
+                    ? '<span class="rpt-origin-badge rpt-origin-dgi">DGI</span>'
+                    : '<span class="rpt-origin-badge rpt-origin-local" title="Ancienne cloture POS (desactivee)">POS</span>';
+                const legacyNote = z.legacy
+                    ? '<br><small style="color:var(--muted);font-size:0.68rem">archive POS</small>'
+                    : '';
+                html += `<tr><td><strong>${z.counter}</strong><br>${originBadge}${legacyNote}</td>${shopCell(z)}<td>${z.issued_at}</td>
                     <td>${z.period_start}<br><span style="color:var(--muted);font-size:0.75rem">&rarr; ${z.period_end}</span></td>
                     <td style="text-align:right">${this.money(z.total_ttc)}</td><td style="text-align:right">${z.invoice_count}</td></tr>`;
+            });
+        } else if (type === 'dgi') {
+            html += `<thead><tr><th>#</th>${shopHeader}<th>Clôturé le</th><th>Periode</th><th style="text-align:right">HT</th><th style="text-align:right">TTC</th><th style="text-align:right">Factures</th></tr></thead><tbody>`;
+            pageItems.forEach(z => {
+                const statusBadge = z.status === 'active'
+                    ? '<span style="color:#059669;font-weight:700">active</span>'
+                    : '<span style="color:var(--muted)">archivée</span>';
+                html += `<tr><td><strong>${z.counter}</strong></td>${shopCell(z)}<td>${z.issued_at}<br><small style="color:var(--muted);font-size:0.72rem">${statusBadge}</small></td>
+                    <td>${z.period_start}<br><span style="color:var(--muted);font-size:0.75rem">&rarr; ${z.period_end}</span></td>
+                    <td style="text-align:right">${this.money(z.total_ht)}</td>
+                    <td style="text-align:right">${this.money(z.total_ttc)}</td>
+                    <td style="text-align:right">${z.invoice_count}</td></tr>`;
             });
         } else {
             html += `<thead><tr><th>#</th>${shopHeader}<th>Date</th><th>Periode</th><th style="text-align:right">Articles</th><th style="text-align:right">Qte</th><th style="text-align:right">Montant</th></tr></thead><tbody>`;
