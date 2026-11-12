@@ -40,3 +40,74 @@ if (is_file(__DIR__ . '/config.local.php')) {
 }
 
 define('DGI_WEBHOOK_TOKEN', (string)$dgiWebhookToken);
+
+// ── Rapports DGI via OSAT ─────────────────────────────────────
+//
+// Configuration de la lecture des agrégats fiscaux DGI. Les valeurs
+// sensibles peuvent être injectées par variables d'environnement ou par
+// config/config.local.php (chargé plus haut dans ce fichier).
+if (!defined('DGI_REPORT_ENABLED')) {
+    $dgiReportEnabled = getenv('DGI_REPORT_ENABLED');
+    define(
+        'DGI_REPORT_ENABLED',
+        $dgiReportEnabled === false ? true : filter_var($dgiReportEnabled, FILTER_VALIDATE_BOOL)
+    );
+}
+
+if (!defined('DGI_REPORT_API_URL')) {
+    $dgiReportApiUrl = getenv('DGI_REPORT_API_URL');
+    define(
+        'DGI_REPORT_API_URL',
+        $dgiReportApiUrl !== false && $dgiReportApiUrl !== ''
+            ? $dgiReportApiUrl
+            : 'https://osat-energie.com/dgi/rapport/index.php'
+    );
+}
+
+if (!defined('DGI_REPORT_API_TOKEN')) {
+    $dgiReportApiToken = getenv('DGI_REPORT_API_TOKEN');
+    define('DGI_REPORT_API_TOKEN', $dgiReportApiToken !== false ? $dgiReportApiToken : '');
+}
+
+if (!defined('DGI_REPORT_CONNECT_TIMEOUT')) {
+    $dgiReportConnectTimeout = getenv('DGI_REPORT_CONNECT_TIMEOUT');
+    define(
+        'DGI_REPORT_CONNECT_TIMEOUT',
+        $dgiReportConnectTimeout !== false && ctype_digit((string)$dgiReportConnectTimeout)
+            ? max(1, (int)$dgiReportConnectTimeout)
+            : 5
+    );
+}
+
+// Fuseau horaire de la boutique : heure de référence des factures POS.
+// La DGI horodate ses factures en UTC, donc les périodes demandées au
+// provider sont converties depuis ce fuseau (Kinshasa = UTC+1).
+if (!defined('DGI_REPORT_TIMEZONE')) {
+    $dgiReportTimezone = getenv('DGI_REPORT_TIMEZONE');
+    define(
+        'DGI_REPORT_TIMEZONE',
+        $dgiReportTimezone !== false && $dgiReportTimezone !== ''
+            ? $dgiReportTimezone
+            : 'Africa/Kinshasa'
+    );
+}
+
+// Fuseau des PÉRIODES construites par le tableau de bord.
+//
+// ⚠️ Distinct de `DGI_REPORT_TIMEZONE` : ici, on suit l'HORLOGE DU SERVEUR
+// (Europe/Berlin par défaut => UTC+1), pas l'heure de Kinshasa.
+//
+// Les bornes restent converties en UTC avant l'appel provider : le provider
+// indexe en UTC et ne comprend pas les offsets explicites (`+01:00` =>
+// réponse illisible, mesuré). Sans cette conversion, la période demandée
+// serait décalée d'une heure et la première heure de chaque journée serait
+// perdue.
+if (!defined('DGI_REPORT_REQUEST_TIMEZONE')) {
+    $dgiReportRequestTimezone = getenv('DGI_REPORT_REQUEST_TIMEZONE');
+    define(
+        'DGI_REPORT_REQUEST_TIMEZONE',
+        $dgiReportRequestTimezone !== false && $dgiReportRequestTimezone !== ''
+            ? $dgiReportRequestTimezone
+            : date_default_timezone_get()
+    );
+}

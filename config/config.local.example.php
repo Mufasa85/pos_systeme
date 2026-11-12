@@ -59,3 +59,35 @@ if (!defined('APP_URL')) {
 // doit se trouver.
 define('DGI_WEBHOOK_TOKEN', '');
 
+// ── Rapports DGI via OSAT ─────────────────────────────────────
+//
+// Laisser DGI_REPORT_API_TOKEN vide tant que le provider n'exige pas de
+// jeton. Si un jeton est fourni, OSAT le reçoit dans l'en-tête
+// `X-DGI-Token` sur la route de rapport.
+if (!defined('DGI_REPORT_ENABLED')) {
+    define('DGI_REPORT_ENABLED', true);
+}
+if (!defined('DGI_REPORT_API_URL')) {
+    define('DGI_REPORT_API_URL', 'https://osat-energie.com/dgi/rapport/index.php');
+}
+if (!defined('DGI_REPORT_API_TOKEN')) {
+    define('DGI_REPORT_API_TOKEN', '');
+}
+if (!defined('DGI_REPORT_CONNECT_TIMEOUT')) {
+    define('DGI_REPORT_CONNECT_TIMEOUT', 5);
+}
+
+// Fuseau horaire de la boutique (heure de référence des factures POS).
+// La DGI indexe ses factures en UTC : les périodes demandées au provider
+// sont converties depuis ce fuseau.
+if (!defined('DGI_REPORT_TIMEZONE')) {
+    define('DGI_REPORT_TIMEZONE', 'Africa/Kinshasa');
+}
+
+// Fuseau des PÉRIODES du tableau de bord : horloge du serveur (UTC+1).
+// ⚠️ Les bornes restent converties en UTC avant l'appel provider : le
+// provider n'accepte pas les offsets explicites.
+if (!defined('DGI_REPORT_REQUEST_TIMEZONE')) {
+    define('DGI_REPORT_REQUEST_TIMEZONE', 'Europe/Berlin');
+}
+
