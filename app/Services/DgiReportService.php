@@ -53,6 +53,15 @@ class DgiReportService
     ];
 
     /**
+     * Types de rapport acceptés par le provider OSAT.
+     *
+     * Le provider distingue le X (période personnalisée, en lecture seule) du
+     * Z (période de clôture) via le paramètre `rapport=` de l'URL.
+     */
+    public const REPORT_TYPE_X = 'x';
+    public const REPORT_TYPE_Z = 'z';
+
+    /**
      * Modes de paiement DGI, avec leur libellé lisible.
      *
      * Le provider renvoie les modes sous forme de clés techniques
@@ -91,6 +100,9 @@ class DgiReportService
      *                          depuis `shops.token` / `company_info.token`).
      * @param \DateTimeZone|null $sourceTimezone Fuseau des bornes de période
      *                          (null = fuseau de la boutique).
+     * @param string $reportType Type de rapport provider (`x` ou `z`).
+     * @param bool $superAdmin Le provider doit-il agréger les boutiques
+     *                         gérées par le super_admin ?
      *
      * @return array{totals: array, tax_groups: array, by_invoice_type: array, warnings: array}
      */
@@ -100,7 +112,9 @@ class DgiReportService
         string $endDate,
         array $types = [],
         ?string $token = null,
-        ?\DateTimeZone $sourceTimezone = null
+        ?\DateTimeZone $sourceTimezone = null,
+        string $reportType = self::REPORT_TYPE_X,
+        bool $superAdmin = false
     ): array {
         if (!$this->isEnabled()) {
             throw new DgiReportException(
@@ -119,7 +133,15 @@ class DgiReportService
             );
         }
 
-        $url = $this->buildProviderUrl($nif, $startDate, $endDate, $token, $sourceTimezone);
+        $url = $this->buildProviderUrl(
+            $nif,
+            $startDate,
+            $endDate,
+            $token,
+            $sourceTimezone,
+            $reportType,
+            $superAdmin
+        );
 
         $startedAt = microtime(true);
         try {
@@ -263,6 +285,28 @@ class DgiReportService
     }
 
     /**
+     * Type de rapport provider porté par une requête de lot.
+     *
+     * @param array<int, array<string, mixed>> $request
+     */
+    private function readRequestReportType(array $request): string
+    {
+        $type = isset($request['report_type']) ? (string)$request['report_type'] : '';
+
+        return $type === '' ? self::REPORT_TYPE_X : $type;
+    }
+
+    /**
+     * Le lot doit-il être agrégé par le provider (super_admin) ?
+     *
+     * @param array<int, array<string, mixed>> $request
+     */
+    private function readRequestSuperAdmin(array $request): bool
+    {
+        return !empty($request['super_admin']);
+    }
+
+    /**
      * Appels séquentiels (transport injecté ou cURL multi indisponible).
      *
      * @param array<int, array{nif: string, start: string, end: string}> $requests
@@ -280,7 +324,9 @@ class DgiReportService
                     isset($request['token']) ? (string)$request['token'] : null,
                     isset($request['timezone']) && $request['timezone'] instanceof \DateTimeZone
                         ? $request['timezone']
-                        : null
+                        : null,
+                    $this->readRequestReportType($request),
+                    $this->readRequestSuperAdmin($request)
                 );
                 $results[$index] = ['report' => $report, 'error' => null];
             } catch (DgiReportException $e) {
@@ -318,7 +364,9 @@ class DgiReportService
                 isset($request['token']) ? (string)$request['token'] : null,
                 isset($request['timezone']) && $request['timezone'] instanceof \DateTimeZone
                     ? $request['timezone']
-                    : null
+                    : null,
+                $this->readRequestReportType($request),
+                $this->readRequestSuperAdmin($request)
             );
             $ch = curl_init($url);
             curl_setopt_array($ch, $this->buildCurlOptions($timeoutSeconds));
@@ -422,7 +470,9 @@ class DgiReportService
                     isset($request['token']) ? (string)$request['token'] : null,
                     isset($request['timezone']) && $request['timezone'] instanceof \DateTimeZone
                         ? $request['timezone']
-                        : null
+                        : null,
+                    $this->readRequestReportType($request),
+                    $this->readRequestSuperAdmin($request)
                 );
                 return ['report' => $report, 'error' => null];
             } catch (DgiReportException $e) {
@@ -460,13 +510,21 @@ class DgiReportService
      * Le token d'accès de la boutique (paramètre `token=`) est ajouté s'il est
      * connu — même convention que la facturation OSAT
      * (`DgiSyncService::fetchFacture`).
+     *
+     * @param string $reportType Type de rapport provider (`x` ou `z`).
+     * @param bool $superAdmin Ajouter `super_admin=true` : le provider renvoie
+     *                         alors les données de TOUTES les boutiques gérées
+     *                         par le super_admin (agrégation côté provider,
+     *                         sans boucle HTTP côté POS).
      */
     public function buildProviderUrl(
         string $nif,
         string $startDate,
         string $endDate,
         ?string $token = null,
-        ?\DateTimeZone $sourceTimezone = null
+        ?\DateTimeZone $sourceTimezone = null,
+        string $reportType = self::REPORT_TYPE_X,
+        bool $superAdmin = false
     ): string {
         $baseUrl = defined('DGI_REPORT_API_URL')
             ? (string)constant('DGI_REPORT_API_URL')
@@ -476,7 +534,12 @@ class DgiReportService
             . (str_contains($baseUrl, '?') ? '&' : '?')
             . 'nif=' . rawurlencode(trim($nif))
             . '&debut=' . $this->encodeProviderValue($this->formatProviderDate($startDate, $sourceTimezone))
-            . '&fin=' . $this->encodeProviderValue($this->formatProviderDate($endDate, $sourceTimezone));
+            . '&fin=' . $this->encodeProviderValue($this->formatProviderDate($endDate, $sourceTimezone))
+            . '&rapport=' . rawurlencode($this->normalizeProviderReportType($reportType));
+
+        if ($superAdmin) {
+            $url .= '&super_admin=true';
+        }
 
         $token = $token ?? $this->resolveToken($nif);
         if ($token !== '') {
@@ -484,6 +547,19 @@ class DgiReportService
         }
 
         return $url;
+    }
+
+    /**
+     * Normalise le type de rapport provider.
+     *
+     * Seuls `x` et `z` sont acceptés : toute autre valeur retombe sur `x`
+     * (le rapport en lecture seule, le plus courant).
+     */
+    private function normalizeProviderReportType(string $reportType): string
+    {
+        $type = strtolower(trim($reportType));
+
+        return $type === self::REPORT_TYPE_Z ? self::REPORT_TYPE_Z : self::REPORT_TYPE_X;
     }
 
     /**
