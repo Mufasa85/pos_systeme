@@ -718,8 +718,15 @@ class ProductImportService
     private function loadCategories($shopId): array
     {
         $categories = [];
+        if (!$shopId) {
+            // Sans boutique de destination, on ne charge AUCUNE catégorie :
+            // sinon l'import pourrait rattacher un produit à la catégorie
+            // d'une AUTRE boutique (ou à une catégorie orpheline).
+            return $categories;
+        }
+
         try {
-            $rows = $this->categoryModel->all($shopId ?: null);
+            $rows = $this->categoryModel->all($shopId);
         } catch (\Throwable $e) {
             error_log('ProductImportService::loadCategories error: ' . $e->getMessage());
             return $categories;
