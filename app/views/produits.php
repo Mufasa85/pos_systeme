@@ -4,6 +4,14 @@
           <h2>Gestion des produits</h2>
           <?php if (isset($_SESSION['role']) && in_array($_SESSION['role'], ['admin', 'super_admin'], true)): ?>
             <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;">
+              <button id="export-products-btn" class="btn btn-secondary" onclick="exportProductsToExcel()">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                  <polyline points="7 10 12 15 17 10"></polyline>
+                  <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+                Exporter (Excel)
+              </button>
               <button id="import-products-btn" class="btn btn-secondary" onclick="openProductImportModal()">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
@@ -139,8 +147,26 @@
           <div class="pi-body">
             <!-- Étape 1 : choix du fichier -->
             <div id="product-import-step-form">
+              <?php if (($_SESSION['role'] ?? '') === 'super_admin'): ?>
+                <div class="pi-section">
+                  <h4 class="pi-section-title">1. Boutique de destination</h4>
+                  <div class="pi-field">
+                    <label for="product-import-shop">Boutique qui va accueillir les produits</label>
+                    <select id="product-import-shop" required onchange="onProductImportShopChanged()">
+                      <option value="">— Choisir une boutique —</option>
+                      <?php foreach ($shops ?? [] as $shop): ?>
+                        <option value="<?= (int)$shop['id'] ?>" <?= empty($shop['actif']) ? 'disabled' : '' ?>>
+                          <?= htmlspecialchars($shop['nom']) ?><?= empty($shop['actif']) ? ' (désactivée)' : '' ?>
+                        </option>
+                      <?php endforeach; ?>
+                    </select>
+                    <small class="pi-hint">Obligatoire : les produits seront rattachés à cette boutique.</small>
+                  </div>
+                </div>
+              <?php endif; ?>
+
               <div class="pi-section">
-                <h4 class="pi-section-title">1. Fichier à importer</h4>
+                <h4 class="pi-section-title"><?= ($_SESSION['role'] ?? '') === 'super_admin' ? '2' : '1' ?>. Fichier à importer</h4>
                 <label class="pi-file-label" for="product-import-file">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
@@ -154,7 +180,7 @@
               </div>
 
               <div class="pi-section">
-                <h4 class="pi-section-title">2. Options</h4>
+                <h4 class="pi-section-title"><?= ($_SESSION['role'] ?? '') === 'super_admin' ? '3' : '2' ?>. Options</h4>
 
                 <div class="pi-field">
                   <label for="product-import-mode">Si le produit existe déjà</label>

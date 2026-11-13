@@ -92,7 +92,20 @@
             <input type="hidden" id="user-id" name="id" value="">
             <div style="margin-bottom: 1rem;">
               <label for="user-agent-code" style="font-size: 0.75rem; font-weight: 600; color: var(--muted); display: block; margin-bottom: 4px;">Code Agent</label>
-              <input type="text" id="user-agent-code" name="agent_code" class="client-number-input" style="width: 100%;" placeholder="Ex: AG001">
+              <div style="display: flex; gap: 8px; align-items: stretch;">
+                <input type="text" id="user-agent-code" name="agent_code" class="client-number-input" style="flex: 1; width: auto;" placeholder="Ex: AF1234" maxlength="50">
+                <button type="button" class="btn btn-secondary btn-small" onclick="refreshAgentCode()" title="Générer un code agent aléatoire" style="white-space: nowrap; display: flex; align-items: center; gap: 6px;">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle;">
+                    <polyline points="16 3 21 3 21 8"></polyline>
+                    <line x1="4" y1="20" x2="21" y2="3"></line>
+                    <polyline points="21 16 21 21 16 21"></polyline>
+                    <line x1="15" y1="15" x2="21" y2="21"></line>
+                    <line x1="4" y1="4" x2="9" y2="9"></line>
+                  </svg>
+                  Générer
+                </button>
+              </div>
+              <div style="font-size: 0.7rem; color: var(--muted); margin-top: 4px;">Généré automatiquement au format AFxxxx (4 chiffres aléatoires).</div>
             </div>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 1rem;">
               <div>
