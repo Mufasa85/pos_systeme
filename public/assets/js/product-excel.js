@@ -16,6 +16,18 @@ function openProductImportModal() {
     if (fileLabel) fileLabel.classList.remove('is-selected');
     if (fileName) fileName.textContent = 'Choisir un fichier…';
 
+    // Super_admin : réinitialise la boutique de destination et les
+    // catégories (qui dépendent de la boutique choisie).
+    const shopSelect = document.getElementById('product-import-shop');
+    if (shopSelect) {
+        shopSelect.value = '';
+        const categorySelect = document.getElementById('product-import-default-category');
+        if (categorySelect) {
+            categorySelect.innerHTML = '<option value="">Aucune</option>';
+            categorySelect.disabled = false;
+        }
+    }
+
     const formStep = document.getElementById('product-import-step-form');
     const resultStep = document.getElementById('product-import-step-result');
     if (formStep) formStep.style.display = '';
@@ -46,6 +58,43 @@ function onProductImportFileSelected() {
     }
 }
 
+/**
+ * Super_admin : recharge les catégories disponibles quand la boutique de
+ * destination change (les catégories sont propres à chaque boutique).
+ */
+async function onProductImportShopChanged() {
+    const shopSelect = document.getElementById('product-import-shop');
+    const categorySelect = document.getElementById('product-import-default-category');
+    if (!shopSelect || !categorySelect) return;
+
+    const shopId = shopSelect.value;
+
+    // Vide la liste le temps du chargement.
+    categorySelect.innerHTML = '<option value="">Aucune</option>';
+    categorySelect.disabled = true;
+
+    if (!shopId) return;
+
+    try {
+        const res = await fetch(APP_URL + '/api/produit/import/categories?shop_id=' + encodeURIComponent(shopId));
+        const categories = await res.json();
+
+        if (!Array.isArray(categories)) return;
+
+        categorySelect.innerHTML = '<option value="">Aucune</option>';
+        categories.forEach(cat => {
+            const option = document.createElement('option');
+            option.value = cat.id;
+            option.textContent = cat.category;
+            categorySelect.appendChild(option);
+        });
+        categorySelect.disabled = false;
+    } catch (e) {
+        console.error('Erreur chargement catégories:', e);
+        categorySelect.disabled = false;
+    }
+}
+
 function closeProductImportModal() {
     const modal = document.getElementById('product-import-modal');
     if (modal) modal.classList.remove('active');
@@ -56,6 +105,40 @@ function closeProductImportModal() {
  */
 function downloadProductImportTemplate() {
     window.location.href = APP_URL + '/api/produit/import/template';
+}
+
+/**
+ * Exporte les produits affichés dans un fichier Excel.
+ *
+ * Les filtres actifs de la page (recherche, catégorie, boutique) sont
+ * transmis au serveur : le fichier contient exactement les produits
+ * visibles dans le tableau.
+ */
+function exportProductsToExcel() {
+    const params = new URLSearchParams();
+
+    const search = document.getElementById('products-filter');
+    if (search && search.value.trim()) {
+        params.set('search', search.value.trim());
+    }
+
+    const category = document.getElementById('category-filter');
+    if (category && category.value && category.value !== 'all') {
+        params.set('category', category.value);
+    }
+
+    const shop = document.getElementById('shop-filter');
+    if (shop && shop.value && shop.value !== 'all') {
+        params.set('shop_id', shop.value);
+    }
+
+    const includeInactive = document.getElementById('include-inactive-shops');
+    if (includeInactive && includeInactive.checked) {
+        params.set('include_inactive', '1');
+    }
+
+    const query = params.toString();
+    window.location.href = APP_URL + '/api/produit/export' + (query ? '?' + query : '');
 }
 
 /**
@@ -82,6 +165,20 @@ async function submitProductImport() {
     fd.append('tax_id', document.getElementById('product-import-default-tax')?.value || '0');
     if (document.getElementById('product-import-create-categories')?.checked) {
         fd.append('create_categories', '1');
+    }
+
+    // Super_admin : boutique de destination (obligatoire).
+    const shopSelect = document.getElementById('product-import-shop');
+    if (shopSelect) {
+        if (!shopSelect.value) {
+            alert('Veuillez choisir la boutique de destination des produits.');
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalHtml;
+            }
+            return;
+        }
+        fd.append('shop_id', shopSelect.value);
     }
 
     try {
