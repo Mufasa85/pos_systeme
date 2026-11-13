@@ -82,11 +82,8 @@ const ReportsManager = {
             this.showDgiError('La date de début doit précéder la date de fin.');
             return;
         }
-        if (this.isDgiSuperAdmin() && !this.getShopId()) {
-            this.showDgiError('Sélectionnez une boutique avant de générer le rapport DGI.');
-            return;
-        }
-
+        // ⚠️ Aucune boutique n'est imposee : cote super_admin, « Toutes les
+        // boutiques » demande l'agregat au provider (parametre `super_admin=true`).
         const url = this.withShopParam(
             `/api/reports/dgi/x?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`
         );
@@ -94,10 +91,8 @@ const ReportsManager = {
     },
 
     generateDgiZ() {
-        if (this.isDgiSuperAdmin() && !this.getShopId()) {
-            this.showDgiError('Sélectionnez une boutique avant de générer le rapport DGI.');
-            return;
-        }
+        // ⚠️ Aucune boutique n'est imposee : cote super_admin, « Toutes les
+        // boutiques » demande l'agregat au provider (parametre `super_admin=true`).
         this.fetchDgi(
             this.withShopParam('/api/reports/dgi/z'),
             'Rapport DGI / OSAT — période Z à clôturer'
