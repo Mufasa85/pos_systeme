@@ -13,18 +13,68 @@ class Product
 
     public function getAll($shopId = null, $includeInactiveShops = false)
     {
+        return $this->getAllFiltered($shopId, $includeInactiveShops);
+    }
+
+    /**
+     * Liste les produits avec des filtres optionnels.
+     *
+     * Filtres acceptés :
+     *   - search    : recherche sur le nom ou le code-barres (LIKE)
+     *   - category  : nom exact de la catégorie
+     *   - shop_id   : ID de la boutique (super_admin)
+     *
+     * @param int|string|null $shopId
+     * @param bool $includeInactiveShops
+     * @param array $filters
+     */
+    public function getAllFiltered($shopId = null, $includeInactiveShops = false, array $filters = [])
+    {
         $where = [];
         $params = [];
+
         if ($shopId) {
             $where[] = 'p.shop_id = ?';
             $params[] = $shopId;
         }
+
+        // Filtre boutique explicite (super_admin) : prime sur $shopId.
+        if (!empty($filters['shop_id'])) {
+            $where[] = 'p.shop_id = ?';
+            $params[] = (int)$filters['shop_id'];
+        }
+
+        // Filtre catégorie (le <select> de la page stocke le NOM).
+        // ⚠️ Quand une boutique est ciblée, on filtre aussi sur le shop_id
+        // de la catégorie : sinon deux boutiques portant la même
+        // catégorie seraient mélangées.
+        if (!empty($filters['category']) && $filters['category'] !== 'all') {
+            $where[] = 'c.category = ?';
+            $params[] = $filters['category'];
+
+            $targetShop = !empty($filters['shop_id']) ? (int)$filters['shop_id'] : $shopId;
+            if ($targetShop) {
+                $where[] = 'c.shop_id = ?';
+                $params[] = $targetShop;
+            }
+        }
+
+        // Recherche texte sur le nom ou le code-barres.
+        if (!empty($filters['search'])) {
+            $where[] = '(p.nom LIKE ? OR p.code_barres LIKE ?)';
+            $like = '%' . $filters['search'] . '%';
+            $params[] = $like;
+            $params[] = $like;
+        }
+
         // Filtrer par défaut les produits dont la boutique est désactivée.
         // Les produits sans shop rattaché (shop_id NULL) restent visibles.
         if (!$includeInactiveShops) {
             $where[] = '(s.id IS NULL OR s.actif = 1)';
         }
+
         $whereSql = $where ? 'WHERE ' . implode(' AND ', $where) : '';
+
         return $this->db->fetchAll("SELECT p.*, c.category AS categorie, t.taux AS tax_rate, t.etiquette AS tax_etiquette, s.nom AS shop_name, s.actif AS shop_actif,
                 COALESCE(SUM(pb.stock), 0) AS total_stock,
                 COALESCE(SUM(CASE WHEN pb.date_expiration IS NULL OR pb.date_expiration >= CURDATE() THEN pb.stock ELSE 0 END), 0) AS available_stock,
@@ -73,7 +123,7 @@ class Product
 
     public function findByImage($image)
     {
-        return $this->db->fetch("SELECT id, shop_id, image FROM produits WHERE image = :image", [':image' => $image]);
+        return $this->db->fetch('SELECT id, shop_id, image FROM produits WHERE image = :image', [':image' => $image]);
     }
 
     private function enrichWithBatchInfo($product)

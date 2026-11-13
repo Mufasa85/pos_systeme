@@ -201,6 +201,70 @@ class User
         ]);
     }
 
+    /**
+     * Vérifie si un code agent est déjà attribué à un utilisateur.
+     *
+     * La colonne `utilisateurs.agent_code` porte une contrainte UNIQUE.
+     * La comparaison est insensible à la casse (LOWER) pour coller au
+     * comportement de MySQL sur les collations CI, et rester prudent sur
+     * les collations binaires.
+     *
+     * @param int|null $exceptUserId Utilisateur à ignorer (édition en cours :
+     *                               son propre code n'est pas un conflit).
+     */
+    public function agentCodeExists(string $code, ?int $exceptUserId = null): bool
+    {
+        $code = trim($code);
+        if ($code === '') {
+            return false;
+        }
+
+        $sql = 'SELECT id FROM utilisateurs WHERE LOWER(agent_code) = LOWER(?)';
+        $params = [$code];
+        if ($exceptUserId !== null) {
+            $sql .= ' AND id <> ?';
+            $params[] = $exceptUserId;
+        }
+
+        $row = $this->db->fetch($sql . ' LIMIT 1', $params);
+        return !empty($row);
+    }
+
+    /**
+     * Suffixe numérique aléatoire du code agent (4 chiffres, zéro-padding).
+     *
+     * Isolé dans une méthode pour être surchargeable : les tests unitaires
+     * peuvent ainsi contrôler la séquence tirée et vérifier la boucle de
+     * ré-essai de generateAgentCode() de façon déterministe.
+     */
+    protected function randomAgentCodeSuffix(): string
+    {
+        return str_pad((string) random_int(0, 9999), 4, '0', STR_PAD_LEFT);
+    }
+
+    /**
+     * Génère un code agent LIBRE au format AFxxxx (lettres « AF » + 4 chiffres).
+     *
+     * L'espace de codes est de 10 000 valeurs : on ré-essaye tant que le
+     * code tiré est déjà attribué à un autre utilisateur (contrainte UNIQUE
+     * sur `utilisateurs.agent_code`).
+     *
+     * @return string|null Le code libre, ou null si aucun code n'a pu être
+     *                     trouvé après $maxAttempts tentatives.
+     */
+    public function generateAgentCode(int $maxAttempts = 200): ?string
+    {
+        for ($i = 0; $i < $maxAttempts; $i++) {
+            $code = 'AF' . $this->randomAgentCodeSuffix();
+            if (!$this->agentCodeExists($code)) {
+                return $code;
+            }
+        }
+
+        error_log('User::generateAgentCode - aucun code libre après ' . $maxAttempts . ' tentatives');
+        return null;
+    }
+
     // 🔹 Mise à jour d'un utilisateur
     public function update($id, $data)
     {
