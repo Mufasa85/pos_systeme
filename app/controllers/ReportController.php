@@ -34,6 +34,10 @@ class ReportController extends Controller
     }
 
     // GET /api/reports/dgi/x?from=YYYY-MM-DD&to=YYYY-MM-DD&types=FV,FT
+    //
+    // ⚠️ Côté super_admin, l'absence de `shop_id` signifie « Toutes les
+    // boutiques » : le provider agrège alors lui-même les données de toutes
+    // les boutiques gérées (paramètre `super_admin=true`).
     public function generateDgiXReport()
     {
         if (!$this->requireAdmin()) {
@@ -71,19 +75,27 @@ class ReportController extends Controller
     // Consultation (lecture seule) de la période DGI à clôturer : elle va de
     // la fin de la dernière clôture DGI jusqu'à maintenant. La clôture
     // elle-même est une POST (cf. generateDgiZClosure).
+    //
+    // ⚠️ Côté super_admin, l'absence de `shop_id` signifie « Toutes les
+    // boutiques » : la période est alors bornée par la plus ancienne des
+    // dernières clôtures, pour ne masquer aucune vente d'aucune boutique.
     public function generateDgiZReport()
     {
         if (!$this->requireAdmin()) {
             return;
         }
 
-        [$shop, $error] = $this->resolveDgiShop();
+        [$shop, $error] = $this->resolveDgiScope();
         if ($error !== null) {
             $this->respondDgiError($error);
             return;
         }
 
-        [$periodStart, $periodEnd] = $this->resolveDgiZPeriod((int)$shop['id']);
+        if (!empty($shop['aggregate'])) {
+            [$periodStart, $periodEnd] = $this->resolveDgiAggregateZPeriod();
+        } else {
+            [$periodStart, $periodEnd] = $this->resolveDgiZPeriod((int)$shop['id']);
+        }
 
         $this->respondWithDgiReport($periodStart, $periodEnd, 'Z_DGI', $shop);
     }
@@ -289,6 +301,130 @@ class ReportController extends Controller
     }
 
     /**
+     * Résout le PÉRIMÈTRE du rapport DGI.
+     *
+     * Deux cas :
+     *
+     * - une boutique précise (admin, ou super_admin avec `?shop_id=`) ;
+     * - le périmètre agrégé « Toutes les boutiques » (super_admin sans
+     *   `?shop_id=`) : le provider interroge alors lui-même l'ensemble des
+     *   boutiques gérées (paramètre `super_admin=true`).
+     *
+     * ⚠️ Le périmètre agrégé repose sur l'ISF de l'ENTREPRISE
+     * (`company_info.isf`) : c'est l'identifiant porteur du `super_admin`
+     * côté provider.
+     *
+     * @return array{0: array|null, 1: array|null}
+     */
+    private function resolveDgiScope(): array
+    {
+        if (!$this->isSuperAdmin()) {
+            return $this->resolveDgiShop();
+        }
+
+        $requestedShopId = $_GET['shop_id'] ?? null;
+        if ($requestedShopId !== null && $requestedShopId !== '' && ctype_digit((string)$requestedShopId)) {
+            return $this->resolveDgiShop();
+        }
+
+        // Aucune boutique sélectionnée : périmètre agrégé.
+        $companyIsf = $this->resolveCompanyIsf();
+        if ($companyIsf === '') {
+            return [null, [
+                'success' => false,
+                'code' => 'dgi_report_missing_isf',
+                'message' => "L'ISF de l'entreprise n'est pas configuré.",
+            ]];
+        }
+
+        $companyInfo = $this->resolveCompanyInfo();
+
+        return [[
+            'id' => null,
+            'nom' => (string)($companyInfo['name'] ?? 'Toutes les boutiques'),
+            'isf' => $companyIsf,
+            'adresse' => (string)($companyInfo['address'] ?? ''),
+            'telephone' => (string)($companyInfo['phone'] ?? ''),
+            // Marque le périmètre : le provider doit agréger les boutiques.
+            'aggregate' => true,
+        ], null];
+    }
+
+    /**
+     * Lit l'ISF de l'entreprise (`company_info.isf`).
+     *
+     * C'est l'identifiant qui porte le rôle super_admin côté provider :
+     * il est donc indispensable au périmètre agrégé.
+     */
+    private function resolveCompanyIsf(): string
+    {
+        $companyInfo = $this->resolveCompanyInfo();
+
+        return trim((string)($companyInfo['isf'] ?? ''));
+    }
+
+    /**
+     * Lit la ligne `company_info` (id = 1).
+     *
+     * @return array<string, mixed>
+     */
+    private function resolveCompanyInfo(): array
+    {
+        try {
+            $companyInfo = (new \App\Models\CompanyInfo())->get();
+        } catch (\Throwable $e) {
+            error_log('[ReportController] Lecture company_info impossible: ' . $e->getMessage());
+            return [];
+        }
+
+        // `CompanyInfo::get()` renvoie `false` si la ligne id=1 n'existe pas.
+        return is_array($companyInfo) ? $companyInfo : [];
+    }
+
+    /**
+     * Période Z du périmètre AGRÉGÉ (« Toutes les boutiques »).
+     *
+     * La période démarre à la FIN de la clôture la plus ANCIENNE (parmi les
+     * dernières clôtures non vides de chaque boutique) : on ne masque ainsi
+     * aucune vente d'aucune boutique. À défaut de clôture connue, on ancre
+     * sur la première vente connue de l'ensemble des boutiques.
+     *
+     * @return array{0: string, 1: string}
+     */
+    private function resolveDgiAggregateZPeriod(): array
+    {
+        $periodStart = null;
+
+        try {
+            $closures = (new DgiZReport())->getLastClosurePerShop();
+            foreach ($closures as $closure) {
+                $periodEnd = (string)($closure['period_end'] ?? '');
+                if ($periodEnd === '') {
+                    continue;
+                }
+                if ($periodStart === null || $periodEnd < $periodStart) {
+                    $periodStart = $periodEnd;
+                }
+            }
+        } catch (\Throwable $e) {
+            error_log('[ReportController] Lecture des clotures DGI impossible: ' . $e->getMessage());
+        }
+
+        if ($periodStart === null) {
+            // Aucune clôture : on ancre sur la première vente connue.
+            $periodStart = $this->reportService->resolveFirstClosureStart(null);
+        }
+
+        // Arrondi à la minute : évite les chaînes de clôtures à la seconde.
+        $periodEnd = date('Y-m-d H:i:00');
+        if ($periodStart > $periodEnd) {
+            $periodStart = $periodEnd;
+        }
+
+        return [$periodStart, $periodEnd];
+    }
+
+    /**
      * Valide strictement une date au format SQL `Y-m-d`.
      */
     private function isValidDate(string $date): bool
@@ -343,7 +479,7 @@ class ReportController extends Controller
         @set_time_limit(0);
 
         if ($shop === null) {
-            [$resolvedShop, $error] = $this->resolveDgiShop();
+            [$resolvedShop, $error] = $this->resolveDgiScope();
             if ($error !== null) {
                 $this->respondDgiError($error);
                 return;
@@ -356,12 +492,26 @@ class ReportController extends Controller
             return;
         }
 
+        // Le provider distingue le X du Z via le paramètre `rapport=` :
+        // on le déduit du type de rapport interne.
+        $providerReportType = $reportType === 'Z_DGI'
+            ? DgiReportService::REPORT_TYPE_Z
+            : DgiReportService::REPORT_TYPE_X;
+
+        // Périmètre agrégé (« Toutes les boutiques ») : le provider
+        // agrège lui-même les données de toutes les boutiques gérées.
+        $isAggregate = !empty($shop['aggregate']);
+
         try {
             $report = $this->dgiReportService->getReport(
                 (string)$shop['isf'],
                 $periodStart,
                 $periodEnd,
-                $types
+                $types,
+                null,
+                null,
+                $providerReportType,
+                $isAggregate
             );
         } catch (DgiReportException $e) {
             $this->respondDgiError([
@@ -401,6 +551,7 @@ class ReportController extends Controller
                 'adresse' => (string)($shop['adresse'] ?? ''),
                 'telephone' => (string)($shop['telephone'] ?? ''),
                 'generated_at' => date('Y-m-d H:i:s'),
+                'aggregate' => !empty($shop['aggregate']),
                 'period_start' => $periodStart,
                 'period_end' => $periodEnd,
                 'official_closure' => false,

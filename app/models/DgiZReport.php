@@ -52,6 +52,38 @@ class DgiZReport
     }
 
     /**
+     * Dernière clôture DGI non vide DE CHAQUE boutique.
+     *
+     * Utilisé pour la consultation agrégée (« Toutes les boutiques » côté
+     * super_admin) : la période commune à démarrer est la plus ancienne des
+     * dernières clôtures, afin de ne masquer aucune vente d'aucune boutique.
+     *
+     * @return array<int, array{shop_id: int, period_end: string}>
+     */
+    public function getLastClosurePerShop(): array
+    {
+        $sql = 'SELECT shop_id, MAX(period_end) as period_end
+                FROM dgi_z_reports
+                WHERE status = "active" AND invoice_count > 0 AND shop_id IS NOT NULL
+                GROUP BY shop_id';
+        $rows = $this->db->fetchAll($sql);
+
+        $closures = [];
+        foreach ($rows as $row) {
+            $shopId = (int)($row['shop_id'] ?? 0);
+            if ($shopId <= 0 || empty($row['period_end'])) {
+                continue;
+            }
+            $closures[$shopId] = [
+                'shop_id' => $shopId,
+                'period_end' => (string)$row['period_end'],
+            ];
+        }
+
+        return $closures;
+    }
+
+    /**
      * Prochain numéro de clôture pour une boutique.
      */
     public function nextCounter(?int $shopId): int
