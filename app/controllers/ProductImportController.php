@@ -58,11 +58,43 @@ class ProductImportController extends Controller
             return;
         }
 
-        // Le super_admin peut cibler une autre boutique ; l'admin est forcé
-        // sur sa propre boutique (le paramètre est ignoré).
-        $shopId = $this->isSuperAdmin()
-            ? ($_POST['shop_id'] ?? null)
-            : $this->getShopId();
+        // ── Boutique de destination ──
+        //
+        // L'admin est verrouillé sur SA boutique : le paramètre `shop_id`
+        // est ignoré. Le super_admin doit choisir explicitement la boutique
+        // qui va accueillir les produits (sinon les produits seraient
+        // créés SANS boutique, donc invisibles dans le POS).
+        $shopId = null;
+
+        if ($this->isSuperAdmin()) {
+            $requestedShop = (int)($_POST['shop_id'] ?? 0);
+            if ($requestedShop <= 0) {
+                $this->status(400)->json([
+                    'error' => 'Veuillez choisir la boutique de destination des produits.',
+                ]);
+                return;
+            }
+
+            $shop = (new \App\Models\Shop())->findById($requestedShop);
+            if (!$shop) {
+                $this->status(400)->json(['error' => 'Boutique introuvable']);
+                return;
+            }
+            if (empty($shop['actif'])) {
+                $this->status(400)->json([
+                    'error' => 'La boutique « ' . ($shop['nom'] ?? '') . ' » est désactivée.',
+                ]);
+                return;
+            }
+
+            $shopId = $requestedShop;
+        } else {
+            $shopId = $this->getShopId();
+            if (!$shopId) {
+                $this->status(400)->json(['error' => 'Aucune boutique rattachée à votre compte']);
+                return;
+            }
+        }
 
         $options = [
             'mode' => ($_POST['mode'] ?? 'create') === 'update' ? 'update' : 'create',
@@ -120,6 +152,39 @@ class ProductImportController extends Controller
             error_log('ProductImportController::template error: ' . $e->getMessage());
             $this->status(500)->json(['error' => 'Génération du modèle impossible']);
         }
+    }
+
+    /**
+     * Renvoie les catégories disponibles pour une boutique donnée.
+     *
+     * Utilisé par le super_admin dans le modal d'import : les catégories
+     * proposées doivent être celles de la boutique de destination
+     * (sinon l'import crée des produits dans la mauvaise catégorie).
+     */
+    public function categories()
+    {
+        if (!$this->requireAdmin()) {
+            return;
+        }
+
+        $shopId = $this->getShopId();
+
+        if ($this->isSuperAdmin()) {
+            $requestedShop = (int)($_GET['shop_id'] ?? 0);
+            if ($requestedShop > 0) {
+                $shopId = $requestedShop;
+            }
+        }
+
+        $categories = (new \App\Models\Category())->all($shopId);
+
+        $this->json(array_map(function ($cat) {
+            return [
+                'id' => (int)$cat['id'],
+                'category' => $cat['category'],
+                'shop_id' => $cat['shop_id'] !== null ? (int)$cat['shop_id'] : null,
+            ];
+        }, $categories));
     }
 
     /**

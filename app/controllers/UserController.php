@@ -42,6 +42,12 @@ class UserController extends Controller
         $shopId = $this->isSuperAdmin() ? ($this->sanitaze($_POST['shop_id'] ?? null)) : $this->getShopId();
 
         $userModel = new \App\Models\User();
+
+        // Code agent : le front génère un code AFxxxx aléatoire, mais le
+        // serveur reste l'autorité : `utilisateurs.agent_code` est UNIQUE.
+        // Un code vide ou déjà attribué est donc remplacé par un code libre.
+        $agentCode = $this->resolveAgentCode($userModel, $agentCode);
+
         $userModel->create($username, $password, $fullname, $role, $actif, $agentCode, $shopId, $email, $telephone);
         $userId = \App\Core\Database::getInstance()->lastInsertId();
 
@@ -51,6 +57,41 @@ class UserController extends Controller
 
         $this->logAudit('create', 'utilisateur', $userId, ['username' => $username, 'role' => $role]);
         $this->json(['success' => true, 'message' => 'Utilisateur créé !']);
+    }
+
+    /**
+     * Détermine le code agent final à enregistrer (format AFxxxx).
+     *
+     * Le modal de création propose un code aléatoire AFxxxx généré côté
+     * navigateur. Cette méthode reste la source de vérité côté serveur :
+     *
+     *   - code vide → un code libre est généré ;
+     *   - code déjà attribué à un AUTRE utilisateur → un code libre est
+     *     généré (la colonne `utilisateurs.agent_code` est UNIQUE, l'INSERT
+     *     échouerait sinon avec une erreur SQL illisible côté interface) ;
+     *   - code libre → il est conservé tel quel (l'utilisateur peut le
+     *     saisir manuellement s'il le souhaite).
+     *
+     * @param string|null $code          Code soumis par le formulaire.
+     * @param int|null    $exceptUserId  Utilisateur à ignorer dans la
+     *                                    recherche de conflit (édition).
+     * @return string|null Le code à enregistrer, ou null si aucun code
+     *                     libre n'a pu être trouvé.
+     */
+    private function resolveAgentCode(\App\Models\User $userModel, ?string $code, ?int $exceptUserId = null): ?string
+    {
+        $code = trim((string) $code);
+
+        if ($code !== '' && !$userModel->agentCodeExists($code, $exceptUserId)) {
+            return $code;
+        }
+
+        $generated = $userModel->generateAgentCode();
+        if ($generated === null) {
+            error_log('UserController::resolveAgentCode - impossible de générer un code agent libre');
+        }
+
+        return $generated;
     }
 
     public function update()
@@ -128,6 +169,15 @@ class UserController extends Controller
         }
 
         $userModel = new \App\Models\User();
+
+        // Code agent : si l'utilisateur en saisit un déjà attribué à un
+        // autre compte, on lui en attribue un nouveau plutôt que de faire
+        // échouer la mise à jour (contrainte UNIQUE sur agent_code).
+        // Le code courant de l'utilisateur est ignoré dans la recherche.
+        if (array_key_exists('agent_code', $data)) {
+            $data['agent_code'] = $this->resolveAgentCode($userModel, $data['agent_code'], (int)$id);
+        }
+
         $success = $userModel->update($id, $data);
 
         error_log('User update - success: ' . ($success ? 'true' : 'false'));
@@ -232,6 +282,14 @@ class UserController extends Controller
         }
 
         $userModel = new \App\Models\User();
+
+        // Code agent : un code déjà attribué à un autre compte est remplacé
+        // par un code libre (contrainte UNIQUE sur `utilisateurs.agent_code`).
+        // Le code de l'utilisateur connecté n'est pas un conflit.
+        if (array_key_exists('agent_code', $data)) {
+            $data['agent_code'] = $this->resolveAgentCode($userModel, $data['agent_code'], (int)$userId);
+        }
+
         $userModel->update($userId, $data);
 
         // Mettre à jour la session
