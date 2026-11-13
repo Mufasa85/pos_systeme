@@ -20,6 +20,7 @@ use App\Controllers\PayrollTimeClockController;
 use App\Controllers\PressingController;
 use App\Controllers\ProductBatchController;
 use App\Controllers\ProductController;
+use App\Controllers\ProductExportController;
 use App\Controllers\ProductImportController;
 use App\Controllers\ReportController;
 use App\Controllers\SaleController;
@@ -128,6 +129,10 @@ Router::post('/api/produit/delete', [ProductController::class, 'delete']);
 // Import de produits depuis un fichier Excel / CSV
 Router::post('/api/produit/import', [ProductImportController::class, 'import']);
 Router::get('/api/produit/import/template', [ProductImportController::class, 'template']);
+Router::get('/api/produit/import/categories', [ProductImportController::class, 'categories']);
+
+// Export du catalogue produits vers Excel
+Router::get('/api/produit/export', [ProductExportController::class, 'export']);
 
 Router::get('/api/product-batches', [ProductBatchController::class, 'index']);
 Router::post('/api/product-batches', [ProductBatchController::class, 'create']);

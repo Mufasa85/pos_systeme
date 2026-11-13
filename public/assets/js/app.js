@@ -2349,6 +2349,24 @@ function deleteProduct(id) {
 
 // ==================== USER MANAGEMENT ====================
 
+/**
+ * Génère un code agent aléatoire au format AFxxxx (« AF » + 4 chiffres).
+ *
+ * Le code est purely indicatif côté interface : le serveur reste l'autorité
+ * (utilisateurs.agent_code est UNIQUE) et réattribue un code libre si celui
+ * proposé est déjà pris.
+ */
+function generateAgentCode() {
+    const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+    return 'AF' + random;
+}
+
+/** Applique un nouveau code agent aléatoire dans le champ du modal. */
+function refreshAgentCode() {
+    const field = document.getElementById('user-agent-code');
+    if (field) field.value = generateAgentCode();
+}
+
 function openAddUserModal() {
     document.getElementById('user-modal-title').innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 8px; vertical-align: middle;"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><line x1="20" y1="8" x2="20" y2="14"></line><line x1="23" y1="11" x2="17" y2="11"></line></svg>Ajouter un utilisateur';
     document.getElementById('user-id').value = '';
@@ -2356,7 +2374,8 @@ function openAddUserModal() {
     document.getElementById('user-fullname').value = '';
     document.getElementById('user-password').value = '';
     document.getElementById('user-password').required = true;
-    document.getElementById('user-agent-code').value = 'AG001';
+    // Code agent généré aléatoirement (AFxxxx)
+    refreshAgentCode();
     const roleSelect = document.getElementById('user-role1');
     if (roleSelect) roleSelect.value = 'vendeur';
     document.getElementById('user-actif').value = '1';
@@ -2381,7 +2400,7 @@ function openEditUserModal(id, username, fullname, role, actif, agentCode, email
     document.getElementById('user-id').value = id;
     document.getElementById('user-username').value = username;
     document.getElementById('user-fullname').value = fullname;
-    document.getElementById('user-agent-code').value = agentCode || 'AG001';
+    document.getElementById('user-agent-code').value = agentCode || generateAgentCode();
     document.getElementById('user-password').value = '';
     document.getElementById('user-password').required = false;
     document.getElementById('password-hint').style.display = 'inline';
