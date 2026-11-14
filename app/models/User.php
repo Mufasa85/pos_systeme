@@ -48,13 +48,20 @@ class User
     }
 
     /**
-     * Liste des utilisateurs d'une boutique avec leur rôle hôtel.
+     * Liste des utilisateurs d'une boutique avec leur rôle hôtel ET leurs
+     * droits d'accès aux modules du POS.
      * Utilisé par /hotel/roles pour le manager.
+     *
+     * Les colonnes `acces_*` (migrations 2026_11_14 / 2026_11_15) sont
+     * relues ici pour que le manager puisse cocher/décocher l'accès à chaque
+     * module depuis la même page que les rôles hôtel.
      */
     public function allForShopWithHotelRole(int $shopId)
     {
         return $this->db->fetchAll(
             "SELECT u.id, u.nom_utilisateur, u.nom_complet, u.role, u.actif, u.hotel_role,
+                    u.acces_caisse, u.acces_produits, u.acces_historique,
+                    u.acces_pressing, u.acces_analytics, u.acces_paie,
                     s.nom AS shop_name
              FROM utilisateurs u
              LEFT JOIN shops s ON u.shop_id = s.id
@@ -63,6 +70,157 @@ class User
              ORDER BY u.nom_complet ASC",
             [':sid' => $shopId]
         );
+    }
+
+    /**
+     * Modules du POS dont l'accès est piloté par utilisateur.
+     *
+     * Chaque module est porté par une colonne `utilisateurs.acces_*`
+     * (migrations 2026_11_14 / 2026_11_15). Ces droits sont INDÉPENDANTS :
+     *   - du rôle applicatif (`role` : super_admin / admin / vendeur) ;
+     *   - du rôle métier hôtel (`hotel_role`) ;
+     *   - des feature flags API OSAT (`pressing`, `paie`, `hotel`).
+     *
+     * Un droit d'utilisateur ne REMPLACE jamais un contrôle existant : il
+     * s'ajoute (ex. /pressing exige le flag API `pressing` ET `acces_pressing`).
+     *
+     * @var array<string, string> module => colonne SQL
+     */
+    public const MODULES_ACCES = [
+        'caisse'     => 'acces_caisse',
+        'produits'   => 'acces_produits',
+        'historique' => 'acces_historique',
+        'pressing'   => 'acces_pressing',
+        'analytics'  => 'acces_analytics',
+        'paie'       => 'acces_paie',
+    ];
+
+    /**
+     * Rôles de pilotage : accès PERMANENT à tous les modules.
+     *
+     * Un manager doit pouvoir superviser l'ensemble du POS : on ne le
+     * verrouille jamais hors d'un module.
+     */
+    public const ROLES_PILOTAGE = ['super_admin', 'admin'];
+
+    /**
+     * Indique si l'utilisateur courant peut accéder à la page /caisse (POS).
+     *
+     * Raccourci vers `canAccessModule('caisse')`.
+     *
+     * @param int|null $userId ID de l'utilisateur ; null = utilisateur de la session.
+     */
+    public function canAccessCaisse(?int $userId = null): bool
+    {
+        return $this->canAccessModule('caisse', $userId);
+    }
+
+    /**
+     * Indique si l'utilisateur peut accéder à un module du POS.
+     *
+     * Le droit est porté par la colonne `acces_<module>` et se règle par
+     * utilisateur depuis /hotel/roles.
+     *
+     * Règles :
+     *   - super_admin / admin → toujours autorisé (jamais verrouillé hors
+     *     d'un module : un manager doit pouvoir Superviser le POS).
+     *   - colonne à 0 → refusé.
+     *   - module inconnu → refusé (fail-closed).
+     *   - utilisateur inconnu / erreur SQL → refusé (fail-closed côté
+     *     applicatif, même si les migrations sont fail-open).
+     *
+     * @param string      $module  Clé de self::MODULES_ACCES.
+     * @param int|null    $userId  ID de l'utilisateur ; null = utilisateur de la session.
+     */
+    public function canAccessModule(string $module, ?int $userId = null): bool
+    {
+        $column = self::MODULES_ACCES[$module] ?? null;
+        if ($column === null) {
+            error_log('User::canAccessModule - module inconnu: ' . $module);
+            return false;
+        }
+
+        if ($userId === null) {
+            $userId = (int)($_SESSION['user_id'] ?? 0);
+        }
+        if ($userId <= 0) {
+            return false;
+        }
+
+        try {
+            $row = $this->db->fetch(
+                "SELECT role, {$column} AS acces FROM utilisateurs WHERE id = :id LIMIT 1",
+                [':id' => $userId]
+            );
+        } catch (\Throwable $e) {
+            error_log('User::canAccessModule error: ' . $e->getMessage());
+            return false;
+        }
+
+        if (!$row) {
+            return false;
+        }
+
+        // Les rôles de pilotage ont un accès permanent.
+        if (in_array($row['role'], self::ROLES_PILOTAGE, true)) {
+            return true;
+        }
+
+        return !empty($row['acces']);
+    }
+
+    /**
+     * Met à jour le droit d'accès à un module pour un utilisateur.
+     *
+     * Sécurité multi-tenant : l'utilisateur ciblé DOIT appartenir à la
+     * boutique attendue (même contrôle que `setHotelRole()`), sinon la
+     * modification est refusée. Un super_admin (shop_id NULL) est exclu.
+     *
+     * @param string $module Clé de self::MODULES_ACCES.
+     */
+    public function setModuleAccess(string $module, int $userId, bool $granted, int $expectedShopId): bool
+    {
+        $column = self::MODULES_ACCES[$module] ?? null;
+        if ($column === null) {
+            error_log('User::setModuleAccess - module inconnu: ' . $module);
+            return false;
+        }
+
+        $row = $this->db->fetch(
+            'SELECT shop_id, role FROM utilisateurs WHERE id = :id',
+            [':id' => $userId]
+        );
+        if (!$row) {
+            return false;
+        }
+        if ($row['shop_id'] === null) {
+            return false; // super_admin
+        }
+        if ((int)$row['shop_id'] !== $expectedShopId) {
+            return false;
+        }
+
+        // On ne touche pas aux rôles de pilotage : leur accès est permanent
+        // (cf. canAccessModule()).
+        if (in_array($row['role'], self::ROLES_PILOTAGE, true)) {
+            return false;
+        }
+
+        $this->db->query(
+            "UPDATE utilisateurs SET {$column} = :ac WHERE id = :id",
+            [':ac' => $granted ? 1 : 0, ':id' => $userId]
+        );
+        return true;
+    }
+
+    /**
+     * Met à jour l'accès à la page /caisse pour un utilisateur.
+     *
+     * Raccourci vers `setModuleAccess('caisse', ...)`.
+     */
+    public function setCaisseAccess(int $userId, bool $granted, int $expectedShopId): bool
+    {
+        return $this->setModuleAccess('caisse', $userId, $granted, $expectedShopId);
     }
 
     /**
@@ -290,6 +448,20 @@ class User
         if (isset($data['hotel_role'])) {
             $fields[] = 'hotel_role = :hotel_role';
             $params[':hotel_role'] = $data['hotel_role'];
+        }
+        if (isset($data['acces_caisse'])) {
+            $fields[] = 'acces_caisse = :acces_caisse';
+            $params[':acces_caisse'] = !empty($data['acces_caisse']) ? 1 : 0;
+        }
+        // Droits d'accès aux modules du POS (migrations 2026_11_14 / 2026_11_15).
+        foreach (array_keys(self::MODULES_ACCES) as $module) {
+            if ($module === 'caisse') {
+                continue; // déjà traité ci-dessus
+            }
+            if (isset($data['acces_' . $module])) {
+                $fields[] = 'acces_' . $module . ' = :acces_' . $module;
+                $params[':acces_' . $module] = !empty($data['acces_' . $module]) ? 1 : 0;
+            }
         }
         if (isset($data['actif'])) {
             $fields[] = 'actif = :actif';
