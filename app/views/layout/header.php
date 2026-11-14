@@ -267,6 +267,36 @@
           </svg>
           <span>Tableau de bord</span>
         </a>
+        <?php
+        // ── Droits d'accès aux modules du POS (par utilisateur) ─────────
+        // Colonnes `utilisateurs.acces_*` (migrations 2026_11_14 / 2026_11_15),
+        // réglées depuis /hotel/roles.
+        //
+        // Les liens sont MASQUÉS quand le droit est refusé : règle du projet —
+        // l'utilisateur ne doit jamais cliquer sur un lien visible qui ne
+        // peut aboutir qu'à une redirection (cf. PageController).
+        //
+        // Les valeurs sont fournies par PageController::render() (source de
+        // vérité). Les autres points d'entrée du layout (InvoiceController)
+        // ne les fournissent pas : on retombe alors sur le modèle.
+        $moduleAccess = [];
+        if (isset($data['moduleAccess']) && is_array($data['moduleAccess'])) {
+            $moduleAccess = $data['moduleAccess'];
+        } else {
+            try {
+                foreach (array_keys(\App\Models\User::MODULES_ACCES) as $_m) {
+                    $moduleAccess[$_m] = (new \App\Models\User())->canAccessModule($_m);
+                }
+            } catch (\Throwable $e) {
+                error_log('Sidebar moduleAccess error: ' . $e->getMessage());
+                // En cas d'erreur : on masque tous les modules (fail-closed).
+                $moduleAccess = array_fill_keys(array_keys(\App\Models\User::MODULES_ACCES), false);
+            }
+        }
+        // Raccourci historique (conservé pour compatibilité).
+        $canCaisse = $moduleAccess['caisse'] ?? false;
+        ?>
+        <?php if ($canCaisse): ?>
         <a href="/caisse" class="nav-item <?= $currentPage == 'caisse' ? 'active' : '' ?>">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="12" y1="1" x2="12" y2="23"></line>
@@ -274,6 +304,7 @@
           </svg>
           <span><?= htmlspecialchars($serviceType ?? 'Caisse') ?></span>
         </a>
+        <?php endif; ?>
 
         <?php
         // Module Hôtel — sous-menu dropdown visible dès qu'un user a un accès hôtel.
@@ -466,11 +497,15 @@
         <?php endif; ?>
 
         <?php
-        // Module Pressing — visible uniquement si le flag API `pressing` est
-        // actif (même mécanisme que Recharges / Paie / Hôtel). Même logique
-        // de lecture du cache que $showHotel : on lit directement
-        // $_SESSION['feature_access_cache'] pour ne pas déclencher un
-        // appel réseau dans le header.
+        // Module Pressing — visible UNIQUEMENT si :
+        //   1. le flag API `pressing` est actif (abonnement OSAT), ET
+        //   2. l'utilisateur a le droit d'accès au module
+        //      (`utilisateurs.acces_pressing`).
+        // Les deux conditions s'ajoutent : le flag dit « la boutique a
+        // souscrit », le droit dit « CET utilisateur a le droit ».
+        // Même logique de lecture du cache que $showHotel : on lit
+        // directement $_SESSION['feature_access_cache'] pour ne pas
+        // déclencher un appel réseau dans le header.
         $pressingAccess = false;
         $featureCachePressing = $_SESSION['feature_access_cache'] ?? null;
         if ($featureCachePressing !== null
@@ -479,7 +514,7 @@
           $pressingAccess = !empty($featureCachePressing['flags']['pressing']);
         }
         ?>
-        <?php if ($pressingAccess): ?>
+        <?php if ($pressingAccess && ($moduleAccess['pressing'] ?? false)): ?>
           <a href="/pressing" class="nav-item <?= $currentPage == 'pressing' ? 'active' : '' ?>">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <circle cx="6" cy="6" r="3"></circle>
@@ -491,6 +526,7 @@
             <span>Pressing</span>
           </a>
         <?php endif; ?>
+        <?php if (($moduleAccess['produits'] ?? false)): ?>
         <a href="/produits" class="nav-item <?= $currentPage == 'produits' ? 'active' : '' ?>">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
@@ -499,7 +535,9 @@
           </svg>
           <span>Produits</span>
         </a>
+        <?php endif; ?>
 
+        <?php if (($moduleAccess['analytics'] ?? false)): ?>
         <a href="/analytics" class="nav-item <?= $currentPage == 'analytics' ? 'active' : '' ?>">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M3 3v18h18"></path>
@@ -507,6 +545,7 @@
           </svg>
           <span>Analytics</span>
         </a>
+        <?php endif; ?>
 
         <?php if (isset($_SESSION['role']) && in_array($_SESSION['role'], ['admin', 'super_admin'])): ?>
           <a href="/utilisateurs" class="nav-item <?= $currentPage == 'utilisateurs' ? 'active' : '' ?>">
@@ -530,6 +569,7 @@
           </a>
         <?php endif; ?>
 
+        <?php if (($moduleAccess['historique'] ?? false)): ?>
         <a href="/historique" class="nav-item <?= $currentPage == 'historique' ? 'active' : '' ?>">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="10"></circle>
@@ -537,6 +577,7 @@
           </svg>
           <span>Historique</span>
         </a>
+        <?php endif; ?>
 
         <a href="/rapports" class="nav-item <?= $currentPage == 'rapports' ? 'active' : '' ?>">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -549,13 +590,18 @@
         </a>
 
         <?php
+        // Module Paie — visible UNIQUEMENT si :
+        //   1. le flag API `paie` est actif (abonnement OSAT), ET
+        //   2. l'utilisateur a le droit d'accès au module
+        //      (`utilisateurs.acces_paie`).
         $showPayroll = false;
         $featureCache = $_SESSION['feature_access_cache'] ?? null;
         if ($featureCache !== null && isset($featureCache['expires_at']) && $featureCache['expires_at'] > time()) {
           $showPayroll = isset($featureCache['flags']['paie']) && $featureCache['flags']['paie'];
         }
+        $canPayroll = $showPayroll && ($moduleAccess['paie'] ?? false);
         ?>
-        <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'vendeur' && $showPayroll): ?>
+        <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'vendeur' && $canPayroll): ?>
           <a href="/payroll/mypayslips" class="nav-item <?= $currentPage == 'payroll' ? 'active' : '' ?>">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
@@ -585,7 +631,7 @@
               <span>Taxes</span>
             </a>
           <?php endif; ?>
-          <?php if ($showPayroll): ?>
+          <?php if ($canPayroll): ?>
             <a href="/payroll" class="nav-item <?= $currentPage == 'payroll' ? 'active' : '' ?>">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
