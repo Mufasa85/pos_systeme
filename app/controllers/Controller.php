@@ -212,6 +212,93 @@ class Controller
     }
 
     /**
+     * Vérifie que l'utilisateur courant a accès à la page /caisse (POS).
+     *
+     * Le droit est porté par `utilisateurs.acces_caisse` (migration
+     * 2026_11_14_user_caisse_access.sql) et se règle par utilisateur depuis
+     * /hotel/roles. Il est indépendant du rôle applicatif (`role`) et du
+     * rôle métier hôtel (`hotel_role`).
+     *
+     * Ce contrôle ne concerne QUE le point de vente :
+     *   - les recharges Élec/Eau passent par la même route d'écriture de
+     *     vente mais ne sont PAS concernées (le caller filtre via
+     *     `providerService`, cf. SaleController::create()) ;
+     *   - le module Hôtel reste accessible à tous les rôles hôtel.
+     *
+     * Règles :
+     *   - super_admin / admin → toujours autorisé (cf. User::canAccessCaisse()).
+     *   - utilisateur inconnu / erreur SQL → refusé (fail-closed).
+     *
+     * @param bool $json true pour une réponse JSON (API), false pour une page 403
+     */
+    protected function isCaisseAccessAllowed(): bool
+    {
+        return $this->isModuleAccessAllowed('caisse');
+    }
+
+    /**
+     * Vérifie que l'utilisateur courant a accès à un module du POS.
+     *
+     * Chaque module est porté par une colonne `utilisateurs.acces_*` et se
+     * règle par utilisateur depuis /hotel/roles. Ces droits sont
+     * INDÉPENDANTS du rôle applicatif, du rôle métier hôtel et des feature
+     * flags API OSAT : ils s'AJOUTENT aux contrôles existants.
+     *
+     * @param string $module Clé de \App\Models\User::MODULES_ACCES.
+     */
+    protected function isModuleAccessAllowed(string $module): bool
+    {
+        try {
+            return (new \App\Models\User())->canAccessModule($module);
+        } catch (\Throwable $e) {
+            error_log('isModuleAccessAllowed error: ' . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Garde d'accès à un module du POS pour les routes API.
+     *
+     * Renvoie false + 403 si l'utilisateur n'a pas le droit d'accéder au
+     * module. L'authentification reste obligatoire (requireAuth()).
+     *
+     * @param string $module Clé de \App\Models\User::MODULES_ACCES.
+     * @param bool   $json   true pour une réponse JSON (API), false pour une page 403
+     */
+    protected function requireModuleAccess(string $module, bool $json = true): bool
+    {
+        if ($this->isModuleAccessAllowed($module)) {
+            return true;
+        }
+
+        if ($json) {
+            self::status(403)->json([
+                'success' => false,
+                'error'   => $module . '_not_allowed',
+                'message' => 'Ce module n\'est pas accessible avec votre rôle.',
+            ]);
+        } else {
+            http_response_code(403);
+            require_once dirname(__DIR__) . DIRECTORY_SEPARATOR . 'views' . DIRECTORY_SEPARATOR . '403.php';
+            exit;
+        }
+        return false;
+    }
+
+    /**
+     * Garde d'accès au point de vente pour les routes API.
+     *
+     * Renvoie false + 403 si l'utilisateur n'a pas le droit d'utiliser la
+     * caisse. L'authentification reste obligatoire (requireAuth()).
+     *
+     * @param bool $json true pour une réponse JSON (API), false pour une page 403
+     */
+    protected function requireCaisseAccess(bool $json = true): bool
+    {
+        return $this->requireModuleAccess('caisse', $json);
+    }
+
+    /**
      * Vérifie que le shop de l'utilisateur connecté est toujours actif.
      * - super_admin : jamais bloqué (pas lié à un shop)
      * - utilisateur sans shop_id : autorisé
