@@ -1174,7 +1174,7 @@ class PageController extends Controller
         $view = $params['view'] ?? 'index';
 
         if ($isAdmin) {
-            $allowed = ['index','employees','employee_form','periods','attendance','payslips','payslip_detail','payslip_pdf','payments','timeclock','reports','settings'];
+            $allowed = ['index','employees','employee_form','contracts','periods','attendance','payslips','payslip_detail','payslip_pdf','payments','timeclock','reports','settings'];
             if (!in_array($view, $allowed)) {
                 $view = 'index';
             }
@@ -1185,7 +1185,11 @@ class PageController extends Controller
             }
         }
 
-        $data = ['page' => 'payroll'];
+        // `$page` reste 'payroll' (c'est lui qui pilote l'inclusion du CSS et
+        // l'affichage du bloc dans le header). On transmet en plus la VUE
+        // courante (`payrollView`) pour que la sidebar puisse mettre en
+        // évidence la sous-page active du dropdown Paie.
+        $data = ['page' => 'payroll', 'payrollView' => $view];
         $this->render('payroll/' . $view, $data);
     }
 

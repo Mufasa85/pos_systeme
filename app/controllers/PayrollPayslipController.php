@@ -6,6 +6,7 @@ use App\Models\PayrollContract;
 use App\Models\PayrollEmployee;
 use App\Models\PayrollPayslip;
 use App\Models\PayrollPayslipLine;
+use App\Models\PayrollPeriod;
 use App\Services\PayrollCalculator;
 use App\Services\PayrollPdfService;
 
@@ -58,6 +59,18 @@ class PayrollPayslipController extends Controller
             return;
         }
 
+        // Garde-fou : un bulletin validé / payé, ou une période clôturée,
+        // ne peut pas être recalculé (document comptable validé).
+        $payslipModel = new PayrollPayslip();
+        $existing = $payslipModel->findByEmployeeAndPeriod($data['employee_id'], $data['period_id']);
+        $period = (new PayrollPeriod())->findById($data['period_id'], $this->getShopId(), $this->isSuperAdmin());
+
+        $guard = \App\Services\PayrollWorkflow::canRecalculatePayslip($existing, $period);
+        if (!$guard['ok']) {
+            $this->status(409)->json(['error' => $guard['reason']]);
+            return;
+        }
+
         try {
             $calc = new PayrollCalculator();
             $id = $calc->savePayslip($data['employee_id'], $data['period_id'], $this->getShopId());
@@ -78,6 +91,19 @@ class PayrollPayslipController extends Controller
             return;
         }
 
+        // Garde-fou : une période validée ou clôturée n'est plus recalculable.
+        $period = (new PayrollPeriod())->findById($id, $this->getShopId(), $this->isSuperAdmin());
+        if (!$period) {
+            $this->status(404)->json(['error' => 'Période introuvable']);
+            return;
+        }
+
+        $guard = \App\Services\PayrollWorkflow::canCalculatePeriod($period);
+        if (!$guard['ok']) {
+            $this->status(409)->json(['error' => $guard['reason']]);
+            return;
+        }
+
         try {
             $calc = new PayrollCalculator();
             $ids = $calc->calculateForPeriod($id, $this->getShopId());
@@ -95,6 +121,25 @@ class PayrollPayslipController extends Controller
         $id = $params['id'] ?? null;
         if (!$id) {
             $this->status(400)->json(['error' => 'ID manquant']);
+            return;
+        }
+
+        $payslip = (new PayrollPayslip())->findById($id, $this->getShopId());
+        if (!$payslip) {
+            $this->status(404)->json(['error' => 'Bulletin introuvable']);
+            return;
+        }
+
+        // Un bulletin déjà payé ne peut pas être « revalidé ».
+        if (($payslip['status'] ?? '') === 'paid') {
+            $this->status(409)->json(['error' => 'Ce bulletin est déjà payé.']);
+            return;
+        }
+
+        // Un bulletin déjà validé n'est pas revalidé (idempotent mais sans
+        // effet) : on le signale pour éviter une confusion côté UI.
+        if (($payslip['status'] ?? '') === 'validated') {
+            $this->json(['success' => true, 'message' => 'Ce bulletin était déjà validé.']);
             return;
         }
 

@@ -6,6 +6,7 @@ use App\Models\PayrollAllowance;
 use App\Models\PayrollContributionRate;
 use App\Models\PayrollDeduction;
 use App\Models\PayrollPaymentMethod;
+use App\Models\PayrollPayslip;
 use App\Models\PayrollPeriod;
 use App\Models\PayrollSeniorityBand;
 use App\Services\PayrollCalculator;
@@ -91,6 +92,19 @@ class PayrollController extends Controller
             return;
         }
 
+        // Garde-fou : une période clôturée ou validée n'est plus recalculable.
+        $period = (new PayrollPeriod())->findById($id, $this->getShopId(), $this->isSuperAdmin());
+        if (!$period) {
+            $this->status(404)->json(['error' => 'Période introuvable']);
+            return;
+        }
+
+        $guard = \App\Services\PayrollWorkflow::canCalculatePeriod($period);
+        if (!$guard['ok']) {
+            $this->status(409)->json(['error' => $guard['reason']]);
+            return;
+        }
+
         try {
             $calc = new PayrollCalculator();
             $ids = $calc->calculateForPeriod($id, $this->getShopId());
@@ -111,6 +125,29 @@ class PayrollController extends Controller
             return;
         }
 
+        $period = (new PayrollPeriod())->findById($id, $this->getShopId(), $this->isSuperAdmin());
+        if (!$period) {
+            $this->status(404)->json(['error' => 'Période introuvable']);
+            return;
+        }
+
+        // Une période déjà validée ou clôturée ne peut pas être revalidée.
+        if (in_array($period['status'] ?? '', ['validated', 'closed'], true)) {
+            $this->status(409)->json([
+                'error' => 'Cette période est déjà ' . $period['status'] . '.',
+            ]);
+            return;
+        }
+
+        // La validation verrouille les bulletins de la période : ils passent
+        // tous à `validated` (les bulletins déjà payés restent `paid`).
+        $payslipModel = new PayrollPayslip();
+        foreach ($payslipModel->findByPeriod($id, $this->getShopId()) as $p) {
+            if (($p['status'] ?? '') === 'calculated') {
+                $payslipModel->updateStatus($p['id'], 'validated');
+            }
+        }
+
         (new PayrollPeriod())->markValidated($id);
         $this->json(['success' => true]);
     }
@@ -126,8 +163,74 @@ class PayrollController extends Controller
             return;
         }
 
+        $period = (new PayrollPeriod())->findById($id, $this->getShopId(), $this->isSuperAdmin());
+        if (!$period) {
+            $this->status(404)->json(['error' => 'Période introuvable']);
+            return;
+        }
+
+        if (($period['status'] ?? '') === 'closed') {
+            $this->status(409)->json(['error' => 'Cette période est déjà clôturée.']);
+            return;
+        }
+
         (new PayrollPeriod())->markClosed($id);
         $this->json(['success' => true]);
+    }
+
+    /**
+     * Paramètres de calcul de la paie (table `payroll_settings`).
+     *
+     * GET  /api/payroll/settings-params → tous les paramètres résolus
+     * POST /api/payroll/settings-params → met à jour les paramètres
+     */
+    public function settingsParams()
+    {
+        if (!$this->requireAdmin()) {
+            return;
+        }
+
+        $shopId = $this->getShopId();
+        $settings = new \App\Models\PayrollSettings();
+
+        $this->json([
+            'success'  => true,
+            'mode'     => $settings->get('calculation_mode', $shopId),
+            'values'   => $settings->resolved($shopId),
+            'rows'     => $settings->all($shopId),
+        ]);
+    }
+
+    public function updateSettingsParams()
+    {
+        if (!$this->requireAdmin()) {
+            return;
+        }
+
+        $data = $this->getJsonOrPost();
+        $shopId = $this->getShopId();
+
+        if (empty($data['values']) || !is_array($data['values'])) {
+            $this->status(400)->json(['error' => 'values obligatoire (objet clé → valeur)']);
+            return;
+        }
+
+        $settings = new \App\Models\PayrollSettings();
+        $known = array_keys(\App\Models\PayrollSettings::DEFAULTS);
+
+        foreach ($data['values'] as $key => $value) {
+            // Seules les clés déclarées sont acceptées : on n'écrit jamais
+            // une clé arbitraire dans la table.
+            if (!in_array($key, $known, true)) {
+                continue;
+            }
+            $settings->save((string)$key, (string)$value, $shopId);
+        }
+
+        $this->json([
+            'success' => true,
+            'values'  => $settings->resolved($shopId),
+        ]);
     }
 
     public function parameters()

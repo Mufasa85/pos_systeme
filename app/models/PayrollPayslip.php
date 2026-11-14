@@ -127,6 +127,50 @@ class PayrollPayslip
         return $this->db->execute('DELETE FROM payroll_payslips WHERE id = ?', [$id]);
     }
 
+    /**
+     * Dernier bulletin verrouillé (validé ou payé) d'un employé.
+     *
+     * Sert de garde-fou : la fiche de rémunération d'un agent qui a un bulletin
+     * validé ou payé ne doit plus être modifiable.
+     *
+     * @return array|false
+     */
+    public function findLockedByEmployee($employeeId, $shopId = null)
+    {
+        $sql = 'SELECT * FROM payroll_payslips
+                WHERE employee_id = ? AND status IN (\'validated\', \'paid\')';
+        $params = [$employeeId];
+        if ($shopId) {
+            $sql .= ' AND shop_id = ?';
+            $params[] = $shopId;
+        }
+        $sql .= ' ORDER BY id DESC LIMIT 1';
+        return $this->db->fetch($sql, $params);
+    }
+
+    /**
+     * Compte les bulletins d'une période par statut.
+     *
+     * @return array<string, int>
+     */
+    public function countByStatus($periodId, $shopId = null)
+    {
+        $sql = 'SELECT status, COUNT(*) AS n FROM payroll_payslips
+                WHERE payroll_period_id = ?';
+        $params = [$periodId];
+        if ($shopId) {
+            $sql .= ' AND shop_id = ?';
+            $params[] = $shopId;
+        }
+        $sql .= ' GROUP BY status';
+
+        $counts = [];
+        foreach ($this->db->fetchAll($sql, $params) as $row) {
+            $counts[$row['status']] = (int)$row['n'];
+        }
+        return $counts;
+    }
+
     public function updateStatus($id, $status)
     {
         return $this->db->execute('UPDATE payroll_payslips SET status = ? WHERE id = ?', [$status, $id]);

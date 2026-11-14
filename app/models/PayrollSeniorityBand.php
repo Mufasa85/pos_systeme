@@ -43,6 +43,12 @@ class PayrollSeniorityBand
 
     public function create($data)
     {
+        // ⚠️ La colonne en base est `percent`. L'UI historique envoyait `rate`
+        // (cf. app/views/payroll/settings.php), ce qui fit silencieusement
+        // un taux à 0 : l'ancienneté ne s'appliquait jamais. On accepte donc
+        // les deux noms de champ, `percent` restant la référence.
+        $percent = $data['percent'] ?? ($data['rate'] ?? 0);
+
         $sql = 'INSERT INTO payroll_seniority_bands
                 (shop_id, min_years, max_years, percent, label)
                 VALUES
@@ -51,7 +57,7 @@ class PayrollSeniorityBand
             ':shop_id'   => $data['shop_id'] ?? null,
             ':min_years' => $data['min_years'] ?? 0,
             ':max_years' => $data['max_years'] ?? null,
-            ':percent'   => $data['percent'] ?? 0,
+            ':percent'   => $percent,
             ':label'     => $data['label'] ?? null,
         ]);
         return $this->db->lastInsertId();
@@ -59,6 +65,11 @@ class PayrollSeniorityBand
 
     public function update($id, $data)
     {
+        // Même compatibilité que `create()` : `rate` est un alias de `percent`.
+        if (!isset($data['percent']) && isset($data['rate'])) {
+            $data['percent'] = $data['rate'];
+        }
+
         $fields = [];
         $params = [':id' => $id];
         $allowed = ['shop_id','min_years','max_years','percent','label'];

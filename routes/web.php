@@ -110,7 +110,6 @@ Router::get('/rapport-ticket', [PageController::class, 'rapportTicket']);
 Router::get('/shops', [PageController::class, 'shops']);
 Router::get('/payroll', [PageController::class, 'payroll']);
 Router::get('/payroll/[:view]', [PageController::class, 'payroll']);
-
 // ============================================================================
 // Module Pressing — suivi des commandes de pressing
 // Référence : docs/PLAN_PRESSING.md

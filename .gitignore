@@ -25,3 +25,7 @@ nul
 # partagé avec l'API OSAT (X-DGI-Token) et les identifiants de production.
 # Un modèle versionné (config/config.local.example.php) sert de référence.
 config/config.local.php
+
+# ── Fichiers générés ───────────────────────────────────────────────
+# Bulletins de paie au format PDF (générés à la volée, données confidentielles)
+storage/payslips/

@@ -586,20 +586,119 @@
             </a>
           <?php endif; ?>
           <?php if ($showPayroll): ?>
-            <a href="/payroll" class="nav-item <?= $currentPage == 'payroll' ? 'active' : '' ?>">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
-                <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
-              </svg>
-              <span>Paie</span>
-            </a>
-            <a href="/payroll/settings" class="nav-item <?= $currentPage == 'payroll' ? 'active' : '' ?>">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="3"></circle>
-                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-              </svg>
-              <span>Parametres paie</span>
-            </a>
+            <?php
+            // Module Paie — sous-menu dropdown, sur le modèle du module Hôtel.
+            //
+            // `$currentPage` vaut 'payroll' sur TOUTES les pages du module :
+            // c'est `$payrollView` (transmise par PageController) qui permet de
+            // distinguer les sous-pages.
+            //
+            // ⚠️ Sur une page NON paie, $payrollView doit rester VIDE : sinon le
+            // lien « Tableau de bord » serait marqué actif, ce qui ferait
+            // s'ouvrir le dropdown tout seul sur toutes les pages.
+            $isPayrollPage = $currentPage === 'payroll';
+            $payrollView = $isPayrollPage ? ($payrollView ?? 'index') : '';
+            ?>
+
+            <div class="nav-dropdown <?= $isPayrollPage ? 'open' : '' ?>" id="payroll-dropdown">
+              <button type="button" class="nav-item nav-dropdown-trigger <?= $isPayrollPage ? 'active' : '' ?>" aria-haspopup="true" aria-expanded="false">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+                  <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+                </svg>
+                <span>Paie</span>
+                <svg class="nav-dropdown-caret" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+              </button>
+              <div class="nav-dropdown-menu" role="menu">
+
+                <a href="/payroll" class="nav-dropdown-item <?= $payrollView === 'index' ? 'active' : '' ?>" role="menuitem">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="7" height="7"></rect>
+                    <rect x="14" y="3" width="7" height="7"></rect>
+                    <rect x="14" y="14" width="7" height="7"></rect>
+                    <rect x="3" y="14" width="7" height="7"></rect>
+                  </svg>
+                  <span>Tableau de bord</span>
+                </a>
+
+                <a href="/payroll/employees" class="nav-dropdown-item <?= $payrollView === 'employees' ? 'active' : '' ?>" role="menuitem">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="8.5" cy="7" r="4"></circle>
+                    <path d="M20 8v6"></path>
+                    <path d="M23 11h-6"></path>
+                  </svg>
+                  <span>Employés</span>
+                </a>
+
+                <a href="/payroll/contracts" class="nav-dropdown-item <?= $payrollView === 'contracts' ? 'active' : '' ?>" role="menuitem">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                    <polyline points="10 9 9 9 8 9"></polyline>
+                  </svg>
+                  <span>Contrats</span>
+                </a>
+
+                <a href="/payroll/periods" class="nav-dropdown-item <?= $payrollView === 'periods' ? 'active' : '' ?>" role="menuitem">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="4" width="18" height="18" rx="2"></rect>
+                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                  </svg>
+                  <span>Périodes</span>
+                </a>
+
+                <a href="/payroll/attendance" class="nav-dropdown-item <?= $payrollView === 'attendance' ? 'active' : '' ?>" role="menuitem">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
+                    <polyline points="17 6 23 6 23 12"></polyline>
+                  </svg>
+                  <span>Présences</span>
+                </a>
+
+                <a href="/payroll/payslips" class="nav-dropdown-item <?= $payrollView === 'payslips' ? 'active' : '' ?>" role="menuitem">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                    <polyline points="10 9 9 9 8 9"></polyline>
+                  </svg>
+                  <span>Bulletins</span>
+                </a>
+
+                <a href="/payroll/payments" class="nav-dropdown-item <?= $payrollView === 'payments' ? 'active' : '' ?>" role="menuitem">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
+                    <line x1="1" y1="10" x2="23" y2="10"></line>
+                  </svg>
+                  <span>Paiements</span>
+                </a>
+
+                <a href="/payroll/reports" class="nav-dropdown-item <?= $payrollView === 'reports' ? 'active' : '' ?>" role="menuitem">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="20" x2="18" y2="10"></line>
+                    <line x1="12" y1="20" x2="12" y2="4"></line>
+                    <line x1="6" y1="20" x2="6" y2="14"></line>
+                  </svg>
+                  <span>Rapports</span>
+                </a>
+
+                <a href="/payroll/settings" class="nav-dropdown-item <?= $payrollView === 'settings' ? 'active' : '' ?>" role="menuitem">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A2 2 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                  </svg>
+                  <span>Paramètres paie</span>
+                </a>
+              </div>
+            </div>
           <?php endif; ?>
           <a href="/parametres" class="nav-item <?= $currentPage == 'parametres' ? 'active' : '' ?>">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -835,10 +934,13 @@
       </style>
 
       <script>
-        (function() {
-          const dropdown = document.getElementById('hotel-dropdown');
-          if (!dropdown) return;
+        // Dropdowns de la sidebar (Hôtel, Paie).
+        // Le même comportement est appliqué à chaque bloc : ouverture au clic,
+        // fermeture au clic extérieur ou à la touche Escape, et ouverture
+        // automatique quand une sous-page de ce module est active.
+        document.querySelectorAll('.nav-dropdown').forEach(function(dropdown) {
           const trigger = dropdown.querySelector('.nav-dropdown-trigger');
+          if (!trigger) return;
 
           function setOpen(open) {
             dropdown.classList.toggle('open', open);
@@ -851,7 +953,7 @@
             setOpen(!dropdown.classList.contains('open'));
           });
 
-          // Auto-ouvre si on est sur une sous-page hôtel
+          // Auto-ouvre si on est sur une sous-page du module
           if (dropdown.querySelector('.nav-dropdown-item.active')) {
             setOpen(true);
           }
@@ -864,7 +966,7 @@
           document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape') setOpen(false);
           });
-        })();
+        });
       </script>
 
       <script>
