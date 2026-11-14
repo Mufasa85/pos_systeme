@@ -79,6 +79,12 @@ class HotelExtrasController extends Controller
         if (!$this->requireShopExtrasAccess()) {
             return;
         }
+        // Accès au point de vente : ce picker n'est consommé QUE par la
+        // caisse (imputer un panier sur un séjour). Un utilisateur retiré
+        // du POS (`utilisateurs.acces_caisse`) n'a rien à y faire.
+        if (!$this->requireCaisseAccess()) {
+            return;
+        }
 
         // Réutilise la jointure existante chambres + séjour en_cours + guest
         // déjà servie à la page Réception — pas de duplication de SQL.
@@ -114,6 +120,12 @@ class HotelExtrasController extends Controller
         // cochée par le super_admin dans /shops. Ce contrôle remplace le
         // feature flag API « hotel » pour cette fonctionnalité.
         if (!$this->requireShopExtrasAccess()) {
+            return;
+        }
+        // Accès au point de vente : l'imputation d'un panier de caisse sur un
+        // séjour est une opération de CAISSE. Un utilisateur retiré du POS
+        // (`utilisateurs.acces_caisse`) ne peut donc pas l'effectuer.
+        if (!$this->requireCaisseAccess()) {
             return;
         }
         if (!$this->isShopActive()) {
