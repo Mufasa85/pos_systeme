@@ -41,14 +41,30 @@ class SaleController extends Controller
         }
 
         $data = json_decode(file_get_contents('php://input'), true);
-                if (empty($data) || empty($data['articles'])) {
-                    $this->status(400)->json(['error' => 'Panier vide ou données invalides']);
-                    return;
-                }
+        if (empty($data) || empty($data['articles'])) {
+            $this->status(400)->json(['error' => 'Panier vide ou données invalides']);
+            return;
+        }
 
-                $saleModel = new Sale();
-                $detailModel = new SaleDetail();
-                $productModel = new Product();
+        // ── Contrôle d'accès au point de vente ─────────────────────────
+        // Le droit est porté par `utilisateurs.acces_caisse` (migration
+        // 2026_11_14_user_caisse_access.sql) : un utilisateur retiré
+        // du POS (gouvernante, etc.) ne doit pas pouvoir émettre de
+        // facture, même en appelant l'API directement.
+        //
+        // ⚠️ Les RECHARGES Élec/Eau passent par cette MÊME route
+        // (cf. recharges.js) : elles ne sont PAS concernées par le
+        // blocage du POS. Le discriminant `providerService` est
+        // déjà utilisé plus bas (ligne ~225 : `$isRecharge`) — on
+        // s'appuie dessus plutôt que d'inventer un second marqueur.
+        $isRecharge = !empty($data['providerService']);
+        if (!$isRecharge && !$this->requireCaisseAccess()) {
+            return;
+        }
+
+        $saleModel = new Sale();
+        $detailModel = new SaleDetail();
+        $productModel = new Product();
 
                 // Si pas de client_id, utiliser null (pas de client sélectionné)
                 // Pour les recharges, on n'a pas besoin de client dans la table clients
@@ -222,7 +238,8 @@ class SaleController extends Controller
                         ]);
 
             // Si providerService existe (recharges), ne pas enregistrer dans details_vente
-            $isRecharge = !empty($data['providerService']);
+            // ⚠️ `$isRecharge` est déjà calculé plus haut (garde d'accès POS) :
+            // on ne le redéfinit pas ici pour garder une source de vérité unique.
 
             if (!$isRecharge) {
                 foreach ($data['articles'] as $item) {
