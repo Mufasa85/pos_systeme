@@ -101,6 +101,14 @@ class PayrollEmployeeController extends Controller
             return;
         }
 
+        // Garde-fou : la fiche de rémunération d'un agent ayant un bulletin
+        // validé ou payé n'est plus modifiable (document comptable validé).
+        $guard = \App\Services\PayrollWorkflow::canModifyEmployee((int)$id, $shopId);
+        if (!$guard['ok']) {
+            $this->status(409)->json(['error' => $guard['reason']]);
+            return;
+        }
+
         $raw = file_get_contents('php://input');
         $data = (!empty($raw)) ? json_decode($raw, true) : $_POST;
         if (!is_array($data)) {
@@ -133,6 +141,14 @@ class PayrollEmployeeController extends Controller
 
         if (!$employee->findById($id, $shopId, $superAdmin)) {
             $this->status(404)->json(['error' => 'Employé non trouvé']);
+            return;
+        }
+
+        // Garde-fou : on ne supprime pas une fiche ayant un bulletin validé
+        // ou payé (l'historique de paie doit être conservé).
+        $guard = \App\Services\PayrollWorkflow::canModifyEmployee((int)$id, $shopId);
+        if (!$guard['ok']) {
+            $this->status(409)->json(['error' => $guard['reason']]);
             return;
         }
 

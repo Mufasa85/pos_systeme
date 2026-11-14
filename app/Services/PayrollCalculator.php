@@ -29,6 +29,8 @@ class PayrollCalculator
     private $seniority;
     private $payslip;
     private $payslipLine;
+    private $settings;
+    private $excelCalculator;
 
     public function __construct()
     {
@@ -44,6 +46,52 @@ class PayrollCalculator
         $this->seniority   = new PayrollSeniorityBand();
         $this->payslip     = new PayrollPayslip();
         $this->payslipLine = new PayrollPayslipLine();
+        $this->settings    = new \App\Models\PayrollSettings();
+    }
+
+    /**
+     * Calcul selon le modèle « Excel / RDC » (cf. `Recap paie.xlsx`).
+     *
+     * Delegue à `PayrollExcelCalculator` : barème IRT à 5 tranches, taux de
+     * change, logement 30 %, transport 21,15 % du LOG, ancienneté 3 %/an,
+     * réduction d'IRT de 2 % par personne à charge.
+     */
+    private function calculateForEmployeeExcel(
+        array $employee,
+        array $contract,
+        array $period,
+        $employeeId,
+        $periodId,
+        $shopId
+    ) {
+        $attendance = $this->attendance->findByEmployeeAndPeriod($employeeId, $periodId);
+        $unpaidAbsences = (float)$this->absence->totalDaysByEmployeeAndPeriod($employeeId, $periodId);
+        $workingDays = (float)$period['working_days'];
+
+        $paidDays = $attendance['paid_days'] ?? max(0, $workingDays - $unpaidAbsences);
+        $workedHours = $attendance['worked_hours'] ?? ($paidDays * 8);
+
+        $attendanceData = [
+            'paid_days'     => (float)$paidDays,
+            'worked_hours'  => (float)$workedHours,
+            'working_days'  => $workingDays,
+            // La période sert de date de référence pour l'ancienneté : le
+            // calcul est ainsi reproductible d'un recalcul à l'autre.
+            'month'         => (int)($period['month'] ?? 0),
+            'year'          => (int)($period['year'] ?? 0),
+        ];
+
+        if ($this->excelCalculator === null) {
+            $this->excelCalculator = new PayrollExcelCalculator($this->settings);
+        }
+
+        $result = $this->excelCalculator->calculate($contract, $employee, $attendanceData, $shopId);
+
+        // `payroll_period_id` est renseigné par `savePayslip()` via
+        // `createOrUpdate()` : on le garde hors du calcul.
+        $result['payslip']['payroll_period_id'] = $periodId;
+
+        return $result;
     }
 
     public function calculateForEmployee($employeeId, $periodId, $shopId = null)
@@ -64,6 +112,13 @@ class PayrollCalculator
         }
 
         $shopId = $shopId ?? $employee['shop_id'] ?? $period['shop_id'];
+
+        // ── Dispatch du mode de calcul ──────────────────────────────────────
+        // `standard`  → modèle générique historique (défaut, inchangé).
+        // `excel_rdc` → modèle du classeur `Recap paie.xlsx` (IRT, LOG/TRANS…).
+        if ($this->settings->isExcelMode($shopId)) {
+            return $this->calculateForEmployeeExcel($employee, $contract, $period, $employeeId, $periodId, $shopId);
+        }
 
         $attendance = $this->attendance->findByEmployeeAndPeriod($employeeId, $periodId);
         $unpaidAbsences = $this->absence->totalDaysByEmployeeAndPeriod($employeeId, $periodId);

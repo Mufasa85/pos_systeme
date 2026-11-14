@@ -31,7 +31,47 @@
                 </div>
                 <div>
                     <label>Nombre d'enfants</label>
-                    <input id="taxDependents" type="number" class="form-control" />
+                    <input id="taxDependents" type="number" min="0" step="1" class="form-control" />
+                </div>
+                <div>
+                    <label>IBAN / Compte bancaire</label>
+                    <input id="iban" type="text" class="form-control" placeholder="Ex. 0000 0000 0000 0000" />
+                </div>
+                <div>
+                    <label>Numéro CNSS</label>
+                    <input id="cnssNumber" type="text" class="form-control" />
+                </div>
+                <div>
+                    <label>Catégorie légale</label>
+                    <input id="catLeg" type="text" class="form-control" placeholder="Ex. 14.M4.D" />
+                </div>
+                <div>
+                    <label>Catégorie professionnelle</label>
+                    <input id="catProf" type="text" class="form-control" placeholder="Ex. 18.CD1.F" />
+                </div>
+                <div>
+                    <label>SITAF</label>
+                    <input id="sitaf" type="number" min="0" step="1" class="form-control" />
+                </div>
+                <div>
+                    <label>IBAN / Compte bancaire</label>
+                    <input id="iban" type="text" class="form-control" placeholder="Ex. 0000 0000 0000 0000" />
+                </div>
+                <div>
+                    <label>Numéro CNSS</label>
+                    <input id="cnssNumber" type="text" class="form-control" />
+                </div>
+                <div>
+                    <label>Catégorie légale</label>
+                    <input id="catLeg" type="text" class="form-control" placeholder="Ex. 14.M4.D" />
+                </div>
+                <div>
+                    <label>Catégorie professionnelle</label>
+                    <input id="catProf" type="text" class="form-control" placeholder="Ex. 18.CD1.F" />
+                </div>
+                <div>
+                    <label>SITAF</label>
+                    <input id="sitaf" type="number" min="0" step="1" class="form-control" />
                 </div>
                 <div>
                     <label>Statut</label>
@@ -66,6 +106,16 @@
         document.getElementById('jobTitle').value = emp.job_title || '';
         document.getElementById('ierRate').value = emp.ier_rate;
         document.getElementById('taxDependents').value = emp.tax_dependents;
+        document.getElementById('iban').value = emp.iban || '';
+        document.getElementById('cnssNumber').value = emp.cnss_number || '';
+        document.getElementById('catLeg').value = emp.cat_leg || '';
+        document.getElementById('catProf').value = emp.cat_prof || '';
+        document.getElementById('sitaf').value = emp.sitaf || 0;
+        document.getElementById('iban').value = emp.iban || '';
+        document.getElementById('cnssNumber').value = emp.cnss_number || '';
+        document.getElementById('catLeg').value = emp.cat_leg || '';
+        document.getElementById('catProf').value = emp.cat_prof || '';
+        document.getElementById('sitaf').value = emp.sitaf || 0;
         document.getElementById('status').value = emp.status;
     })();
 
@@ -79,6 +129,16 @@
             job_title: document.getElementById('jobTitle').value,
             ier_rate: document.getElementById('ierRate').value,
             tax_dependents: document.getElementById('taxDependents').value,
+            iban: document.getElementById('iban').value,
+            cnss_number: document.getElementById('cnssNumber').value,
+            cat_leg: document.getElementById('catLeg').value,
+            cat_prof: document.getElementById('catProf').value,
+            sitaf: document.getElementById('sitaf').value,
+            iban: document.getElementById('iban').value,
+            cnss_number: document.getElementById('cnssNumber').value,
+            cat_leg: document.getElementById('catLeg').value,
+            cat_prof: document.getElementById('catProf').value,
+            sitaf: document.getElementById('sitaf').value,
             status: document.getElementById('status').value,
         };
         const res = await fetch('/api/payroll/employees/update/' + id, {

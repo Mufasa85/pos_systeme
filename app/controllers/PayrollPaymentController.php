@@ -4,7 +4,6 @@ namespace App\Controllers;
 
 use App\Models\PayrollPayment;
 use App\Models\PayrollPayslip;
-use App\Models\PayrollPeriod;
 
 class PayrollPaymentController extends Controller
 {
@@ -40,6 +39,15 @@ class PayrollPaymentController extends Controller
         $payslip = (new PayrollPayslip())->findById($data['payslip_id'], $this->getShopId());
         if (!$payslip) {
             $this->status(404)->json(['error' => 'Bulletin introuvable']);
+            return;
+        }
+
+        // Garde-fou : seuls les bulletins VALIDÉS peuvent être réglés.
+        // Payer un bulletin encore `calculated` reviendrait à valider
+        // implicitement une paie (et à contourner le contrôle de la période).
+        $guard = \App\Services\PayrollWorkflow::canPayPayslip($payslip);
+        if (!$guard['ok']) {
+            $this->status(409)->json(['error' => $guard['reason']]);
             return;
         }
 
@@ -112,23 +120,10 @@ class PayrollPaymentController extends Controller
 
     private function closePeriodIfAllPaid($periodId)
     {
-        $shopId = $this->getShopId();
-        $payslips = (new PayrollPayslip())->findByPeriod($periodId, $shopId);
-        if (empty($payslips)) {
-            return;
-        }
-
-        $allPaid = true;
-        foreach ($payslips as $p) {
-            if ($p['status'] !== 'paid') {
-                $allPaid = false;
-                break;
-            }
-        }
-
-        if ($allPaid) {
-            (new PayrollPeriod())->markClosed($periodId);
-        }
+        // Clôture automatique : la période passe à `closed` quand tous ses
+        // bulletins sont payés. La règle est centralisée dans
+        // `PayrollWorkflow` (cf. Invariant 2).
+        return \App\Services\PayrollWorkflow::closePeriodIfAllPaid((int)$periodId, $this->getShopId());
     }
 
     private function getJsonOrPost()

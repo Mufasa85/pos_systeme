@@ -11,10 +11,12 @@ use App\Controllers\DgiSyncController;
 use App\Controllers\DgiWebhookController;
 use App\Controllers\NotificationController;
 use App\Controllers\PayrollAttendanceController;
+use App\Controllers\PayrollContractController;
 use App\Controllers\PayrollController;
 use App\Controllers\PayrollEmployeeController;
 use App\Controllers\PayrollPaymentController;
 use App\Controllers\PayrollPayslipController;
+use App\Controllers\PayrollRecapImportController;
 use App\Controllers\PayrollReportController;
 use App\Controllers\PayrollTimeClockController;
 use App\Controllers\PressingController;
@@ -186,6 +188,18 @@ Router::post('/api/payroll/employees', [PayrollEmployeeController::class, 'creat
 Router::post('/api/payroll/employees/update/[i:id]', [PayrollEmployeeController::class, 'update']);
 Router::post('/api/payroll/employees/delete/[i:id]', [PayrollEmployeeController::class, 'delete']);
 
+// ── Payroll contrats ────────────────────────────────────────
+// Le salaire de base et le statut « payé / non payé » d'un agent.
+// ⚠️ Ces routes n'existaient pas avant le 2026-11-13 : le salaire n'était
+// saisissable nulle part et les employés sans contrat actif étaient ignorés
+// silencieusement par le calcul (cf. docs/payroll_rules.md § « Points d'attention »).
+Router::get('/api/payroll/contracts', [PayrollContractController::class, 'index']);
+Router::get('/api/payroll/contracts/[i:id]', [PayrollContractController::class, 'show']);
+Router::post('/api/payroll/contracts', [PayrollContractController::class, 'create']);
+Router::post('/api/payroll/contracts/update/[i:id]', [PayrollContractController::class, 'update']);
+Router::post('/api/payroll/contracts/toggle-paid/[i:id]', [PayrollContractController::class, 'togglePaid']);
+Router::post('/api/payroll/contracts/delete/[i:id]', [PayrollContractController::class, 'delete']);
+
 // ── Payroll périodes & paramètres ───────────────────────────
 Router::get('/api/payroll/periods', [PayrollController::class, 'periods']);
 Router::post('/api/payroll/periods', [PayrollController::class, 'createPeriod']);
@@ -195,6 +209,13 @@ Router::post('/api/payroll/periods/calculate/[i:id]', [PayrollController::class,
 Router::post('/api/payroll/periods/validate/[i:id]', [PayrollController::class, 'validatePeriod']);
 Router::post('/api/payroll/periods/close/[i:id]', [PayrollController::class, 'closePeriod']);
 Router::get('/api/payroll/parameters', [PayrollController::class, 'parameters']);
+// Import du récap de paie Excel (cf. `Recap paie.xlsx`).
+Router::post('/api/payroll/recap/preview', [PayrollRecapImportController::class, 'preview']);
+Router::post('/api/payroll/recap/import', [PayrollRecapImportController::class, 'apply']);
+
+// Paramètres de calcul (mode standard / excel_rdc, barème IRT, LOG/TRANS…).
+Router::get('/api/payroll/settings-params', [PayrollController::class, 'settingsParams']);
+Router::post('/api/payroll/settings-params', [PayrollController::class, 'updateSettingsParams']);
 Router::get('/api/payroll/payment-methods', [PayrollController::class, 'paymentMethods']);
 Router::post('/api/payroll/payment-methods', [PayrollController::class, 'createPaymentMethod']);
 Router::post('/api/payroll/payment-methods/update/[i:id]', [PayrollController::class, 'updatePaymentMethod']);

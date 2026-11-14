@@ -43,9 +43,33 @@
             </form>
         </div>
     </div>
+
+    <!-- Heures supplémentaires -->
+    <div class="card" style="margin-bottom: 1.5rem;">
+        <div class="card-header"><h3>Heures supplémentaires</h3></div>
+        <div class="card-body">
+            <form id="overtimeForm" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem;">
+                <select id="otEmployee" class="form-control" required></select>
+                <input id="otDate" type="date" class="form-control" required />
+                <input id="otHours" type="number" step="0.01" min="0" class="form-control" placeholder="Heures" required />
+                <select id="otRateType" class="form-control" required>
+                    <option value="normal_25"> normale (+25 %)</option>
+                    <option value="night_50"> Nuit (+50 %)</option>
+                    <option value="holiday_100"> Jour férié (+100 %)</option>
+                    <option value="custom"> Personnalisé</option>
+                </select>
+                <input id="otMultiplier" type="number" step="0.01" min="1" value="1.25" class="form-control" placeholder="Multiplicateur" />
+                <button type="submit" class="btn btn-secondary">Ajouter</button>
+            </form>
+            <div id="overtimeList" style="margin-top:1rem;"></div>
+        </div>
+    </div>
 </div>
 
 <script>
+    // Heures supplémentaires de la période affichée (rempli à chaque chargement).
+    let overtimeList = [];
+
     (async function () {
         const periods = await fetch('/api/payroll/periods').then(r => r.json());
         const select = document.getElementById('periodSelect');
@@ -64,11 +88,13 @@
 
         const emps = await fetch('/api/payroll/employees').then(r => r.json());
         const absEmp = document.getElementById('absEmployee');
+        const otEmp = document.getElementById('otEmployee');
         emps.forEach(e => {
             const opt = document.createElement('option');
             opt.value = e.id;
             opt.textContent = e.nom_complet + ' (' + e.matricule + ')';
             absEmp.appendChild(opt);
+            otEmp.appendChild(opt.cloneNode(true));
         });
     })();
 
@@ -102,7 +128,80 @@
         html += '</tbody></table></div>';
         grid.innerHTML = html;
         saveBtn.hidden = false;
+
+        overtimeList = data.overtimes || [];
+        renderOvertimes(overtimeList);
     }
+
+    /**
+     * Affiche les heures supplémentaires saisies pour la période.
+     */
+    function renderOvertimes(overtimes) {
+        const list = document.getElementById('overtimeList');
+        if (!overtimes.length) {
+            list.innerHTML = '<div class="empty-state">Aucune heure supplémentaire saisie</div>';
+            return;
+        }
+
+        let html = '<div style="overflow-x:auto"><table class="data-table" style="width:100%">'
+            + '<thead><tr><th>Employé</th><th>Date</th><th>Heures</th><th>Type</th><th>Multiplicateur</th><th>Montant</th><th></th></tr></thead><tbody>';
+        overtimeList.forEach(o => {
+            html += `<tr>
+                <td class="employee-name" data-label="Employé">${o.nom_complet || '-'}</td>
+                <td data-label="Date">${o.work_date}</td>
+                <td data-label="Heures">${o.hours}</td>
+                <td data-label="Type">${o.rate_type}</td>
+                <td data-label="Multiplicateur">${o.multiplier}</td>
+                <td data-label="Montant" class="right">${o.amount !== null && o.amount !== undefined
+                    ? parseFloat(o.amount).toLocaleString('fr-FR', { minimumFractionDigits: 2 })
+                    : 'auto'}</td>
+                <td data-label="Actions">
+                    <button class="btn btn-sm btn-danger" onclick="deleteOvertime(${o.id})">Supprimer</button>
+                </td>
+            </tr>`;
+        });
+        html += '</tbody></table></div>';
+        list.innerHTML = html;
+    }
+
+    async function deleteOvertime(id) {
+        if (!confirm('Supprimer cette heure supplémentaire ?')) return;
+        const res = await fetch('/api/payroll/overtime/delete/' + id, { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
+            overtimeList = overtimeList.filter(o => o.id != id);
+            loadAttendance();
+        } else {
+            alert(data.error || 'Erreur');
+        }
+    }
+
+    document.getElementById('overtimeForm').addEventListener('submit', async function (e) {
+        e.preventDefault();
+        const periodId = document.getElementById('periodSelect').value;
+        if (!periodId) { alert('Sélectionnez d\'abord une période.'); return; }
+
+        const body = {
+            payroll_period_id: periodId,
+            employee_id: document.getElementById('otEmployee').value,
+            work_date: document.getElementById('otDate').value,
+            hours: document.getElementById('otHours').value,
+            rate_type: document.getElementById('otRateType').value,
+            multiplier: document.getElementById('otMultiplier').value || 1.25,
+        };
+
+        const res = await fetch('/api/payroll/overtime', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        const data = await res.json();
+        if (data.success) {
+            loadAttendance();
+        } else {
+            alert(data.error || 'Erreur');
+        }
+    });
 
     document.getElementById('attendanceForm').addEventListener('submit', async function (e) {
         e.preventDefault();

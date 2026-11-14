@@ -53,64 +53,125 @@ if (!function_exists('hotel_icon_etages')) {
 ?>
 
 <style>
+  /* ─────────────────────────────────────────────────────────────
+     LAYOUT
+     La page a été dessinée pour la gouvernante (mobile-first :
+     colonne unique, gros boutons tactiles ≥ 48px).
+     Sur desktop, on élargit le conteneur (comme `hotel-chambres.php`
+     → 1600px) et on passe la liste en grille multi-colonnes.
+     ───────────────────────────────────────────────────────────── */
   .etages-wrap {
-    max-width: 720px;
-    margin: 1rem auto;
-    padding: 0 1rem 4rem 1rem;
+    max-width: 1600px;
+    margin: 0 auto;
+    padding: 0 .25rem 4rem;
   }
 
   .etages-title {
     display: flex;
     align-items: center;
-    gap: .6rem;
-    font-size: 1.4rem;
-    margin: 0 0 1rem 0;
+    gap: .75rem;
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin: 0 0 1.25rem 0;
     color: var(--foreground, #1e293b);
   }
   .etages-title .subtitle {
-    font-size: .85rem;
+    font-size: .88rem;
     font-weight: 400;
     color: var(--muted, #64748b);
+    padding-left: .75rem;
+    border-left: 1px solid var(--border, #e2e8f0);
   }
 
   /* Bandeau de stats (4 tuiles, scroll horizontal sur très petit écran) */
   .etages-stats {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: .5rem;
-    margin-bottom: 1.25rem;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+  @media (max-width: 900px) {
+    .etages-stats { grid-template-columns: repeat(2, 1fr); }
   }
   @media (max-width: 480px) {
-    .etages-stats { grid-template-columns: repeat(2, 1fr); }
+    .etages-stats { grid-template-columns: repeat(2, 1fr); gap: .5rem; }
   }
   .etages-stat {
     background: var(--card, #fff);
     border: 1px solid var(--border, #e2e8f0);
     border-radius: var(--radius, 8px);
-    padding: .75rem;
-    text-align: center;
+    box-shadow: var(--shadow, 0 1px 3px rgba(0,0,0,.1));
+    padding: 1rem 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: .9rem;
+    position: relative;
+    overflow: hidden;
+    transition: transform .12s ease, box-shadow .15s ease;
   }
+  .etages-stat::before {
+    content: '';
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 4px;
+    background: currentColor;
+    opacity: .85;
+  }
+  .etages-stat:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg, 0 10px 15px -3px rgba(0,0,0,.1));
+  }
+  .etages-stat .ico {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .etages-stat .ico svg { width: 20px; height: 20px; }
   .etages-stat .num {
     display: block;
-    font-size: 1.5rem;
+    font-size: 1.75rem;
     font-weight: 700;
-    line-height: 1.1;
+    line-height: 1.05;
+    letter-spacing: -.02em;
     color: var(--foreground, #1e293b);
   }
   .etages-stat .lbl {
-    font-size: .7rem;
+    display: block;
+    font-size: .72rem;
+    font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: .04em;
+    letter-spacing: .05em;
     color: var(--muted, #64748b);
-    margin-top: .15rem;
+    margin-top: .1rem;
   }
-  .etages-stat.a-faire   .num { color: #d97706; }
-  .etages-stat.en-cours  .num { color: #2563eb; }
-  .etages-stat.bloque    .num { color: #dc2626; }
-  .etages-stat.fait      .num { color: #16a34a; }
+  .etages-stat.a-faire   { color: #d97706; }
+  .etages-stat.en-cours  { color: #2563eb; }
+  .etages-stat.bloque    { color: #dc2626; }
+  .etages-stat.fait      { color: #16a34a; }
+  /* Fond de l'icône : version claire de la teinte du statut */
+  .etages-stat.a-faire   .ico { background: #fef3c7; }
+  .etages-stat.en-cours  .ico { background: #dbeafe; }
+  .etages-stat.bloque    .ico { background: #fee2e2; }
+  .etages-stat.fait      .ico { background: #dcfce7; }
+  .etages-stat.a-faire   .ico svg { color: #b45309; }
+  .etages-stat.en-cours  .ico svg { color: #1d4ed8; }
+  .etages-stat.bloque    .ico svg { color: #b91c1c; }
+  .etages-stat.fait      .ico svg { color: #15803d; }
 
-  /* Liste des tâches */
-  .etages-list { display: flex; flex-direction: column; gap: .85rem; }
+  /* Liste des tâches : colonne unique sur mobile, grille sur desktop */
+  .etages-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 1rem;
+    align-items: start;
+  }
+  @media (max-width: 700px) {
+    .etages-list { grid-template-columns: 1fr; gap: .85rem; }
+  }
 
   .etages-card {
     background: var(--card, #fff);
@@ -120,6 +181,9 @@ if (!function_exists('hotel_icon_etages')) {
     padding: 1rem;
     transition: box-shadow .15s, transform .12s;
   }
+  .etages-card:hover {
+    box-shadow: var(--shadow-lg, 0 10px 15px -3px rgba(0,0,0,.1));
+  }
   .etages-card.is-bloque {
     border-left: 4px solid #dc2626;
   }
@@ -127,9 +191,8 @@ if (!function_exists('hotel_icon_etages')) {
     border-left: 4px solid #2563eb;
   }
   .etages-card.is-fait {
-    opacity: .55;
+    opacity: .6;
   }
-
   .etages-card-head {
     display: flex;
     justify-content: space-between;
@@ -236,20 +299,36 @@ if (!function_exists('hotel_icon_etages')) {
   }
 
   /* Empty state */
+  /* Empty state */
   .etages-empty {
     background: var(--card, #fff);
-    border: 1px dashed var(--border, #e2e8f0);
-    border-radius: 12px;
-    padding: 2rem 1rem;
+    border: 1px dashed var(--border, #cbd5e1);
+    border-radius: 14px;
+    padding: 3rem 1.5rem;
     text-align: center;
     color: var(--muted, #64748b);
+    grid-column: 1 / -1;
   }
   .etages-empty .emoji {
     font-size: 2.5rem; display: inline-flex; align-items: center; justify-content: center;
-    margin: 0 auto .5rem; width: 64px; height: 64px;
+    margin: 0 auto 1rem; width: 72px; height: 72px;
     border-radius: 50%; background: #f1f5f9; color: #64748b;
   }
-  .etages-empty .emoji svg { width: 28px; height: 28px; }
+  .etages-empty .emoji svg { width: 32px; height: 32px; }
+  .etages-empty .etages-empty-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--foreground, #1e293b);
+    margin-bottom: .35rem;
+  }
+  .etages-empty .etages-empty-sub {
+    font-size: .9rem;
+    max-width: 460px;
+    margin: 0 auto;
+    line-height: 1.5;
+  }
+  .etages-empty.is-ok .emoji { background: #dcfce7; color: #15803d; }
+  .etages-empty.is-ok .etages-empty-title { color: #15803d; }
 
   /* Boutons avec icône SVG inline (injectée par hotel-etages.renderTache). */
   .etages-btn {
@@ -335,27 +414,57 @@ if (!function_exists('hotel_icon_etages')) {
 
 <main class="etages-wrap">
   <h1 class="etages-title">
-    <span style="display:inline-flex; align-items:center; gap:.5rem;">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0B5E88" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M19 4l-7 7M5 13l4 4 7-7-4-4z"></path>
-        <path d="M3 21l4-4"></path>
-      </svg>
+    <span style="display:inline-flex; align-items:center; gap:.6rem;">
+      <span style="display:inline-flex; align-items:center; justify-content:center; width:38px; height:38px; border-radius:10px; background:#e0f2fe; color:#0B5E88;">
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M19 4l-7 7M5 13l4 4 7-7-4-4z"></path>
+          <path d="M3 21l4-4"></path>
+        </svg>
+      </span>
       Étages
     </span>
     <span class="subtitle">Mes tâches du jour</span>
+    <span class="subtitle" style="margin-left:auto; border-left:none; padding-left:0;" id="etages-updated" aria-live="polite"></span>
   </h1>
 
   <!-- Stats -->
   <div class="etages-stats" id="etages-stats">
-    <div class="etages-stat a-faire"><span class="num" id="stat-a-faire">–</span><span class="lbl">À faire</span></div>
-    <div class="etages-stat en-cours"><span class="num" id="stat-en-cours">–</span><span class="lbl">En cours</span></div>
-    <div class="etages-stat bloque"><span class="num" id="stat-bloque">–</span><span class="lbl">Bloquées</span></div>
-    <div class="etages-stat fait"><span class="num" id="stat-fait">–</span><span class="lbl">Faites</span></div>
+    <div class="etages-stat a-faire">
+      <span class="ico" aria-hidden="true"><?= hotel_icon_etages('clock', 20) ?></span>
+      <span>
+        <span class="num" id="stat-a-faire">–</span>
+        <span class="lbl">À faire</span>
+      </span>
+    </div>
+    <div class="etages-stat en-cours">
+      <span class="ico" aria-hidden="true"><?= hotel_icon_etages('hand', 20) ?></span>
+      <span>
+        <span class="num" id="stat-en-cours">–</span>
+        <span class="lbl">En cours</span>
+      </span>
+    </div>
+    <div class="etages-stat bloque">
+      <span class="ico" aria-hidden="true"><?= hotel_icon_etages('alert', 20) ?></span>
+      <span>
+        <span class="num" id="stat-bloque">–</span>
+        <span class="lbl">Bloquées</span>
+      </span>
+    </div>
+    <div class="etages-stat fait">
+      <span class="ico" aria-hidden="true"><?= hotel_icon_etages('check', 20) ?></span>
+      <span>
+        <span class="num" id="stat-fait">–</span>
+        <span class="lbl">Faites</span>
+      </span>
+    </div>
   </div>
 
   <!-- Liste -->
   <div class="etages-list" id="etages-list">
-    <div class="etages-empty"><span class="emoji" aria-hidden="true"><?= hotel_icon_etages('clock', 32) ?></span>Chargement…</div>
+    <div class="etages-empty">
+      <span class="emoji" aria-hidden="true"><?= hotel_icon_etages('clock', 32) ?></span>
+      <div class="etages-empty-title">Chargement des tâches…</div>
+    </div>
   </div>
 </main>
 
@@ -470,14 +579,32 @@ if (!function_exists('hotel_icon_etages')) {
     document.getElementById('stat-bloque').textContent   = s.bloque      ?? 0;
     document.getElementById('stat-fait').textContent     = s.faites_jour ?? 0;
 
+    // Horodatage de la dernière actualisation (rafraîchissement auto toutes les 30 s)
+    const upd = document.getElementById('etages-updated');
+    if (upd) {
+      const now = new Date();
+      upd.textContent = 'Actualisé à ' + now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    }
     // Liste
     const list = document.getElementById('etages-list');
     list.innerHTML = '';
     if (!data.taches || data.taches.length === 0) {
-      list.innerHTML = '<div class="etages-empty"><span class="emoji" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/><circle cx="12" cy="12" r="3"/></svg></span>Aucune chambre à nettoyer pour le moment.<br>Vous êtes à jour, merci !</div>';
+      // État vide « tout est à jour » : message rassurant, pas un message d'erreur.
+      list.innerHTML =
+        '<div class="etages-empty is-ok">'
+        +   '<span class="emoji" aria-hidden="true">'
+        +     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
+        +       '<polyline points="20 6 9 17 4 12"></polyline>'
+        +     '</svg>'
+        +   '</span>'
+        +   '<div class="etages-empty-title">Tout est à jour !</div>'
+        +   '<div class="etages-empty-sub">'
+        +     'Aucune chambre à nettoyer pour le moment. Les nouvelles tâches apparaîtront ici '
+        +     'dès qu\'elles seront créées.'
+        +   '</div>'
+        + '</div>';
       return;
-    }
-    data.taches.forEach(t => list.appendChild(renderTache(t)));
+    }    data.taches.forEach(t => list.appendChild(renderTache(t)));
   }
 
   // ── Appels API ──────────────────────────────────────────────────
