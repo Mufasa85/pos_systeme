@@ -42,6 +42,10 @@ Router::get('/api/hotel/dashboard', [HotelDashboardController::class, 'index']);
 // Gestion des rôles hôtel (manager / réceptionniste / gouvernante) — ajouté 2026-10-15
 Router::get('/hotel/roles', [PageController::class, 'hotelRoles']);
 Router::post('/api/hotel/role/update', [PageController::class, 'apiHotelUpdateRole']);
+// Droit d'accès à la page /caisse (POS) par utilisateur — ajouté 2026-11-14
+// Colonne `utilisateurs.acces_caisse` (migration 2026_11_14_user_caisse_access.sql).
+// Le manager retire ainsi la gouvernante (ou la réceptionniste) du poste de vente.
+Router::post('/api/hotel/caisse-access/update', [PageController::class, 'apiHotelUpdateCaisseAccess']);
 // Calendrier + Chambres — sous-pages hôtel
 Router::get('/hotel/calendrier', [PageController::class, 'hotelCalendrier']);
 Router::get('/api/hotel/calendrier', [PageController::class, 'apiHotelCalendrier']);
