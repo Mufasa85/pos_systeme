@@ -627,11 +627,23 @@ class PageController extends Controller
 
         $hotelUsers = $targetShopId ? $userModel->allForShopWithHotelRole($targetShopId) : [];
 
+        // ── Droits d'accès aux modules du POS ───────────────────────────
+        // La colonne « Accès modules POS » (utilisateurs.acces_*) est
+        // RÉSERVÉE aux administrateurs POS : `admin` (auto-manager de sa
+        // boutique) et `super_admin`.
+        //
+        // Un manager (vendeur avec hotel_role='manager') continue de gérer
+        // les RÔLES hôtel de son équipe, mais ne peut ni VOIR ni MODIFIER
+        // les droits d'accès aux modules : c'est une décision de niveau
+        // boutique, prise par l'administrateur POS.
+        $canManageModuleAccess = $this->isAdmin() || $this->isSuperAdmin();
+
         $this->render('hotel-roles', [
             'hotelUsers'      => $hotelUsers,
             'targetShopId'    => $targetShopId,
             'allShops'        => $this->isSuperAdmin() ? $this->listAllShops() : [],
             'currentShopName' => $this->resolveShopName($targetShopId),
+            'canManageModuleAccess' => $canManageModuleAccess,
         ]);
     }
 
@@ -682,8 +694,17 @@ class PageController extends Controller
      * POST /api/hotel/caisse-access/update : met à jour le droit d'accès à
      * un module du POS pour un utilisateur.
      *
+     * ⚠️ ACCÈS RÉSERVÉ AUX ADMINISTRATEURS POS (`admin` = auto-manager de
+     * la boutique, et `super_admin`). Un manager (vendeur avec
+     * `hotel_role='manager'`) gère les RÔLES hôtel de son équipe mais ne
+     * peut PAS modifier les droits d'accès aux modules : c'est une décision
+     * de niveau boutique, prise par l'administrateur POS.
+     *
+     * Ce contrôle est côté SERVEUR : même si la colonne était visible dans
+     * l'UI, un manager ne pourrait pas la modifier en appelant l'API.
+     *
      * Vérifie que :
-     * - le caller est super_admin OU manager de la boutique ;
+     * - le caller est admin POS ou super_admin ;
      * - l'user cible appartient à la boutique (scope multi-tenant, appliqué
      *   par `User::setModuleAccess()`).
      *
@@ -700,10 +721,16 @@ class PageController extends Controller
             header('HTTP/1.1 405 Method Not Allowed');
             return;
         }
-        $hr = $this->resolveHotelRole();
-        if (!in_array($hr, ['super_admin', 'admin', 'manager'], true)) {
+
+        // ── Garde administrateur POS ────────────────────────────────────
+        // `isAdmin()` couvre `admin` ET `super_admin` ; on exige
+        // explicitement le rôle applicatif (et NON le rôle métier hôtel).
+        if (!$this->isAdmin() && !$this->isSuperAdmin()) {
             header('HTTP/1.1 403 Forbidden');
-            echo json_encode(['success' => false, 'message' => 'Accès refusé']);
+            echo json_encode([
+                'success' => false,
+                'message' => 'Accès réservé aux administrateurs de la boutique.',
+            ]);
             return;
         }
 
