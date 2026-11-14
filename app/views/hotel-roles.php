@@ -25,6 +25,14 @@ $targetShopId    = $targetShopId    ?? 0;
 $allShops        = $allShops        ?? [];
 // @phpstan-ignore-next-line
 $currentShopName = $currentShopName ?? '';
+// La colonne « Accès modules POS » est RÉSERVÉE aux administrateurs POS
+// (`admin` auto-manager de la boutique + `super_admin`). Un manager
+// (vendeur avec hotel_role='manager') ne doit ni la voir ni la modifier.
+// Valeur injectée par PageController::hotelRoles().
+// (Le `?? false` est un filet de sécurité : la variable est toujours
+// injectée par le contrôleur, mais on évite un warning si la vue est
+// incluse ailleurs.)
+$canManageModuleAccess = $canManageModuleAccess ?? false;
 // ── Compteurs par rôle (utilisés par les cards-filtres) ──────────
 $rolesCount = [
   'all'         => is_array($hotelUsers) ? count($hotelUsers) : 0,
@@ -128,15 +136,27 @@ if (is_array($hotelUsers)) {
   .hotel-roles-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
   .hotel-roles-table th { text-align: left; font-size: .7rem; text-transform: uppercase; color: #64748b; font-weight: 600; padding: .75rem .5rem; border-bottom: 2px solid #e2e8f0; overflow-wrap: anywhere; }
   .hotel-roles-table td { padding: .85rem .5rem; border-bottom: 1px solid #e2e8f0; font-size: .9rem; min-width: 0; overflow: hidden; vertical-align: middle; }
-  .hotel-roles-table col.col-user  { width: 32%; }
-  .hotel-roles-table col.col-app   { width: 18%; }
-  .hotel-roles-table col.col-role  { width: 36%; }
-  .hotel-roles-table col.col-stat  { width: 14%; }
+  .hotel-roles-table col.col-user  { width: 26%; }
+  .hotel-roles-table col.col-app   { width: 15%; }
+  .hotel-roles-table col.col-role  { width: 28%; }
+  .hotel-roles-table col.col-modules { width: 20%; }
+  .hotel-roles-table col.col-stat  { width: 11%; }
+  /* Sans la colonne « Accès modules POS » (viewer non admin POS) :
+     les colonnes restantes se rééquilibrent. */
+  .hotel-roles-table:not(.has-modules) col.col-user { width: 34%; }
+  .hotel-roles-table:not(.has-modules) col.col-app  { width: 19%; }
+  .hotel-roles-table:not(.has-modules) col.col-role { width: 34%; }
+  .hotel-roles-table:not(.has-modules) col.col-stat { width: 13%; }
   @media (max-width: 900px) {
-    .hotel-roles-table col.col-user  { width: 38%; }
-    .hotel-roles-table col.col-app   { width: 17%; }
-    .hotel-roles-table col.col-role  { width: 35%; }
-    .hotel-roles-table col.col-stat  { width: 10%; }
+    .hotel-roles-table col.col-user  { width: 30%; }
+    .hotel-roles-table col.col-app   { width: 14%; }
+    .hotel-roles-table col.col-role  { width: 26%; }
+    .hotel-roles-table col.col-modules { width: 22%; }
+    .hotel-roles-table col.col-stat  { width: 8%; }
+    .hotel-roles-table:not(.has-modules) col.col-user { width: 40%; }
+    .hotel-roles-table:not(.has-modules) col.col-app  { width: 20%; }
+    .hotel-roles-table:not(.has-modules) col.col-role { width: 30%; }
+    .hotel-roles-table:not(.has-modules) col.col-stat { width: 10%; }
   }
   .hotel-roles-user-cell { display: flex; align-items: center; gap: .65rem; min-width: 0; }
   .hotel-roles-avatar {
@@ -171,6 +191,33 @@ if (is_array($hotelUsers)) {
   .hotel-roles-status.saving { color: #d97706; }
   .hotel-roles-status.saved  { color: #16a34a; }
   .hotel-roles-status.error  { color: #dc2626; }
+
+  /* ── Bandeau d'information (manager : droits POS réservés) ──── */
+  .hotel-roles-info {
+    background: #f0f9ff; border: 1px solid #bae6fd; color: #075985;
+    border-radius: 10px; padding: .75rem 1rem; margin-bottom: 1rem;
+    font-size: .82rem; line-height: 1.5;
+  }
+
+  /* ── Badges « Accès modules POS » (droits par utilisateur) ────── */
+  .hotel-roles-modules {
+    display: flex; flex-wrap: wrap; gap: .3rem; min-width: 0;
+  }
+  .hotel-roles-module {
+    font: inherit; font-size: .7rem; font-weight: 600;
+    padding: .18rem .45rem; border-radius: 999px; cursor: pointer;
+    border: 1px solid transparent; white-space: nowrap; line-height: 1.4;
+    transition: transform .1s ease, filter .12s ease;
+  }
+  .hotel-roles-module:hover { transform: translateY(-1px); filter: brightness(.96); }
+  .hotel-roles-module.is-on {
+    background: #dcfce7; color: #166534; border-color: #86efac;
+  }
+  .hotel-roles-module.is-off {
+    background: #f1f5f9; color: #64748b; border-color: #cbd5e1;
+    text-decoration: line-through;
+  }
+  .hotel-roles-module.is-saving { opacity: .6; cursor: wait; }
   .hotel-roles-empty { padding: 3rem; text-align: center; color: #64748b; }
   /* Cards mobile (≤640px) : la table est cachée, liste de cards empilées. */
   .hotel-roles-cards { display: none; }
@@ -243,6 +290,17 @@ if (is_array($hotelUsers)) {
             </option>
           <?php endforeach; ?>
         </select>
+      </div>
+    <?php endif; ?>
+
+    <?php if (!$canManageModuleAccess): ?>
+      <!-- Le manager voit les rôles hôtel mais PAS les droits d'accès aux
+           modules POS : c'est une décision réservée à l'administrateur de
+           la boutique. On l'explique pour éviter l'impression d'un bug. -->
+      <div class="hotel-roles-info">
+        Les droits d'accès aux modules du POS (caisse, produits, historique,
+        pressing, analytics, paie) sont gérés par l'administrateur de la
+        boutique. Vous pouvez toujours attribuer les rôles hôtel ci-dessous.
       </div>
     <?php endif; ?>
 
@@ -326,15 +384,22 @@ if (is_array($hotelUsers)) {
       </div>
     <?php else: ?>
       <div class="hotel-roles-table-wrap">
-      <table class="hotel-roles-table">
+      <table class="hotel-roles-table <?= $canManageModuleAccess ? 'has-modules' : '' ?>">
         <colgroup>
-          <col class="col-user"><col class="col-app"><col class="col-role"><col class="col-stat">
+          <?php if ($canManageModuleAccess): ?>
+            <col class="col-user"><col class="col-app"><col class="col-role"><col class="col-modules"><col class="col-stat">
+          <?php else: ?>
+            <col class="col-user"><col class="col-app"><col class="col-role"><col class="col-stat">
+          <?php endif; ?>
         </colgroup>
         <thead>
           <tr>
             <th>Utilisateur</th>
             <th>Rôle applicatif</th>
             <th>Rôle Hôtel</th>
+            <?php if ($canManageModuleAccess): ?>
+              <th>Accès modules POS</th>
+            <?php endif; ?>
             <th>Statut</th>
           </tr>
         </thead>
@@ -344,6 +409,11 @@ if (is_array($hotelUsers)) {
               $appRole = $u['role'];
               $hotelRole = $u['hotel_role']; // null|manager|receptionniste|gouvernante
               $isAdminAuto = ($appRole === 'admin');
+              // Droits d'accès aux modules du POS (`utilisateurs.acces_*`,
+              // migrations 2026_11_14 / 2026_11_15). Les rôles de pilotage
+              // (admin/super_admin) y ont un accès PERMANENT : les cases sont
+              // affichées mais désactivées.
+              $isCaisseLocked = in_array($appRole, ['admin', 'super_admin'], true);
               // Pour le filtre JS : on attribue un "rôle effectif" — l'admin
               // apparaît comme "manager" (auto-assigné), les autres conservent
               // leur valeur (null/vide → "none" pour le filtre).
@@ -382,6 +452,39 @@ if (is_array($hotelUsers)) {
                   <div class="hotel-roles-status" id="status-<?= (int)$u['id'] ?>">Sélection actuelle</div>
                 <?php endif; ?>
               </td>
+              <?php if ($canManageModuleAccess): ?>
+              <td>
+                <?php if ($isCaisseLocked): ?>
+                  <span class="hotel-roles-badge-app role-vendeur">Accès permanent</span>
+                  <div class="hotel-roles-status">Rôle de pilotage</div>
+                <?php else: ?>
+                  <div class="hotel-roles-modules">
+                    <?php foreach (\App\Models\User::MODULES_ACCES as $_mod => $_col): ?>
+                      <?php
+                        $_on = !empty($u[$_col]);
+                        $_label = [
+                          'caisse'     => 'Caisse',
+                          'produits'   => 'Produits',
+                          'historique' => 'Historique',
+                          'pressing'   => 'Pressing',
+                          'analytics'  => 'Analytics',
+                          'paie'       => 'Paie',
+                        ][$_mod] ?? ucfirst($_mod);
+                        ?>
+                      <button type="button"
+                              class="hotel-roles-module <?= $_on ? 'is-on' : 'is-off' ?>"
+                              data-module="<?= htmlspecialchars($_mod) ?>"
+                              data-user-id="<?= (int)$u['id'] ?>"
+                              data-original="<?= $_on ? '1' : '0' ?>"
+                              title="<?= htmlspecialchars($_label) ?> — cliquer pour <?= $_on ? 'retirer' : 'accorder' ?> l'accès">
+                        <?= htmlspecialchars($_label) ?>
+                      </button>
+                    <?php endforeach; ?>
+                  </div>
+                  <div class="hotel-roles-status" id="status-modules-<?= (int)$u['id'] ?>">Droits POS</div>
+                <?php endif; ?>
+              </td>
+              <?php endif; ?>
               <td>
                 <?php if ((int)$u['actif'] === 1): ?>
                   <span class="hotel-roles-badge-app role-vendeur">Actif</span>
@@ -402,6 +505,8 @@ if (is_array($hotelUsers)) {
             $appRole = $u['role'];
             $hotelRole = $u['hotel_role'];
             $isAdminAuto = ($appRole === 'admin');
+            // Droits d'accès aux modules du POS (cf. boucle du tableau ci-dessus).
+            $isCaisseLocked = in_array($appRole, ['admin', 'super_admin'], true);
             $effectiveRole = $isAdminAuto
                 ? 'manager'
                 : ($hotelRole !== null && $hotelRole !== '' ? $hotelRole : 'none');
@@ -439,6 +544,46 @@ if (is_array($hotelUsers)) {
                 <?php endif; ?>
               </span>
             </div>
+            <?php if ($canManageModuleAccess): ?>
+            <div class="hotel-roles-user-card__row">
+              <span class="hotel-roles-user-card__lbl">Accès modules POS</span>
+              <span class="hotel-roles-user-card__val">
+                <?php if ($isCaisseLocked): ?>
+                  <span class="hotel-roles-badge-app role-vendeur">Accès permanent</span>
+                <?php else: ?>
+                  <div class="hotel-roles-modules">
+                    <?php foreach (\App\Models\User::MODULES_ACCES as $_mod => $_col): ?>
+                      <?php
+                        $_on = !empty($u[$_col]);
+                        $_label = [
+                          'caisse'     => 'Caisse',
+                          'produits'   => 'Produits',
+                          'historique' => 'Historique',
+                          'pressing'   => 'Pressing',
+                          'analytics'  => 'Analytics',
+                          'paie'       => 'Paie',
+                        ][$_mod] ?? ucfirst($_mod);
+                        ?>
+                      <button type="button"
+                              class="hotel-roles-module <?= $_on ? 'is-on' : 'is-off' ?>"
+                              data-module="<?= htmlspecialchars($_mod) ?>"
+                              data-user-id="<?= (int)$u['id'] ?>"
+                              data-original="<?= $_on ? '1' : '0' ?>"
+                              title="<?= htmlspecialchars($_label) ?> — cliquer pour <?= $_on ? 'retirer' : 'accorder' ?> l'accès">
+                        <?= htmlspecialchars($_label) ?>
+                      </button>
+                    <?php endforeach; ?>
+                  </div>
+                <?php endif; ?>
+              </span>
+            </div>
+            <div class="hotel-roles-user-card__row">
+              <span class="hotel-roles-user-card__lbl">&nbsp;</span>
+              <span class="hotel-roles-user-card__val">
+                <span class="hotel-roles-status" id="status-modules-card-<?= (int)$u['id'] ?>">Droits POS</span>
+              </span>
+            </div>
+            <?php endif; ?>
             <div class="hotel-roles-user-card__row">
               <span class="hotel-roles-user-card__lbl">Statut</span>
               <span class="hotel-roles-user-card__val">
@@ -590,6 +735,81 @@ if (is_array($hotelUsers)) {
       }
     });
   });
+
+  // ── 4. Badges « Accès modules POS » (droits par utilisateur) ────
+  // Sauvegarde immédiate : POST /api/hotel/caisse-access/update
+  // (user_id + module + acces).
+  // La valeur est renvoyée par le serveur (fail-closed côté API) : en cas
+  // d'échec, on restaure l'état précédent du badge.
+  //
+  // ⚠️ Ce bloc n'est rendu QUE pour les administrateurs POS : un manager ne
+  // voit pas la colonne, il n'a donc rien à piloter.
+  <?php if ($canManageModuleAccess): ?>
+  document.querySelectorAll('.hotel-roles-module').forEach(function(badge) {
+    badge.addEventListener('click', async function() {
+      const userId  = this.dataset.userId;
+      const module  = this.dataset.module;
+      const original = this.dataset.original === '1';
+      const granted = !original; // on inverse l'état courant
+      const statusEl     = document.getElementById('status-modules-' + userId);
+      const statusCardEl = document.getElementById('status-modules-card-' + userId);
+
+      function setStatus(el, cls, text) {
+        if (!el) return;
+        el.className = 'hotel-roles-status ' + cls;
+        el.textContent = text;
+      }
+      function setBadge(el, on) {
+        if (!el) return;
+        el.classList.toggle('is-on', on);
+        el.classList.toggle('is-off', !on);
+        el.dataset.original = on ? '1' : '0';
+      }
+
+      // Affichage optimiste (l'API tranche ensuite).
+      setBadge(this, granted);
+      this.classList.add('is-saving');
+      setStatus(statusEl,     'saving', 'Enregistrement…');
+      setStatus(statusCardEl, 'saving', 'Enregistrement…');
+
+      try {
+        const form = new FormData();
+        form.append('user_id', userId);
+        form.append('module', module);
+        form.append('acces', granted ? '1' : '0');
+        const res = await fetch(APP_URL + '/api/hotel/caisse-access/update', {
+          method: 'POST',
+          credentials: 'same-origin',
+          body: form,
+        });
+        const data = await res.json();
+        if (data.success) {
+          const txt = granted
+            ? '\u2713 Accès « ' + module + ' » accordé'
+            : '\u2713 Accès « ' + module + ' » retiré';
+          setStatus(statusEl,     'saved', txt);
+          setStatus(statusCardEl, 'saved', txt);
+          // Synchronise le badge jumeau (table ↔ cards).
+          document.querySelectorAll(
+            '.hotel-roles-module[data-user-id="' + userId + '"][data-module="' + module + '"]'
+          ).forEach(function(other) {
+            setBadge(other, granted);
+          }, this);
+        } else {
+          setStatus(statusEl,     'error', '\u2717 ' + (data.message || 'Erreur'));
+          setStatus(statusCardEl, 'error', '\u2717 ' + (data.message || 'Erreur'));
+          setBadge(this, original);
+        }
+      } catch (e) {
+        setStatus(statusEl,     'error', '\u2717 Erreur réseau');
+        setStatus(statusCardEl, 'error', '\u2717 Erreur réseau');
+        setBadge(this, original);
+      } finally {
+        this.classList.remove('is-saving');
+      }
+    });
+  });
+  <?php endif; ?>
 
   // Init : affichage de tous par défaut
   applyFilter('all');
