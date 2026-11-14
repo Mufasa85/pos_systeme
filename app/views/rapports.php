@@ -804,8 +804,12 @@
     flex-wrap: wrap;
   }
 
+  /* Base commune aux 3 boutons DGI : le bouton de clôture (danger) doit
+     hériter de la même mise en page que ses voisins (flex, gap, hauteur,
+     arrondis, graisse du texte) — sinon il s'affiche déformé. */
   .rpt-btn-dgi-primary,
-  .rpt-btn-dgi-secondary {
+  .rpt-btn-dgi-secondary,
+  .rpt-btn-dgi-danger {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -816,8 +820,17 @@
     font: inherit;
     font-size: 0.8rem;
     font-weight: 700;
+    line-height: 1;
+    white-space: nowrap;
     cursor: pointer;
     transition: all 0.15s;
+  }
+
+  /* L'icône ne doit jamais s'écraser ni se déformer dans la ligne flex. */
+  .rpt-btn-dgi-primary svg,
+  .rpt-btn-dgi-secondary svg,
+  .rpt-btn-dgi-danger svg {
+    flex: 0 0 auto;
   }
 
   .rpt-btn-dgi-primary {
@@ -832,6 +845,13 @@
     color: var(--foreground);
   }
 
+  .rpt-btn-dgi-danger {
+    border: 1px solid var(--danger);
+    background: var(--danger);
+    color: #fff;
+    box-shadow: 0 2px 6px rgba(239, 68, 68, 0.25);
+  }
+
   .rpt-btn-dgi-primary:hover {
     filter: brightness(0.95);
   }
@@ -841,14 +861,28 @@
     color: var(--primary);
   }
 
-  .rpt-btn-dgi-danger {
-    border: 1px solid #dc2626;
-    background: #dc2626;
-    color: #fff;
-  }
-
   .rpt-btn-dgi-danger:hover {
     filter: brightness(0.95);
+  }
+
+  .rpt-btn-dgi-primary:focus-visible,
+  .rpt-btn-dgi-secondary:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+
+  .rpt-btn-dgi-danger:focus-visible {
+    outline: 2px solid var(--danger);
+    outline-offset: 2px;
+  }
+
+  .rpt-btn-dgi-primary:disabled,
+  .rpt-btn-dgi-secondary:disabled,
+  .rpt-btn-dgi-danger:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    filter: none;
+    box-shadow: none;
   }
 
   .rpt-dgi-timing {
@@ -960,7 +994,8 @@
     }
 
     .rpt-btn-dgi-primary,
-    .rpt-btn-dgi-secondary {
+    .rpt-btn-dgi-secondary,
+    .rpt-btn-dgi-danger {
       width: 100%;
     }
   }
