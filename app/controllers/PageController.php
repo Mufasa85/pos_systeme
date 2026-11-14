@@ -73,6 +73,22 @@ class PageController extends Controller
         $data['shopHasExtrasAccess'] = $shopId
             ? (bool)($shop['acces_extras'] ?? false)
             : false;
+        // Droits d'accès aux modules du POS — par utilisateur.
+        // (`utilisateurs.acces_*`, migrations 2026_11_14 / 2026_11_15).
+        //
+        // Calculés ici pour que la sidebar masque le lien du module quand le
+        // droit est refusé : l'utilisateur ne doit jamais cliquer sur un lien
+        // visible qui ne peut aboutir qu'à une redirection (règle du projet).
+        //
+        // Source de vérité : User::canAccessModule() — identique à la garde
+        // backend (PageController::requireModulePageAccess()), donc le lien
+        // visible et l'accès réel ne peuvent pas diverger.
+        $moduleAccess = [];
+        foreach (array_keys(\App\Models\User::MODULES_ACCES) as $module) {
+            $moduleAccess[$module] = $this->isModuleAccessAllowed($module);
+        }
+        $data['canAccessCaisse'] = $moduleAccess['caisse'];
+        $data['moduleAccess']     = $moduleAccess;
         // Company info (super_admin) pour l'affichage du nom entreprise dans le layout
         if ($this->isSuperAdmin()) {
             try {
@@ -229,6 +245,20 @@ class PageController extends Controller
 
     public function caisse()
     {
+        // ── Contrôle d'accès au point de vente ───────────────────────────
+        // Le droit est porté par `utilisateurs.acces_caisse` (migration
+        // 2026_11_14_user_caisse_access.sql), réglé par le manager depuis
+        // /hotel/roles. La gouvernante (et, si le manager le souhaite, la
+        // réceptionniste) peut ainsi être retirée du poste de vente.
+        //
+        // On NE renvoie pas une 403 : la caisse n'est pas une page « interdite »,
+        // c'est un poste de travail. On redirige vers la page hôtel du rôle
+        // effectif, pour que la personne atterrit sur SON outil (mobile pour
+        // la gouvernante) au lieu d'une page d'erreur.
+        if (!$this->requireCaissePageAccess()) {
+            return;
+        }
+
         $categoryModel = new \App\Models\Category();
         $shopId = $this->isSuperAdmin() ? null : $this->getShopId();
         $categories = $categoryModel->all($shopId);
@@ -241,6 +271,65 @@ class PageController extends Controller
             'categories' => $categories,
             'clientTypes' => $clientTypes,
         ]);
+    }
+
+    /**
+     * Vérifie que l'utilisateur a le droit d'ouvrir la page /caisse.
+     *
+     * Retourne true si l'accès est accordé. Sinon, redirige vers la page
+     * hôtel correspondant au rôle effectif et retourne false (le caller
+     * doit alors stopper son traitement).
+     *
+     * La source de vérité est `User::canAccessCaisse()` — identique à celle
+     * utilisée par la garde API (`Controller::requireCaisseAccess()`) : le
+     * lien visible et l'accès réel ne peuvent pas diverger.
+     */
+    private function requireCaissePageAccess(): bool
+    {
+        if ($this->isCaisseAccessAllowed()) {
+            return true;
+        }
+
+        // Page de repli : la page hôtel du rôle effectif si elle existe,
+        // sinon le tableau de bord.
+        $hr = $this->resolveHotelRole();
+        $target = '/dashboard';
+        if ($hr === 'gouvernante') {
+            $target = '/hotel/etages';
+        } elseif ($hr === 'receptionniste') {
+            $target = '/hotel/reception';
+        } elseif (in_array($hr, ['manager', 'admin', 'super_admin'], true)) {
+            $target = '/hotel/tableau-bord';
+        }
+
+        $_SESSION['flash_error'] = 'La caisse n\'est pas accessible avec votre rôle.';
+
+        $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+        $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+        header('Location: ' . $protocol . '://' . $host . $target);
+        exit;
+    }
+
+    /**
+     * Vérifie que l'utilisateur a le droit d'ouvrir une page de module POS.
+     *
+     * Même principe que `requireCaissePageAccess()` mais générique : le
+     * droit est porté par la colonne `utilisateurs.acces_<module>`.
+     *
+     * @param string $module Clé de \App\Models\User::MODULES_ACCES.
+     */
+    private function requireModulePageAccess(string $module): bool
+    {
+        if ($this->isModuleAccessAllowed($module)) {
+            return true;
+        }
+
+        $_SESSION['flash_error'] = 'Ce module n\'est pas accessible avec votre rôle.';
+
+        $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+        $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+        header('Location: ' . $protocol . '://' . $host . '/dashboard');
+        exit;
     }
 
     public function recharges()
@@ -267,6 +356,11 @@ class PageController extends Controller
 
     public function produits()
     {
+        // Droit d'accès au module Produits (`utilisateurs.acces_produits`).
+        // Un utilisateur retiré de la gestion du catalogue par le manager
+        // n'y a plus accès.
+        $this->requireModulePageAccess('produits');
+
         $productModel = new Product();
         $categoryModel = new \App\Models\Category();
         $taxModel = new \App\Models\Tax();
@@ -585,6 +679,78 @@ class PageController extends Controller
     }
 
     /**
+     * POST /api/hotel/caisse-access/update : met à jour le droit d'accès à
+     * un module du POS pour un utilisateur.
+     *
+     * Vérifie que :
+     * - le caller est super_admin OU manager de la boutique ;
+     * - l'user cible appartient à la boutique (scope multi-tenant, appliqué
+     *   par `User::setModuleAccess()`).
+     *
+     * Body : user_id (int), module (caisse|produits|historique|pressing|
+     *        analytics|paie), acces (0|1).
+     *
+     * ⚠️ Le paramètre `acces_caisse` est accepté en ALIAS de `acces` pour
+     * compatibilité avec l'ancienne version de l'UI (case « Accès caisse »
+     * qui n'envoyait que `acces_caisse`).
+     */
+    public function apiHotelUpdateCaisseAccess()
+    {
+        if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
+            header('HTTP/1.1 405 Method Not Allowed');
+            return;
+        }
+        $hr = $this->resolveHotelRole();
+        if (!in_array($hr, ['super_admin', 'admin', 'manager'], true)) {
+            header('HTTP/1.1 403 Forbidden');
+            echo json_encode(['success' => false, 'message' => 'Accès refusé']);
+            return;
+        }
+
+        $userId = (int)($_POST['user_id'] ?? 0);
+        if ($userId <= 0) {
+            header('HTTP/1.1 400 Bad Request');
+            echo json_encode(['success' => false, 'message' => 'user_id requis']);
+            return;
+        }
+
+        // Module ciblé : `module` (nouveau) ou `acces_caisse` (alias).
+        $module = (string)($_POST['module'] ?? '');
+        if ($module === '' && isset($_POST['acces_caisse'])) {
+            $module = 'caisse';
+        }
+        if (!array_key_exists($module, User::MODULES_ACCES)) {
+            header('HTTP/1.1 400 Bad Request');
+            echo json_encode([
+                'success' => false,
+                'message' => 'Module inconnu (attendu : ' . implode(', ', array_keys(User::MODULES_ACCES)) . ')',
+            ]);
+            return;
+        }
+
+        // Le droit est binaire : toute valeur non nulle signifie « autorisé ».
+        $raw = $_POST['acces'] ?? $_POST['acces_' . $module] ?? null;
+        $granted = !empty($raw) && $raw !== '0' && $raw !== 'false';
+
+        $sessionShopId = (int)($_SESSION['shop_id'] ?? 0);
+        if (!$sessionShopId) {
+            header('HTTP/1.1 400 Bad Request');
+            echo json_encode(['success' => false, 'message' => 'Boutique non déterminée']);
+            return;
+        }
+
+        $userModel = new User();
+        $ok = $userModel->setModuleAccess($module, $userId, $granted, $sessionShopId);
+        header('Content-Type: application/json');
+        echo json_encode([
+            'success' => $ok,
+            'message' => $ok
+                ? ($granted ? 'Accès « ' . $module . ' » accordé' : 'Accès « ' . $module . ' » retiré')
+                : 'Refusé (hors scope ou rôle non modifiable)',
+        ]);
+    }
+
+    /**
      * Endpoint JSON pour la page /hotel/calendrier.
      * Renvoie les chambres + séjours qui chevauchent la semaine
      * débutant à ?from=YYYY-MM-DD (par défaut : aujourd'hui).
@@ -720,6 +886,9 @@ class PageController extends Controller
 
     public function historique()
     {
+        // Droit d'accès au module Historique (`utilisateurs.acces_historique`).
+        $this->requireModulePageAccess('historique');
+
         $saleModel = new Sale();
         $shopId = $this->isSuperAdmin() ? null : $this->getShopId();
         $ventes = $saleModel->getAllSales($shopId);
@@ -738,9 +907,15 @@ class PageController extends Controller
      */
     public function pressing()
     {
+        // 1. Feature flag API `pressing` (inchangé — abonnement OSAT).
         if (!$this->requireShopPressingAccess(false)) {
             return;
         }
+        // 2. Droit d'accès par utilisateur (`utilisateurs.acces_pressing`).
+        //    Les deux contrôles s'AJOUTENT : le flag dit « la boutique a
+        //    souscrit », le droit dit « CET utilisateur a le droit ».
+        $this->requireModulePageAccess('pressing');
+
         $this->render('pressing', []);
     }
 
@@ -763,6 +938,11 @@ class PageController extends Controller
             header('Location: ' . $protocol . '://' . $host . '/dashboard');
             exit;
         }
+        // Droit d'accès par utilisateur (`utilisateurs.acces_analytics`).
+        // ⚠️ Redondant pour les rôles de pilotage (déjà bloqués par le
+        // contrôle admin ci-dessus et exonérés de tout droit), mais utile
+        // si la règle d'accès à Analytics évolue.
+        $this->requireModulePageAccess('analytics');
 
         $saleModel = new Sale();
         $saleDetailModel = new \App\Models\SaleDetail();
@@ -1169,6 +1349,13 @@ class PageController extends Controller
             require_once dirname(__DIR__) . DIRECTORY_SEPARATOR . 'views/403.php';
             exit;
         }
+
+        // Droit d'accès par utilisateur (`utilisateurs.acces_paie`).
+        // Les deux contrôles s'AJOUTENT : le flag dit « la boutique a
+        // souscrit au module paie », le droit dit « CET utilisateur y a
+        // accès ». C'est ce second contrôle qui permet de retirer la
+        // receptionniste ou la gouvernante du module paie.
+        $this->requireModulePageAccess('paie');
 
         $isAdmin = $this->isAdmin() || $this->isSuperAdmin();
         $view = $params['view'] ?? 'index';
