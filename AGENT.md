@@ -66,6 +66,95 @@ Pour ajouter un nouveau rôle : modifier la colonne `role` (c'est un `VARCHAR` o
 `ENUM`, vérifier le type), ajouter une condition dans la sidebar
 (`header.php`), et ajouter les vérifications de session dans les contrôleurs.
 
+### Droits d'accès aux modules du POS — `utilisateurs.acces_*`
+
+Colonnes **indépendantes** du rôle applicatif (`role`) et du rôle métier hôtel
+(`hotel_role`) : elles portent un droit métier explicite, réglable **par
+utilisateur**.
+
+| Module       | Colonne             | Page / route                  | Migration                              |
+| ------------ | ------------------- | ----------------------------- | -------------------------------------- |
+| Caisse       | `acces_caisse`      | `/caisse`                     | `2026_11_14_user_caisse_access.sql`    |
+| Produits     | `acces_produits`    | `/produits`                   | `2026_11_15_user_module_access.sql`    |
+| Historique   | `acces_historique`  | `/historique`                 | `2026_11_15_user_module_access.sql`    |
+| Pressing     | `acces_pressing`    | `/pressing`                   | `2026_11_15_user_module_access.sql`    |
+| Analytics    | `acces_analytics`   | `/analytics`                  | `2026_11_15_user_module_access.sql`    |
+| Paie         | `acces_paie`        | `/payroll`, `/payroll/*`      | `2026_11_15_user_module_access.sql`    |
+
+| Élément              | Valeur                                                        |
+| -------------------- | ------------------------------------------------------------- |
+| Source de vérité     | `User::canAccessModule($module)` / `User::setModuleAccess()`  |
+| Table des modules    | `User::MODULES_ACCES` (module => colonne SQL)                  |
+| Rôles de pilotage    | `User::ROLES_PILOTAGE` = `super_admin`, `admin`                |
+| Qui peut les régler  | **Administrateurs POS uniquement** (`admin` + `super_admin`)   |
+| Réglage              | Manager → `/hotel/roles` (colonne « Accès modules POS »)        |
+| Garde page           | `PageController::requireModulePageAccess($module)`             |
+| Garde API            | `Controller::requireModuleAccess($module)`                     |
+| Masquage sidebar     | `app/views/layout/header.php` (liens conditionnels)             |
+| API de réglage       | `POST /api/hotel/caisse-access/update`                         |
+
+Règles :
+- `super_admin` et `admin` : accès **permanent** à tous les modules (jamais
+  verrouillé) — cohérent avec `resolveHotelRole()` et `requireActiveShop()`.
+- `vendeur` / `receptionniste` / `gouvernante` : la valeur de la colonne fait
+  foi. C'est l'**administrateur POS** de la boutique qui la modifie.
+- Default `1` (fail-open) pour ne casser aucun compte existant ; côté
+  applicatif, un utilisateur inconnu, une erreur SQL ou un module inconnu ⇒
+  **fail-closed**.
+
+### ⚠️ La colonne « Accès modules POS » est réservée aux administrateurs POS
+
+Sur `/hotel/roles`, la colonne « Accès modules POS » (et le bloc JS associé)
+n'est rendue **que** pour les utilisateurs dont le rôle **applicatif** est
+`admin` (auto-manager de sa boutique) ou `super_admin`.
+
+Un **manager** (vendeur avec `hotel_role='manager'`) :
+- continue de gérer les **rôles hôtel** de son équipe (c'est son métier) ;
+- ne voit **PAS** la colonne « Accès modules POS » ;
+- ne peut **PAS** modifier les droits d'accès aux modules — même en appelant
+  directement `POST /api/hotel/caisse-access/update`, qui répond **403**.
+
+Le contrôle est appliqué **côté serveur** (`PageController::apiHotelUpdateCaisseAccess()`),
+pas seulement dans l'UI : un manager ne peut pas contourner la restriction en
+appelant l'API. Un bandeau d'information le lui explique (pour qu'il ne pense
+pas à un bug).
+
+Implémentation :
+- `PageController::hotelRoles()` injecte `canManageModuleAccess`
+  (`$this->isAdmin() || $this->isSuperAdmin()`) ;
+- `app/views/hotel-roles.php` conditionne le `<col>`, le `<th>`, les `<td>`
+  (tableau + cards mobiles) et le bloc JavaScript sur cette variable ;
+- `PageController::apiHotelUpdateCaisseAccess()` exige `isAdmin() ||
+  isSuperAdmin()` — le rôle métier hôtel (`manager`) ne suffit **plus**.
+
+Ces droits **s'ajoutent** aux contrôles existants, ils ne les remplacent pas :
+- `/pressing` exige le flag API `pressing` **ET** `acces_pressing` ;
+- `/payroll` exige le flag API `paie` **ET** `acces_paie` ;
+- `/analytics` exige le rôle admin **ET** `acces_analytics`.
+
+Pourquoi des colonnes dédiées plutôt qu'une déduction de `hotel_role` ? Parce que
+la réceptionniste **garde** la caisse (cf. matrice `docs/PLAN_HOTEL_V1.md` :
+« Utiliser la caisse POS : Manager ✅ / Réceptionniste ✅ / Gouvernante ❌ /
+Vendeur ✅ »), et que le manager doit pouvoir retirer un poste de travail à
+n'importe qui **sans changer son rôle**.
+
+⚠️ **Piège 1** : `POST /api/vente` est **partagée** entre la caisse et les
+recharges Élec/Eau. Le discriminant est `providerService` (cf.
+`SaleController::create()`) : les recharges ne sont **pas** concernées par le
+blocage du POS. Ne jamais mettre la garde d'accès sans ce filtre — sinon les
+recharges Élec/Eau cassent.
+
+⚠️ **Piège 2** : `GET /api/produits` est **global** (`public/assets/js/app.js`
+l'appelle depuis la caisse via `loadProducts()`). Le bloquer casserait la
+caisse ET le dashboard : le droit `acces_produits` porte sur la **page**
+`/produits` (gestion du catalogue), pas sur l'API de lecture.
+
+La page `/caisse` ne renvoie pas une 403 : elle **redirige** vers la page
+hôtel du rôle effectif (`/hotel/etages` pour la gouvernante,
+`/hotel/reception` pour la réceptionniste) — la personne atterrit sur son outil
+de travail, pas sur une page d'erreur. Les autres modules redirigent vers
+`/dashboard`.
+
 ---
 
 ## 4. État du module Hôtel (PMS)

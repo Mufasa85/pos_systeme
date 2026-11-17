@@ -23,12 +23,85 @@
 
 ### Pages principales
 
-| Méthode | Route         | Contrôleur     | Action     | Description                        | Accès |
-| ------- | ------------- | -------------- | ---------- | ---------------------------------- | ----- |
-| GET     | `/dashboard`  | PageController | dashboard  | Tableau de bord avec statistiques  | Tous  |
-| GET     | `/caisse`     | PageController | caisse     | Interface de caisse/point de vente | Tous  |
-| GET     | `/produits`   | PageController | produits   | Liste des produits                 | Tous  |
-| GET     | `/historique` | PageController | historique | Historique des ventes              | Tous  |
+| Méthode | Route         | Contrôleur     | Action     | Description                        | Accès                        |
+| ------- | ------------- | -------------- | ---------- | ---------------------------------- | ---------------------------- |
+| GET     | `/dashboard`  | PageController | dashboard  | Tableau de bord avec statistiques  | Tous                         |
+| GET     | `/caisse`     | PageController | caisse     | Interface de caisse/point de vente | Droit POS (cf. ci-dessous)   |
+| GET     | `/produits`   | PageController | produits   | Liste des produits                 | Droit POS (cf. ci-dessous)   |
+| GET     | `/historique` | PageController | historique | Historique des ventes              | Droit POS (cf. ci-dessous)   |
+| GET     | `/analytics`  | PageController | analytics  | Indicateurs de vente               | Admin + Droit POS            |
+| GET     | `/pressing`   | PageController | pressing   | Suivi des commandes de pressing    | Flag API + Droit POS         |
+| GET     | `/payroll`    | PageController | payroll    | Module Paie (bulletins, pointage)  | Flag API + Droit POS         |
+
+**Droits d'accès aux modules du POS — par utilisateur (`utilisateurs.acces_*`) :**
+
+| Module       | Colonne             | Migration                           |
+| ------------ | ------------------- | ----------------------------------- |
+| Caisse       | `acces_caisse`      | `2026_11_14_user_caisse_access.sql` |
+| Produits     | `acces_produits`    | `2026_11_15_user_module_access.sql` |
+| Historique   | `acces_historique`  | `2026_11_15_user_module_access.sql` |
+| Pressing     | `acces_pressing`    | `2026_11_15_user_module_access.sql` |
+| Analytics    | `acces_analytics`   | `2026_11_15_user_module_access.sql` |
+| Paie         | `acces_paie`        | `2026_11_15_user_module_access.sql` |
+
+| Élément            | Valeur                                                       |
+| ------------------ | ------------------------------------------------------------ |
+| Source de vérité   | `User::canAccessModule($module)` / `User::setModuleAccess()` |
+| Table des modules  | `User::MODULES_ACCES`                                        |
+| Rôles de pilotage  | `User::ROLES_PILOTAGE` (`super_admin`, `admin`)              |
+| Qui peut les régler| **Administrateurs POS** (`admin` + `super_admin`)            |
+| Garde page         | `PageController::requireModulePageAccess($module)`            |
+| Garde API          | `Controller::requireModuleAccess($module)`                    |
+| Réglage            | `/hotel/roles` → colonne « Accès modules POS »                |
+| API de réglage     | `POST /api/hotel/caisse-access/update`                        |
+
+- `super_admin` et `admin` : accès **permanent** à tous les modules.
+- `vendeur` / `receptionniste` / `gouvernante` : la valeur de la colonne
+  `acces_<module>` fait foi (elle est modifiée par l'administrateur POS de la
+  boutique).
+- Ces droits **s'ajoutent** aux contrôles existants : `/pressing` exige le
+  flag API `pressing` **ET** `acces_pressing` ; `/payroll` exige le flag API
+  `paie` **ET** `acces_paie` ; `/analytics` exige le rôle admin **ET**
+  `acces_analytics`.
+- Sans droit, la page `/caisse` **ne renvoie pas une 403** : elle redirige vers
+  la page hôtel du rôle effectif (`/hotel/etages` pour la gouvernante,
+  `/hotel/reception` pour la réceptionniste). Les autres modules redirigent
+  vers `/dashboard`. Le lien correspondant disparaît de la sidebar.
+
+> ⚠️ **La colonne « Accès modules POS » de `/hotel/roles` est réservée aux
+> administrateurs POS** (`role` applicatif `admin` ou `super_admin`). Un
+> manager (vendeur avec `hotel_role='manager'`) gère les rôles hôtel mais ne
+> voit pas cette colonne et ne peut pas la modifier :
+> `POST /api/hotel/caisse-access/update` lui répond **403**.
+
+> ⚠️ `GET /api/produits` reste **global** (la caisse et le dashboard
+> l'utilisent pour afficher le catalogue) : le droit `acces_produits` porte sur
+> la **page** `/produits`, pas sur cette API de lecture.
+>
+> ⚠️ `POST /api/vente` est **partagée** entre la caisse et les recharges
+> Élec/Eau : le discriminant `providerService` exclut les recharges du blocage
+> du POS.
+
+### Module Hôtel (PMS)
+
+| Méthode | Route                             | Contrôleur       | Action                  | Accès                                    |
+| ------- | --------------------------------- | ---------------- | ----------------------- | ---------------------------------------- |
+| GET     | `/hotel`                          | PageController   | hotel                   | Redirige selon le rôle hôtel             |
+| GET     | `/hotel/reception`                | PageController   | hotelReception          | manager, réceptionniste                  |
+| GET     | `/hotel/etages`                  | PageController   | hotelEtages             | manager, réceptionniste, gouvernante     |
+| GET     | `/hotel/tableau-bord`             | PageController   | hotelDashboard          | manager                                   |
+| GET     | `/hotel/calendrier`               | PageController   | hotelCalendrier         | manager                                   |
+| GET     | `/hotel/chambres`                 | PageController   | hotelChambres           | tous les rôles hôtel                      |
+| GET     | `/hotel/guests`                   | PageController   | hotelGuests             | tous les rôles hôtel                      |
+| GET     | `/hotel/reservations`             | PageController   | hotelReservations       | manager, réceptionniste                  |
+| GET     | `/hotel/facturation`              | PageController   | hotelFacturation        | flag API `hotel`                          |
+| GET     | `/hotel/roles`                    | PageController   | hotelRoles              | manager (gère les rôles + accès caisse)  |
+| POST    | `/api/hotel/role/update`          | PageController   | apiHotelUpdateRole      | manager                                   |
+| POST    | `/api/hotel/caisse-access/update` | PageController   | apiHotelUpdateCaisseAccess | manager                                |
+
+Le module Hôtel (hors « Extras ») dépend du flag API `hotel`. Le bouton
+« Extras » de la caisse dépend, lui, de la configuration par boutique
+`shops.acces_extras` (cf. `Controller::requireShopExtrasAccess()`).
 
 ### Pages d'administration
 
@@ -69,6 +142,8 @@ Base URL: `http://localhost:8000/api`
 | POST    | `/produit/delete` | ProductController | delete | Supprime un produit       | Admin |
 | POST    | `/api/produit/import` | ProductImportController | import | Importe des produits (Excel/CSV) | Admin |
 | GET     | `/api/produit/import/template` | ProductImportController | template | Modèle Excel à remplir | Admin |
+| GET     | `/api/produit/import/categories` | ProductImportController | categories | Catégories d'une boutique | Admin |
+| GET     | `/api/produit/export` | ProductExportController | export | Exporte le catalogue vers Excel | Admin |
 
 #### GET `/api/produits`
 
@@ -216,7 +291,12 @@ n'annule pas les autres.
 | category_id | int | Non | Catégorie par défaut si la colonne est vide |
 | tax_id | int | Non | Taxe par défaut si la colonne est vide |
 | create_categories | bool | Non | Crée les catégories absentes du catalogue |
-| shop_id | int | Non | Boutique cible (super_admin uniquement) |
+| shop_id | int | **Super_admin** | Boutique de destination — **obligatoire** |
+
+> **Super_admin** : le paramètre `shop_id` est obligatoire. Sans lui, la requête
+> est refusée (HTTP 400) : les produits seraient créés sans boutique, donc
+> invisibles dans le POS. L'admin, lui, est verrouillé sur sa boutique et le
+> paramètre est ignoré.
 
 **Colonnes attendues** (les en-têtes sont normalisés : insensibles à la casse et
 aux accents) :
@@ -265,6 +345,60 @@ aux accents) :
 **Authentification requise:** Oui (rôle admin)
 
 **Réponse:** un fichier `.xlsx` (`application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`).
+
+#### GET `/api/produit/export`
+
+**Description:** Exporte le catalogue produits vers un fichier Excel. Le fichier
+utilise **exactement les mêmes en-têtes que le modèle d'import** : un catalogue
+exporté peut donc être ré-importé tel quel après modification (mode « update »).
+
+**Authentification requise:** Oui (rôle admin ou super_admin)
+
+**Paramètres GET (tous optionnels) :**
+| Param | Type | Description |
+|-------|------|-------------|
+| search | string | Recherche sur le nom ou le code-barres |
+| category | string | Nom de la catégorie (`all` = toutes) |
+| shop_id | int | ID de la boutique (super_admin uniquement) |
+| include_inactive | bool | Inclure les produits des boutiques désactivées |
+| details | bool | Ajouter une 2ᵉ feuille « Détail » (boutique, stocks, expirations) |
+
+> **Super_admin** : sans `shop_id`, l'export couvre **toutes les boutiques**. Le
+> fichier contient alors une colonne « boutique » (en fin de ligne) pour
+> identifier l'origine de chaque produit. Avec `shop_id`, l'export est
+> mono-boutique et cette colonne est absente.
+>
+> L'admin exporte uniquement le catalogue de sa boutique.
+
+**Réponse:** un fichier `.xlsx` (`application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`),
+nommé `produits_[filtres]_YYYY-MM-DD.xlsx`.
+
+**Exemple :**
+```
+GET /api/produit/export?category=Boissons&search=Coca
+→ produits_boissons_coca_2026-11-12.xlsx
+```
+
+#### GET `/api/produit/import/categories`
+
+**Description:** Renvoie les catégories disponibles pour une boutique donnée.
+Utilisé par le super_admin dans le modal d'import : les catégories proposées
+doivent être celles de la boutique de destination.
+
+**Authentification requise:** Oui (rôle admin)
+
+**Paramètres GET :**
+| Param | Type | Description |
+|-------|------|-------------|
+| shop_id | int | ID de la boutique (super_admin uniquement) |
+
+**Réponse :**
+```json
+[
+  { "id": 1, "category": "Comestible", "shop_id": 3 },
+  { "id": 4, "category": "Boissons", "shop_id": 3 }
+]
+```
 
 ---
 
