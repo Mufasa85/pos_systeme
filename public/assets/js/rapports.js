@@ -328,7 +328,7 @@ const ReportsManager = {
                     + `<td><strong>${this.escapeHtml(group.code)}</strong></td>`
                     + `<td>${this.escapeHtml(group.label || '')}</td>`
                     + `<td style="text-align:right">${this.percent(group.rate)}</td>`
-                    + `<td style="text-align:right">${this.money(group.amount - group.tva)}</td>`
+                    + `<td style="text-align:right">${this.money(group.amount)}</td>`
                     + `<td style="text-align:right">${this.money(group.tva)}</td>`
                     + `<td style="text-align:right">${this.money(group.ts)}</td>`
                     + '</tr>';
@@ -336,13 +336,13 @@ const ReportsManager = {
             html += '</tbody></table></div>';
         }
 
-        if (data.warnings?.length) {
-            html += '<div class="rpt-warning-box"><strong>Avertissements de cohérence</strong><ul>';
-            data.warnings.forEach((warning) => {
-                html += `<li>${this.escapeHtml(warning)}</li>`;
-            });
-            html += '</ul></div>';
-        }
+        // if (data.warnings?.length) {
+        //     html += '<div class="rpt-warning-box"><strong>Avertissements de cohérence</strong><ul>';
+        //     data.warnings.forEach((warning) => {
+        //         html += `<li>${this.escapeHtml(warning)}</li>`;
+        //     });
+        //     html += '</ul></div>';
+        // }
 
         if (data.header?.official_closure === true) {
             html += '<div class="rpt-warning-box"><strong>Clôture DGI enregistrée</strong>'
