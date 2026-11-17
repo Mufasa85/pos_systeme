@@ -43,10 +43,10 @@
   <meta name="msapplication-TileColor" content="#1a1e64">
   <meta name="msapplication-config" content="/assets/img/browserconfig.xml">
 
-  <link rel="stylesheet" href="/assets/css/styles.css?v=100">
-  <link rel="stylesheet" href="/assets/css/mobile-caisse.css?v=100">
+  <link rel="stylesheet" href="/assets/css/styles.css?v=100999">
+  <link rel="stylesheet" href="/assets/css/mobile-caisse.css?v=100999">
   <?php if (($page ?? '') === 'payroll'): ?>
-    <link rel="stylesheet" href="/assets/css/payroll.css?v=1">
+    <link rel="stylesheet" href="/assets/css/payroll.css?v=1999">
   <?php endif; ?>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
