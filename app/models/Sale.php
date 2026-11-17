@@ -15,8 +15,8 @@ class Sale
 
     public function create($data)
         {
-            $sql = 'INSERT INTO ventes (numero_facture, invoice_type, est_hotel, client_id, sejour_id, sous_total_ht, tva, total, payments, vendeur_id, shop_id, store_isf, date, dateDGI, qrCode, codeDEFDGI, counters, nim, comment, service, dgi_invoice_number, dgi_status) 
-                    VALUES (:numero_facture, :invoice_type, :est_hotel, :client_id, :sejour_id, :sous_total_ht, :tva, :total, :payments, :vendeur_id, :shop_id, :store_isf, :date, :dateDGI, :qrCode, :codeDEFDGI, :counters, :nim, :comment, :service, :dgi_invoice_number, :dgi_status)';
+            $sql = 'INSERT INTO ventes (numero_facture, invoice_type, est_hotel, client_id, sejour_id, sous_total_ht, tva, total, payments, vendeur_id, shop_id, store_isf, date, dateDGI, qrCode, codeDEFDGI, counters, nim, comment, service, dgi_invoice_number, dgi_status, brouillon_id) 
+                    VALUES (:numero_facture, :invoice_type, :est_hotel, :client_id, :sejour_id, :sous_total_ht, :tva, :total, :payments, :vendeur_id, :shop_id, :store_isf, :date, :dateDGI, :qrCode, :codeDEFDGI, :counters, :nim, :comment, :service, :dgi_invoice_number, :dgi_status, :brouillon_id)';
             $this->db->query($sql, [
                 ':numero_facture' => $data['numero_facture'],
                 ':invoice_type'   => $data['invoice_type'] ?? 'FV',
@@ -46,6 +46,9 @@ class Sale
                 // résolution (cf. DgiSyncService::findSaleByDgiKey).
                 ':dgi_invoice_number' => $data['dgi_invoice_number'] ?? null,
                 ':dgi_status'     => $data['dgi_status'] ?? null,
+                // Traçabilité « ce panier venait d'un brouillon » (cf. table
+                // caisse_brouillons). NULL pour une vente saisie normalement.
+                ':brouillon_id'   => $data['brouillon_id'] ?? null,
             ]);
             return $this->db->getConnection()->lastInsertId();
         }
