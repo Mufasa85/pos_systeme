@@ -606,24 +606,14 @@ class PageController extends Controller
         $this->requireHotelApiAccess();
         $this->requireHotelAccess(['super_admin', 'admin', 'manager']);
         $userModel = new User();
-        $sessionRole = $_SESSION['role'] ?? '';
-        $sessionShopId = (int)($_SESSION['shop_id'] ?? 0);
 
         // Boutique ciblée : super_admin peut switcher via ?shop_id=,
         // admin/manager est figé sur sa boutique.
-        if ($sessionRole === 'super_admin') {
-            $targetShopId = isset($_GET['shop_id']) && $_GET['shop_id'] !== ''
-                ? (int)$_GET['shop_id']
-                : $sessionShopId;
-            // Si super_admin n'a pas de boutique par défaut, on prend
-            // la première boutique avec utilisateurs hôtel.
-            if (!$targetShopId) {
-                $first = $userModel->firstShopIdWithUsers();
-                $targetShopId = (int)($first ?? 0);
-            }
-        } else {
-            $targetShopId = $sessionShopId;
-        }
+        // Même résolution que les endpoints d'écriture (resolveTargetShopId)
+        // pour que la boutique AFFICHÉE soit toujours celle MODIFIÉE.
+        $targetShopId = $this->resolveTargetShopId(
+            isset($_GET['shop_id']) && $_GET['shop_id'] !== '' ? $_GET['shop_id'] : null
+        );
 
         $hotelUsers = $targetShopId ? $userModel->allForShopWithHotelRole($targetShopId) : [];
 
@@ -645,6 +635,51 @@ class PageController extends Controller
             'currentShopName' => $this->resolveShopName($targetShopId),
             'canManageModuleAccess' => $canManageModuleAccess,
         ]);
+    }
+
+    /**
+     * Résout la boutique cible d'une écriture (/hotel/roles).
+     *
+     * ⚠️ BUG FIX 2026-11-14 : on ne se base PLUS sur `$_SESSION['shop_id']`
+     * seul. Un `super_admin` n'a AUCUNE boutique en session (`shop_id` est
+     * NULL au login), alors que la page /hotel/roles lui permet de choisir
+     * la boutique affichée via `?shop_id=`. Résultat : toute écriture
+     * échouait avec « Boutique non déterminée ».
+     *
+     * Ordre de résolution :
+     *   1. `shop_id` explicite (POST) → validé ;
+     *   2. `shop_id` de la session (admin / manager) ;
+     *   3. sinon 0 (boutique indéterminée).
+     *
+     * Sécurité multi-tenant : un `admin` / `manager` ne peut écrire QUE
+     * dans SA boutique ; le `shop_id` fourni est ignoré s'il ne correspond
+     * pas. Le `super_admin`, lui, agit sur toutes les boutiques.
+     *
+     * @param mixed $requestedShopId Valeur reçue (POST).
+     * @return int 0 = boutique indéterminée.
+     */
+    private function resolveTargetShopId($requestedShopId): int
+    {
+        $sessionShopId = (int)($_SESSION['shop_id'] ?? 0);
+
+        // ── super_admin : il choisit la boutique affichée dans l'UI ──
+        if ($this->isSuperAdmin()) {
+            $requested = (int)$requestedShopId;
+            if ($requested > 0) {
+                return $requested;
+            }
+            // Repli : la boutique de session, sinon la 1re boutique ayant
+            // des utilisateurs (même logique que hotelRoles()).
+            if ($sessionShopId > 0) {
+                return $sessionShopId;
+            }
+            $userModel = new User();
+            return (int)($userModel->firstShopIdWithUsers() ?? 0);
+        }
+
+        // ── admin / manager : périmètre strict = sa boutique ──
+        // Le `shop_id` fourni est ignoré (anti-évasion multi-tenant).
+        return $sessionShopId;
     }
 
     /**
@@ -672,17 +707,15 @@ class PageController extends Controller
             $newRole = null;
         }
 
-        $sessionShopId = (int)($_SESSION['shop_id'] ?? 0);
-        if (!$sessionShopId) {
-            // super_admin sans boutique active : on lit le shop_id du user ciblé
-            // si on dispose de l'id, sinon 403.
+        $targetShopId = $this->resolveTargetShopId($_POST['shop_id'] ?? null);
+        if (!$targetShopId) {
             header('HTTP/1.1 400 Bad Request');
             echo json_encode(['success' => false, 'message' => 'Boutique non déterminée']);
             return;
         }
 
         $userModel = new User();
-        $ok = $userModel->setHotelRole($userId, $newRole, $sessionShopId);
+        $ok = $userModel->setHotelRole($userId, $newRole, $targetShopId);
         header('Content-Type: application/json');
         echo json_encode([
             'success' => $ok,
@@ -759,15 +792,15 @@ class PageController extends Controller
         $raw = $_POST['acces'] ?? $_POST['acces_' . $module] ?? null;
         $granted = !empty($raw) && $raw !== '0' && $raw !== 'false';
 
-        $sessionShopId = (int)($_SESSION['shop_id'] ?? 0);
-        if (!$sessionShopId) {
+        $targetShopId = $this->resolveTargetShopId($_POST['shop_id'] ?? null);
+        if (!$targetShopId) {
             header('HTTP/1.1 400 Bad Request');
             echo json_encode(['success' => false, 'message' => 'Boutique non déterminée']);
             return;
         }
 
         $userModel = new User();
-        $ok = $userModel->setModuleAccess($module, $userId, $granted, $sessionShopId);
+        $ok = $userModel->setModuleAccess($module, $userId, $granted, $targetShopId);
         header('Content-Type: application/json');
         echo json_encode([
             'success' => $ok,
