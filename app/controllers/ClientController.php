@@ -37,6 +37,46 @@ class ClientController extends Controller
     }
 
     /**
+     * Récupérer un client par son ID.
+     * GET /api/client/[i:id]
+     *
+     * Utilisé notamment par la reprise d'un brouillon de panier : le
+     * brouillon ne conserve que l'ID du client (ni NIF, ni adresse), on
+     * relit donc la fiche complète ici.
+     */
+    public function show($params)
+    {
+        header('Content-Type: application/json');
+
+        if (!$this->requireAuth()) {
+            return;
+        }
+
+        $id = (int)($params['id'] ?? 0);
+        if ($id <= 0) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'message' => 'ID client manquant']);
+            return;
+        }
+
+        try {
+            $client = $this->clientModel->findById($id);
+            if (!$client) {
+                http_response_code(404);
+                echo json_encode(['success' => false, 'message' => 'Client introuvable']);
+                return;
+            }
+            echo json_encode(['success' => true, 'client' => $client]);
+        } catch (\Exception $e) {
+            http_response_code(500);
+            echo json_encode([
+                'success' => false,
+                'message' => 'Erreur: ' . $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
      * Rechercher un client par numéro
      * GET /api/client/lookup?numero=...
      */
