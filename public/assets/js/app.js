@@ -1,4 +1,4 @@
-﻿// Banner console
+// Banner console
 console.log('%cPowered by', 'color: #00bcd4; font-size: 14px; font-weight: bold; font-family: monospace;');
 console.log('%c' + String.raw`
  ██████   ██████   █████  ████████
@@ -775,6 +775,13 @@ const posCart = {
         this.clientNumber = '';
         this.currentClient = null;
         this.currentSejour = null;
+        // Le panier repart de zéro : le brouillon restauré n'est plus le
+        // contexte de la prochaine vente (il reste 'ouvert' côté serveur,
+        // donc toujours reprenable).
+        // cf. caisse-brouillons.js → resetCurrentBrouillon()
+        if (typeof resetCurrentBrouillon === 'function') {
+            resetCurrentBrouillon();
+        }
         const clientInput = $('#client-number');
         if (clientInput) clientInput.value = '';
         const clientDisplay = $('#client-name-display');
@@ -1873,6 +1880,12 @@ const posCart = {
                     tva: this.currentTotals.tva * saveSign,
                     total: this.currentTotals.total * saveSign,
                     type_facture: saveTypeFacture,
+                    // Traçabilité : si ce panier vient d'un brouillon restauré,
+                    // on le signale au backend. Le brouillon sera alors marqué
+                    // « converti ». ⚠️ Purement informatif : aucune règle de
+                    // facturation (stock, TVA, DGI) n'en dépend.
+                    // cf. caisse-brouillons.js → getCurrentBrouillonId()
+                    brouillon_id: (typeof getCurrentBrouillonId === 'function' ? getCurrentBrouillonId() : 0) || null,
                     // ISF réellement utilisé pour l'enregistrement DGI : c'est la
                     // clé de recherche de la facture, il doit être figé tel quel.
                     store_isf: STORE_INFO.isf || '',
@@ -1918,6 +1931,20 @@ const posCart = {
 
             // Fermer le modal de prévisualisation
             this.closePreview();
+
+            // Le brouillon (s'il y en avait un) est désormais converti en
+            // facture : on décroche le contexte et on rafraîchit le badge.
+            // ⚠️ Le brouillon reste en base (statut 'converti') : il n'est
+            // jamais purgé, c'est la trace du panier d'origine.
+            // cf. caisse-brouillons.js → resetCurrentBrouillon()
+            if (typeof getCurrentBrouillonId === 'function' && getCurrentBrouillonId()) {
+                if (typeof resetCurrentBrouillon === 'function') {
+                    resetCurrentBrouillon();
+                }
+                if (typeof refreshBrouillonBadge === 'function') {
+                    refreshBrouillonBadge();
+                }
+            }
 
             // Stocker les donnees de vente
             this.currentSaleData = {
@@ -4070,6 +4097,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Initialize cart
     posCart.init();
+
+    // Badge « Brouillon » : nombre de brouillons 'ouvert' du caissier.
+    // Uniquement sur la page /caisse (le bouton n'existe pas ailleurs).
+    // cf. caisse-brouillons.js → refreshBrouillonBadge()
+    if ($('#btn-brouillon') && typeof refreshBrouillonBadge === 'function') {
+        refreshBrouillonBadge();
+    }
 
     // Load store info
     loadStoreInfo();
