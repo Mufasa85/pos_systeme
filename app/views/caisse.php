@@ -232,6 +232,55 @@ $showHotelExtras = !empty($shopHasExtrasAccess);
     border-radius: 4px;
   }
   .caisse-toast .toast-close:hover { background: rgba(255,255,255,.15); color: #fff; }
+
+  /* ── Brouillons de panier ────────────────────────────────────────
+     Badge du bouton « Brouillon » : nombre de brouillons 'ouvert'
+     du caissier (mis à jour par refreshBrouillonBadge). */
+  .brouillon-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    margin-left: 4px;
+    border-radius: 9px;
+    background: var(--primary, #0B5E88);
+    color: #fff;
+    font-size: 0.68rem;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  /* Liste des brouillons dans le modal */
+  .brouillon-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.7rem 0.85rem;
+    border: 1px solid var(--border, #e2e8f0);
+    border-radius: 10px;
+    background: var(--surface, #fff);
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .brouillon-item:hover { border-color: var(--primary, #0B5E88); }
+  .brouillon-item-main { flex: 1; min-width: 0; }
+  .brouillon-item-libelle {
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: var(--text, #1a1a2e);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .brouillon-item-meta {
+    font-size: 0.72rem;
+    color: var(--muted, #64748b);
+    margin-top: 2px;
+  }
+  .brouillon-item-actions { display: flex; gap: 0.35rem; flex-shrink: 0; }
+  .brouillon-item-actions .btn { padding: 0.35rem 0.6rem; font-size: 0.75rem; }
 </style>
 <div id="page-caisse" class="page <?= $page == 'caisse' ? 'active' : '' ?>">
   <!-- Conteneur de toasts en haut de la page.
@@ -308,6 +357,18 @@ $showHotelExtras = !empty($shopHasExtrasAccess);
           <line x1="18" y1="6" x2="6" y2="18"></line>
           <line x1="6" y1="6" x2="18" y2="18"></line>
         </svg>
+      </button>
+      <!-- Bouton Brouillon : sauvegarde le panier en cours côté serveur.
+           Le badge affiche le nombre de brouillons 'ouvert' du caissier.
+           cf. docs/PLAN_BROUILLONS_CAISSE.md -->
+      <button id="btn-brouillon" class="btn btn-ghost btn-small" onclick="openBrouillonModal()" title="Enregistrer / reprendre un brouillon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+          <polyline points="17 21 17 13 7 13 7 21"></polyline>
+          <polyline points="7 3 7 8 15 8"></polyline>
+        </svg>
+        Brouillon
+        <span id="brouillon-badge" class="brouillon-badge" style="display: none;">0</span>
       </button>
       <button id="clear-cart" class="btn btn-ghost btn-small" onclick="posCart.clearCart()">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -771,6 +832,69 @@ $showHotelExtras = !empty($shopHasExtrasAccess);
         <div style="display: flex; gap: 0.75rem; margin-top: 1rem;">
           <button onclick="closeSejourPicker()" class="btn btn-secondary" style="flex: 1; padding: 0.75rem;">
             Annuler
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL BROUILLONS (sauvegarde / reprise du panier)
+       sibling de invoice-info-modal et de sejour-picker-modal : il s'ouvre
+       indépendamment. La liste est injectée par JS (openBrouillonModal).
+       cf. docs/PLAN_BROUILLONS_CAISSE.md -->
+  <div id="brouillon-modal" class="modal">
+    <div class="modal-content" style="max-width: 560px; padding: 0;">
+      <div class="modal-header">
+        <h3>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 8px;">
+            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+            <polyline points="17 21 17 13 7 13 7 21"></polyline>
+            <polyline points="7 3 7 8 15 8"></polyline>
+          </svg>
+          Brouillons de panier
+        </h3>
+        <button class="close-modal" onclick="closeBrouillonModal()" style="color: white;">&times;</button>
+      </div>
+
+      <div style="padding: 1.25rem;">
+        <!-- ── Zone « enregistrer le panier courant » ────────────── -->
+        <div style="background: var(--surface, #fff); border: 1px solid var(--border, #e2e8f0); border-radius: 10px; padding: 0.85rem; margin-bottom: 1rem;">
+          <label for="brouillon-libelle" style="display: block; font-size: 0.72rem; font-weight: 600; color: var(--muted, #64748b); margin-bottom: 4px;">
+            Enregistrer le panier actuel
+          </label>
+          <div style="display: flex; gap: 0.5rem;">
+            <input type="text" id="brouillon-libelle" class="client-number-input" style="flex: 1;" placeholder="Libellé (ex. Coca x3 + Pain) — vide = auto" maxlength="120">
+            <button type="button" class="btn btn-primary" onclick="saveBrouillon()" id="btn-save-brouillon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                <polyline points="7 3 7 8 15 8"></polyline>
+              </svg>
+              Enregistrer
+            </button>
+          </div>
+          <div id="brouillon-save-error" style="display: none; font-size: 0.75rem; color: #b91c1c; margin-top: 6px;"></div>
+        </div>
+
+        <!-- ── Liste des brouillons existants ───────────────────── -->
+        <div style="font-size: 0.72rem; font-weight: 600; color: var(--muted, #64748b); margin-bottom: 0.4rem;">
+          Paniers enregistrés
+        </div>
+        <div id="brouillon-list" style="max-height: 320px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.5rem;">
+          <!-- Liste injectée par JS (openBrouillonModal) -->
+        </div>
+
+        <div id="brouillon-empty" style="display: none; padding: 1.5rem; text-align: center; color: #94a3b8; font-size: 0.85rem;">
+          Aucun brouillon enregistré.
+          <br>
+          <span style="font-size: 0.78rem;">Enregistrez le panier actuel pour le retrouver plus tard.</span>
+        </div>
+
+        <div id="brouillon-error" style="display: none; padding: 0.75rem; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; color: #b91c1c; font-size: 0.8rem; margin-top: 0.75rem;"></div>
+
+        <div style="display: flex; gap: 0.75rem; margin-top: 1rem;">
+          <button onclick="closeBrouillonModal()" class="btn btn-secondary" style="flex: 1; padding: 0.75rem;">
+            Fermer
           </button>
         </div>
       </div>
