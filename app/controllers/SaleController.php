@@ -213,6 +213,23 @@ class SaleController extends Controller
                 $dgiInvoiceNumber = $invoiceNum;
             }
 
+            // ── Brouillon de panier (traçabilité) ───────────────────────
+            // Si la vente provient d'un brouillon restauré, on mémorise son
+            // ID pour pouvoir remonter du brouillon vers la facture.
+            // ⚠️ Ce n'est qu'une TRAÇABILITÉ : le brouillon ne modifie
+            //    aucune règle de facturation (stock, TVA, DGI). Un brouillon
+            //    inconnu ou d'une autre boutique est IGNORÉ (pas d'erreur) :
+            //    la vente doit aboutir dans tous les cas.
+            $brouillonId = isset($data['brouillon_id']) ? (int)$data['brouillon_id'] : 0;
+            if ($brouillonId > 0) {
+                $brouillon = (new \App\Models\CaisseBrouillon())->findById($brouillonId, $shopId);
+                if (!$brouillon) {
+                    $brouillonId = 0;
+                }
+            } else {
+                $brouillonId = 0;
+            }
+
             $saleId = $saleModel->create([
                             'numero_facture' => $invoiceNum,
                             'invoice_type'   => $typeFacture,
@@ -235,6 +252,7 @@ class SaleController extends Controller
                             'service'        => $data['providerService'] ?? null,
                             'dgi_invoice_number' => $dgiInvoiceNumber,
                             'dgi_status'     => $dgiStatus,
+                            'brouillon_id'   => $brouillonId > 0 ? $brouillonId : null,
                         ]);
 
             // Si providerService existe (recharges), ne pas enregistrer dans details_vente
@@ -375,11 +393,27 @@ class SaleController extends Controller
 
                         $db->commit();
 
+                                    // ── Brouillon → converti en facture ───────────────
+                                    // On marque le brouillon APRÈS le commit : si la
+                                    // transaction avait été annulée, le brouillon
+                                    // resterait 'ouvert' et donc reprenable.
+                                    // ⚠️ Un brouillon 'converti' n'est jamais purgé
+                                    // (cf. CaisseBrouillon::PURGE_JOURS) : c'est la
+                                    // trace du panier d'origine de la facture.
+                                    if ($brouillonId > 0) {
+                                        try {
+                                            (new \App\Models\CaisseBrouillon())->markConverted($brouillonId, (int)$saleId);
+                                        } catch (\Exception $e) {
+                                            error_log('[caisse-brouillons] markConverted error: ' . $e->getMessage());
+                                        }
+                                    }
+
                                     $this->logAudit('create', 'vente', $saleId, [
                                         'numero_facture' => $invoiceNum,
                                         'total' => $data['total'],
                                         'type_facture' => $typeFacture,
                                         'sejour_id' => $sejourId,
+                                        'brouillon_id' => $brouillonId > 0 ? $brouillonId : null,
                                     ]);
 
                                     $this->json([
