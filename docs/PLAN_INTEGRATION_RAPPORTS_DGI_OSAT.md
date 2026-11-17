@@ -16,7 +16,15 @@ GET https://osat-energie.com/dgi/rapport/index.php
     ?nif={ISF}
     &debut={DD/MM/YYYY HH:MM:SS}
     &fin={DD/MM/YYYY HH:MM:SS}
+    &rapport={x|z}
+    [&super_admin=true]
 ```
+
+- `rapport=x` : rapport X (période personnalisée, lecture seule) ;
+- `rapport=z` : rapport Z (période de clôture) ;
+- `super_admin=true` : le provider renvoie les données de **toutes les
+  boutiques gérées** par le super_admin (agrégation côté provider,
+  sans boucle HTTP côté POS).
 
 Le navigateur ne doit **jamais** appeler cette URL directement : tous les appels passent par le backend du POS.
 
@@ -54,8 +62,13 @@ Le paramètre `nif` de la route est traité comme l'**ISF** de la boutique (`sho
 Le client ne peut pas fournir librement le NIF. Le backend le résout ainsi :
 
 1. `admin` : ISF de sa boutique ;
-2. `super_admin` : ISF de la boutique explicitement sélectionnée ;
-3. aucune boutique pour le super-admin : requête refusée.
+2. `super_admin` + `?shop_id=` : ISF de la boutique explicitement sélectionnée ;
+3. `super_admin` sans `?shop_id=` (« Toutes les boutiques ») : ISF de
+   l'**entreprise** (`company_info.isf`), accompanied de `super_admin=true`
+   pour que le provider agrège l'ensemble des boutiques gérées.
+
+⚠️ Le périmètre agrégé dépend de l'ISF de l'entreprise : sans lui, la
+requête est refusée (`422 dgi_report_missing_isf`).
 
 ### 3.2 Accès
 
@@ -196,7 +209,9 @@ GET /api/reports/dgi/x?from=YYYY-MM-DD&to=YYYY-MM-DD&shop_id={id}
 
 - `shop_id` n'est accepté que pour le super-admin ;
 - dates par défaut : jour courant ;
-- aucune écriture en base.
+- aucune écriture en base ;
+- **super_admin sans `shop_id`** : périmètre « Toutes les boutiques » →
+  appel provider avec `rapport=x&super_admin=true`.
 
 ### 5.2 Rapport Z DGI — consultation
 
@@ -207,11 +222,19 @@ GET /api/reports/dgi/z?shop_id={id}
 Période = fin de la dernière clôture DGI → maintenant. Sans clôture
 antérieure, le repli est « un an jusqu'à maintenant ».
 
+- **super_admin sans `shop_id`** : période agrégée, bornée par la plus
+  ancienne des dernières clôtures (pour ne masquer aucune vente) ;
+  appel provider avec `rapport=z&super_admin=true`.
+
 ### 5.3 Rapport Z DGI — clôture
 
 ```http
 POST /api/reports/dgi/z?shop_id={id}
 ```
+
+⚠️ La clôture reste **par boutique** : `dgi_z_reports.shop_id` porte la
+boutique concernée. Le périmètre « Toutes les boutiques » est donc
+refusée sur la POST (une boutique doit être sélectionnée).
 
 - appelle le provider sur la période à clôturer ;
 - **refuse la clôture si la période ne contient aucune facture** (`409`
