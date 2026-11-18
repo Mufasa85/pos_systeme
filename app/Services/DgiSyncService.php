@@ -28,8 +28,12 @@ use App\Models\Shop;
  * ------
  * - On ne réémet JAMAIS une facture : OSAT s'en charge. Notre rôle se limite
  *   à écrire les éléments de sécurité dans la base.
- * - On n'écrase jamais `ventes.tva` / `ventes.total` : ce sont les montants
- *   que le client a réellement payés, notre référence comptable.
+ * - Les MONTANTS (`ventes.sous_total_ht` / `ventes.tva` / `ventes.total`)
+ *   proviennent de la réponse DGI : c'est elle qui fait foi. Quand la
+ *   facture est enfin résolue (DGI revenue), on réaligne les montants sur
+ *   ceux de l'API (cf. `DgiAmountsService`). Avant cette correction, les
+ *   montants restaient ceux calculés par le front, qui divergeaient de la
+ *   réalité fiscale.
  * - On n'écrase jamais `ventes.comment` : la colonne est aussi utilisée par le
  *   POS et par le module Hôtel (cf. HotelFactureController::store).
  */
@@ -83,17 +87,9 @@ class DgiSyncService
      */
     public function hasSecurityFields(?array $dgiData): bool
     {
-        if (!is_array($dgiData) || $dgiData === []) {
-            return false;
-        }
-
-        foreach (['codeDEFDGI', 'counters', 'nim', 'qrCode', 'dateDGI'] as $field) {
-            if (!empty($dgiData[$field]) && trim((string)$dgiData[$field]) !== '') {
-                return true;
-            }
-        }
-
-        return false;
+        // Source de vérité unique : DgiAmountsService (cf. la liste des
+        // éléments de sécurité et le test du fallback « non assujettie »).
+        return DgiAmountsService::hasSecurityFields($dgiData);
     }
 
     /**
@@ -263,12 +259,28 @@ class DgiSyncService
             $applied['qrCode'] = (string)$payload['qrCode'];
         }
 
+        // ── Montants : la DGI fait foi ────────────────────────────────
+        // Les montants enregistrés à la création provenaient du front
+        // (approximation locale). Dès que la DGI répond, on réaligne la
+        // ligne sur ses montants : HT = total - vtotal, TVA = vtotal,
+        // TTC = total (cf. DgiAmountsService).
+        //
+        // On ne touche aux montants QUE si la réponse contient les
+        // éléments de sécurité (donc une facture réellement enregistrée) :
+        // sinon on laisserait un total fantôme écraser la comptabilité.
+        $amounts = $this->applyDgiAmounts($sale, $payload);
+
         if ($applied === []) {
             return [
                 'done'    => false,
                 'applied' => [],
                 'reason'  => 'Rien à écrire',
             ];
+        }
+
+        // Les montants DGI rejoignent les champs à écrire.
+        foreach ($amounts as $field => $value) {
+            $applied[$field] = $value;
         }
 
         // On conserve la réponse brute : elle contient des informations que
@@ -290,6 +302,54 @@ class DgiSyncService
     }
 
     /**
+     * Réaligne les MONTANTS d'une vente sur ceux renvoyés par la DGI.
+     *
+     * @param array $sale    La ligne `ventes` (contient les montants actuels)
+     * @param array $payload Les données DGI (déjà normalisées)
+     *
+     * @return array Les champs à écrire (vide si rien à changer)
+     */
+    private function applyDgiAmounts(array $sale, array $payload): array
+    {
+        $amountsService = new DgiAmountsService();
+
+        // La réponse doit correspondre à une facture ENREGISTRÉE (éléments de
+        // sécurité présents) ET contenir des montants exploitables.
+        if (!$amountsService->hasAmounts($payload)) {
+            return [];
+        }
+
+        $amounts = $amountsService->apply(
+            [
+                'sous_total_ht' => (float)($sale['sous_total_ht'] ?? 0),
+                'tva'           => (float)($sale['tva'] ?? 0),
+                'total'         => (float)($sale['total'] ?? 0),
+            ],
+            $payload,
+            $sale['invoice_type'] ?? null
+        );
+
+        if ($amounts['source'] !== 'dgi') {
+            return [];
+        }
+
+        $fields = [];
+
+        foreach (['sous_total_ht', 'tva', 'total'] as $field) {
+            // On n'écrit que ce qui change réellement : évite un UPDATE
+            // inutile et laisse la trace des montants d'origine intacts
+            // quand la DGI confirme exactement le même total.
+            $current = round((float)($sale[$field] ?? 0), 2);
+
+            if (abs($current - $amounts[$field]) >= 0.005) {
+                $fields[$field] = $amounts[$field];
+            }
+        }
+
+        return $fields;
+    }
+
+    /**
      * Écrit les champs DGI sur une ligne `ventes`.
      */
     private function updateSale(int $saleId, array $fields): void
@@ -298,6 +358,8 @@ class DgiSyncService
             'dateDGI', 'qrCode', 'codeDEFDGI', 'counters', 'nim',
             'dgi_response', 'dgi_status', 'dgi_synced_at', 'dgi_last_error',
             'dgi_attempts', 'dgi_invoice_number',
+            // Montants : réalignés sur la réponse DGI (cf. applyDgiAmounts).
+            'sous_total_ht', 'tva', 'total',
         ];
 
         $sets = [];
