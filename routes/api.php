@@ -3,6 +3,7 @@
 // routes/api.php
 
 use App\Controllers\AuthController;
+use App\Controllers\CaisseBrouillonController;
 use App\Controllers\CategoryController;
 use App\Controllers\ClientController;
 use App\Controllers\CompanyInfoController;
@@ -10,6 +11,7 @@ use App\Controllers\DashboardController;
 use App\Controllers\DgiSyncController;
 use App\Controllers\DgiWebhookController;
 use App\Controllers\NotificationController;
+use App\Controllers\PageController;
 use App\Controllers\PayrollAttendanceController;
 use App\Controllers\PayrollContractController;
 use App\Controllers\PayrollController;
@@ -98,6 +100,13 @@ Router::get('/api/shops/check-active', function () {
     ]);
 });
 
+// ── Politique d'accès aux pages (super_admin) ────────────────────
+// ⚠️ Ces routes sont HORS POLITICE : elles administrent la politique qui
+// restreint les autres rôles. Les bloquer rendrait la politique
+// ingérable (personne ne pourrait plus la modifier).
+//   - POST /api/user/page-access/update → bloque/débloque une page pour un user
+Router::post('/api/user/page-access/update', [PageController::class, 'apiUserPageAccessUpdate']);
+
 // ── Service Types (super_admin/admin) ─────────────────────────
 Router::get('/api/service-types', [ServiceTypeController::class, 'index']);
 Router::post('/api/service-types', [ServiceTypeController::class, 'create']);
@@ -122,37 +131,47 @@ Router::post('/api/user/change-password', [UserController::class, 'changePasswor
 Router::post('/api/user/update-profile', [UserController::class, 'updateProfile']);
 Router::post('/api/user/upload-profile-image', [UserController::class, 'uploadProfileImage']);
 
-Router::get('/api/produits', [ProductController::class, 'index']);
-Router::get('/api/produit', [ProductController::class, 'find']);
-Router::post('/api/produit', [ProductController::class, 'create']);
-Router::post('/api/produit/update', [ProductController::class, 'update']);
-Router::post('/api/produit/delete', [ProductController::class, 'delete']);
+// ── Produits ───────────────────────────────────────────────────────────
+// Politique d'accès aux pages (super_admin) : le 4e argument est le mode
+// ('exclusive' | 'shared_read' | 'shared_write'). Voir
+// docs/superpowers/specs/2026-11-18-shop-page-access-policy-design.md
+
+// LECTURES PARTAGÉES : le catalogue alimente la caisse, le scanner et le
+// tableau de bord. Elles restent disponibles si AU MOINS UNE page lectrice
+// est accessible (sinon la caisse tomberait en panne).
+Router::get('/api/produits', [ProductController::class, 'index'], 'caisse|produits', 'shared_read');
+Router::get('/api/produit', [ProductController::class, 'find'], 'caisse|produits', 'shared_read');
+// ÉCRITURES : gestion du catalogue = page Produits.
+Router::post('/api/produit', [ProductController::class, 'create'], 'produits');
+Router::post('/api/produit/update', [ProductController::class, 'update'], 'produits');
+Router::post('/api/produit/delete', [ProductController::class, 'delete'], 'produits');
 
 // Import de produits depuis un fichier Excel / CSV
-Router::post('/api/produit/import', [ProductImportController::class, 'import']);
-Router::get('/api/produit/import/template', [ProductImportController::class, 'template']);
-Router::get('/api/produit/import/categories', [ProductImportController::class, 'categories']);
+Router::post('/api/produit/import', [ProductImportController::class, 'import'], 'produits');
+Router::get('/api/produit/import/template', [ProductImportController::class, 'template'], 'produits');
+Router::get('/api/produit/import/categories', [ProductImportController::class, 'categories'], 'produits');
 
 // Export du catalogue produits vers Excel
-Router::get('/api/produit/export', [ProductExportController::class, 'export']);
+Router::get('/api/produit/export', [ProductExportController::class, 'export'], 'produits');
 
-Router::get('/api/product-batches', [ProductBatchController::class, 'index']);
-Router::post('/api/product-batches', [ProductBatchController::class, 'create']);
-Router::post('/api/product-batches/update', [ProductBatchController::class, 'update']);
-Router::post('/api/product-batches/delete', [ProductBatchController::class, 'delete']);
-Router::get('/api/product-batches/alerts', [ProductBatchController::class, 'alerts']);
+Router::get('/api/product-batches', [ProductBatchController::class, 'index'], 'produits');
+Router::post('/api/product-batches', [ProductBatchController::class, 'create'], 'produits');
+Router::post('/api/product-batches/update', [ProductBatchController::class, 'update'], 'produits');
+Router::post('/api/product-batches/delete', [ProductBatchController::class, 'delete'], 'produits');
+Router::get('/api/product-batches/alerts', [ProductBatchController::class, 'alerts'], 'produits');
 
-Router::get('/api/categories', [CategoryController::class, 'index']);
-Router::post('/api/categories', [CategoryController::class, 'create']);
-Router::post('/api/categories/update', [CategoryController::class, 'update']);
+// LECTURE PARTAGÉE : les catégories alimentent le catalogue ET la caisse.
+Router::get('/api/categories', [CategoryController::class, 'index'], 'caisse|produits|categories', 'shared_read');
+Router::post('/api/categories', [CategoryController::class, 'create'], 'categories');
+Router::post('/api/categories/update', [CategoryController::class, 'update'], 'categories');
 
-Router::get('/api/users', [UserController::class, 'all']);
-Router::post('/api/create/user', [UserController::class, 'create']);
-Router::post('/api/update/user', [UserController::class, 'update']);
-Router::post('/api/delete/user', [UserController::class, 'delete']);
+Router::get('/api/users', [UserController::class, 'all'], 'utilisateurs');
+Router::post('/api/create/user', [UserController::class, 'create'], 'utilisateurs');
+Router::post('/api/update/user', [UserController::class, 'update'], 'utilisateurs');
+Router::post('/api/delete/user', [UserController::class, 'delete'], 'utilisateurs');
 
 // Suppression d'une catégorie
-Router::post('/api/delete/category', [CategoryController::class, 'delete']);
+Router::post('/api/delete/category', [CategoryController::class, 'delete'], 'categories');
 
 // Suppression d'une vente
 Router::post('/api/delete/vente', [SaleController::class, 'delete']);
@@ -161,6 +180,26 @@ Router::get('/api/vente/[i:id]/details', [SaleController::class, 'details']);
 Router::get('/api/vente/next-invoice', [SaleController::class, 'nextInvoice']);
 Router::get('/api/ventes/archives', [SaleController::class, 'archives']);
 Router::get('/api/cloture', [SaleController::class, 'cloture']);
+
+// ============================================================================
+// Brouillons de panier (caisse)
+// Référence : docs/PLAN_BROUILLONS_CAISSE.md
+//
+// Le caissier peut sauvegarder son panier en cours puis le reprendre plus
+// tard pour relancer la facture. Le brouillon ne déduit JAMAIS le stock et
+// ne consomme JAMAIS un numéro de facture : la facturation passe
+// exclusivement par POST /api/vente (SaleController::create).
+//
+// ⚠️ L'URL « /compteur » est déclarée AVANT « /[i:id] » : le routeur
+// distingue les motifs littéraux des motifs à paramètre, mais l'ordre
+// « lisible » évite toute ambiguïté lors d'une relecture.
+// ============================================================================
+Router::get('/api/caisse/brouillons', [CaisseBrouillonController::class, 'index']);
+Router::get('/api/caisse/brouillons/compteur', [CaisseBrouillonController::class, 'compteur']);
+Router::get('/api/caisse/brouillons/[i:id]', [CaisseBrouillonController::class, 'show']);
+Router::post('/api/caisse/brouillons', [CaisseBrouillonController::class, 'store']);
+Router::post('/api/caisse/brouillons/[i:id]/restore', [CaisseBrouillonController::class, 'restore']);
+Router::post('/api/caisse/brouillons/[i:id]/delete', [CaisseBrouillonController::class, 'destroy']);
 Router::get('/api/export/ventes', [SaleController::class, 'exportCsv']);
 
 // ── Synchronisation DGI différée ───────────────────────────────────
@@ -181,138 +220,141 @@ Router::get('/api/dgi/pending', [DgiSyncController::class, 'pending']);
 Router::post('/api/dgi/sync-all', [DgiSyncController::class, 'syncAll']);
 
 // ── Payroll (employés / vendeurs) ───────────────────────────
-Router::get('/api/payroll/employees', [PayrollEmployeeController::class, 'index']);
-Router::get('/api/payroll/employees/vendors', [PayrollEmployeeController::class, 'vendors']);
-Router::get('/api/payroll/employees/[i:id]', [PayrollEmployeeController::class, 'show']);
-Router::post('/api/payroll/employees', [PayrollEmployeeController::class, 'create']);
-Router::post('/api/payroll/employees/update/[i:id]', [PayrollEmployeeController::class, 'update']);
-Router::post('/api/payroll/employees/delete/[i:id]', [PayrollEmployeeController::class, 'delete']);
+Router::get('/api/payroll/employees', [PayrollEmployeeController::class, 'index'], 'paie');
+Router::get('/api/payroll/employees/vendors', [PayrollEmployeeController::class, 'vendors'], 'paie');
+Router::get('/api/payroll/employees/[i:id]', [PayrollEmployeeController::class, 'show'], 'paie');
+Router::post('/api/payroll/employees', [PayrollEmployeeController::class, 'create'], 'paie');
+Router::post('/api/payroll/employees/update/[i:id]', [PayrollEmployeeController::class, 'update'], 'paie');
+Router::post('/api/payroll/employees/delete/[i:id]', [PayrollEmployeeController::class, 'delete'], 'paie');
 
 // ── Payroll contrats ────────────────────────────────────────
 // Le salaire de base et le statut « payé / non payé » d'un agent.
 // ⚠️ Ces routes n'existaient pas avant le 2026-11-13 : le salaire n'était
 // saisissable nulle part et les employés sans contrat actif étaient ignorés
 // silencieusement par le calcul (cf. docs/payroll_rules.md § « Points d'attention »).
-Router::get('/api/payroll/contracts', [PayrollContractController::class, 'index']);
-Router::get('/api/payroll/contracts/[i:id]', [PayrollContractController::class, 'show']);
-Router::post('/api/payroll/contracts', [PayrollContractController::class, 'create']);
-Router::post('/api/payroll/contracts/update/[i:id]', [PayrollContractController::class, 'update']);
-Router::post('/api/payroll/contracts/toggle-paid/[i:id]', [PayrollContractController::class, 'togglePaid']);
-Router::post('/api/payroll/contracts/delete/[i:id]', [PayrollContractController::class, 'delete']);
+Router::get('/api/payroll/contracts', [PayrollContractController::class, 'index'], 'paie');
+Router::get('/api/payroll/contracts/[i:id]', [PayrollContractController::class, 'show'], 'paie');
+Router::post('/api/payroll/contracts', [PayrollContractController::class, 'create'], 'paie');
+Router::post('/api/payroll/contracts/update/[i:id]', [PayrollContractController::class, 'update'], 'paie');
+Router::post('/api/payroll/contracts/toggle-paid/[i:id]', [PayrollContractController::class, 'togglePaid'], 'paie');
+Router::post('/api/payroll/contracts/delete/[i:id]', [PayrollContractController::class, 'delete'], 'paie');
 
 // ── Payroll périodes & paramètres ───────────────────────────
-Router::get('/api/payroll/periods', [PayrollController::class, 'periods']);
-Router::post('/api/payroll/periods', [PayrollController::class, 'createPeriod']);
-Router::post('/api/payroll/periods/update/[i:id]', [PayrollController::class, 'updatePeriod']);
-Router::post('/api/payroll/periods/delete/[i:id]', [PayrollController::class, 'deletePeriod']);
-Router::post('/api/payroll/periods/calculate/[i:id]', [PayrollController::class, 'calculate']);
-Router::post('/api/payroll/periods/validate/[i:id]', [PayrollController::class, 'validatePeriod']);
-Router::post('/api/payroll/periods/close/[i:id]', [PayrollController::class, 'closePeriod']);
-Router::get('/api/payroll/parameters', [PayrollController::class, 'parameters']);
+Router::get('/api/payroll/periods', [PayrollController::class, 'periods'], 'paie');
+Router::post('/api/payroll/periods', [PayrollController::class, 'createPeriod'], 'paie');
+Router::post('/api/payroll/periods/update/[i:id]', [PayrollController::class, 'updatePeriod'], 'paie');
+Router::post('/api/payroll/periods/delete/[i:id]', [PayrollController::class, 'deletePeriod'], 'paie');
+Router::post('/api/payroll/periods/calculate/[i:id]', [PayrollController::class, 'calculate'], 'paie');
+Router::post('/api/payroll/periods/validate/[i:id]', [PayrollController::class, 'validatePeriod'], 'paie');
+Router::post('/api/payroll/periods/close/[i:id]', [PayrollController::class, 'closePeriod'], 'paie');
+Router::get('/api/payroll/parameters', [PayrollController::class, 'parameters'], 'paie');
 // Import du récap de paie Excel (cf. `Recap paie.xlsx`).
-Router::post('/api/payroll/recap/preview', [PayrollRecapImportController::class, 'preview']);
-Router::post('/api/payroll/recap/import', [PayrollRecapImportController::class, 'apply']);
+Router::post('/api/payroll/recap/preview', [PayrollRecapImportController::class, 'preview'], 'paie');
+Router::post('/api/payroll/recap/import', [PayrollRecapImportController::class, 'apply'], 'paie');
 
 // Paramètres de calcul (mode standard / excel_rdc, barème IRT, LOG/TRANS…).
-Router::get('/api/payroll/settings-params', [PayrollController::class, 'settingsParams']);
-Router::post('/api/payroll/settings-params', [PayrollController::class, 'updateSettingsParams']);
-Router::get('/api/payroll/payment-methods', [PayrollController::class, 'paymentMethods']);
-Router::post('/api/payroll/payment-methods', [PayrollController::class, 'createPaymentMethod']);
-Router::post('/api/payroll/payment-methods/update/[i:id]', [PayrollController::class, 'updatePaymentMethod']);
-Router::post('/api/payroll/payment-methods/delete/[i:id]', [PayrollController::class, 'deletePaymentMethod']);
+Router::get('/api/payroll/settings-params', [PayrollController::class, 'settingsParams'], 'paie');
+Router::post('/api/payroll/settings-params', [PayrollController::class, 'updateSettingsParams'], 'paie');
+Router::get('/api/payroll/payment-methods', [PayrollController::class, 'paymentMethods'], 'paie');
+Router::post('/api/payroll/payment-methods', [PayrollController::class, 'createPaymentMethod'], 'paie');
+Router::post('/api/payroll/payment-methods/update/[i:id]', [PayrollController::class, 'updatePaymentMethod'], 'paie');
+Router::post('/api/payroll/payment-methods/delete/[i:id]', [PayrollController::class, 'deletePaymentMethod'], 'paie');
 
 // ── Payroll paramètres (avantages, retenues, cotisations, barème)
-Router::get('/api/payroll/allowances', [PayrollController::class, 'allowances']);
-Router::post('/api/payroll/allowances', [PayrollController::class, 'createAllowance']);
-Router::post('/api/payroll/allowances/update/[i:id]', [PayrollController::class, 'updateAllowance']);
-Router::post('/api/payroll/allowances/delete/[i:id]', [PayrollController::class, 'deleteAllowance']);
+Router::get('/api/payroll/allowances', [PayrollController::class, 'allowances'], 'paie');
+Router::post('/api/payroll/allowances', [PayrollController::class, 'createAllowance'], 'paie');
+Router::post('/api/payroll/allowances/update/[i:id]', [PayrollController::class, 'updateAllowance'], 'paie');
+Router::post('/api/payroll/allowances/delete/[i:id]', [PayrollController::class, 'deleteAllowance'], 'paie');
 
-Router::get('/api/payroll/deductions', [PayrollController::class, 'deductions']);
-Router::post('/api/payroll/deductions', [PayrollController::class, 'createDeduction']);
-Router::post('/api/payroll/deductions/update/[i:id]', [PayrollController::class, 'updateDeduction']);
-Router::post('/api/payroll/deductions/delete/[i:id]', [PayrollController::class, 'deleteDeduction']);
+Router::get('/api/payroll/deductions', [PayrollController::class, 'deductions'], 'paie');
+Router::post('/api/payroll/deductions', [PayrollController::class, 'createDeduction'], 'paie');
+Router::post('/api/payroll/deductions/update/[i:id]', [PayrollController::class, 'updateDeduction'], 'paie');
+Router::post('/api/payroll/deductions/delete/[i:id]', [PayrollController::class, 'deleteDeduction'], 'paie');
 
-Router::get('/api/payroll/contributions', [PayrollController::class, 'contributions']);
-Router::post('/api/payroll/contributions', [PayrollController::class, 'createContribution']);
-Router::post('/api/payroll/contributions/update/[i:id]', [PayrollController::class, 'updateContribution']);
-Router::post('/api/payroll/contributions/delete/[i:id]', [PayrollController::class, 'deleteContribution']);
+Router::get('/api/payroll/contributions', [PayrollController::class, 'contributions'], 'paie');
+Router::post('/api/payroll/contributions', [PayrollController::class, 'createContribution'], 'paie');
+Router::post('/api/payroll/contributions/update/[i:id]', [PayrollController::class, 'updateContribution'], 'paie');
+Router::post('/api/payroll/contributions/delete/[i:id]', [PayrollController::class, 'deleteContribution'], 'paie');
 
-Router::get('/api/payroll/seniority', [PayrollController::class, 'seniority']);
-Router::post('/api/payroll/seniority', [PayrollController::class, 'createSeniority']);
-Router::post('/api/payroll/seniority/update/[i:id]', [PayrollController::class, 'updateSeniority']);
-Router::post('/api/payroll/seniority/delete/[i:id]', [PayrollController::class, 'deleteSeniority']);
+Router::get('/api/payroll/seniority', [PayrollController::class, 'seniority'], 'paie');
+Router::post('/api/payroll/seniority', [PayrollController::class, 'createSeniority'], 'paie');
+Router::post('/api/payroll/seniority/update/[i:id]', [PayrollController::class, 'updateSeniority'], 'paie');
+Router::post('/api/payroll/seniority/delete/[i:id]', [PayrollController::class, 'deleteSeniority'], 'paie');
 
 // ── Payroll présences / absences / heures supp ─────────────
-Router::get('/api/payroll/attendance/period/[i:id]', [PayrollAttendanceController::class, 'forPeriod']);
-Router::post('/api/payroll/attendance', [PayrollAttendanceController::class, 'save']);
-Router::post('/api/payroll/attendance/bulk', [PayrollAttendanceController::class, 'bulkSave']);
-Router::post('/api/payroll/absence', [PayrollAttendanceController::class, 'saveAbsence']);
-Router::post('/api/payroll/absence/update/[i:id]', [PayrollAttendanceController::class, 'updateAbsence']);
-Router::post('/api/payroll/absence/delete/[i:id]', [PayrollAttendanceController::class, 'deleteAbsence']);
-Router::post('/api/payroll/overtime', [PayrollAttendanceController::class, 'saveOvertime']);
-Router::post('/api/payroll/overtime/update/[i:id]', [PayrollAttendanceController::class, 'updateOvertime']);
-Router::post('/api/payroll/overtime/delete/[i:id]', [PayrollAttendanceController::class, 'deleteOvertime']);
+Router::get('/api/payroll/attendance/period/[i:id]', [PayrollAttendanceController::class, 'forPeriod'], 'paie');
+Router::post('/api/payroll/attendance', [PayrollAttendanceController::class, 'save'], 'paie');
+Router::post('/api/payroll/attendance/bulk', [PayrollAttendanceController::class, 'bulkSave'], 'paie');
+Router::post('/api/payroll/absence', [PayrollAttendanceController::class, 'saveAbsence'], 'paie');
+Router::post('/api/payroll/absence/update/[i:id]', [PayrollAttendanceController::class, 'updateAbsence'], 'paie');
+Router::post('/api/payroll/absence/delete/[i:id]', [PayrollAttendanceController::class, 'deleteAbsence'], 'paie');
+Router::post('/api/payroll/overtime', [PayrollAttendanceController::class, 'saveOvertime'], 'paie');
+Router::post('/api/payroll/overtime/update/[i:id]', [PayrollAttendanceController::class, 'updateOvertime'], 'paie');
+Router::post('/api/payroll/overtime/delete/[i:id]', [PayrollAttendanceController::class, 'deleteOvertime'], 'paie');
 
 // ── Payroll bulletins ───────────────────────────────────────
-Router::get('/api/payroll/payslips/period/[i:id]', [PayrollPayslipController::class, 'forPeriod']);
-Router::get('/api/payroll/payslips/my', [PayrollPayslipController::class, 'myPayslips']);
-Router::get('/api/payroll/payslips/[i:id]', [PayrollPayslipController::class, 'show']);
-Router::post('/api/payroll/payslips/calculate', [PayrollPayslipController::class, 'calculateOne']);
-Router::post('/api/payroll/payslips/period/calculate/[i:id]', [PayrollPayslipController::class, 'calculatePeriod']);
-Router::post('/api/payroll/payslips/validate/[i:id]', [PayrollPayslipController::class, 'validate']);
-Router::get('/api/payroll/payslips/pdf/[i:id]', [PayrollPayslipController::class, 'streamPdf']);
-Router::post('/api/payroll/payslips/pdf/[i:id]', [PayrollPayslipController::class, 'generatePdf']);
+Router::get('/api/payroll/payslips/period/[i:id]', [PayrollPayslipController::class, 'forPeriod'], 'paie');
+Router::get('/api/payroll/payslips/my', [PayrollPayslipController::class, 'myPayslips'], 'paie');
+Router::get('/api/payroll/payslips/[i:id]', [PayrollPayslipController::class, 'show'], 'paie');
+Router::post('/api/payroll/payslips/calculate', [PayrollPayslipController::class, 'calculateOne'], 'paie');
+Router::post('/api/payroll/payslips/period/calculate/[i:id]', [PayrollPayslipController::class, 'calculatePeriod'], 'paie');
+Router::post('/api/payroll/payslips/validate/[i:id]', [PayrollPayslipController::class, 'validate'], 'paie');
+Router::get('/api/payroll/payslips/pdf/[i:id]', [PayrollPayslipController::class, 'streamPdf'], 'paie');
+Router::post('/api/payroll/payslips/pdf/[i:id]', [PayrollPayslipController::class, 'generatePdf'], 'paie');
 
 // ── Payroll paiements ───────────────────────────────────────
-Router::get('/api/payroll/payments/payslip/[i:id]', [PayrollPaymentController::class, 'forPayslip']);
-Router::post('/api/payroll/payments', [PayrollPaymentController::class, 'create']);
-Router::post('/api/payroll/payments/update/[i:id]', [PayrollPaymentController::class, 'update']);
-Router::post('/api/payroll/payments/delete/[i:id]', [PayrollPaymentController::class, 'delete']);
+Router::get('/api/payroll/payments/payslip/[i:id]', [PayrollPaymentController::class, 'forPayslip'], 'paie');
+Router::post('/api/payroll/payments', [PayrollPaymentController::class, 'create'], 'paie');
+Router::post('/api/payroll/payments/update/[i:id]', [PayrollPaymentController::class, 'update'], 'paie');
+Router::post('/api/payroll/payments/delete/[i:id]', [PayrollPaymentController::class, 'delete'], 'paie');
 
 // ── Payroll pointage / import ───────────────────────────────
-Router::get('/api/payroll/timeclock/period/[i:id]', [PayrollTimeClockController::class, 'forPeriod']);
-Router::post('/api/payroll/timeclock', [PayrollTimeClockController::class, 'create']);
-Router::post('/api/payroll/timeclock/update/[i:id]', [PayrollTimeClockController::class, 'update']);
-Router::post('/api/payroll/timeclock/delete/[i:id]', [PayrollTimeClockController::class, 'delete']);
-Router::post('/api/payroll/timeclock/import', [PayrollTimeClockController::class, 'import']);
+Router::get('/api/payroll/timeclock/period/[i:id]', [PayrollTimeClockController::class, 'forPeriod'], 'paie');
+Router::post('/api/payroll/timeclock', [PayrollTimeClockController::class, 'create'], 'paie');
+Router::post('/api/payroll/timeclock/update/[i:id]', [PayrollTimeClockController::class, 'update'], 'paie');
+Router::post('/api/payroll/timeclock/delete/[i:id]', [PayrollTimeClockController::class, 'delete'], 'paie');
+Router::post('/api/payroll/timeclock/import', [PayrollTimeClockController::class, 'import'], 'paie');
 
 // ── Payroll rapports ────────────────────────────────────────
-Router::get('/api/payroll/reports/period/[i:id]', [PayrollReportController::class, 'periodSummary']);
-Router::get('/api/payroll/reports/csv/[i:id]', [PayrollReportController::class, 'periodCsv']);
-Router::get('/api/payroll/reports/payments/[i:id]', [PayrollReportController::class, 'payments']);
-Router::get('/api/payroll/reports/contributions/[i:id]', [PayrollReportController::class, 'contributions']);
-Router::get('/api/payroll/reports/headcount', [PayrollReportController::class, 'headcount']);
+Router::get('/api/payroll/reports/period/[i:id]', [PayrollReportController::class, 'periodSummary'], 'paie');
+Router::get('/api/payroll/reports/csv/[i:id]', [PayrollReportController::class, 'periodCsv'], 'paie');
+Router::get('/api/payroll/reports/payments/[i:id]', [PayrollReportController::class, 'payments'], 'paie');
+Router::get('/api/payroll/reports/contributions/[i:id]', [PayrollReportController::class, 'contributions'], 'paie');
+Router::get('/api/payroll/reports/headcount', [PayrollReportController::class, 'headcount'], 'paie');
 
 // Paramètres du système
 // Routes pour les clients
 Router::get('/api/clients', [ClientController::class, 'index']);
 Router::get('/api/client/lookup', [ClientController::class, 'lookup']);
+// Lecture d'un client par ID — utilisée par la reprise d'un brouillon de
+// panier (le brouillon ne conserve que l'ID, pas les données sensibles).
+Router::get('/api/client/[i:id]', [ClientController::class, 'show']);
 Router::get('/api/client/search', [ClientController::class, 'searchByNumero']);
 Router::post('/api/client', [ClientController::class, 'create']);
 Router::put('/api/client/[i:id]', [ClientController::class, 'update']);
 Router::post('/api/client/update/[i:id]', [ClientController::class, 'update']);
 
-Router::get('/api/settings', [SettingsController::class, 'index']);
-Router::post('/api/settings', [SettingsController::class, 'update']);
-Router::post('/api/settings/store', [SettingsController::class, 'updateStore']);
-Router::post('/api/settings/tax', [SettingsController::class, 'updateTax']);
-Router::post('/api/settings/theme', [SettingsController::class, 'saveTheme']);
-Router::get('/api/settings/theme', [SettingsController::class, 'getTheme']);
+Router::get('/api/settings', [SettingsController::class, 'index'], 'parametres');
+Router::post('/api/settings', [SettingsController::class, 'update'], 'parametres');
+Router::post('/api/settings/store', [SettingsController::class, 'updateStore'], 'parametres');
+Router::post('/api/settings/tax', [SettingsController::class, 'updateTax'], 'parametres');
+Router::post('/api/settings/theme', [SettingsController::class, 'saveTheme'], 'parametres');
+Router::get('/api/settings/theme', [SettingsController::class, 'getTheme'], 'parametres');
 // Format d'impression (papier)
-Router::post('/api/settings/paper-type', [SettingsController::class, 'updatePaperType']);
-Router::get('/api/settings/paper-type', [SettingsController::class, 'getPaperType']);
+Router::post('/api/settings/paper-type', [SettingsController::class, 'updatePaperType'], 'parametres');
+Router::get('/api/settings/paper-type', [SettingsController::class, 'getPaperType'], 'parametres');
 // Padding d'affichage des articles sur le ticket (57mm / 80mm)
-Router::post('/api/settings/receipt-padding', [SettingsController::class, 'updateReceiptPadding']);
-Router::get('/api/settings/receipt-padding', [SettingsController::class, 'getReceiptPadding']);
+Router::post('/api/settings/receipt-padding', [SettingsController::class, 'updateReceiptPadding'], 'parametres');
+Router::get('/api/settings/receipt-padding', [SettingsController::class, 'getReceiptPadding'], 'parametres');
 // Logo du magasin (facture imprimée)
-Router::post('/api/settings/logo', [SettingsController::class, 'uploadLogo']);
-Router::post('/api/settings/logo/delete', [SettingsController::class, 'deleteLogo']);
+Router::post('/api/settings/logo', [SettingsController::class, 'uploadLogo'], 'parametres');
+Router::post('/api/settings/logo/delete', [SettingsController::class, 'deleteLogo'], 'parametres');
 
 // Routes pour la gestion des taxes
-Router::get('/api/taxes', [TaxController::class, 'index']);
-Router::post('/api/taxes', [TaxController::class, 'create']);
-Router::post('/api/taxes/update', [TaxController::class, 'update']);
-Router::post('/api/taxes/delete', [TaxController::class, 'delete']);
+Router::get('/api/taxes', [TaxController::class, 'index'], 'taxes');
+Router::post('/api/taxes', [TaxController::class, 'create'], 'taxes');
+Router::post('/api/taxes/update', [TaxController::class, 'update'], 'taxes');
+Router::post('/api/taxes/delete', [TaxController::class, 'delete'], 'taxes');
 
 // Proxy Bill Payment API (OSAT-Energie pour éviter CORS)
 // POST vers https://osat-energie.com/snel_regideso/
@@ -864,19 +906,19 @@ Router::post('/api/feature-access/reset', function () {
 // - `/api/reports/x-report/daily` et `/api/reports/x-report/periodic`
 //   (X LOCAL) : l'interface ne les expose plus, le X DGI
 //   (`GET /api/reports/dgi/x`) fait désormais foi.
-Router::get('/api/reports/a-report', [ReportController::class, 'generateAReport']);
-Router::get('/api/reports/a-history', [ReportController::class, 'getAReportHistory']);
-Router::get('/api/reports/history', [ReportController::class, 'getReportHistory']);
-Router::get('/api/reports/print/[i:id]', [ReportController::class, 'printReport']);
+Router::get('/api/reports/a-report', [ReportController::class, 'generateAReport'], 'rapports');
+Router::get('/api/reports/a-history', [ReportController::class, 'getAReportHistory'], 'rapports');
+Router::get('/api/reports/history', [ReportController::class, 'getReportHistory'], 'rapports');
+Router::get('/api/reports/print/[i:id]', [ReportController::class, 'printReport'], 'rapports');
 
 // Rapports DGI aggregés fournis par OSAT.
 // - X : periode personnalisée, en lecture seule.
 // - Z : consultation (lecture seule) de la période à clôturer.
 // - POST Z : clôture DGI (persistance + chaînage de la période suivante).
-Router::get('/api/reports/dgi/x', [ReportController::class, 'generateDgiXReport']);
-Router::get('/api/reports/dgi/z', [ReportController::class, 'generateDgiZReport']);
-Router::post('/api/reports/dgi/z', [ReportController::class, 'generateDgiZClosure']);
-Router::get('/api/reports/dgi/z-history', [ReportController::class, 'getDgiZHistory']);
+Router::get('/api/reports/dgi/x', [ReportController::class, 'generateDgiXReport'], 'rapports');
+Router::get('/api/reports/dgi/z', [ReportController::class, 'generateDgiZReport'], 'rapports');
+Router::post('/api/reports/dgi/z', [ReportController::class, 'generateDgiZClosure'], 'rapports');
+Router::get('/api/reports/dgi/z-history', [ReportController::class, 'getDgiZHistory'], 'rapports');
 
 // ── Tableau de bord : indicateurs DGI/OSAT (jour, semaine, mois) ──
 //
@@ -893,14 +935,14 @@ Router::get('/api/dashboard/dgi-stats', [DashboardController::class, 'dgiStats']
 // /recharges et /hotel) :
 // voir Controller::requireShopPressingAccess().
 //
-Router::get('/api/pressing/stats', [PressingController::class, 'stats']);
-Router::get('/api/pressing/commandes', [PressingController::class, 'index']);
-Router::get('/api/pressing/commandes/[i:id]', [PressingController::class, 'show']);
-Router::post('/api/pressing/commandes', [PressingController::class, 'store']);
-Router::post('/api/pressing/commandes/[i:id]/advance-all', [PressingController::class, 'advanceAll']);
-Router::post('/api/pressing/commandes/[i:id]/pay', [PressingController::class, 'pay']);
-Router::post('/api/pressing/commandes/[i:id]/delete', [PressingController::class, 'destroy']);
-Router::post('/api/pressing/articles/[i:id]/advance', [PressingController::class, 'advance']);
-Router::post('/api/pressing/articles/[i:id]/recede', [PressingController::class, 'recede']);
-Router::post('/api/pressing/facture/lookup', [PressingController::class, 'lookupFacture']);
-Router::get('/api/pressing/ventes-sans-commande', [PressingController::class, 'ventesSansCommande']);
+Router::get('/api/pressing/stats', [PressingController::class, 'stats'], 'pressing');
+Router::get('/api/pressing/commandes', [PressingController::class, 'index'], 'pressing');
+Router::get('/api/pressing/commandes/[i:id]', [PressingController::class, 'show'], 'pressing');
+Router::post('/api/pressing/commandes', [PressingController::class, 'store'], 'pressing');
+Router::post('/api/pressing/commandes/[i:id]/advance-all', [PressingController::class, 'advanceAll'], 'pressing');
+Router::post('/api/pressing/commandes/[i:id]/pay', [PressingController::class, 'pay'], 'pressing');
+Router::post('/api/pressing/commandes/[i:id]/delete', [PressingController::class, 'destroy'], 'pressing');
+Router::post('/api/pressing/articles/[i:id]/advance', [PressingController::class, 'advance'], 'pressing');
+Router::post('/api/pressing/articles/[i:id]/recede', [PressingController::class, 'recede'], 'pressing');
+Router::post('/api/pressing/facture/lookup', [PressingController::class, 'lookupFacture'], 'pressing');
+Router::get('/api/pressing/ventes-sans-commande', [PressingController::class, 'ventesSansCommande'], 'pressing');
