@@ -34,6 +34,16 @@ $currentShopName = $currentShopName ?? '';
 // injectée par le contrôleur, mais on évite un warning si la vue est
 // incluse ailleurs.)
 $canManageModuleAccess = $canManageModuleAccess ?? false;
+// La colonne « Pages bloquées » est RÉSERVÉE au `super_admin` : le blocage
+// d'une page est une décision INDIVIDUELLE, prise au niveau de la plateforme.
+// Un manager (vendeur avec hotel_role='manager') gère les RÔLES hôtel de son
+// équipe, mais ne bloque PAS les pages de ses collaborateurs.
+// Valeur injectée par PageController::hotelRoles().
+$canManagePageAccess = $canManagePageAccess ?? false;
+// Pages bloquées par utilisateur : [userId => [pageKey, ...]].
+$blockedPagesByUser = $blockedPagesByUser ?? [];
+// Catalogue des pages : [pageKey => ['label' => ..., 'family' => ...]].
+$pageCatalog = $pageCatalog ?? [];
 // ── Compteurs par rôle (utilisés par les cards-filtres) ──────────
 $rolesCount = [
   'all'         => is_array($hotelUsers) ? count($hotelUsers) : 0,
@@ -276,8 +286,38 @@ if (is_array($hotelUsers)) {
     width: 20%;
   }
 
+  /* Colonne « Pages bloquées » (super_admin). */
+  .hotel-roles-table col.col-pages {
+    width: 16%;
+  }
+
   .hotel-roles-table col.col-stat {
     width: 11%;
+  }
+
+  /* Avec les deux colonnes optionnelles, on rééquilibre les colonnes fixes. */
+  .hotel-roles-table.has-pages col.col-user {
+    width: 22%;
+  }
+
+  .hotel-roles-table.has-pages col.col-app {
+    width: 13%;
+  }
+
+  .hotel-roles-table.has-pages col.col-role {
+    width: 22%;
+  }
+
+  .hotel-roles-table.has-pages col.col-modules {
+    width: 17%;
+  }
+
+  .hotel-roles-table.has-pages col.col-pages {
+    width: 18%;
+  }
+
+  .hotel-roles-table.has-pages col.col-stat {
+    width: 8%;
   }
 
   /* Sans la colonne « Accès modules POS » (viewer non admin POS) :
@@ -317,6 +357,30 @@ if (is_array($hotelUsers)) {
 
     .hotel-roles-table col.col-stat {
       width: 8%;
+    }
+
+    .hotel-roles-table.has-pages col.col-user {
+      width: 24%;
+    }
+
+    .hotel-roles-table.has-pages col.col-app {
+      width: 12%;
+    }
+
+    .hotel-roles-table.has-pages col.col-role {
+      width: 22%;
+    }
+
+    .hotel-roles-table.has-pages col.col-modules {
+      width: 18%;
+    }
+
+    .hotel-roles-table.has-pages col.col-pages {
+      width: 18%;
+    }
+
+    .hotel-roles-table.has-pages col.col-stat {
+      width: 6%;
     }
 
     .hotel-roles-table:not(.has-modules) col.col-user {
@@ -496,6 +560,7 @@ if (is_array($hotelUsers)) {
     opacity: .6;
     cursor: wait;
   }
+
 
   .hotel-roles-empty {
     padding: 3rem;
@@ -771,13 +836,16 @@ if (is_array($hotelUsers)) {
       </div>
     <?php else: ?>
       <div class="hotel-roles-table-wrap">
-        <table class="hotel-roles-table <?= $canManageModuleAccess ? 'has-modules' : '' ?>">
+        <table class="hotel-roles-table <?= $canManageModuleAccess ? 'has-modules' : '' ?> <?= $canManagePageAccess ? 'has-pages' : '' ?>">
           <colgroup>
             <?php if ($canManageModuleAccess): ?>
               <col class="col-user">
               <col class="col-app">
               <col class="col-role">
               <col class="col-modules">
+              <?php if ($canManagePageAccess): ?>
+                <col class="col-pages">
+              <?php endif; ?>
               <col class="col-stat">
             <?php else: ?>
               <col class="col-user">
@@ -793,6 +861,9 @@ if (is_array($hotelUsers)) {
               <th>Rôle Hôtel</th>
               <?php if ($canManageModuleAccess): ?>
                 <th>Accès modules POS</th>
+              <?php endif; ?>
+              <?php if ($canManagePageAccess): ?>
+                <th>Pages bloquées</th>
               <?php endif; ?>
               <th>Statut</th>
             </tr>
@@ -877,6 +948,42 @@ if (is_array($hotelUsers)) {
                       </div>
                       <div class="hotel-roles-status" id="status-modules-<?= (int)$u['id'] ?>">Droits POS</div>
                     <?php endif; ?>
+                  </td>
+                <?php endif; ?>
+                <?php if ($canManagePageAccess): ?>
+                  <td>
+                    <?php
+                    // Pages bloquées de cet utilisateur (source : service).
+                    $__uid = (int)$u['id'];
+                    $__blocked = $blockedPagesByUser[$__uid] ?? [];
+                    $__blockedLabels = [];
+                    foreach ($__blocked as $__pk) {
+                        if (isset($pageCatalog[$__pk])) {
+                            $__blockedLabels[] = $pageCatalog[$__pk]['label'];
+                        }
+                    }
+                    ?>
+                    <div class="hotel-roles-pages" data-user-id="<?= $__uid ?>">
+                      <?php if ($__blockedLabels): ?>
+                        <?php foreach ($__blockedLabels as $__label): ?>
+                          <span class="hotel-roles-page is-blocked"
+                            data-user-id="<?= $__uid ?>"
+                            title="Accès bloqué pour cet utilisateur">
+                            <?= htmlspecialchars($__label) ?>
+                          </span>
+                        <?php endforeach; ?>
+                      <?php else: ?>
+                        <span class="hotel-roles-pages-empty">Aucune page bloquée</span>
+                      <?php endif; ?>
+                      <button type="button"
+                        class="hotel-roles-pages-manage"
+                        data-user-id="<?= $__uid ?>"
+                        data-user-name="<?= htmlspecialchars($u['nom_complet'] ?? '') ?>"
+                        title="Gérer les pages bloquées pour cet utilisateur">
+                        Gérer
+                      </button>
+                    </div>
+                    <div class="hotel-roles-status" id="status-pages-<?= $__uid ?>">Pages bloquées</div>
                   </td>
                 <?php endif; ?>
                 <td>
@@ -978,6 +1085,49 @@ if (is_array($hotelUsers)) {
                 </span>
               </div>
             <?php endif; ?>
+            <?php if ($canManagePageAccess): ?>
+              <?php
+              $__uid = (int)$u['id'];
+              $__blocked = $blockedPagesByUser[$__uid] ?? [];
+              $__blockedLabels = [];
+              foreach ($__blocked as $__pk) {
+                  if (isset($pageCatalog[$__pk])) {
+                      $__blockedLabels[] = $pageCatalog[$__pk]['label'];
+                  }
+              }
+              ?>
+              <div class="hotel-roles-user-card__row">
+                <span class="hotel-roles-user-card__lbl">Pages bloquées</span>
+                <span class="hotel-roles-user-card__val">
+                  <div class="hotel-roles-pages" data-user-id="<?= $__uid ?>">
+                    <?php if ($__blockedLabels): ?>
+                      <?php foreach ($__blockedLabels as $__label): ?>
+                        <span class="hotel-roles-page is-blocked"
+                          data-user-id="<?= $__uid ?>"
+                          title="Accès bloqué pour cet utilisateur">
+                          <?= htmlspecialchars($__label) ?>
+                        </span>
+                      <?php endforeach; ?>
+                    <?php else: ?>
+                      <span class="hotel-roles-pages-empty">Aucune page bloquée</span>
+                    <?php endif; ?>
+                    <button type="button"
+                      class="hotel-roles-pages-manage"
+                      data-user-id="<?= $__uid ?>"
+                      data-user-name="<?= htmlspecialchars($u['nom_complet'] ?? '') ?>"
+                      title="Gérer les pages bloquées pour cet utilisateur">
+                      Gérer
+                    </button>
+                  </div>
+                </span>
+              </div>
+              <div class="hotel-roles-user-card__row">
+                <span class="hotel-roles-user-card__lbl">&nbsp;</span>
+                <span class="hotel-roles-user-card__val">
+                  <span class="hotel-roles-status" id="status-pages-card-<?= $__uid ?>">Pages bloquées</span>
+                </span>
+              </div>
+            <?php endif; ?>
             <div class="hotel-roles-user-card__row">
               <span class="hotel-roles-user-card__lbl">Statut</span>
               <span class="hotel-roles-user-card__val">
@@ -1000,6 +1150,19 @@ if (is_array($hotelUsers)) {
     <?php endif; ?>
   </div>
 </main>
+
+<?php if ($canManagePageAccess): ?>
+<!-- ── Modale de gestion des pages bloquées (super_admin) ────────── -->
+<!-- Le partial porte le catalogue ET le JS : il est partagé avec l'écran
+     dédié /pages-bloquees (sidebar du super_admin). -->
+<?php
+$pagesCatalog   = $pageCatalog;
+$blockedByUser  = $blockedPagesByUser;
+$pagesEndpoint  = '/api/user/page-access/update';
+$pagesShopId    = (int)$targetShopId;
+require_once __DIR__ . '/partials/pages-access-modal.php';
+?>
+<?php endif; ?>
 
 <script>
   (function() {
@@ -1218,6 +1381,7 @@ if (is_array($hotelUsers)) {
         });
       });
     <?php endif; ?>
+
 
     // Init : affichage de tous par défaut
     applyFilter('all');

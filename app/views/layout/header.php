@@ -73,35 +73,35 @@
     // ici pour être consommé par le JS.
     // Utilisé par le bouton « Extras » de /caisse (imputation hôtel).
     const FEATURE_FLAGS = <?= json_encode((function () use ($data) {
-                            $fc = $_SESSION['feature_access_cache'] ?? null;
-                            $apiFlags = ['hotel' => false, 'snelregideso' => false, 'paie' => false];
-                            if ($fc !== null && isset($fc['expires_at']) && $fc['expires_at'] > time()) {
-                              $f = $fc['flags'] ?? [];
-                              $apiFlags = [
-                                'hotel'        => !empty($f['hotel']),
-                                'snelregideso' => !empty($f['snelregideso']),
-                                'paie'         => !empty($f['paie']),
-                              ];
-                            }
+        $fc = $_SESSION['feature_access_cache'] ?? null;
+        $apiFlags = ['hotel' => false, 'snelregideso' => false, 'paie' => false];
+        if ($fc !== null && isset($fc['expires_at']) && $fc['expires_at'] > time()) {
+            $f = $fc['flags'] ?? [];
+            $apiFlags = [
+              'hotel'        => !empty($f['hotel']),
+              'snelregideso' => !empty($f['snelregideso']),
+              'paie'         => !empty($f['paie']),
+            ];
+        }
 
-                            // PageController::render() fournit déjà la valeur (boutique déjà
-                            // chargée). Les autres points d'entrée du layout (InvoiceController)
-                            // ne la fournissent pas : on retombe alors sur le modèle.
-                            $extrasAllowed = !empty($data['shopHasExtrasAccess']);
-                            if (!array_key_exists('shopHasExtrasAccess', $data)) {
-                              $shopId = $_SESSION['shop_id'] ?? null;
-                              if ($shopId) {
-                                try {
-                                  $extrasAllowed = (new \App\Models\Shop())->hasExtrasAccess($shopId);
-                                } catch (\Throwable $e) {
-                                  error_log('FEATURE_FLAGS extras error: ' . $e->getMessage());
-                                  $extrasAllowed = false;
-                                }
-                              }
-                            }
+        // PageController::render() fournit déjà la valeur (boutique déjà
+        // chargée). Les autres points d'entrée du layout (InvoiceController)
+        // ne la fournissent pas : on retombe alors sur le modèle.
+        $extrasAllowed = !empty($data['shopHasExtrasAccess']);
+        if (!array_key_exists('shopHasExtrasAccess', $data)) {
+            $shopId = $_SESSION['shop_id'] ?? null;
+            if ($shopId) {
+                try {
+                    $extrasAllowed = (new \App\Models\Shop())->hasExtrasAccess($shopId);
+                } catch (\Throwable $e) {
+                    error_log('FEATURE_FLAGS extras error: ' . $e->getMessage());
+                    $extrasAllowed = false;
+                }
+            }
+        }
 
-                            return array_merge($apiFlags, ['extras' => $extrasAllowed]);
-                          })()) ?>;
+        return array_merge($apiFlags, ['extras' => $extrasAllowed]);
+    })()) ?>;
   </script>
 
   <!-- Réhydratation : poll le statut actif du shop côté serveur.
@@ -239,13 +239,13 @@
         </div>
         <?php
         $role = $_SESSION['role'] ?? '';
-        if ($role === 'super_admin') {
-          // Utiliser exactement la même requête que dans le header/login (companyName / companyInfo / storeName)
-          $sidebarStoreName = ($companyName ?? ($companyInfo['name'] ?? ($storeName ?? 'Mon Magasin')));
-        } else {
-          $sidebarStoreName = ($storeName ?? 'Mon Magasin');
-        }
-        ?>
+  if ($role === 'super_admin') {
+      // Utiliser exactement la même requête que dans le header/login (companyName / companyInfo / storeName)
+      $sidebarStoreName = ($companyName ?? ($companyInfo['name'] ?? ($storeName ?? 'Mon Magasin')));
+  } else {
+      $sidebarStoreName = ($storeName ?? 'Mon Magasin');
+  }
+  ?>
         <span id="sidebar-store-name"><?= htmlspecialchars($sidebarStoreName) ?></span>
 
         <button id="close-sidebar" class="close-sidebar">
@@ -268,35 +268,69 @@
           <span>Tableau de bord</span>
         </a>
         <?php
-        // ── Droits d'accès aux modules du POS (par utilisateur) ─────────
-        // Colonnes `utilisateurs.acces_*` (migrations 2026_11_14 / 2026_11_15),
-        // réglées depuis /hotel/roles.
-        //
-        // Les liens sont MASQUÉS quand le droit est refusé : règle du projet —
-        // l'utilisateur ne doit jamais cliquer sur un lien visible qui ne
-        // peut aboutir qu'à une redirection (cf. PageController).
-        //
-        // Les valeurs sont fournies par PageController::render() (source de
-        // vérité). Les autres points d'entrée du layout (InvoiceController)
-        // ne les fournissent pas : on retombe alors sur le modèle.
-        $moduleAccess = [];
-        if (isset($data['moduleAccess']) && is_array($data['moduleAccess'])) {
-          $moduleAccess = $data['moduleAccess'];
-        } else {
-          try {
-            foreach (array_keys(\App\Models\User::MODULES_ACCES) as $_m) {
+  // ── Droits d'accès aux modules du POS (par utilisateur) ─────────
+  // Colonnes `utilisateurs.acces_*` (migrations 2026_11_14 / 2026_11_15),
+  // réglées depuis /hotel/roles.
+  //
+  // Les liens sont MASQUÉS quand le droit est refusé : règle du projet —
+  // l'utilisateur ne doit jamais cliquer sur un lien visible qui ne
+  // peut aboutir qu'à une redirection (cf. PageController).
+  //
+  // Les valeurs sont fournies par PageController::render() (source de
+  // vérité). Les autres points d'entrée du layout (InvoiceController)
+  // ne les fournissent pas : on retombe alors sur le modèle.
+  $moduleAccess = [];
+  if (isset($data['moduleAccess']) && is_array($data['moduleAccess'])) {
+      $moduleAccess = $data['moduleAccess'];
+  } else {
+      try {
+          foreach (array_keys(\App\Models\User::MODULES_ACCES) as $_m) {
               $moduleAccess[$_m] = (new \App\Models\User())->canAccessModule($_m);
-            }
-          } catch (\Throwable $e) {
-            error_log('Sidebar moduleAccess error: ' . $e->getMessage());
-            // En cas d'erreur : on masque tous les modules (fail-closed).
-            $moduleAccess = array_fill_keys(array_keys(\App\Models\User::MODULES_ACCES), false);
           }
-        }
-        // Raccourci historique (conservé pour compatibilité).
-        $canCaisse = $moduleAccess['caisse'] ?? false;
-        ?>
-        <?php if ($canCaisse): ?>
+      } catch (\Throwable $e) {
+          error_log('Sidebar moduleAccess error: ' . $e->getMessage());
+          // En cas d'erreur : on masque tous les modules (fail-closed).
+          $moduleAccess = array_fill_keys(array_keys(\App\Models\User::MODULES_ACCES), false);
+      }
+  }
+  // Raccourci historique (conservé pour compatibilité).
+  $canCaisse = $moduleAccess['caisse'] ?? false;
+
+  // ── Politique d'accès aux pages (super_admin) ────────────────────
+  // La carte de visibilité vient de PageController::render() (source de
+  // vérité, identique à la garde backend). Les points d'entrée qui
+  // n'appellent pas render() retombent sur un repli FAIL-CLOSED : sans
+  // carte, aucune page configurable n'est proposée.
+  $pageVisibility = [];
+  if (isset($data['pageVisibility']) && is_array($data['pageVisibility'])) {
+      $pageVisibility = $data['pageVisibility'];
+  } else {
+      try {
+          $policyService = new \App\Services\UserPageAccessService();
+          $policyUserId = (int)($_SESSION['user_id'] ?? 0);
+          if ($policyUserId > 0) {
+              // La carte est calculée depuis les blocages INDIVIDUELS de
+              // l'utilisateur. Le super_admin n'est jamais bloqué et
+              // l'utilisateur inconnu est fail-closed : le service s'en charge.
+              $pageVisibility = $policyService->getVisibilityMap($policyUserId);
+          } else {
+              // Pas de session : l'authentification reste prioritaire.
+              $pageVisibility = array_fill_keys(
+                  array_keys($policyService::getCatalog()),
+                  true
+              );
+          }
+      } catch (\Throwable $e) {
+          error_log('Sidebar pageVisibility error: ' . $e->getMessage());
+          // Fail-closed : on masque toutes les pages configurables.
+          $pageVisibility = array_fill_keys(
+              array_keys(\App\Services\UserPageAccessService::getCatalog()),
+              false
+          );
+      }
+  }
+  ?>
+        <?php if ($canCaisse && ($pageVisibility['caisse'] ?? false)): ?>
           <a href="/caisse" class="nav-item <?= $currentPage == 'caisse' ? 'active' : '' ?>">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <line x1="12" y1="1" x2="12" y2="23"></line>
@@ -307,63 +341,78 @@
         <?php endif; ?>
 
         <?php
-        // Module Hôtel — sous-menu dropdown visible dès qu'un user a un accès hôtel.
-        // 2026-10-15 : refonte — chaque item est filtré par rôle effectif.
-        // Rôles effectif = "résolu" par PageController::resolveHotelRole() :
-        //   - super_admin (rôle app)  → super_admin  (accès total à toutes les sous-pages)
-        //   - admin (rôle app)        → manager      (auto, sans assignation explicite)
-        //   - vendeur + hotel_role    → manager | receptionniste | gouvernante | aucun
-        // Permissions des sous-pages :
-        //   - Tableau de bord : super_admin, admin (=manager), manager explicite
-        //   - Calendrier     : super_admin, admin (=manager), manager explicite
-        //   - Réception      : super_admin, admin, manager, réceptionniste
-        //   - Étages         : super_admin, admin, manager, réceptionniste, gouvernante
-        //   - Chambres       : tous les rôles hôtel (même gouvernante peut consulter)
-        //   - Gestion rôles  : super_admin, admin (=manager), manager explicite
-        $appRole = $_SESSION['role'] ?? '';
-        $hotelRole = $_SESSION['hotel_role'] ?? null;
+  // Module Hôtel — sous-menu dropdown visible dès qu'un user a un accès hôtel.
+  // 2026-10-15 : refonte — chaque item est filtré par rôle effectif.
+  // Rôles effectif = "résolu" par PageController::resolveHotelRole() :
+  //   - super_admin (rôle app)  → super_admin  (accès total à toutes les sous-pages)
+  //   - admin (rôle app)        → manager      (auto, sans assignation explicite)
+  //   - vendeur + hotel_role    → manager | receptionniste | gouvernante | aucun
+  // Permissions des sous-pages :
+  //   - Tableau de bord : super_admin, admin (=manager), manager explicite
+  //   - Calendrier     : super_admin, admin (=manager), manager explicite
+  //   - Réception      : super_admin, admin, manager, réceptionniste
+  //   - Étages         : super_admin, admin, manager, réceptionniste, gouvernante
+  //   - Chambres       : tous les rôles hôtel (même gouvernante peut consulter)
+  //   - Gestion rôles  : super_admin, admin (=manager), manager explicite
+  $appRole = $_SESSION['role'] ?? '';
+  $hotelRole = $_SESSION['hotel_role'] ?? null;
 
-        // Rôle effectif (mêmes règles que PageController::resolveHotelRole)
-        if ($appRole === 'super_admin')      $effectiveHotelRole = 'super_admin';
-        elseif ($appRole === 'admin')        $effectiveHotelRole = 'manager';
-        elseif (in_array($hotelRole, ['manager', 'receptionniste', 'gouvernante'], true)) $effectiveHotelRole = $hotelRole;
-        else                                  $effectiveHotelRole = 'aucun';
+  // Rôle effectif (mêmes règles que PageController::resolveHotelRole)
+  if ($appRole === 'super_admin') {
+      $effectiveHotelRole = 'super_admin';
+  } elseif ($appRole === 'admin') {
+      $effectiveHotelRole = 'manager';
+  } elseif (in_array($hotelRole, ['manager', 'receptionniste', 'gouvernante'], true)) {
+      $effectiveHotelRole = $hotelRole;
+  } else {
+      $effectiveHotelRole = 'aucun';
+  }
 
-        $showHotel = ($effectiveHotelRole !== 'aucun');
+  $showHotel = ($effectiveHotelRole !== 'aucun');
 
-        // BUG FIX 2026-10-20 — masquage du module Hôtel quand le flag API
-        // `hotel` est faux/absent. Sans ce check, un admin + hotel_role=manager
-        // voyait le menu Hôtel, cliquait, et tombait sur une page 403
-        // (requireHotelApiAccess → canAccessHotel() strict).
-        // Même logique de lecture du cache que $showPayroll / $showRecharges
-        // (voir plus bas) : on lit directement $_SESSION['feature_access_cache'].
-        $hotelFeatureOk = false;
-        $featureCacheHotel = $_SESSION['feature_access_cache'] ?? null;
-        if (
-          $featureCacheHotel !== null
-          && isset($featureCacheHotel['expires_at'])
-          && $featureCacheHotel['expires_at'] > time()
-        ) {
-          $hotelFeatureOk = !empty($featureCacheHotel['flags']['hotel']);
-        }
-        // Le menu Hôtel (et son dropdown) n'est rendu que si :
-        //   1. l'utilisateur a un rôle hôtel effectif, ET
-        //   2. le flag API `hotel` est vrai (abonnement actif)
-        $showHotel = ($effectiveHotelRole !== 'aucun') && $hotelFeatureOk;
+  // BUG FIX 2026-10-20 — masquage du module Hôtel quand le flag API
+  // `hotel` est faux/absent. Sans ce check, un admin + hotel_role=manager
+  // voyait le menu Hôtel, cliquait, et tombait sur une page 403
+  // (requireHotelApiAccess → canAccessHotel() strict).
+  // Même logique de lecture du cache que $showPayroll / $showRecharges
+  // (voir plus bas) : on lit directement $_SESSION['feature_access_cache'].
+  $hotelFeatureOk = false;
+  $featureCacheHotel = $_SESSION['feature_access_cache'] ?? null;
+  if (
+      $featureCacheHotel !== null
+      && isset($featureCacheHotel['expires_at'])
+      && $featureCacheHotel['expires_at'] > time()
+  ) {
+      $hotelFeatureOk = !empty($featureCacheHotel['flags']['hotel']);
+  }
+  // Le menu Hôtel (et son dropdown) n'est rendu que si :
+  //   1. l'utilisateur a un rôle hôtel effectif, ET
+  //   2. le flag API `hotel` est vrai (abonnement actif)
+  $showHotel = ($effectiveHotelRole !== 'aucun') && $hotelFeatureOk;
 
-        // Permissions par sous-page (alignées sur PageController::requireHotelAccess)
-        $canDashboard = in_array($effectiveHotelRole, ['super_admin', 'manager'], true);
-        $canCalendar  = in_array($effectiveHotelRole, ['super_admin', 'manager'], true);
-        $canReception = in_array($effectiveHotelRole, ['super_admin', 'manager', 'receptionniste'], true);
-        $canReservations = in_array($effectiveHotelRole, ['super_admin', 'manager', 'receptionniste'], true);
-        $canEtages    = in_array($effectiveHotelRole, ['super_admin', 'manager', 'receptionniste', 'gouvernante'], true);
-        $canChambres  = $showHotel; // tous rôles hôtel
-        $canGuests    = $showHotel; // tous rôles hôtel
-        $canManageRoles = in_array($effectiveHotelRole, ['super_admin', 'manager'], true);
+  // Permissions par sous-page (alignées sur PageController::requireHotelAccess)
+  //
+  // La politique d'accès aux pages (super_admin) s'AJOUTE à ces
+  // permissions métier : une sous-page masquée pour l'audience de
+  // l'utilisateur n'est plus proposée, même si son rôle l'autorise.
+  $canDashboard = in_array($effectiveHotelRole, ['super_admin', 'manager'], true)
+    && ($pageVisibility['hotel_tableau_bord'] ?? false);
+  $canCalendar  = in_array($effectiveHotelRole, ['super_admin', 'manager'], true)
+    && ($pageVisibility['hotel_calendrier'] ?? false);
+  $canReception = in_array($effectiveHotelRole, ['super_admin', 'manager', 'receptionniste'], true)
+    && ($pageVisibility['hotel_reception'] ?? false);
+  $canReservations = in_array($effectiveHotelRole, ['super_admin', 'manager', 'receptionniste'], true)
+    && ($pageVisibility['hotel_reservations'] ?? false);
+  $canEtages    = in_array($effectiveHotelRole, ['super_admin', 'manager', 'receptionniste', 'gouvernante'], true)
+    && ($pageVisibility['hotel_etages'] ?? false);
+  $canChambres  = $showHotel && ($pageVisibility['hotel_chambres'] ?? false); // tous rôles hôtel
+  $canGuests    = $showHotel && ($pageVisibility['hotel_guests'] ?? false); // tous rôles hôtel
+  $canManageRoles = in_array($effectiveHotelRole, ['super_admin', 'manager'], true)
+    && ($pageVisibility['hotel_roles'] ?? false);
 
-        $currentPage = $currentPage ?? '';
-        $isHotelPage = str_starts_with($currentPage, 'hotel');
-        ?>
+  $currentPage = $currentPage ?? '';
+  $isHotelPage = str_starts_with($currentPage, 'hotel');
+  ?>
 
         <?php if ($showHotel): ?>
           <div class="nav-dropdown <?= $isHotelPage ? 'open' : '' ?>" id="hotel-dropdown">
@@ -474,16 +523,23 @@
                   <span>Gestion des rôles</span>
                 </a>
               <?php endif; ?>
+
+              <?php
+              // Les pages bloquées par utilisateur se gèrent depuis
+              // /hotel/roles (colonne « Pages bloquées »), pas depuis un
+              // écran dédié : le blocage est INDIVIDUEL, donc il se règle
+              // sur la fiche de l'utilisateur concerné.
+              ?>
             </div>
           </div>
         <?php endif; ?>
         <?php
-        $showRecharges = false;
-        $rechargeCache = $_SESSION['recharge_access_cache'] ?? null;
-        if ($rechargeCache !== null && isset($rechargeCache['expires_at']) && $rechargeCache['expires_at'] > time()) {
-          $showRecharges = (bool) $rechargeCache['granted'];
-        }
-        ?>
+  $showRecharges = false;
+  $rechargeCache = $_SESSION['recharge_access_cache'] ?? null;
+  if ($rechargeCache !== null && isset($rechargeCache['expires_at']) && $rechargeCache['expires_at'] > time()) {
+      $showRecharges = (bool) $rechargeCache['granted'];
+  }
+  ?>
         <?php if ($showRecharges): ?>
           <a href="/recharges" class="nav-item <?= $currentPage == 'recharges' ? 'active' : '' ?>">
             <div class="nav-icon-split">
@@ -499,26 +555,26 @@
         <?php endif; ?>
 
         <?php
-        // Module Pressing — visible UNIQUEMENT si :
-        //   1. le flag API `pressing` est actif (abonnement OSAT), ET
-        //   2. l'utilisateur a le droit d'accès au module
-        //      (`utilisateurs.acces_pressing`).
-        // Les deux conditions s'ajoutent : le flag dit « la boutique a
-        // souscrit », le droit dit « CET utilisateur a le droit ».
-        // Même logique de lecture du cache que $showHotel : on lit
-        // directement $_SESSION['feature_access_cache'] pour ne pas
-        // déclencher un appel réseau dans le header.
-        $pressingAccess = false;
-        $featureCachePressing = $_SESSION['feature_access_cache'] ?? null;
-        if (
-          $featureCachePressing !== null
-          && isset($featureCachePressing['expires_at'])
-          && $featureCachePressing['expires_at'] > time()
-        ) {
-          $pressingAccess = !empty($featureCachePressing['flags']['pressing']);
-        }
-        ?>
-        <?php if ($pressingAccess && ($moduleAccess['pressing'] ?? false)): ?>
+  // Module Pressing — visible UNIQUEMENT si :
+  //   1. le flag API `pressing` est actif (abonnement OSAT), ET
+  //   2. l'utilisateur a le droit d'accès au module
+  //      (`utilisateurs.acces_pressing`).
+  // Les deux conditions s'ajoutent : le flag dit « la boutique a
+  // souscrit », le droit dit « CET utilisateur a le droit ».
+  // Même logique de lecture du cache que $showHotel : on lit
+  // directement $_SESSION['feature_access_cache'] pour ne pas
+  // déclencher un appel réseau dans le header.
+  $pressingAccess = false;
+  $featureCachePressing = $_SESSION['feature_access_cache'] ?? null;
+  if (
+      $featureCachePressing !== null
+      && isset($featureCachePressing['expires_at'])
+      && $featureCachePressing['expires_at'] > time()
+  ) {
+      $pressingAccess = !empty($featureCachePressing['flags']['pressing']);
+  }
+  ?>
+        <?php if ($pressingAccess && ($moduleAccess['pressing'] ?? false) && ($pageVisibility['pressing'] ?? false)): ?>
           <a href="/pressing" class="nav-item <?= $currentPage == 'pressing' ? 'active' : '' ?>">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <circle cx="6" cy="6" r="3"></circle>
@@ -530,7 +586,7 @@
             <span>Pressing</span>
           </a>
         <?php endif; ?>
-        <?php if (($moduleAccess['produits'] ?? false)): ?>
+        <?php if (($moduleAccess['produits'] ?? false) && ($pageVisibility['produits'] ?? false)): ?>
           <a href="/produits" class="nav-item <?= $currentPage == 'produits' ? 'active' : '' ?>">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
@@ -541,7 +597,7 @@
           </a>
         <?php endif; ?>
 
-        <?php if (($moduleAccess['analytics'] ?? false)): ?>
+        <?php if (($moduleAccess['analytics'] ?? false) && ($pageVisibility['analytics'] ?? false)): ?>
           <a href="/analytics" class="nav-item <?= $currentPage == 'analytics' ? 'active' : '' ?>">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M3 3v18h18"></path>
@@ -551,7 +607,7 @@
           </a>
         <?php endif; ?>
 
-        <?php if (isset($_SESSION['role']) && in_array($_SESSION['role'], ['admin', 'super_admin'])): ?>
+        <?php if (isset($_SESSION['role']) && in_array($_SESSION['role'], ['admin', 'super_admin']) && ($pageVisibility['utilisateurs'] ?? false)): ?>
           <a href="/utilisateurs" class="nav-item <?= $currentPage == 'utilisateurs' ? 'active' : '' ?>">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
@@ -573,7 +629,7 @@
           </a>
         <?php endif; ?>
 
-        <?php if (($moduleAccess['historique'] ?? false)): ?>
+        <?php if (($moduleAccess['historique'] ?? false) && ($pageVisibility['historique'] ?? false)): ?>
           <a href="/historique" class="nav-item <?= $currentPage == 'historique' ? 'active' : '' ?>">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <circle cx="12" cy="12" r="10"></circle>
@@ -583,6 +639,7 @@
           </a>
         <?php endif; ?>
 
+        <?php if ($pageVisibility['rapports'] ?? false): ?>
         <a href="/rapports" class="nav-item <?= $currentPage == 'rapports' ? 'active' : '' ?>">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
@@ -592,19 +649,22 @@
           </svg>
           <span>Rapports</span>
         </a>
+        <?php endif; ?>
 
         <?php
-        // Module Paie — visible UNIQUEMENT si :
-        //   1. le flag API `paie` est actif (abonnement OSAT), ET
-        //   2. l'utilisateur a le droit d'accès au module
-        //      (`utilisateurs.acces_paie`).
-        $showPayroll = false;
-        $featureCache = $_SESSION['feature_access_cache'] ?? null;
-        if ($featureCache !== null && isset($featureCache['expires_at']) && $featureCache['expires_at'] > time()) {
-          $showPayroll = isset($featureCache['flags']['paie']) && $featureCache['flags']['paie'];
-        }
-        $canPayroll = $showPayroll && ($moduleAccess['paie'] ?? false);
-        ?>
+  // Module Paie — visible UNIQUEMENT si :
+  //   1. le flag API `paie` est actif (abonnement OSAT), ET
+  //   2. l'utilisateur a le droit d'accès au module
+  //      (`utilisateurs.acces_paie`).
+  $showPayroll = false;
+  $featureCache = $_SESSION['feature_access_cache'] ?? null;
+  if ($featureCache !== null && isset($featureCache['expires_at']) && $featureCache['expires_at'] > time()) {
+      $showPayroll = isset($featureCache['flags']['paie']) && $featureCache['flags']['paie'];
+  }
+  $canPayroll = $showPayroll
+    && ($moduleAccess['paie'] ?? false)
+    && ($pageVisibility['paie'] ?? false);
+  ?>
         <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'vendeur' && $canPayroll): ?>
           <a href="/payroll/mypayslips" class="nav-item <?= $currentPage == 'payroll' ? 'active' : '' ?>">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -619,13 +679,15 @@
         <?php endif; ?>
 
         <?php if (isset($_SESSION['role']) && in_array($_SESSION['role'], ['admin', 'super_admin'])): ?>
+          <?php if ($pageVisibility['categories'] ?? false): ?>
           <a href="/categories" class="nav-item <?= $currentPage == 'categories' ? 'active' : '' ?>">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M4 6h16M4 10h16M4 14h7M4 18h10"></path>
             </svg>
             <span>Categories</span>
           </a>
-          <?php if ($storeHomologation ?? true): ?>
+          <?php endif; ?>
+          <?php if (($storeHomologation ?? true) && ($pageVisibility['taxes'] ?? false)): ?>
             <a href="/taxes" class="nav-item <?= $currentPage == 'taxes' ? 'active' : '' ?>">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <line x1="19" y1="5" x2="5" y2="19"></line>
@@ -635,20 +697,20 @@
               <span>Taxes</span>
             </a>
           <?php endif; ?>
-          <?php if ($showPayroll): ?>
+          <?php if ($showPayroll && ($pageVisibility['paie'] ?? false)): ?>
             <?php
-            // Module Paie — sous-menu dropdown, sur le modèle du module Hôtel.
-            //
-            // `$currentPage` vaut 'payroll' sur TOUTES les pages du module :
-            // c'est `$payrollView` (transmise par PageController) qui permet de
-            // distinguer les sous-pages.
-            //
-            // ⚠️ Sur une page NON paie, $payrollView doit rester VIDE : sinon le
-            // lien « Tableau de bord » serait marqué actif, ce qui ferait
-            // s'ouvrir le dropdown tout seul sur toutes les pages.
-            $isPayrollPage = $currentPage === 'payroll';
-            $payrollView = $isPayrollPage ? ($payrollView ?? 'index') : '';
-            ?>
+      // Module Paie — sous-menu dropdown, sur le modèle du module Hôtel.
+      //
+      // `$currentPage` vaut 'payroll' sur TOUTES les pages du module :
+      // c'est `$payrollView` (transmise par PageController) qui permet de
+      // distinguer les sous-pages.
+      //
+      // ⚠️ Sur une page NON paie, $payrollView doit rester VIDE : sinon le
+      // lien « Tableau de bord » serait marqué actif, ce qui ferait
+      // s'ouvrir le dropdown tout seul sur toutes les pages.
+      $isPayrollPage = $currentPage === 'payroll';
+              $payrollView = $isPayrollPage ? ($payrollView ?? 'index') : '';
+              ?>
 
             <div class="nav-dropdown <?= $isPayrollPage ? 'open' : '' ?>" id="payroll-dropdown">
               <button type="button" class="nav-item nav-dropdown-trigger <?= $isPayrollPage ? 'active' : '' ?>" aria-haspopup="true" aria-expanded="false">
@@ -750,6 +812,7 @@
               </div>
             </div>
           <?php endif; ?>
+          <?php if ($pageVisibility['parametres'] ?? false): ?>
           <a href="/parametres" class="nav-item <?= $currentPage == 'parametres' ? 'active' : '' ?>">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <circle cx="12" cy="12" r="3"></circle>
@@ -757,6 +820,7 @@
             </svg>
             <span>Parametres</span>
           </a>
+          <?php endif; ?>
         <?php endif; ?>
 
         <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'super_admin'): ?>
@@ -766,6 +830,19 @@
               <polyline points="9 22 9 12 15 12 15 22"></polyline>
             </svg>
             <span>Boutiques</span>
+          </a>
+
+          <!-- Pages bloquées (super_admin) : retirer l'accès à une page à un
+               utilisateur précis. Ce lien n'est JAMAIS soumis à une
+               restriction de page : c'est l'outil qui administre la
+               politique. -->
+          <a href="/pages-bloquees" id="pages-bloquees-link" class="nav-item <?= $currentPage == 'pages-bloquees' ? 'active' : '' ?>">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+              <circle cx="12" cy="12" r="3"></circle>
+              <line x1="19" y1="5" x2="5" y2="19"></line>
+            </svg>
+            <span>Pages bloquées</span>
           </a>
         <?php endif; ?>
       </nav>
@@ -780,9 +857,9 @@
           <div class="user-details">
             <span class="user-name" id="user-name"><?= htmlspecialchars($_SESSION['nom_complet'] ?? '') ?></span>
             <span class="user-role" id="user-role"><?php
-                                                    $r = $_SESSION['role'] ?? '';
-                                                    echo $r === 'super_admin' ? 'Super Admin' : ($r === 'admin' ? 'Administrateur' : 'Vendeur');
-                                                    ?></span>
+                                                      $r = $_SESSION['role'] ?? '';
+  echo $r === 'super_admin' ? 'Super Admin' : ($r === 'admin' ? 'Administrateur' : 'Vendeur');
+  ?></span>
           </div>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-left:auto;opacity:.5">
             <polyline points="9 18 15 12 9 6"></polyline>

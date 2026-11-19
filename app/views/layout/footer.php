@@ -1274,6 +1274,9 @@
     <?php include __DIR__ . '/print-format-modal.php'; ?>
 
     <script src="/assets/js/app.js?v=1.0.998899900099"></script>
+    <!-- Brouillons de panier (caisse) : dépend de `posCart` et `APP_URL`
+         défini par app.js / header.php → doit être chargé APRÈS app.js. -->
+    <script src="/assets/js/caisse-brouillons.js?v=1.0.1"></script>
     <script src="/assets/js/recharges.js?v=1.0.119999"></script>
     <script src="/assets/js/paper-type.js?v=1.0.59999"></script>
     <script src="/assets/js/rapports.js?v=1.0.2999"></script>
