@@ -89,6 +89,29 @@ class PageController extends Controller
         }
         $data['canAccessCaisse'] = $moduleAccess['caisse'];
         $data['moduleAccess']     = $moduleAccess;
+        // Politique d'accès aux pages (super_admin) — par UTILISATEUR.
+        //
+        // La politique est RESTRICTIVE : elle retire un accès normalement
+        // accordé, elle n'en accorde jamais un.
+        //
+        // Source de vérité : UserPageAccessService — identique à la garde
+        // backend (Router::policyAllows()), donc le lien visible et l'accès
+        // réel ne peuvent pas diverger.
+        $pagePolicyService = new \App\Services\UserPageAccessService();
+        $policyUserId = (int)($_SESSION['user_id'] ?? 0);
+
+        if ($policyUserId > 0) {
+            // Utilisateur authentifié : la carte est calculée depuis ses
+            // blocages individuels. Le super_admin n'est jamais bloqué et
+            // l'utilisateur inconnu est fail-closed : le service s'en charge.
+            $data['pageVisibility'] = $pagePolicyService->getVisibilityMap($policyUserId);
+        } else {
+            // Pas de session : l'authentification reste prioritaire.
+            $data['pageVisibility'] = array_fill_keys(
+                array_keys($pagePolicyService::getCatalog()),
+                true
+            );
+        }
         // Company info (super_admin) pour l'affichage du nom entreprise dans le layout
         if ($this->isSuperAdmin()) {
             try {
@@ -456,15 +479,57 @@ class PageController extends Controller
         $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
         $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
 
-        if (in_array($hr, ['super_admin', 'admin', 'manager'], true)) {
-            header('Location: ' . $protocol . '://' . $host . '/hotel/tableau-bord');
-        } elseif ($hr === 'gouvernante') {
-            header('Location: ' . $protocol . '://' . $host . '/hotel/etages');
-        } else {
-            // receptionniste ou fallback
-            header('Location: ' . $protocol . '://' . $host . '/hotel/reception');
+        $target = $this->resolveHotelRedirectTarget($hr);
+
+        if ($target !== null) {
+            header('Location: ' . $protocol . '://' . $host . $target);
+            exit;
         }
+
+        // Aucune page Hôtel autorisée pour cet utilisateur : 403 explicite
+        // plutôt qu'une redirection vers une page bloquée.
+        http_response_code(403);
+        require_once dirname(__DIR__) . DIRECTORY_SEPARATOR . 'views' . DIRECTORY_SEPARATOR . '403.php';
         exit;
+    }
+
+    /**
+     * Choisit la page Hôtel vers laquelle rediriger, en tenant compte de la
+     * politique du super_admin.
+     *
+     * ⚠️ On ne doit JAMAIS rediriger vers une page bloquée : l'utilisateur
+     * atterrirait sur un 403.
+     *
+     * @param string $hotelRole Rôle hôtel effectif.
+     * @return string|null L'URL de redirection, ou null si aucune page
+     *                     Hôtel n'est autorisée.
+     */
+    private function resolveHotelRedirectTarget(string $hotelRole): ?string
+    {
+        $candidates = [
+            'super_admin'    => ['hotel_tableau_bord', 'hotel_reception', 'hotel_etages'],
+            'admin'          => ['hotel_tableau_bord', 'hotel_reception', 'hotel_etages'],
+            'manager'        => ['hotel_tableau_bord', 'hotel_reception', 'hotel_etages'],
+            'gouvernante'    => ['hotel_etages', 'hotel_reception', 'hotel_tableau_bord'],
+            'receptionniste' => ['hotel_reception', 'hotel_tableau_bord', 'hotel_etages'],
+        ];
+
+        $urls = [
+            'hotel_tableau_bord' => '/hotel/tableau-bord',
+            'hotel_reception'    => '/hotel/reception',
+            'hotel_etages'       => '/hotel/etages',
+        ];
+
+        $userId = (int)($_SESSION['user_id'] ?? 0);
+        $policyService = new \App\Services\UserPageAccessService();
+
+        foreach ($candidates[$hotelRole] ?? $candidates['receptionniste'] as $pageKey) {
+            if ($userId <= 0 || $policyService->isPageAllowedForUser($pageKey, $userId)) {
+                return $urls[$pageKey];
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -628,12 +693,36 @@ class PageController extends Controller
         // boutique, prise par l'administrateur POS.
         $canManageModuleAccess = $this->isAdmin() || $this->isSuperAdmin();
 
+        // ── Pages bloquées par UTILISATEUR ────────────────────────────────
+        // Le blocage est une décision de niveau SUPER_ADMIN : il retire un
+        // accès à un utilisateur précis, sans toucher à son rôle ni à ses
+        // droits `acces_*`.
+        //
+        // Un manager (vendeur avec hotel_role='manager') continue de gérer
+        // les RÔLES hôtel de son équipe, mais ne voit PAS cette colonne :
+        // c'est cohérent avec la colonne « Accès modules POS », qui est
+        // elle-même réservée aux administrateurs POS.
+        $canManagePageAccess = $this->isSuperAdmin();
+
+        // Pages bloquées, par utilisateur : [userId => [pageKey, ...]].
+        // Le service est la source de vérité (même que la garde backend).
+        $blockedPagesByUser = [];
+        if ($canManagePageAccess && $hotelUsers) {
+            $pageAccessService = new \App\Services\UserPageAccessService();
+            foreach ($hotelUsers as $_u) {
+                $blockedPagesByUser[(int)$_u['id']] = $pageAccessService->blockedPageKeys((int)$_u['id']);
+            }
+        }
+
         $this->render('hotel-roles', [
             'hotelUsers'      => $hotelUsers,
             'targetShopId'    => $targetShopId,
             'allShops'        => $this->isSuperAdmin() ? $this->listAllShops() : [],
             'currentShopName' => $this->resolveShopName($targetShopId),
             'canManageModuleAccess' => $canManageModuleAccess,
+            'canManagePageAccess'   => $canManagePageAccess,
+            'blockedPagesByUser'    => $blockedPagesByUser,
+            'pageCatalog'           => \App\Services\UserPageAccessService::getCatalog(),
         ]);
     }
 
@@ -807,6 +896,171 @@ class PageController extends Controller
             'message' => $ok
                 ? ($granted ? 'Accès « ' . $module . ' » accordé' : 'Accès « ' . $module . ' » retiré')
                 : 'Refusé (hors scope ou rôle non modifiable)',
+        ]);
+    }
+
+    /**
+     * Écran « Pages bloquées » (super_admin).
+     *
+     * Permet de retirer l'accès à une page à un utilisateur PRÉCIS, sans
+     * toucher à son rôle (`role`), à son rôle métier hôtel (`hotel_role`) ni
+     * à ses droits `acces_*`.
+     *
+     * ⚠️ Réservé au `super_admin` : c'est une décision de niveau plateforme.
+     * Un admin ou un manager (vendeur avec `hotel_role='manager'`) n'a pas
+     * accès à cet écran — le contrôle est côté serveur, pas seulement dans
+     * la sidebar.
+     *
+     * La boutique ciblée est choisie via `?shop_id=` (le super_admin agit
+     * sur toutes les boutiques).
+     */
+    public function pagesBloquees()
+    {
+        // ⚠️ ACCÈS RÉSERVÉ AU `super_admin` : la réponse est une 403 (et non
+        // une redirection silencieuse), comme pour toute page hors politique.
+        // On NE fait PAS de `exit` : la méthode retourne simplement, ce qui
+        // la rend testable et laisse le script se terminer normalement.
+        if (!$this->isSuperAdmin()) {
+            http_response_code(403);
+            require_once dirname(__DIR__) . DIRECTORY_SEPARATOR . 'views' . DIRECTORY_SEPARATOR . '403.php';
+            return;
+        }
+
+        // Boutique ciblée : le super_admin choisit via ?shop_id=.
+        $targetShopId = $this->resolveTargetShopId(
+            isset($_GET['shop_id']) && $_GET['shop_id'] !== '' ? $_GET['shop_id'] : null
+        );
+
+        $this->render('pages-bloquees', $this->buildPagesBloqueesData($targetShopId));
+    }
+
+    /**
+     * Donnees de l'écran « Pages bloquées ».
+     *
+     * Isolé du rendu pour rester testable : `render()` inclut le layout avec
+     * `require_once`, donc le HTML ne peut pas être inspecté plusieurs fois
+     * dans un meme process.
+     *
+     * @return array<string, mixed>
+     */
+    public function buildPagesBloqueesData(int $targetShopId): array
+    {
+        $pageUsers = $targetShopId
+            ? (new User())->allForShopForPageAccess($targetShopId)
+            : [];
+
+        // Blocages : une seule requête pour TOUS les utilisateurs (pas de
+        // N+1). On ne garde que les lignes des utilisateurs affichés.
+        $blockedByUser = [];
+        if ($pageUsers) {
+            $allBlocked = (new \App\Models\UserPageAccess())->allBlockedByUser();
+            foreach ($pageUsers as $u) {
+                $uid = (int)$u['id'];
+                $blockedByUser[$uid] = $allBlocked[$uid] ?? [];
+            }
+        }
+
+        return [
+            'pageUsers'     => $pageUsers,
+            'pageShopId'    => $targetShopId,
+            'pageShopName'  => $this->resolveShopName($targetShopId),
+            'pageAllShops'  => $this->listAllShops(),
+            'blockedByUser' => $blockedByUser,
+            'pagesCatalog'  => \App\Services\UserPageAccessService::getCatalog(),
+        ];
+    }
+
+    /**
+     * POST /api/user/page-access/update : bloque ou debloque l'acces a UNE
+     * page pour UN utilisateur.
+     *
+     * ⚠️ ACCÈS RÉSERVÉ AU `super_admin` : c'est lui qui retire un accès à un
+     * utilisateur précis, sans toucher à son rôle (`role`), à son rôle métier
+     * hôtel (`hotel_role`) ni à ses droits `acces_*`.
+     *
+     * Un manager (vendeur avec `hotel_role='manager'`) continue de gérer les
+     * RÔLES hôtel de son équipe mais ne peut PAS bloquer une page : c'est
+     * une décision de niveau super_admin.
+     *
+     * Sécurité multi-tenant : l'utilisateur ciblé DOIT appartenir à la
+     * boutique attendue, sinon l'écriture est refusée.
+     *
+     * Body : user_id (int), page_key (string), blocked (0|1), shop_id (int).
+     */
+    public function apiUserPageAccessUpdate()
+    {
+        if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
+            header('HTTP/1.1 405 Method Not Allowed');
+            return;
+        }
+
+        // Garde de rôle : le super_admin SEUL peut bloquer une page.
+        if (!$this->isSuperAdmin()) {
+            header('HTTP/1.1 403 Forbidden');
+            echo json_encode([
+                'success' => false,
+                'message' => 'Accès refusé — super_admin requis',
+            ]);
+            return;
+        }
+
+        $userId = (int)($_POST['user_id'] ?? 0);
+        if ($userId <= 0) {
+            header('HTTP/1.1 400 Bad Request');
+            echo json_encode(['success' => false, 'message' => 'user_id requis']);
+            return;
+        }
+
+        $pageKey = (string)($_POST['page_key'] ?? '');
+        if (!\App\Services\UserPageAccessService::isKnownPage($pageKey)) {
+            header('HTTP/1.1 400 Bad Request');
+            echo json_encode([
+                'success' => false,
+                'message' => 'Page inconnue : ' . $pageKey,
+            ]);
+            return;
+        }
+
+        // Le droit est binaire : toute valeur non nulle signifie « bloqué ».
+        $raw = $_POST['blocked'] ?? null;
+        $blocked = !empty($raw) && $raw !== '0' && $raw !== 'false';
+
+        // Boutique cible : le super_admin agit sur toutes les boutiques, mais
+        // l'utilisateur DOIT appartenir à la boutique visée (anti-évasion).
+        $targetShopId = $this->resolveTargetShopId($_POST['shop_id'] ?? null);
+        if (!$targetShopId) {
+            header('HTTP/1.1 400 Bad Request');
+            echo json_encode(['success' => false, 'message' => 'Boutique non déterminée']);
+            return;
+        }
+
+        $targetUser = (new User())->exist($userId);
+        if (!$targetUser) {
+            header('HTTP/1.1 404 Not Found');
+            echo json_encode(['success' => false, 'message' => 'Utilisateur introuvable']);
+            return;
+        }
+        if ((int)($targetUser['shop_id'] ?? 0) !== $targetShopId) {
+            header('HTTP/1.1 403 Forbidden');
+            echo json_encode([
+                'success' => false,
+                'message' => 'Utilisateur hors de la boutique ciblée',
+            ]);
+            return;
+        }
+
+        $creatorId = (int)($_SESSION['user_id'] ?? 0);
+        $service = new \App\Services\UserPageAccessService();
+        $ok = $service->setPageBlocked($userId, $pageKey, $blocked, $creatorId > 0 ? $creatorId : null);
+
+        header('Content-Type: application/json');
+        echo json_encode([
+            'success' => $ok,
+            'message' => $ok
+                ? ($blocked
+                    ? 'Accès à la page « ' . $pageKey . ' » retiré'
+                    : 'Accès à la page « ' . $pageKey . ' » rétabli')
+                : 'Refusé (super_admin non bloquable ou écriture impossible)',
         ]);
     }
 
@@ -1358,6 +1612,7 @@ class PageController extends Controller
         $shops = $shopModel->getAll();
         $this->render('shops', ['shops' => $shops]);
     }
+
 
     public function scanner()
     {
