@@ -73,6 +73,32 @@ class User
     }
 
     /**
+     * Liste les utilisateurs d'une boutique pour l'écran « Pages bloquées ».
+     *
+     * Contrairement à `allForShopWithHotelRole()`, les `super_admin` sont
+     * INCLUS quand ils sont rattachés à la boutique : le super_admin affiche
+     * la ligne « Jamais bloqué » (rappel de la règle).
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function allForShopForPageAccess(int $shopId)
+    {
+        if ($shopId <= 0) {
+            return [];
+        }
+
+        return $this->db->fetchAll(
+            "SELECT u.id, u.nom_utilisateur, u.nom_complet, u.role, u.actif, u.hotel_role,
+                    s.nom AS shop_name
+             FROM utilisateurs u
+             LEFT JOIN shops s ON u.shop_id = s.id
+             WHERE u.shop_id = :sid
+             ORDER BY u.nom_complet ASC",
+            [':sid' => $shopId]
+        );
+    }
+
+    /**
      * Modules du POS dont l'accès est piloté par utilisateur.
      *
      * Chaque module est porté par une colonne `utilisateurs.acces_*`
