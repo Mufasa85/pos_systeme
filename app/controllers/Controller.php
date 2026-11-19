@@ -298,6 +298,123 @@ class Controller
         return $this->requireModuleAccess('caisse', $json);
     }
 
+    // ── Politique d'accès aux pages (super_admin) ────────────────────────
+
+    /**
+     * Vérifie que l'utilisateur courant peut accéder à une page selon la
+     * politique du super_admin.
+     *
+     * La politique est RESTRICTIVE : elle s'ajoute aux contrôles existants
+     * et ne peut qu'en retirer l'accès.
+     *
+     * @param string $pageKey Clé du catalogue \App\Services\UserPageAccessService.
+     */
+    protected function isPagePolicyAllowed(string $pageKey): bool
+    {
+        $userId = (int)($_SESSION['user_id'] ?? 0);
+        if ($userId <= 0) {
+            return true; // L'authentification reste prioritaire.
+        }
+
+        try {
+            return (new \App\Services\UserPageAccessService())->isPageAllowedForUser($pageKey, $userId);
+        } catch (\Throwable $e) {
+            error_log('isPagePolicyAllowed error: ' . $e->getMessage());
+            return false; // Fail-closed.
+        }
+    }
+
+    /**
+     * Garde de la politique d'accès aux pages.
+     *
+     * Renvoie false + 403 si la page est masquée pour l'utilisateur courant.
+     *
+     * @param string $pageKey Clé du catalogue \App\Services\UserPageAccessService.
+     * @param bool   $json   true pour une réponse JSON (API), false pour une page 403
+     */
+    protected function requirePagePolicy(string $pageKey, bool $json = true): bool
+    {
+        if ($this->isPagePolicyAllowed($pageKey)) {
+            return true;
+        }
+
+        if ($json) {
+            self::status(403)->json([
+                'success' => false,
+                'error'   => 'page_not_allowed',
+                'message' => "Cette page n'est pas accessible pour votre rôle.",
+            ]);
+        } else {
+            http_response_code(403);
+            require_once dirname(__DIR__) . DIRECTORY_SEPARATOR . 'views' . DIRECTORY_SEPARATOR . '403.php';
+            exit;
+        }
+
+        return false;
+    }
+
+    /**
+     * Garde pour une lecture partagée par plusieurs pages.
+     *
+     * L'accès est autorisé si AU MOINS UNE des pages lectrices est
+     * accessible : une API partagée ne doit pas être bloquée par la
+     * politique d'une seule page.
+     *
+     * @param string $pageKeysCsv Liste de clés séparées par `|`.
+     * @param bool   $json       true pour une réponse JSON (API), false pour une page 403
+     */
+    protected function requireSharedReadPolicy(string $pageKeysCsv, bool $json = true): bool
+    {
+        foreach (explode('|', $pageKeysCsv) as $pageKey) {
+            $pageKey = trim($pageKey);
+            if ($pageKey === '') {
+                continue;
+            }
+            if ($this->isPagePolicyAllowed($pageKey)) {
+                return true;
+            }
+        }
+
+        if ($json) {
+            self::status(403)->json([
+                'success' => false,
+                'error'   => 'page_not_allowed',
+                'message' => "Cette page n'est pas accessible pour votre rôle.",
+            ]);
+        } else {
+            http_response_code(403);
+            require_once dirname(__DIR__) . DIRECTORY_SEPARATOR . 'views' . DIRECTORY_SEPARATOR . '403.php';
+            exit;
+        }
+
+        return false;
+    }
+
+    /**
+     * Résout la clé de page d'une mutation partagée.
+     *
+     * Le contexte métier (ex. `caisse` vs `recharges`) détermine la page à
+     * vérifier. Un contexte absent ou ambigu est REFUSE (fail-closed) : sans
+     * contexte, on ne peut pas garantir que la page réellement utilisée est
+     * autorisée.
+     *
+     * @param array<string, mixed> $context
+     */
+    protected function resolveSharedWritePageKey(string $pageKey, array $context): ?string
+    {
+        if (!\App\Services\UserPageAccessService::isKnownPage($pageKey)) {
+            return null;
+        }
+
+        // Le contexte doit confirmer la page : sans lui, on refuse.
+        $resolved = $context['page_key'] ?? null;
+        if (!is_string($resolved) || $resolved === '' || $resolved !== $pageKey) {
+            return null;
+        }
+
+        return $resolved;
+    }
+
     /**
      * Vérifie que le shop de l'utilisateur connecté est toujours actif.
      * - super_admin : jamais bloqué (pas lié à un shop)
