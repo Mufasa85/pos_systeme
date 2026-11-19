@@ -1017,7 +1017,6 @@ class HotelFactureController extends Controller
             [':sid' => $sejourId]
         );
         $acompteTotal = (float)($acompteRow['t'] ?? 0);
-        $soldeDu = round($totalFinal - $acompteTotal, 2);
 
         // ── BUG FIX 2026-10-21 — front = source de vérité pour les totaux ──
         // Le front (hotel-facturation.js::postHotelFacture) calcule déjà
@@ -1056,11 +1055,6 @@ class HotelFactureController extends Controller
             $acompteTotal      = round((float)($input['total_acompte'] ?? $acompteTotal), 2);
             $tvaMontant        = round((float)($input['tva_montant'] ?? 0), 2);
             $totalFinal        = round((float)$input['total_final'], 2);
-            // Solde dû : priorité à la valeur front, sinon on recalcule.
-            $soldeDu           = round(
-                (float)($input['solde_du'] ?? ($totalFinal - $acompteTotal)),
-                2
-            );
         }
 
         // Paiements encaissés à la facturation
@@ -1162,6 +1156,31 @@ class HotelFactureController extends Controller
                 $dgiInvoiceNumber = $numeroFacture;
             }
 
+            // ── Montants : la DGI fait foi ────────────────────────────────
+            // Même règle que la caisse POS (cf. SaleController::create) :
+            // après validation DGI, les montants enregistrés sont ceux de
+            // l'API (total = TTC, tva = vtotal, sous_total_ht = total -
+            // vtotal), et non ceux calculés localement par le front.
+            //
+            // ⚠️ Repli : si la DGI n'a rien renvoyé d'exploitable (fallback
+            // « non assujettie », boutique non homologuée…), on conserve les
+            // montants calculés par le serveur/front. La facture sera alors
+            // marquée 'pending' et ses montants réalignés plus tard par la
+            // relève DGI (cf. DgiSyncService::applyDgiData).
+            $amounts = (new \App\Services\DgiAmountsService())->apply(
+                [
+                    'sous_total_ht' => $totalFinal,
+                    'tva'           => $tvaMontant,
+                    'total'         => $totalFinal,
+                ],
+                is_array($dgiData) ? $dgiData : [],
+                $invoiceType
+            );
+
+            $saleSousTotalHt = $amounts['sous_total_ht'];
+            $saleTva         = $amounts['tva'];
+            $saleTotal       = $amounts['total'];
+
             // 1. INSERT ventes
             //    - `invoice_type` = type fiscal choisi par l'utilisateur
             //      (FV, EV, FT, FA, EA, ET) : c'est cette valeur qui doit
@@ -1177,9 +1196,9 @@ class HotelFactureController extends Controller
                 'est_hotel'      => 1,
                 'client_id'      => $clientId,
                 'sejour_id'      => $sejourId,
-                'sous_total_ht'  => $totalFinal,
-                'tva'            => $tvaMontant,
-                'total'          => $totalFinal,
+                'sous_total_ht'  => $saleSousTotalHt,
+                'tva'            => $saleTva,
+                'total'          => $saleTotal,
                 'payments'       => $paiementsNormalises,
                 'vendeur_id'     => $userId,
                 'shop_id'        => $shopId,
@@ -1315,10 +1334,17 @@ class HotelFactureController extends Controller
                 ':remise_pct'     => $remisePct,
                 ':remise_montant' => $remiseMontantNuits,
                 ':tva_type'       => 'B',
-                ':tva_montant'    => $tvaMontant,
-                ':total_final'    => $totalFinal,
+                // ⚠️ Montants alignés sur ceux RÉELLEMENT enregistrés dans
+                // `ventes` (source DGI si la DGI a répondu, sinon le calcul
+                // local) : le dashboard hôtel et la liste des réservations
+                // lisent `hotel_factures.total_final`, il ne doit donc pas
+                // diverger de `ventes.total`.
+                ':tva_montant'    => $saleTva,
+                ':total_final'    => $saleTotal,
                 ':acompte'        => $acompteTotal,
-                ':solde'          => $soldeDu,
+                // Le solde dû se déduit du total facturé : on le recalcule à
+                // partir du montant réellement enregistré.
+                ':solde'          => round($saleTotal - $acompteTotal, 2),
                 ':paiements_json' => json_encode($paiementsNormalises, JSON_UNESCAPED_UNICODE),
                 ':statut'         => 'emise',
                 ':user_id'        => $userId,
@@ -1353,7 +1379,9 @@ class HotelFactureController extends Controller
             $this->logAudit('create', 'hotel_facture', $factureId, [
                 'sejour_id' => $sejourId,
                 'vente_id'  => $saleId,
-                'total'     => $totalFinal,
+                // Montant réellement enregistré (source DGI si la DGI a
+                // répondu, sinon le calcul local).
+                'total'     => $saleTotal,
             ]);
 
             $pdo->commit();
@@ -1370,8 +1398,10 @@ class HotelFactureController extends Controller
             'facture_id'      => $factureId,
             'vente_id'        => $saleId,
             'numero_facture'  => $numeroFacture,
-            'total_final'     => $totalFinal,
-            'solde_du'        => $soldeDu,
+            // Montants réellement enregistrés (source DGI si la DGI a répondu,
+            // sinon le calcul local).
+            'total_final'     => $saleTotal,
+            'solde_du'        => round($saleTotal - $acompteTotal, 2),
             'check_out_done'  => $doCheckOut,
             // Statut de synchronisation DGI : 'pending' signifie que la DGI
             // était indisponible au moment de l'émission et que la facture
