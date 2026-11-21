@@ -79,6 +79,9 @@ class User
      * INCLUS quand ils sont rattachés à la boutique : le super_admin affiche
      * la ligne « Jamais bloqué » (rappel de la règle).
      *
+     * Les colonnes `acces_*` sont relues ici : elles servent à déterminer
+     * les pages accessibles par défaut (pour le floutage de la modale).
+     *
      * @return array<int, array<string, mixed>>
      */
     public function allForShopForPageAccess(int $shopId)
@@ -88,12 +91,14 @@ class User
         }
 
         return $this->db->fetchAll(
-            "SELECT u.id, u.nom_utilisateur, u.nom_complet, u.role, u.actif, u.hotel_role,
+            'SELECT u.id, u.nom_utilisateur, u.nom_complet, u.role, u.actif, u.hotel_role,
+                    u.acces_caisse, u.acces_produits, u.acces_historique,
+                    u.acces_pressing, u.acces_analytics, u.acces_paie,
                     s.nom AS shop_name
              FROM utilisateurs u
              LEFT JOIN shops s ON u.shop_id = s.id
              WHERE u.shop_id = :sid
-             ORDER BY u.nom_complet ASC",
+             ORDER BY u.nom_complet ASC',
             [':sid' => $shopId]
         );
     }
@@ -271,12 +276,20 @@ class User
             'SELECT shop_id FROM utilisateurs WHERE id = :id',
             [':id' => $userId]
         );
-        if (!$row) return false;
-        if ($row['shop_id'] === null) return false; // super_admin exclu
-        if ((int)$row['shop_id'] !== $expectedShopId) return false;
+        if (!$row) {
+            return false;
+        }
+        if ($row['shop_id'] === null) {
+            return false;
+        } // super_admin exclu
+        if ((int)$row['shop_id'] !== $expectedShopId) {
+            return false;
+        }
 
         $allowed = [null, 'manager', 'receptionniste', 'gouvernante'];
-        if (!in_array($hotelRole, $allowed, true)) return false;
+        if (!in_array($hotelRole, $allowed, true)) {
+            return false;
+        }
 
         $this->db->query(
             'UPDATE utilisateurs SET hotel_role = :hr WHERE id = :id',
@@ -345,7 +358,7 @@ class User
                 error_log('User::delete - contrainte FK bloquante pour user_id=' . $id . ' : ' . $e->getMessage());
                 return [
                     'success' => false,
-                    'message' => "Suppression impossible : cet utilisateur est encore référencé par des données liées. "
+                    'message' => 'Suppression impossible : cet utilisateur est encore référencé par des données liées. '
                         . 'Vérifiez que la migration 2026_10_25_user_delete_fk_set_null.sql a été appliquée.',
                 ];
             }
@@ -539,7 +552,7 @@ class User
 
     public function findByProfileImage($profileImage)
     {
-        return $this->db->fetch("SELECT id, shop_id, profile_image FROM utilisateurs WHERE profile_image = :profile_image", [':profile_image' => $profileImage]);
+        return $this->db->fetch('SELECT id, shop_id, profile_image FROM utilisateurs WHERE profile_image = :profile_image', [':profile_image' => $profileImage]);
     }
 
     public function findByEmail($email)

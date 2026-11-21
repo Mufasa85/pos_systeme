@@ -97,6 +97,31 @@ final class UserPageAccessService
     }
 
     /**
+     * Le catalogue d'UNE famille de pages.
+     *
+     * Utilisé pour n'afficher que les pages concernées par l'écran courant :
+     * les pages POS sur `/pages-bloquees`, les pages Hôtel sur
+     * `/hotel/roles`.
+     *
+     * @return array<string, array{label: string, family: string}>
+     */
+    public static function getCatalogForFamily(string $family): array
+    {
+        if (!self::isKnownFamily($family)) {
+            return [];
+        }
+
+        $catalog = [];
+        foreach (self::CATALOG as $pageKey => $definition) {
+            if ($definition['family'] === $family) {
+                $catalog[$pageKey] = $definition;
+            }
+        }
+
+        return $catalog;
+    }
+
+    /**
      * Les cles de pages d'une famille.
      *
      * @return array<int, string>
@@ -148,6 +173,113 @@ final class UserPageAccessService
     public static function getPageLabel(string $pageKey): string
     {
         return self::CATALOG[$pageKey]['label'] ?? $pageKey;
+    }
+
+    /**
+     * L'utilisateur a-t-il acces a cette page par DEFAUT (hors blocage) ?
+     *
+     * Cette methode repond a la question : « cette page fait-elle partie de
+     * son outil de travail naturel ? ». Elle se base sur les MEMES regles que
+     * la sidebar et les gardes backend :
+     *   - les droits `utilisateurs.acces_*` (colonnes du modele) ;
+     *   - le role applicatif (`admin` / `super_admin` pour les pages
+     *     d'administration) ;
+     *   - le role metier hotel (`hotel_role`) pour les pages du PMS.
+     *
+     * Elle sert UNIQUEMENT a l'affichage (flouter les pages hors perimetre
+     * dans la modale). Elle n'accorde aucun droit : la politique reste
+     * RESTRICTIVE, et un blocage retire toujours l'acces.
+     *
+     * @param array<string, mixed> $user Ligne `utilisateurs` (avec `role`,
+     *        `hotel_role` et les colonnes `acces_*`).
+     */
+    public static function isPageAvailableByDefault(string $pageKey, array $user): bool
+    {
+        if (!self::isKnownPage($pageKey)) {
+            return false;
+        }
+
+        $role = (string)($user['role'] ?? '');
+        $hotelRole = (string)($user['hotel_role'] ?? '');
+
+        // Le super_admin a tout.
+        if ($role === 'super_admin') {
+            return true;
+        }
+
+        // ── Pages du module HOTEL ─────────────────────────────────────
+        // Elles suivent le role metier hotel (cf. resolveHotelRole()).
+        if (str_starts_with($pageKey, 'hotel_')) {
+            // Un `admin` est auto-manager de sa boutique.
+            if ($role === 'admin') {
+                return true;
+            }
+            if ($hotelRole === 'manager') {
+                // Le manager n'a pas la page « gestion des roles » de sa
+                // boutique (celle du super_admin) : cf. sidebar.
+                return $pageKey !== 'hotel_roles';
+            }
+            if ($hotelRole === 'receptionniste') {
+                return in_array($pageKey, [
+                    'hotel_reception',
+                    'hotel_reservations',
+                    'hotel_etages',
+                    'hotel_chambres',
+                    'hotel_guests',
+                ], true);
+            }
+            if ($hotelRole === 'gouvernante') {
+                return in_array($pageKey, [
+                    'hotel_etages',
+                    'hotel_chambres',
+                    'hotel_guests',
+                ], true);
+            }
+            return false;
+        }
+
+        // ── Pages reservees aux administrateurs ─────────────────────
+        // `utilisateurs`, `parametres`, `categories`, `taxes` : le controleur
+        // redirige les non-admins vers /dashboard.
+        // `analytics` : meme regle (redirection si le role n'est pas admin).
+        // `rapports` : la page est visible, mais TOUTES ses APIs exigent
+        // `requireAdmin()` (cf. ReportController) : sans etre admin, la page
+        // est de fait inutilisable — on la considere donc hors perimetre.
+        if (in_array($pageKey, [
+            'utilisateurs',
+            'parametres',
+            'categories',
+            'taxes',
+            'analytics',
+            'rapports',
+        ], true)) {
+            return $role === 'admin';
+        }
+
+        // ── Pages pilotees par un droit `acces_*` ─────────────────────
+        // Les colonnes sont `acces_<module>` (migrations 2026_11_14 /
+        // 2026_11_15) — cf. User::MODULES_ACCES.
+        $moduleMap = [
+            'caisse'     => 'acces_caisse',
+            'produits'   => 'acces_produits',
+            'historique' => 'acces_historique',
+            'pressing'   => 'acces_pressing',
+            'analytics'  => 'acces_analytics',
+            'paie'       => 'acces_paie',
+        ];
+        if (isset($moduleMap[$pageKey])) {
+            $column = $moduleMap[$pageKey];
+            // Un role de pilotage a un acces permanent a tous les modules.
+            if (in_array($role, ['admin', 'super_admin'], true)) {
+                return true;
+            }
+            return !empty($user[$column]);
+        }
+
+        // ── Autres pages : accessibles a tous ────────────────────────
+        // (`recharges` et `rapports` sont soumis a un abonnement OSAT ou a un
+        // droit metier, pas a un role applicatif).
+        return true;
     }
 
     /**

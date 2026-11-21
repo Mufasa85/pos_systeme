@@ -8,6 +8,7 @@ use App\Models\ProductBatch;
 use App\Models\Tax;
 use PhpOffice\PhpSpreadsheet\Cell\Cell;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Shared\Date as SharedDate;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
@@ -266,6 +267,13 @@ class ProductImportService
         ];
         $sheet->fromArray($example, null, 'A2');
 
+        // ⚠️ La colonne « code_barres » doit être en format TEXTE (« @ ») :
+        // Excel convertit automatiquement un code-barres à 13 chiffres en
+        // date (affichage « 5/17/23070765319 »), ce qui corrompt la saisie
+        // et le round-trip export → import.
+        $sheet->setCellValueExplicit('A2', '5400141352573', DataType::TYPE_STRING);
+        $sheet->getStyle('A:A')->getNumberFormat()->setFormatCode('@');
+
         // Mise en forme de l'en-tête + largeurs de colonnes lisibles.
         $sheet->getStyle('A1:N1')->getFont()->setBold(true);
         $sheet->getStyle('A1:N1')->getFill()
@@ -283,7 +291,9 @@ class ProductImportService
         $sheet2->setTitle('Aide');
         $sheet2->fromArray([
             ['Colonne', 'Obligatoire', 'Description'],
-            ['code_barres', 'Non', 'Généré automatiquement si vide. Doit être unique.'],
+            ['code_barres', 'Non', 'Généré automatiquement si vide. Doit être unique. ' .
+                'La cellule doit être en format TEXTE : Excel transforme sinon un ' .
+                'code-barres à 13 chiffres en date.'],
             ['nom', 'Oui', 'Nom du produit.'],
             ['categorie', 'Oui', 'Catégorie existante (insensible à la casse).'],
             ['prix', 'Oui', 'Prix de vente en Fc.'],
@@ -597,7 +607,12 @@ class ProductImportService
         }
 
         // ── Code-barres ──
-        $codeBarres = trim($this->readString($cells, 'code_barres'));
+        //
+        // ⚠️ On lit la VALEUR BRUTE de la cellule, jamais sa valeur affichée :
+        // Excel applique automatiquement un format « date » (m/d/yyyy) aux
+        // codes-barres à 13 chiffres. La valeur affichée est alors
+        // « 5/17/23070765319 » au lieu de « 8426423308202 ».
+        $codeBarres = $this->readBarcode($cells, 'code_barres');
         if ($codeBarres === '') {
             $codeBarres = $this->generateBarcode();
         }
@@ -874,7 +889,14 @@ class ProductImportService
         return $ids ? (int)$ids[0] : 1;
     }
 
-    /** Lit une valeur texte. */
+    /**
+     * Lit une valeur texte.
+     *
+     * ⚠️ La valeur BRUTE prime sur la valeur AFFICHÉE. Excel applique le
+     * format de la cellule aux valeurs textuelles numériques : une
+     * catégorie « 04 » dans une cellule au format « m/d/yyyy » s'affiche
+     * « 1/4/1900 ». On conserve donc le contenu réel de la cellule.
+     */
     private function readString(array $cells, string $column): string
     {
         if (!isset($cells[$column])) {
@@ -885,14 +907,89 @@ class ProductImportService
             return '';
         }
 
-        $value = $cell['formatted'] ?? '';
-        if ($value === '' && isset($cell['value']) && !is_string($cell['value'])) {
-            if (is_float($cell['value']) && floor($cell['value']) === $cell['value']) {
-                return (string)(int)$cell['value'];
+        $raw = $cell['value'] ?? null;
+
+        if (is_string($raw)) {
+            $raw = trim($raw);
+
+            if ($raw === '') {
+                return '';
             }
+
+            // Formule Excel : la valeur brute est l'expression, pas le
+            // résultat → on utilise la valeur affichée.
+            if (str_starts_with($raw, '=')) {
+                return trim((string)($cell['formatted'] ?? ''));
+            }
+
+            return $raw;
         }
 
-        return trim((string)$value);
+        if (is_int($raw)) {
+            return (string) $raw;
+        }
+
+        if (is_float($raw) && floor($raw) === $raw) {
+            return (string) (int) $raw;
+        }
+
+        return trim((string)($cell['formatted'] ?? ''));
+    }
+
+    /**
+     * Lit un code-barres depuis la VALEUR BRUTE de la cellule.
+     *
+     * ⚠️ Le code-barres ne doit JAMAIS passer par `getFormattedValue()` :
+     * Excel formate automatiquement en date (m/d/yyyy) les codes-barres
+     * numériques à 13 chiffres. Le code-barres « 8426423308202 » s'affiche
+     * alors « 5/17/23070765319 » : l'import enregistrait cette chaîne
+     * comme code-barres, rendant le produit invisible au scanner.
+     *
+     * On conserve donc le contenu réel de la cellule :
+     *   - texte  → tel quel (les zéros initiaux sont préservés) ;
+     *   - entier → sa valeur exacte ;
+     *   - float  → sa valeur exacte, sans notation scientifique.
+     *
+     * @param string $column  Colonne logique (défaut : `code_barres`)
+     */
+    private function readBarcode(array $cells, string $column = 'code_barres'): string
+    {
+        if (!isset($cells[$column]) || !is_array($cells[$column])) {
+            return '';
+        }
+        $cell = $cells[$column];
+
+        $raw = $cell['value'] ?? null;
+
+        if (is_string($raw)) {
+            $raw = trim($raw);
+
+            // Cellule vide : on ne retombe PAS sur la valeur affichée, qui
+            // pourrait être une date (« 5/17/23070765319 »).
+            if ($raw === '') {
+                return '';
+            }
+
+            // Formule Excel : la valeur brute est l'expression, pas le
+            // résultat → on utilise la valeur affichée.
+            if (str_starts_with($raw, '=')) {
+                return trim((string)($cell['formatted'] ?? ''));
+            }
+
+            return $raw;
+        }
+
+        if (is_int($raw)) {
+            return (string) $raw;
+        }
+
+        if (is_float($raw)) {
+            // `%.0f` évite la notation scientifique (« 8.426423308202E+12 »).
+            return sprintf('%.0f', $raw);
+        }
+
+        // Aucune valeur brute exploitable (cellule vide).
+        return '';
     }
 
     /** Lit une valeur numérique (accepte « 1 500,00 », « 1,500.00 », etc.). */

@@ -42,6 +42,10 @@ $canManageModuleAccess = $canManageModuleAccess ?? false;
 $canManagePageAccess = $canManagePageAccess ?? false;
 // Pages bloquées par utilisateur : [userId => [pageKey, ...]].
 $blockedPagesByUser = $blockedPagesByUser ?? [];
+// Pages accessibles par DÉFAUT : [userId => [pageKey => bool]].
+// Une page `false` est hors périmètre de l'utilisateur : elle est FLOUTÉE
+// dans la modale (mais reste cochable).
+$defaultAccessByUser = $defaultAccessByUser ?? [];
 // Catalogue des pages : [pageKey => ['label' => ..., 'family' => ...]].
 $pageCatalog = $pageCatalog ?? [];
 // ── Compteurs par rôle (utilisés par les cards-filtres) ──────────
@@ -53,14 +57,14 @@ $rolesCount = [
   'gouvernante' => 0,
 ];
 if (is_array($hotelUsers)) {
-  foreach ($hotelUsers as $_u) {
-    $_r = $_u['hotel_role'] ?? null;
-    if ($_r === null || $_r === '') {
-      $rolesCount['none']++;
-    } elseif (isset($rolesCount[$_r])) {
-      $rolesCount[$_r]++;
+    foreach ($hotelUsers as $_u) {
+        $_r = $_u['hotel_role'] ?? null;
+        if ($_r === null || $_r === '') {
+            $rolesCount['none']++;
+        } elseif (isset($rolesCount[$_r])) {
+            $rolesCount[$_r]++;
+        }
     }
-  }
 }
 ?>
 <style>
@@ -872,20 +876,20 @@ if (is_array($hotelUsers)) {
             <?php foreach ($hotelUsers as $u): ?>
               <?php
               $appRole = $u['role'];
-              $hotelRole = $u['hotel_role']; // null|manager|receptionniste|gouvernante
-              $isAdminAuto = ($appRole === 'admin');
-              // Droits d'accès aux modules du POS (`utilisateurs.acces_*`,
-              // migrations 2026_11_14 / 2026_11_15). Les rôles de pilotage
-              // (admin/super_admin) y ont un accès PERMANENT : les cases sont
-              // affichées mais désactivées.
-              $isCaisseLocked = in_array($appRole, ['admin', 'super_admin'], true);
-              // Pour le filtre JS : on attribue un "rôle effectif" — l'admin
-              // apparaît comme "manager" (auto-assigné), les autres conservent
-              // leur valeur (null/vide → "none" pour le filtre).
-              $effectiveRole = $isAdminAuto
-                ? 'manager'
-                : ($hotelRole !== null && $hotelRole !== '' ? $hotelRole : 'none');
-              ?>
+                $hotelRole = $u['hotel_role']; // null|manager|receptionniste|gouvernante
+                $isAdminAuto = ($appRole === 'admin');
+                // Droits d'accès aux modules du POS (`utilisateurs.acces_*`,
+                // migrations 2026_11_14 / 2026_11_15). Les rôles de pilotage
+                // (admin/super_admin) y ont un accès PERMANENT : les cases sont
+                // affichées mais désactivées.
+                $isCaisseLocked = in_array($appRole, ['admin', 'super_admin'], true);
+                // Pour le filtre JS : on attribue un "rôle effectif" — l'admin
+                // apparaît comme "manager" (auto-assigné), les autres conservent
+                // leur valeur (null/vide → "none" pour le filtre).
+                $effectiveRole = $isAdminAuto
+                  ? 'manager'
+                  : ($hotelRole !== null && $hotelRole !== '' ? $hotelRole : 'none');
+                ?>
               <tr data-user-id="<?= (int)$u['id'] ?>" data-hotel-role="<?= htmlspecialchars($effectiveRole) ?>">
                 <td>
                   <div class="hotel-roles-user-cell">
@@ -926,16 +930,16 @@ if (is_array($hotelUsers)) {
                       <div class="hotel-roles-modules">
                         <?php foreach (\App\Models\User::MODULES_ACCES as $_mod => $_col): ?>
                           <?php
-                          $_on = !empty($u[$_col]);
-                          $_label = [
-                            'caisse'     => 'Caisse',
-                            'produits'   => 'Produits',
-                            'historique' => 'Historique',
-                            'pressing'   => 'Pressing',
-                            'analytics'  => 'Analytics',
-                            'paie'       => 'Paie',
-                          ][$_mod] ?? ucfirst($_mod);
-                          ?>
+                            $_on = !empty($u[$_col]);
+                            $_label = [
+                              'caisse'     => 'Caisse',
+                              'produits'   => 'Produits',
+                              'historique' => 'Historique',
+                              'pressing'   => 'Pressing',
+                              'analytics'  => 'Analytics',
+                              'paie'       => 'Paie',
+                            ][$_mod] ?? ucfirst($_mod);
+                            ?>
                           <button type="button"
                             class="hotel-roles-module <?= $_on ? 'is-on' : 'is-off' ?>"
                             data-module="<?= htmlspecialchars($_mod) ?>"
@@ -1004,14 +1008,14 @@ if (is_array($hotelUsers)) {
         <?php foreach ($hotelUsers as $u): ?>
           <?php
           $appRole = $u['role'];
-          $hotelRole = $u['hotel_role'];
-          $isAdminAuto = ($appRole === 'admin');
-          // Droits d'accès aux modules du POS (cf. boucle du tableau ci-dessus).
-          $isCaisseLocked = in_array($appRole, ['admin', 'super_admin'], true);
-          $effectiveRole = $isAdminAuto
-            ? 'manager'
-            : ($hotelRole !== null && $hotelRole !== '' ? $hotelRole : 'none');
-          ?>
+            $hotelRole = $u['hotel_role'];
+            $isAdminAuto = ($appRole === 'admin');
+            // Droits d'accès aux modules du POS (cf. boucle du tableau ci-dessus).
+            $isCaisseLocked = in_array($appRole, ['admin', 'super_admin'], true);
+            $effectiveRole = $isAdminAuto
+              ? 'manager'
+              : ($hotelRole !== null && $hotelRole !== '' ? $hotelRole : 'none');
+            ?>
           <article class="hotel-roles-user-card" data-user-id="<?= (int)$u['id'] ?>" data-hotel-role="<?= htmlspecialchars($effectiveRole) ?>">
             <div class="hotel-roles-user-card__head">
               <div class="hotel-roles-avatar"><?= htmlspecialchars(mb_substr($u['nom_complet'] ?? '?', 0, 1)) ?></div>
@@ -1055,16 +1059,16 @@ if (is_array($hotelUsers)) {
                     <div class="hotel-roles-modules">
                       <?php foreach (\App\Models\User::MODULES_ACCES as $_mod => $_col): ?>
                         <?php
-                        $_on = !empty($u[$_col]);
-                        $_label = [
-                          'caisse'     => 'Caisse',
-                          'produits'   => 'Produits',
-                          'historique' => 'Historique',
-                          'pressing'   => 'Pressing',
-                          'analytics'  => 'Analytics',
-                          'paie'       => 'Paie',
-                        ][$_mod] ?? ucfirst($_mod);
-                        ?>
+                          $_on = !empty($u[$_col]);
+                          $_label = [
+                            'caisse'     => 'Caisse',
+                            'produits'   => 'Produits',
+                            'historique' => 'Historique',
+                            'pressing'   => 'Pressing',
+                            'analytics'  => 'Analytics',
+                            'paie'       => 'Paie',
+                          ][$_mod] ?? ucfirst($_mod);
+                          ?>
                         <button type="button"
                           class="hotel-roles-module <?= $_on ? 'is-on' : 'is-off' ?>"
                           data-module="<?= htmlspecialchars($_mod) ?>"
@@ -1088,14 +1092,14 @@ if (is_array($hotelUsers)) {
             <?php if ($canManagePageAccess): ?>
               <?php
               $__uid = (int)$u['id'];
-              $__blocked = $blockedPagesByUser[$__uid] ?? [];
-              $__blockedLabels = [];
-              foreach ($__blocked as $__pk) {
-                  if (isset($pageCatalog[$__pk])) {
-                      $__blockedLabels[] = $pageCatalog[$__pk]['label'];
-                  }
-              }
-              ?>
+                $__blocked = $blockedPagesByUser[$__uid] ?? [];
+                $__blockedLabels = [];
+                foreach ($__blocked as $__pk) {
+                    if (isset($pageCatalog[$__pk])) {
+                        $__blockedLabels[] = $pageCatalog[$__pk]['label'];
+                    }
+                }
+                ?>
               <div class="hotel-roles-user-card__row">
                 <span class="hotel-roles-user-card__lbl">Pages bloquées</span>
                 <span class="hotel-roles-user-card__val">
@@ -1154,14 +1158,18 @@ if (is_array($hotelUsers)) {
 <?php if ($canManagePageAccess): ?>
 <!-- ── Modale de gestion des pages bloquées (super_admin) ────────── -->
 <!-- Le partial porte le catalogue ET le JS : il est partagé avec l'écran
-     dédié /pages-bloquees (sidebar du super_admin). -->
+     dédié /pages-bloquees (sidebar du super_admin).
+     Ici, on ne propose que les pages HÔTEL : les pages POS se gèrent depuis
+     /pages-bloquees, via la même modale mais avec sa famille. -->
 <?php
 $pagesCatalog   = $pageCatalog;
-$blockedByUser  = $blockedPagesByUser;
-$pagesEndpoint  = '/api/user/page-access/update';
-$pagesShopId    = (int)$targetShopId;
-require_once __DIR__ . '/partials/pages-access-modal.php';
-?>
+    $blockedByUser  = $blockedPagesByUser;
+    $pagesEndpoint  = '/api/user/page-access/update';
+    $pagesFamily    = \App\Services\UserPageAccessService::FAMILY_HOTEL;
+    $pagesShopId    = (int)$targetShopId;
+    $defaultAccessByUser = $defaultAccessByUser ?? [];
+    require_once __DIR__ . '/partials/pages-access-modal.php';
+    ?>
 <?php endif; ?>
 
 <script>

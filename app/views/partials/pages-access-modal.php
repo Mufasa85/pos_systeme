@@ -4,13 +4,18 @@
  * Modale de gestion des pages bloquees (vue PARTIELLE).
  *
  * Partagée par :
- *   - app/views/hotel-roles.php      (colonne « Pages bloquées »)
- *   - app/views/pages-bloquees.php   (écran dédié, sidebar super_admin)
+ *   - app/views/hotel-roles.php      (pages HOTEL uniquement)
+ *   - app/views/pages-bloquees.php   (pages POS / générales)
  *
  * Variables attendues :
  *   - $pagesCatalog   : [pageKey => ['label' => ..., 'family' => ...]]
+ *     → déjà filtré sur la famille concernée par l'appelant.
  *   - $blockedByUser  : [userId => [pageKey, ...]]  (état initial)
  *   - $pagesEndpoint  : endpoint de sauvegarde
+ *   - $pagesFamily    : 'general' | 'hotel' (famille affichée)
+ *   - $defaultAccessByUser : [userId => [pageKey => bool]]
+ *     → pages accessibles par DÉFAUT (hors blocage) ; une page `false` est
+ *       FLOUTÉE dans la modale, mais reste cochable.
  *
  * Le catalogue est rendu en JSON : le JS pilote la modale à partir de cette
  * seule source de vérité (aucune liste dupliquée côté client).
@@ -18,9 +23,20 @@
 $pagesCatalog  = $pagesCatalog  ?? [];
 $blockedByUser = $blockedByUser ?? [];
 $pagesEndpoint = $pagesEndpoint ?? '/api/user/page-access/update';
+// Famille affichée : 'general' (pages POS) ou 'hotel' (pages Hôtel).
+$pagesFamily   = $pagesFamily   ?? \App\Services\UserPageAccessService::FAMILY_GENERAL;
+// Libellé de la famille (titre de la modale).
+$pagesFamilyLabel = $pagesFamily === \App\Services\UserPageAccessService::FAMILY_HOTEL
+    ? 'Pages Hôtel'
+    : 'Pages générales (POS)';
 // Boutique ciblée : le super_admin peut en changer via ?shop_id=.
 // Elle est envoyée avec chaque POST (scoping multi-tenant côté serveur).
 $pagesShopId   = $pagesShopId   ?? 0;
+// Accès par DÉFAUT de chaque utilisateur : [userId => [pageKey => bool]].
+// Une page `false` est hors du périmètre naturel de l'utilisateur : elle est
+// FLOUTÉE dans la modale (mais reste cochable : le super_admin peut choisir
+// de la retirer malgré tout).
+$defaultAccessByUser = $defaultAccessByUser ?? [];
 ?>
 <style>
   /* ── Badges « Pages bloquées » (blocage individuel) ─────────── */
@@ -172,6 +188,40 @@ $pagesShopId   = $pagesShopId   ?? 0;
     cursor: pointer;
   }
 
+  /* Page HORS PERIMETRE par défaut (l'utilisateur n'y a pas accès
+     naturellement) : on la FLOUTE pour la faire ressortir, mais elle reste
+     cochable — le super_admin peut vouloir la retirer malgré tout. */
+  .hotel-pages-modal__item.is-out-of-scope {
+    opacity: .45;
+    filter: blur(.6px);
+    border-style: dashed;
+  }
+
+  .hotel-pages-modal__item.is-out-of-scope:hover {
+    opacity: .85;
+    filter: none;
+    background: #fffbeb;
+  }
+
+  .hotel-pages-modal__item.is-out-of-scope input {
+    cursor: pointer;
+  }
+
+  /* Pastille « hors périmètre » à côté du libellé. */
+  .hotel-pages-modal__tag {
+    font-size: .62rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .03em;
+    color: #b45309;
+    background: #fef3c7;
+    border: 1px solid #fcd34d;
+    border-radius: 4px;
+    padding: 0 .25rem;
+    margin-left: .3rem;
+    white-space: nowrap;
+  }
+
   .hotel-pages-modal__footer {
     display: flex;
     justify-content: flex-end;
@@ -210,7 +260,7 @@ $pagesShopId   = $pagesShopId   ?? 0;
      data-catalog='<?= htmlspecialchars(json_encode($pagesCatalog, JSON_UNESCAPED_UNICODE), ENT_QUOTES) ?>'
      data-endpoint="<?= htmlspecialchars($pagesEndpoint) ?>">
   <div class="hotel-pages-modal__box" role="dialog" aria-modal="true" aria-labelledby="hotel-pages-modal-title">
-    <h3 class="hotel-pages-modal__title" id="hotel-pages-modal-title">Pages bloquées</h3>
+    <h3 class="hotel-pages-modal__title" id="hotel-pages-modal-title">Pages bloquées — <?= htmlspecialchars($pagesFamilyLabel) ?></h3>
     <p class="hotel-pages-modal__subtitle">
       Cochez les pages à bloquer pour <strong id="hotel-pages-modal-user">cet utilisateur</strong>.
       Une page cochée disparaît de son menu et devient inaccessible (URL et API).
@@ -256,11 +306,17 @@ $pagesShopId   = $pagesShopId   ?? 0;
         $blockedByUser
     ), JSON_UNESCAPED_UNICODE) ?>;
 
-    // Libellés des familles (ordre d'affichage).
-    const FAMILY_LABELS = {
-      general: 'Pages générales (POS)',
-      hotel: 'Pages Hôtel',
-    };
+    // Famille affichée par CETTE modale (le catalogue est déjà filtré
+    // côté PHP, ce filtre n'est qu'une sécurité côté client).
+    const PAGE_FAMILY = <?= json_encode($pagesFamily, JSON_UNESCAPED_UNICODE) ?>;
+
+    // Accès par DÉFAUT de chaque utilisateur : [userId => [pageKey => bool]].
+    // Une page `false` est hors du périmètre naturel de l'utilisateur : elle
+    // est FLOUTÉE dans la modale (mais reste cochable).
+    const DEFAULT_ACCESS = <?= json_encode($defaultAccessByUser, JSON_UNESCAPED_UNICODE) ?>;
+
+    // Libellé de la famille (titre du groupe dans la modale).
+    const FAMILY_LABEL = <?= json_encode($pagesFamilyLabel, JSON_UNESCAPED_UNICODE) ?>;
 
     let modalUserId = 0;
     let modalBlocked = new Set();
@@ -271,61 +327,84 @@ $pagesShopId   = $pagesShopId   ?? 0;
       modalStatus.style.color = isError ? '#dc2626' : '#16a34a';
     }
 
-    // Rend la liste des pages, regroupée par famille.
+    // Rend la liste des pages de la famille courante.
     function renderModalBody() {
-      const families = {};
+      const pages = [];
       Object.keys(PAGE_CATALOG).forEach(function (key) {
         const def = PAGE_CATALOG[key] || {};
         const family = def.family || 'general';
-        if (!families[family]) families[family] = [];
-        families[family].push({ key: key, label: def.label || key });
+        if (family !== PAGE_FAMILY) return;
+        pages.push({ key: key, label: def.label || key });
       });
+
+      // Accès par défaut de l'utilisateur courant de la modale.
+      const defaults = DEFAULT_ACCESS[String(modalUserId)] || {};
 
       modalBody.innerHTML = '';
-      Object.keys(families).forEach(function (family) {
-        const wrap = document.createElement('div');
-        wrap.className = 'hotel-pages-modal__family';
 
-        const title = document.createElement('h4');
-        title.textContent = FAMILY_LABELS[family] || family;
-        wrap.appendChild(title);
+      const wrap = document.createElement('div');
+      wrap.className = 'hotel-pages-modal__family';
 
-        const list = document.createElement('div');
-        list.className = 'hotel-pages-modal__list';
+      const title = document.createElement('h4');
+      title.textContent = FAMILY_LABEL;
+      wrap.appendChild(title);
 
-        families[family].forEach(function (page) {
-          const label = document.createElement('label');
-          label.className = 'hotel-pages-modal__item';
+      const list = document.createElement('div');
+      list.className = 'hotel-pages-modal__list';
 
-          const input = document.createElement('input');
-          input.type = 'checkbox';
-          input.value = page.key;
-          input.checked = modalBlocked.has(page.key);
-          input.addEventListener('change', function () {
-            if (this.checked) {
-              modalBlocked.add(page.key);
-            } else {
-              modalBlocked.delete(page.key);
-            }
-          });
+      pages.forEach(function (page) {
+        const label = document.createElement('label');
+        label.className = 'hotel-pages-modal__item';
 
-          const text = document.createElement('span');
-          text.textContent = page.label;
+        // Page hors périmètre par défaut : on la floute (mais elle reste
+        // cochable — le super_admin peut vouloir la retirer malgré tout).
+        const outOfScope = defaults[page.key] === false;
+        if (outOfScope) {
+          label.classList.add('is-out-of-scope');
+          label.title = 'Hors périmètre pour cet utilisateur : la page lui est déjà inaccessible par défaut.';
+        }
 
-          label.appendChild(input);
-          label.appendChild(text);
-          list.appendChild(label);
+        const input = document.createElement('input');
+        input.type = 'checkbox';
+        input.value = page.key;
+        input.checked = modalBlocked.has(page.key);
+        input.addEventListener('change', function () {
+          if (this.checked) {
+            modalBlocked.add(page.key);
+          } else {
+            modalBlocked.delete(page.key);
+          }
         });
 
-        wrap.appendChild(list);
-        modalBody.appendChild(wrap);
+        const text = document.createElement('span');
+        text.textContent = page.label;
+
+        label.appendChild(input);
+        label.appendChild(text);
+
+        if (outOfScope) {
+          const tag = document.createElement('span');
+          tag.className = 'hotel-pages-modal__tag';
+          tag.textContent = 'hors périmètre';
+          label.appendChild(tag);
+        }
+
+        list.appendChild(label);
       });
+
+      wrap.appendChild(list);
+      modalBody.appendChild(wrap);
     }
 
     // Ouvre la modale pour un utilisateur donné.
     function openPagesModal(userId, userName) {
       modalUserId = parseInt(userId, 10) || 0;
-      modalBlocked = new Set(BLOCKED_PAGES[String(modalUserId)] || []);
+      // On ne propose QUE les pages de la famille affichée : les blocages
+      // des autres familles ne sont pas modifiables ici.
+      modalBlocked = new Set((BLOCKED_PAGES[String(modalUserId)] || []).filter(function (key) {
+        const def = PAGE_CATALOG[key];
+        return !!def && (def.family || 'general') === PAGE_FAMILY;
+      }));
       if (modalUser) {
         modalUser.textContent = userName || 'cet utilisateur';
       }
@@ -345,7 +424,12 @@ $pagesShopId   = $pagesShopId   ?? 0;
       if (!modalUserId) return;
 
       // État courant (rendu par PHP) : la référence du calcul.
-      const before = new Set(BLOCKED_PAGES[String(modalUserId)] || []);
+      // État courant (rendu par PHP), limité à la famille affichée :
+      // les blocages des autres familles ne doivent pas être modifiés.
+      const before = new Set((BLOCKED_PAGES[String(modalUserId)] || []).filter(function (key) {
+        const def = PAGE_CATALOG[key];
+        return !!def && (def.family || 'general') === PAGE_FAMILY;
+      }));
 
       // Les pages à bloquer (cochées et pas déjà bloquées).
       const toBlock = [];
@@ -416,6 +500,8 @@ $pagesShopId   = $pagesShopId   ?? 0;
       const labels = [];
       blockedSet.forEach(function (key) {
         const def = PAGE_CATALOG[key];
+        // Le catalogue est filtré sur la famille : seules les pages de
+        // CETTE famille apparaissent dans les badges.
         if (def) labels.push(def.label || key);
       });
 

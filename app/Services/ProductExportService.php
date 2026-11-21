@@ -196,6 +196,12 @@ class ProductExportService
             $sheet->getStyle('K2:K' . $lastRow)->getNumberFormat()->setFormatCode('#,##0.00');
             $sheet->getStyle('M2:M' . $lastRow)->getNumberFormat()->setFormatCode('#,##0.00');
         }
+
+        // ⚠️ La colonne « code_barres » est forcée en format TEXTE (« @ ») :
+        // sans cela, Excel réinterprète un code-barres à 13 chiffres comme
+        // une date à l'ouverture (« 8426423308202 » → « 5/17/23070765319 »)
+        // et le ré-import enregistre la valeur affichée, pas la vraie.
+        $sheet->getStyle('A:A')->getNumberFormat()->setFormatCode('@');
     }
 
     /**

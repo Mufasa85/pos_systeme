@@ -15,9 +15,12 @@
  *   - $pageShopName   : nom de la boutique ciblée
  *   - $pageAllShops   : toutes les boutiques (sélecteur du super_admin)
  *   - $blockedByUser  : [userId => [pageKey, ...]]
+ *   - $defaultAccessByUser : [userId => [pageKey => bool]] (pages hors
+ *     périmètre de l'utilisateur : elles sont FLOUTÉES dans la modale)
  *   - $pagesCatalog   : catalogue des pages
  */
 $page = 'pages-bloquees';
+$defaultAccessByUser = $defaultAccessByUser ?? [];
 ?>
 <main class="pages-bloquees-wrap">
   <div class="pages-bloquees-card">
@@ -138,6 +141,9 @@ $page = 'pages-bloquees';
           </tbody>
         </table>
       </div>
+    <?php endif; ?>
+  </div>
+</main>
 
 <style>
   .pages-bloquees-wrap {
@@ -333,13 +339,16 @@ $page = 'pages-bloquees';
   }
 </style>
 
+  </div>
+</main>
+
 <?php
 // Modale partagée avec /hotel/roles (catalogue + JS).
 $pagesEndpoint = '/api/user/page-access/update';
-        $pagesShopId   = (int)$pageShopId;
-        require_once __DIR__ . '/partials/pages-access-modal.php';
-        ?>
-
-    <?php endif; ?>
-  </div>
-</main>
+// Ici, on ne propose que les pages GÉNÉRALES (POS) : les pages Hôtel se
+// gèrent depuis /hotel/roles, via la même modale mais avec sa famille.
+$pagesFamily   = \App\Services\UserPageAccessService::FAMILY_GENERAL;
+$pagesShopId   = (int)$pageShopId;
+$defaultAccessByUser = $defaultAccessByUser ?? [];
+require_once __DIR__ . '/partials/pages-access-modal.php';
+?>

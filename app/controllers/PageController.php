@@ -706,11 +706,30 @@ class PageController extends Controller
 
         // Pages bloquées, par utilisateur : [userId => [pageKey, ...]].
         // Le service est la source de vérité (même que la garde backend).
+        //
+        // Sur CETTE page, on ne propose que les pages de la FAMILLE HÔTEL :
+        // les pages POS se gèrent depuis l'écran `/pages-bloquees`. Chaque
+        // écran a ainsi sa propre modale, avec les pages qui le concernent.
         $blockedPagesByUser = [];
+        $defaultAccessByUser = [];
         if ($canManagePageAccess && $hotelUsers) {
             $pageAccessService = new \App\Services\UserPageAccessService();
+            $hotelPageKeys = $pageAccessService::getPageKeys(
+                \App\Services\UserPageAccessService::FAMILY_HOTEL
+            );
             foreach ($hotelUsers as $_u) {
-                $blockedPagesByUser[(int)$_u['id']] = $pageAccessService->blockedPageKeys((int)$_u['id']);
+                $__uid = (int)$_u['id'];
+                $blockedPagesByUser[$__uid] = array_values(array_intersect(
+                    $pageAccessService->blockedPageKeys($__uid),
+                    $hotelPageKeys
+                ));
+                // Pages accessibles par DEFAUT (hors blocage) : elles servent
+                // à flouter celles qui sont hors de son périmètre.
+                $defaultAccessByUser[$__uid] = [];
+                foreach ($hotelPageKeys as $__key) {
+                    $defaultAccessByUser[$__uid][$__key] =
+                        $pageAccessService::isPageAvailableByDefault($__key, $_u);
+                }
             }
         }
 
@@ -722,7 +741,11 @@ class PageController extends Controller
             'canManageModuleAccess' => $canManageModuleAccess,
             'canManagePageAccess'   => $canManagePageAccess,
             'blockedPagesByUser'    => $blockedPagesByUser,
-            'pageCatalog'           => \App\Services\UserPageAccessService::getCatalog(),
+            'defaultAccessByUser'   => $defaultAccessByUser,
+            // Catalogue limité aux pages HÔTEL (voir commentaire ci-dessus).
+            'pageCatalog'           => \App\Services\UserPageAccessService::getCatalogForFamily(
+                \App\Services\UserPageAccessService::FAMILY_HOTEL
+            ),
         ]);
     }
 
@@ -951,12 +974,30 @@ class PageController extends Controller
 
         // Blocages : une seule requête pour TOUS les utilisateurs (pas de
         // N+1). On ne garde que les lignes des utilisateurs affichés.
+        //
+        // Sur CET écran, on ne propose que les pages de la FAMILLE GÉNÉRALE
+        // (POS) : les pages Hôtel se gèrent depuis `/hotel/roles`.
+        $generalPageKeys = \App\Services\UserPageAccessService::getPageKeys(
+            \App\Services\UserPageAccessService::FAMILY_GENERAL
+        );
+
         $blockedByUser = [];
+        $defaultAccessByUser = [];
         if ($pageUsers) {
             $allBlocked = (new \App\Models\UserPageAccess())->allBlockedByUser();
             foreach ($pageUsers as $u) {
                 $uid = (int)$u['id'];
-                $blockedByUser[$uid] = $allBlocked[$uid] ?? [];
+                $blockedByUser[$uid] = array_values(array_intersect(
+                    $allBlocked[$uid] ?? [],
+                    $generalPageKeys
+                ));
+                // Pages accessibles par DEFAUT (hors blocage) : elles servent
+                // à flouter celles qui sont hors de son périmètre.
+                $defaultAccessByUser[$uid] = [];
+                foreach ($generalPageKeys as $key) {
+                    $defaultAccessByUser[$uid][$key] =
+                        \App\Services\UserPageAccessService::isPageAvailableByDefault($key, $u);
+                }
             }
         }
 
@@ -966,7 +1007,11 @@ class PageController extends Controller
             'pageShopName'  => $this->resolveShopName($targetShopId),
             'pageAllShops'  => $this->listAllShops(),
             'blockedByUser' => $blockedByUser,
-            'pagesCatalog'  => \App\Services\UserPageAccessService::getCatalog(),
+            'defaultAccessByUser' => $defaultAccessByUser,
+            // Catalogue limité aux pages POS (voir commentaire ci-dessus).
+            'pagesCatalog'  => \App\Services\UserPageAccessService::getCatalogForFamily(
+                \App\Services\UserPageAccessService::FAMILY_GENERAL
+            ),
         ];
     }
 
