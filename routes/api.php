@@ -26,6 +26,7 @@ use App\Controllers\ProductBatchController;
 use App\Controllers\ProductController;
 use App\Controllers\ProductExportController;
 use App\Controllers\ProductImportController;
+use App\Controllers\ProductRepairController;
 use App\Controllers\ReportController;
 use App\Controllers\SaleController;
 use App\Controllers\ServiceTypeController;
@@ -153,6 +154,15 @@ Router::get('/api/produit/import/categories', [ProductImportController::class, '
 
 // Export du catalogue produits vers Excel
 Router::get('/api/produit/export', [ProductExportController::class, 'export'], 'produits');
+
+// Réparation des codes-barres corrompus par l'import Excel.
+// L'import lisait la valeur AFFICHÉE de la cellule (Excel formate les
+// codes-barres à 13 chiffres en date : « 8426423308202 » → « 5/17/23070765319 »).
+// GET  = rapport (dry-run, aucune écriture)
+// POST = applique la réparation, uniquement si confirm=1 est envoyé.
+// Réservé au super_admin (écriture en base sur l'ensemble des boutiques).
+Router::get('/api/produit/repair-barcodes', [ProductRepairController::class, 'index']);
+Router::post('/api/produit/repair-barcodes', [ProductRepairController::class, 'repair']);
 
 Router::get('/api/product-batches', [ProductBatchController::class, 'index'], 'produits');
 Router::post('/api/product-batches', [ProductBatchController::class, 'create'], 'produits');
