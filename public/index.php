@@ -25,6 +25,25 @@ use App\Core\Router;
 // Set base path for AltoRouter before loading routes
 //Router::getInstance()->setBasePath('/pos/public');
 
+// ── Authentification MOBILE (token Bearer) ───────────────────────────────
+// L'app mobile Android ne manipule pas le cookie de session PHP : elle
+// s'authentifie avec un token Bearer renvoyé par POST /api/mobile/auth/login.
+//
+// Le token est résolu et la session hydratée ICI, AVANT le routeur : toutes
+// les routes métier existantes (/api/produits, /api/vente, /api/dgi,
+// /api/currency, /api/settings…) deviennent utilisables telles quelles par
+// l'app mobile, avec TOUS les guards existants (requireAuth,
+// requireCaisseAccess, requireActiveShop, politique des pages).
+//
+// ⚠️ L'hydratation est FAITE-CLOSED : si le token est invalide, expiré,
+//     révoqué, ou si le compte/la boutique est désactivé, la session n'est
+//     PAS hydratée → la requête est traitée comme anonyme (401/403).
+try {
+    (new \App\Services\MobileAuthService())->authenticateRequest();
+} catch (\Throwable $e) {
+    error_log('[MobileAuth] authenticateRequest error: ' . $e->getMessage());
+}
+
 // Load routes
 require dirname(__DIR__) . DIRECTORY_SEPARATOR . 'routes/web.php';
 require dirname(__DIR__) . DIRECTORY_SEPARATOR . 'routes/api.php';
