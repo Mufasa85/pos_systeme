@@ -10,6 +10,7 @@ use App\Controllers\CompanyInfoController;
 use App\Controllers\DashboardController;
 use App\Controllers\DgiSyncController;
 use App\Controllers\DgiWebhookController;
+use App\Controllers\MobileAuthController;
 use App\Controllers\NotificationController;
 use App\Controllers\PageController;
 use App\Controllers\PayrollAttendanceController;
@@ -58,6 +59,26 @@ Router::get('/api/auth/forgot-password', [AuthController::class, 'forgotPassword
 Router::post('/api/auth/verify-reset-code', [AuthController::class, 'verifyResetCode']);
 Router::post('/api/auth/reset-password', [AuthController::class, 'resetPassword']);
 Router::get('/api/auth/otp-codes', [AuthController::class, 'getOtpCodes']);
+
+// ── Auth MOBILE (app Android) ───────────────────────────────────────────
+// L'app mobile ne manipule pas le cookie de session : elle utilise un TOKEN
+// BEARER. Le token est résolu et hydraté en $_SESSION AVANT le routeur
+// (cf. public/index.php) : toutes les routes métier existantes
+// (/api/produits, /api/vente, /api/dgi, /api/currency…) restent utilisables
+// telles quelles par l'app mobile.
+//
+// ⚠️ Ces routes sont HORS politique de page : elles relèvent de
+//    l'authentification, pas d'une page. Les routes métier gardent leur
+//    politique ET leur garde de boutique désactivée.
+//
+// Documentation : docs/API_MOBILE.md
+Router::post('/api/mobile/auth/login', [MobileAuthController::class, 'login']);
+Router::post('/api/mobile/auth/verify-otp', [MobileAuthController::class, 'verifyOtp']);
+Router::post('/api/mobile/auth/resend-otp', [MobileAuthController::class, 'resendOtp']);
+Router::post('/api/mobile/auth/logout', [MobileAuthController::class, 'logout']);
+Router::get('/api/mobile/auth/me', [MobileAuthController::class, 'me']);
+Router::get('/api/mobile/auth/devices', [MobileAuthController::class, 'devices']);
+Router::post('/api/mobile/auth/revoke-all', [MobileAuthController::class, 'revokeAll']);
 
 // ── Shops (super_admin only) ─────────────────────────────────
 Router::get('/api/shops', [ShopController::class, 'index']);
