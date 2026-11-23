@@ -2509,6 +2509,8 @@ function saveUser(event) {
         formData.append('agent_code', agentCode);
         formData.append('email', email);
         formData.append('telephone', telephone);
+        // La 2FA est un choix explicite du formulaire (unchecked = 0).
+        formData.append('two_factor_enabled', twoFactor);
         if (shopId) formData.append('shop_id', shopId);
     }
 
@@ -2524,11 +2526,22 @@ function saveUser(event) {
                 alert(userId ? 'Utilisateur modifie !' : 'Utilisateur cree !');
                 closeUserModal();
                 window.location.reload();
+            } else if (data.code === 'shop_required') {
+                // Aucune boutique de rattachement : message métier explicite
+                // (le compte ne peut pas exister sans boutique).
+                alert(data.message || 'Boutique non selectionnee : un utilisateur doit etre rattache a une boutique.');
             } else {
                 // Show detailed error
                 let errorMsg = 'Erreur: ';
                 if (data.error) {
                     errorMsg += data.error;
+                    // Le serveur peut compléter l'erreur d'un message métier
+                    // (ex. « Boutique non sélectionnée » + explication).
+                    if (data.message && data.message !== data.error) {
+                        errorMsg += ' — ' + data.message;
+                    }
+                } else if (data.message) {
+                    errorMsg += data.message;
                 } else if (data.success === false) {
                     errorMsg += 'La mise a jour a echoue (success=false)';
                 } else {
