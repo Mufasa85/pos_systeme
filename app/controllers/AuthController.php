@@ -93,7 +93,11 @@ class AuthController extends Controller
         unset($_SESSION['csrf']);
 
         $username = $this->sanitaze(trim($_POST['username'] ?? ''));
-        $password = $this->sanitaze(trim($_POST['password'] ?? ''));
+        // Mot de passe : `trim()` uniquement — un mot de passe n'est PAS une
+        // donnée d'affichage et l'assainissement HTML le corrompt
+        // (`&` → `&amp;`). Il doit correspondre EXACTEMENT à celui stocké
+        // à la création (cf. Controller::sanitizePassword()).
+        $password = $this->sanitizePassword($_POST['password'] ?? '');
 
         // Rate limiting
         if ($this->isRateLimited($username)) {

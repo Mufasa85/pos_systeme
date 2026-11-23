@@ -15,10 +15,78 @@ class Controller
         return self::$controller;
     }
 
-    protected function sanitaze(string $input): string
+    /**
+     * Assainit une valeur entrante (POST ou JSON) et la renvoie en chaîne.
+     *
+     * ⚠️ La méthode ne doit JAMAIS lever de TypeError : une valeur absente
+     * (`null`), un booléen, un nombre ou un tableau sont normalisés en
+     * chaîne. Avant, un simple champ OPTIONNEL non envoyé (ex. `shop_id`)
+     * suffisait à produire une page blanche :
+     * « sanitaze(): Argument #1 ($input) must be of type string, null given ».
+     *
+     * @param mixed $input
+     */
+    protected function sanitaze($input): string
     {
-        return strip_tags(htmlspecialchars($input));
+        if (is_string($input)) {
+            return strip_tags(htmlspecialchars($input));
+        }
+        if ($input === null || $input === false) {
+            return '';
+        }
+        if ($input === true) {
+            return '1';
+        }
+        if (is_int($input) || is_float($input)) {
+            return strip_tags(htmlspecialchars((string) $input));
+        }
+
+        // Tableau ou objet : la structure n'est pas conservée (entrée non
+        // conforme au format attendu).
+        return '';
     }
+
+    /**
+     * Normalise un mot de passe saisi : `trim()` uniquement.
+     *
+     * ⚠️ Un mot de passe n'est PAS une donnée d'affichage : l'assainissement
+     * HTML (`htmlspecialchars`, `strip_tags`) le corrompt (`&` → `&amp;`,
+     * `<b` → supprimé) et le désynchronise de la saisie de connexion.
+     * La création, la mise à jour et la connexion appliquent donc la même
+     * normalisation.
+     *
+     * @param mixed $password
+     */
+    protected function sanitizePassword($password): string
+    {
+        return is_string($password) ? trim($password) : '';
+    }
+
+    /**
+     * Données de la requête courante : formulaire (POST) OU corps JSON.
+     *
+     * Le corps n'est lu que si `$_POST` est vide : sur une requête
+     * `multipart/form-data` (envoi d'une photo de profil), `php://input`
+     * n'est pas disponible.
+     *
+     * @return array<string, mixed>
+     */
+    protected function requestInput(): array
+    {
+        if (!empty($_POST)) {
+            return $_POST;
+        }
+
+        $raw = @file_get_contents('php://input');
+        if (!is_string($raw) || $raw === '') {
+            return [];
+        }
+
+        $json = json_decode($raw, true);
+
+        return is_array($json) ? $json : [];
+    }
+
     public static function status(int $status)
     {
         \http_response_code($status);
@@ -62,13 +130,13 @@ class Controller
     protected function requireAuth()
     {
         if (!$this->isAuthenticated()) {
-            self::status(403)->json(['error' => 'Non authentifié']);
+            self::status(403)->json(['success' => false, 'error' => 'Non authentifié']);
             return false;
         }
         // Vérifier expiration de session
         if (isset($_SESSION['last_activity']) && (time() - $_SESSION['last_activity']) > self::$SESSION_TIMEOUT) {
             session_destroy();
-            self::status(401)->json(['error' => 'Session expirée']);
+            self::status(401)->json(['success' => false, 'error' => 'Session expirée']);
             return false;
         }
         $_SESSION['last_activity'] = time();
@@ -87,7 +155,7 @@ class Controller
             return false;
         }
         if (!$this->isAdmin()) {
-            self::status(403)->json(['error' => 'Accès refusé']);
+            self::status(403)->json(['success' => false, 'error' => 'Accès refusé']);
             return false;
         }
         return true;
@@ -96,7 +164,7 @@ class Controller
     protected function requireSuperAdmin()
     {
         if (!$this->isSuperAdmin()) {
-            self::status(403)->json(['error' => 'Accès refusé — super_admin requis']);
+            self::status(403)->json(['success' => false, 'error' => 'Accès refusé — super_admin requis']);
             return false;
         }
         return true;

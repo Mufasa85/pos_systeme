@@ -7,56 +7,217 @@ use App\Services\ImageProcessor;
 
 class UserController extends Controller
 {
+    /**
+     * POST /api/create/user — création d'un utilisateur.
+     *
+     * ⚠️ Régression 2026-11-23 : le super_admin créait un utilisateur avec
+     * `sanitaze($_POST['shop_id'] ?? null)`. La méthode était typée `string` :
+     * un champ optionnel ABSENT (le sélecteur de boutique n'est pas rendu,
+     * ou le navigateur envoie un formulaire sans `shop_id`) suffisait à
+     * lever un TypeError et à afficher une page blanche :
+     * « sanitaze(): Argument #1 ($input) must be of type string, null given ».
+     *
+     * La boutique est désormais RÉSOLUE (jamais `null` en base) et les
+     * entrées sont validées : une erreur métier renvoie un JSON 4xx lisible
+     * au lieu d'une erreur PHP 500.
+     */
     public function create()
     {
         if (!$this->requireAdmin()) {
             return;
         }
 
-        $username  = $this->sanitaze($_POST['username'] ?? null);
-        $password  = $this->sanitaze($_POST['password'] ?? null);
-        $fullname  = $this->sanitaze($_POST['fullname'] ?? null);
-        $role      = $this->sanitaze($_POST['role'] ?? 'vendeur');
-        $actif     = $this->sanitaze($_POST['actif'] ?? 1);
-        $agentCode = $this->sanitaze($_POST['agent_code'] ?? null);
-        $email     = $this->sanitaze($_POST['email'] ?? null);
-        $telephone = $this->sanitaze($_POST['telephone'] ?? null);
+        // Formulaire (POST) ou corps JSON : les deux sont acceptés.
+        $input = $this->requestInput();
+
+        $username  = trim($this->sanitaze($input['username'] ?? ''));
+        $password  = $this->sanitizePassword($input['password'] ?? '');
+        $fullname  = trim($this->sanitaze($input['fullname'] ?? ''));
+        $role      = trim($this->sanitaze($input['role'] ?? '')) ?: 'vendeur';
+        $actif     = (int)$this->sanitaze($input['actif'] ?? 1) === 0 ? 0 : 1;
+        $agentCode = trim($this->sanitaze($input['agent_code'] ?? ''));
+        $email     = trim($this->sanitaze($input['email'] ?? ''));
+        $telephone = trim($this->sanitaze($input['telephone'] ?? ''));
+
+        // La 2FA est un choix explicite du formulaire : `null` = non fourni
+        // (la colonne garde son défaut SQL).
+        $twoFactor = null;
+        if (array_key_exists('two_factor_enabled', $input)) {
+            $twoFactor = (int)$this->sanitaze($input['two_factor_enabled']) === 1 ? 1 : 0;
+        }
 
         // Seul super_admin peut créer des admins
         if ($role === 'admin' && !$this->isSuperAdmin()) {
-            $this->status(403)->json(['error' => 'Seul le super_admin peut créer des administrateurs']);
+            $this->status(403)->json([
+                'success' => false,
+                'error'   => 'Seul le super_admin peut créer des administrateurs',
+            ]);
             return;
         }
         // Personne ne peut créer un super_admin via l'API
         if ($role === 'super_admin') {
-            $this->status(403)->json(['error' => 'Impossible de créer un super_admin']);
+            $this->status(403)->json([
+                'success' => false,
+                'error'   => 'Impossible de créer un super_admin',
+            ]);
+            return;
+        }
+        // Liste blanche : `utilisateurs.role` est un ENUM. Une valeur hors
+        // liste provoquerait une erreur SQL (et une page blanche).
+        if (!in_array($role, ['admin', 'vendeur'], true)) {
+            $this->status(400)->json([
+                'success' => false,
+                'error'   => 'Rôle invalide',
+            ]);
             return;
         }
 
         if (!$username || !$password || !$fullname) {
-            $this->status(400)->json(['error' => 'Champs obligatoires manquants']);
+            $this->status(400)->json([
+                'success' => false,
+                'error'   => 'Champs obligatoires manquants',
+            ]);
             return;
         }
 
-        // Affecter à la boutique courante (admin crée pour sa boutique)
-        $shopId = $this->isSuperAdmin() ? ($this->sanitaze($_POST['shop_id'] ?? null)) : $this->getShopId();
+        if (strlen($password) < 6) {
+            $this->status(400)->json([
+                'success' => false,
+                'error'   => 'Le mot de passe doit contenir au moins 6 caractères',
+            ]);
+            return;
+        }
+
+        // La 2FA est uniquement livrée par SMS (cf. AuthController::login()) :
+        // l'activer sans numéro de téléphone rendrait le compte INUTILISABLE
+        // (aucun code ne peut être reçu à la connexion).
+        if ($twoFactor === 1 && $telephone === '') {
+            $this->status(400)->json([
+                'success' => false,
+                'error'   => 'Téléphone requis',
+                'message' => 'La vérification en deux étapes (2FA) nécessite un numéro de téléphone '
+                    . '(le code OTP est envoyé par SMS).',
+            ]);
+            return;
+        }
+
+        // Boutique de rattachement : OBLIGATOIRE et VALIDÉE (jamais `null`).
+        // Un utilisateur sans boutique ne peut pas travailler : on refuse
+        // la création plutôt que d'enregistrer un compte orphelin.
+        $shopId = $this->resolveCreationShopId($input);
+        if ($shopId === null) {
+            $this->status(400)->json([
+                'success' => false,
+                'error'   => 'Boutique non sélectionnée',
+                'code'    => 'shop_required',
+                'message' => $this->isSuperAdmin()
+                    ? 'Sélectionnez la boutique de rattachement du compte avant de l\'enregistrer. '
+                        . 'Un utilisateur appartient toujours à une boutique.'
+                    : 'Votre compte n\'est rattaché à aucune boutique. '
+                        . 'Contactez le super_admin pour qu\'il vous affecte à une boutique.',
+            ]);
+            return;
+        }
+
+        $shopModel = new \App\Models\Shop();
+        if (!$shopModel->findById($shopId)) {
+            $this->status(404)->json([
+                'success' => false,
+                'error'   => 'Boutique introuvable',
+            ]);
+            return;
+        }
 
         $userModel = new \App\Models\User();
+
+        // `utilisateurs.nom_utilisateur` porte une contrainte UNIQUE : on
+        // refuse explicitement plutôt que de laisser remonter une
+        // PDOException (page blanche).
+        if ($userModel->usernameExists($username)) {
+            $this->status(409)->json([
+                'success' => false,
+                'error'   => 'Ce nom d\'utilisateur existe déjà',
+            ]);
+            return;
+        }
 
         // Code agent : le front génère un code AFxxxx aléatoire, mais le
         // serveur reste l'autorité : `utilisateurs.agent_code` est UNIQUE.
         // Un code vide ou déjà attribué est donc remplacé par un code libre.
         $agentCode = $this->resolveAgentCode($userModel, $agentCode);
 
-        $userModel->create($username, $password, $fullname, $role, $actif, $agentCode, $shopId, $email, $telephone);
-        $userId = \App\Core\Database::getInstance()->lastInsertId();
+        try {
+            $userModel->create(
+                $username,
+                $password,
+                $fullname,
+                $role,
+                $actif,
+                $agentCode,
+                $shopId,
+                $email !== '' ? $email : null,
+                $telephone !== '' ? $telephone : null,
+                $twoFactor
+            );
+        } catch (\PDOException $e) {
+            error_log('UserController::create - erreur SQL : ' . $e->getMessage());
+            $this->status(409)->json([
+                'success' => false,
+                'error'   => 'Utilisateur déjà existant (nom d\'utilisateur ou code agent)',
+            ]);
+            return;
+        }
+
+        $userId = (int)\App\Core\Database::getInstance()->lastInsertId();
 
         if ($role === 'vendeur' && $shopId && $userId) {
             (new \App\Models\PayrollEmployee())->createForVendor($userId, $shopId, $agentCode);
         }
 
-        $this->logAudit('create', 'utilisateur', $userId, ['username' => $username, 'role' => $role]);
-        $this->json(['success' => true, 'message' => 'Utilisateur créé !']);
+        $this->logAudit('create', 'utilisateur', $userId, [
+            'username' => $username,
+            'role'     => $role,
+            'shop_id'  => $shopId,
+        ]);
+        $this->json(['success' => true, 'message' => 'Utilisateur créé !', 'id' => $userId]);
+    }
+
+    /**
+     * Résout la boutique de rattachement d'un utilisateur à créer.
+     *
+     * ⚠️ Règle métier : un utilisateur APPARTIENT TOUJOURS à une boutique.
+     * Si aucune boutique n'est sélectionnée, la création est REFUSÉE
+     * (jamais de repli automatique) : un utilisateur sans boutique ne peut
+     * ni se connecter à la caisse, ni figurer dans un périmètre de paie.
+     *
+     * Règles (multi-tenant) :
+     *   - `super_admin` : la boutique EXPLICITEMENT choisie dans le
+     *     formulaire. Aucune boutique en session n'est utilisée : le
+     *     super_admin administera plusieurs boutiques, il doit donc
+     *     designate celle qui porte le compte.
+     *   - `admin` : TOUJOURS sa propre boutique. Le `shop_id` reçu est
+     *     ignoré (anti-évasion multi-tenant, cf.
+     *     `PageController::resolveTargetShopId()`).
+     *
+     * @param array<string, mixed> $input
+     * @return int|null L'identifiant de la boutique, ou null si aucune
+     *                  boutique n'a été sélectionnée.
+     */
+    private function resolveCreationShopId(array $input): ?int
+    {
+        if (!$this->isSuperAdmin()) {
+            $sessionShopId = (int)($this->getShopId() ?? 0);
+
+            return $sessionShopId > 0 ? $sessionShopId : null;
+        }
+
+        $requested = $input['shop_id'] ?? null;
+        if ($requested !== null && $requested !== '' && (int)$requested > 0) {
+            return (int)$requested;
+        }
+
+        // Aucun `shop_id` reçu : on ne devine PAS la boutique.
+        return null;
     }
 
     /**
@@ -100,49 +261,53 @@ class UserController extends Controller
             return;
         }
 
-        $id = $this->sanitaze($_POST['id'] ?? null);
+        $input = $this->requestInput();
+
+        $id = (int)$this->sanitaze($input['id'] ?? '');
         if (!$id) {
             $this->status(400)->json(['error' => 'ID manquant']);
             return;
         }
 
         // Debug: log received data
-        error_log("User update - ID: $id, POST data: " . print_r($_POST, true));
+        error_log("User update - ID: $id, POST data: " . print_r($input, true));
         error_log('User update - FILES: ' . print_r($_FILES, true));
 
         $data = [];
-        if (isset($_POST['nom_utilisateur'])) {
-            $data['nom_utilisateur'] = $this->sanitaze($_POST['nom_utilisateur']);
+        if (isset($input['nom_utilisateur'])) {
+            $data['nom_utilisateur'] = trim($this->sanitaze($input['nom_utilisateur']));
         }
-        if (isset($_POST['mot_de_passe'])) {
-            $data['mot_de_passe']    = $this->sanitaze($_POST['mot_de_passe']);
+        if (isset($input['mot_de_passe'])) {
+            // Mot de passe : `trim()` uniquement (jamais d'assainissement
+            // HTML) — cf. Controller::sanitizePassword().
+            $data['mot_de_passe'] = $this->sanitizePassword($input['mot_de_passe']);
         }
-        if (isset($_POST['nom_complet'])) {
-            $data['nom_complet']     = $this->sanitaze($_POST['nom_complet']);
+        if (isset($input['nom_complet'])) {
+            $data['nom_complet']     = trim($this->sanitaze($input['nom_complet']));
         }
-        if (isset($_POST['role'])) {
-            $data['role']            = $this->sanitaze($_POST['role']);
+        if (isset($input['role'])) {
+            $data['role']            = trim($this->sanitaze($input['role']));
         }
-        if (isset($_POST['actif'])) {
-            $data['actif']           = $this->sanitaze($_POST['actif']);
+        if (isset($input['actif'])) {
+            $data['actif']           = (int)$this->sanitaze($input['actif']) === 0 ? 0 : 1;
         }
-        if (isset($_POST['agent_code'])) {
-            $data['agent_code']      = $this->sanitaze($_POST['agent_code']);
+        if (isset($input['agent_code'])) {
+            $data['agent_code']      = trim($this->sanitaze($input['agent_code']));
         }
-        if (isset($_POST['email'])) {
-            $data['email']           = $this->sanitaze($_POST['email']);
+        if (isset($input['email'])) {
+            $data['email']           = trim($this->sanitaze($input['email']));
         }
-        if (isset($_POST['telephone'])) {
-            $data['telephone']       = $this->sanitaze($_POST['telephone']);
+        if (isset($input['telephone'])) {
+            $data['telephone']       = trim($this->sanitaze($input['telephone']));
         }
-        if (isset($_POST['two_factor_enabled'])) {
-            $data['two_factor_enabled'] = (int)$_POST['two_factor_enabled'];
+        if (isset($input['two_factor_enabled'])) {
+            $data['two_factor_enabled'] = (int)$this->sanitaze($input['two_factor_enabled']) === 1 ? 1 : 0;
         }
-        if (isset($_POST['shop_id']) && $this->isSuperAdmin()) {
-            $data['shop_id']         = (int)$_POST['shop_id'];
+        if (isset($input['shop_id']) && $this->isSuperAdmin()) {
+            $data['shop_id']         = (int)$input['shop_id'];
         }
-        if (isset($_POST['profile_image'])) {
-            $data['profile_image']   = $this->sanitaze($_POST['profile_image']);
+        if (isset($input['profile_image'])) {
+            $data['profile_image']   = $this->sanitaze($input['profile_image']);
         }
 
         // Handle profile image file upload
