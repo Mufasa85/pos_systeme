@@ -42,21 +42,31 @@ class ProductController extends Controller
         }
 
         $data = [
-            'code_barres' => $this->sanitaze($_POST['code_barres']),
-            'nom' => $this->sanitaze($_POST['nom']),
-            'category_id' => (int)$this->sanitaze($_POST['category_id']),
-            'prix' => (float)$this->sanitaze($_POST['prix']),
-            'stock' => (int)$this->sanitaze($_POST['stock']),
-            'stock_minimum' => (int)$this->sanitaze($_POST['stock_minimum']),
-            'taxe_id' => (int)$this->sanitaze($_POST['taxe_id']) ?: 1,
-            'product_type' => $this->sanitaze($_POST['product_type']) ?: 'unite',
-            'prod_service' => $this->sanitaze($_POST['prod_service']) ?: null,
-            'remise_type' => in_array($this->sanitaze($_POST['remise_type']), ['%', 'CDF']) ? $this->sanitaze($_POST['remise_type']) : '%',
-            'remise_value' => (float)$this->sanitaze($_POST['remise_value']) ?: 0,
+            'code_barres' => $this->sanitaze($_POST['code_barres'] ?? ''),
+            'nom' => $this->sanitaze($_POST['nom'] ?? ''),
+            'category_id' => (int)$this->sanitaze($_POST['category_id'] ?? 0),
+            'prix' => (float)$this->sanitaze($_POST['prix'] ?? 0),
+            'stock' => (int)$this->sanitaze($_POST['stock'] ?? 0),
+            'stock_minimum' => (int)$this->sanitaze($_POST['stock_minimum'] ?? 0),
+            'taxe_id' => (int)$this->sanitaze($_POST['taxe_id'] ?? 0) ?: 1,
+            'product_type' => $this->sanitaze($_POST['product_type'] ?? '') ?: 'unite',
+            'prod_service' => $this->sanitaze($_POST['prod_service'] ?? '') ?: null,
+            'remise_type' => in_array($this->sanitaze($_POST['remise_type'] ?? ''), ['%', 'CDF']) ? $this->sanitaze($_POST['remise_type']) : '%',
+            'remise_value' => (float)$this->sanitaze($_POST['remise_value'] ?? 0) ?: 0,
             'taxe_specifique_type' => in_array($this->sanitaze($_POST['taxe_specifique_type'] ?? '%'), ['%', 'CDF']) ? $this->sanitaze($_POST['taxe_specifique_type'] ?? '%') : '%',
             'taxe_specifique_value' => (float)$this->sanitaze($_POST['taxe_specifique_value'] ?? 0) ?: 0,
             'date_expiration' => !empty($_POST['date_expiration']) ? $this->sanitaze($_POST['date_expiration']) : null,
         ];
+
+        // Champs obligatoires : sans eux, l'INSERT viole les contraintes
+        // NOT NULL de `produits` (et l'API renvoie une page blanche).
+        if (!$data['code_barres'] || !$data['nom'] || !$data['category_id']) {
+            $this->status(400)->json([
+                'success' => false,
+                'error'   => 'Code-barres, nom et catégorie sont obligatoires',
+            ]);
+            return;
+        }
 
         // Vérifier si le code-barres existe déjà
         $productModel = new Product();
@@ -111,7 +121,7 @@ class ProductController extends Controller
         $oldImage = $oldProduct ? $oldProduct['image'] : '';
 
         // Vérifier si le code-barres existe déjà pour un autre produit
-        $newBarcode = $this->sanitaze($_POST['code_barres']);
+        $newBarcode = $this->sanitaze($_POST['code_barres'] ?? '');
         $existingProduct = $productModel->findByBarcode($newBarcode);
         if ($existingProduct && $existingProduct['id'] != $id) {
             $this->status(409)->json(['error' => 'Ce code-barres existe déjà pour le produit: ' . $existingProduct['nom']]);
@@ -119,17 +129,17 @@ class ProductController extends Controller
         }
 
         $data = [
-            'code_barres' => $this->sanitaze($_POST['code_barres']),
-            'nom' => $this->sanitaze($_POST['nom']),
-            'category_id' => (int)$this->sanitaze($_POST['category_id']),
-            'prix' => (float)$this->sanitaze($_POST['prix']),
-            'stock' => (int)$this->sanitaze($_POST['stock']),
-            'stock_minimum' => (int)$this->sanitaze($_POST['stock_minimum']),
-            'taxe_id' => (int)$this->sanitaze($_POST['taxe_id']) ?: 1,
-            'product_type' => $this->sanitaze($_POST['product_type']) ?: 'unite',
-            'prod_service' => $this->sanitaze($_POST['prod_service']) ?: null,
-            'remise_type' => in_array($this->sanitaze($_POST['remise_type']), ['%', 'CDF']) ? $this->sanitaze($_POST['remise_type']) : '%',
-            'remise_value' => (float)$this->sanitaze($_POST['remise_value']) ?: 0,
+            'code_barres' => $this->sanitaze($_POST['code_barres'] ?? ''),
+            'nom' => $this->sanitaze($_POST['nom'] ?? ''),
+            'category_id' => (int)$this->sanitaze($_POST['category_id'] ?? 0),
+            'prix' => (float)$this->sanitaze($_POST['prix'] ?? 0),
+            'stock' => (int)$this->sanitaze($_POST['stock'] ?? 0),
+            'stock_minimum' => (int)$this->sanitaze($_POST['stock_minimum'] ?? 0),
+            'taxe_id' => (int)$this->sanitaze($_POST['taxe_id'] ?? 0) ?: 1,
+            'product_type' => $this->sanitaze($_POST['product_type'] ?? '') ?: 'unite',
+            'prod_service' => $this->sanitaze($_POST['prod_service'] ?? '') ?: null,
+            'remise_type' => in_array($this->sanitaze($_POST['remise_type'] ?? ''), ['%', 'CDF']) ? $this->sanitaze($_POST['remise_type']) : '%',
+            'remise_value' => (float)$this->sanitaze($_POST['remise_value'] ?? 0) ?: 0,
             'taxe_specifique_type' => in_array($this->sanitaze($_POST['taxe_specifique_type'] ?? '%'), ['%', 'CDF']) ? $this->sanitaze($_POST['taxe_specifique_type'] ?? '%') : '%',
             'taxe_specifique_value' => (float)$this->sanitaze($_POST['taxe_specifique_value'] ?? 0) ?: 0,
             'image' => $oldImage,
