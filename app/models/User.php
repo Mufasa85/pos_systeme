@@ -377,15 +377,32 @@ class User
     }
 
     // 🔹 Création d'un utilisateur
-    public function create($username, $password, $fullname, $role = 'vendeur', $actif = 1, $agentCode = null, $shopId = null, $email = null, $telephone = null)
+    /**
+     * Crée un utilisateur.
+     *
+     * @param string      $username   Nom d'utilisateur (UNIQUE en base).
+     * @param string      $password   Mot de passe EN CLAIR : il est haché ici.
+     * @param string      $fullname   Nom complet.
+     * @param string      $role       `admin` ou `vendeur`.
+     * @param int        $actif      1 = actif, 0 = inactif.
+     * @param string|null $agentCode  Code agent (UNIQUE en base).
+     * @param int|null   $shopId     Boutique de rattachement (FK `shops.id`).
+     * @param string|null $email      Adresse e-mail.
+     * @param string|null $telephone  Numéro de téléphone.
+     * @param int|null   $twoFactorEnabled  1 = 2FA activée, 0 = désactivée,
+     *                                     null = défaut de la colonne (1).
+     */
+    public function create($username, $password, $fullname, $role = 'vendeur', $actif = 1, $agentCode = null, $shopId = null, $email = null, $telephone = null, $twoFactorEnabled = null)
     {
         $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
 
-        $sql = 'INSERT INTO utilisateurs
-                (nom_utilisateur, mot_de_passe, nom_complet, role, shop_id, actif, agent_code, email, telephone)
-                VALUES (:username, :password, :fullname, :role, :shop_id, :actif, :agent_code, :email, :telephone)';
+        // `utilisateurs.two_factor_enabled` est NOT NULL : si la 2FA n'est pas
+        // concernée par l'appel, la colonne est OMITTEDE de l'INSERT (défaut
+        // SQL = 1) au lieu d'être forcée à NULL.
+        $columns = 'nom_utilisateur, mot_de_passe, nom_complet, role, shop_id, actif, agent_code, email, telephone';
+        $values  = ':username, :password, :fullname, :role, :shop_id, :actif, :agent_code, :email, :telephone';
 
-        return $this->db->query($sql, [
+        $params = [
             ':username'   => $username,
             ':password'   => $hashedPassword,
             ':fullname'   => $fullname,
@@ -395,7 +412,47 @@ class User
             ':agent_code' => $agentCode,
             ':email'      => $email,
             ':telephone'  => $telephone,
-        ]);
+        ];
+
+        if ($twoFactorEnabled !== null) {
+            $columns .= ', two_factor_enabled';
+            $values  .= ', :two_factor_enabled';
+            $params[':two_factor_enabled'] = (int)$twoFactorEnabled === 1 ? 1 : 0;
+        }
+
+        $sql = 'INSERT INTO utilisateurs (' . $columns . ') VALUES (' . $values . ')';
+
+        return $this->db->query($sql, $params);
+    }
+
+    /**
+     * Indique si un nom d'utilisateur est déjà attribué.
+     *
+     * `utilisateurs.nom_utilisateur` porte une contrainte UNIQUE : sans
+     * cette vérification, l'INSERT lèverait une PDOException (23000) et
+     * l'interface afficherait une page blanche. La comparaison est
+     * insensible à la casse (collation CI de MySQL).
+     *
+     * @param string      $username Nom d'utilisateur à vérifier.
+     * @param int|null   $exceptUserId Utilisateur à ignorer (édition).
+     */
+    public function usernameExists(string $username, ?int $exceptUserId = null): bool
+    {
+        $username = trim($username);
+        if ($username === '') {
+            return false;
+        }
+
+        $sql = 'SELECT id FROM utilisateurs WHERE LOWER(nom_utilisateur) = LOWER(?)';
+        $params = [$username];
+        if ($exceptUserId !== null) {
+            $sql .= ' AND id <> ?';
+            $params[] = $exceptUserId;
+        }
+
+        $row = $this->db->fetch($sql . ' LIMIT 1', $params);
+
+        return !empty($row);
     }
 
     /**
