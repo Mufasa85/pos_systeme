@@ -1,8 +1,22 @@
       <!-- Users Page -->
       <div id="page-users" class="page <?= $page == 'utilisateurs' ? 'active' : '' ?>">
+        <?php
+        // Un utilisateur appartient TOUJOURS à une boutique. Si aucune
+        // boutique n'existe (base fraîche), la création est impossible :
+        // on le dit explicitement plutôt que de laisser un échec technique.
+        $isSuperAdminPage = ($_SESSION['role'] ?? '') === 'super_admin';
+        $noShopAvailable = $isSuperAdminPage && empty($shops);
+        ?>
+        <?php if ($noShopAvailable): ?>
+        <div style="margin-bottom: 1rem; padding: 1rem; background: #fef2f2; border: 1px solid #fecaca; border-left: 4px solid #dc2626; border-radius: var(--radius, 8px); color: #991b1b; font-size: 0.85rem; line-height: 1.5;">
+          <strong>Impossible de créer un utilisateur : aucune boutique n'existe encore.</strong><br>
+          Un utilisateur doit être rattaché à une boutique (c'est elle qui porte sa caisse, sa paie et ses ventes).
+          Créez d'abord une boutique depuis l'écran <em>Boutiques</em>, puis revenez ici.
+        </div>
+        <?php endif; ?>
         <div class="page-header">
           <h2>Gestion des utilisateurs</h2>
-          <button id="add-user-btn" class="btn btn-primary" onclick="openAddUserModal()">
+          <button id="add-user-btn" class="btn btn-primary" onclick="openAddUserModal()" <?= $noShopAvailable ? 'disabled title="Créez d\'abord une boutique"' : '' ?>>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <line x1="12" y1="5" x2="12" y2="19"></line>
               <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -160,14 +174,27 @@
               <input type="file" id="user-profile-image" name="profile_image" accept="image/jpeg,image/png,image/gif" class="client-number-input" style="width: 100%;">
               <div style="font-size: 0.7rem; color: var(--muted); margin-top: 4px;">Formats acceptés: JPG, PNG, GIF (max 2MB)</div>
             </div>
-            <?php if (($_SESSION['role'] ?? '') === 'super_admin' && !empty($shops)): ?>
+            <?php if (($_SESSION['role'] ?? '') === 'super_admin'): ?>
             <div style="margin-bottom: 1rem;">
-              <label for="user-shop" style="font-size: 0.75rem; font-weight: 600; color: var(--muted); display: block; margin-bottom: 4px;">Boutique</label>
-              <select id="user-shop" name="shop_id" class="client-number-input" style="width: 100%;">
-                <?php foreach ($shops as $shop): ?>
-                  <option value="<?= $shop['id'] ?>"><?= htmlspecialchars($shop['nom']) ?> (<?= htmlspecialchars($shop['code']) ?>)</option>
-                <?php endforeach; ?>
-              </select>
+              <label for="user-shop" style="font-size: 0.75rem; font-weight: 600; color: var(--muted); display: block; margin-bottom: 4px;">
+                Boutique <span style="color: var(--danger, #dc2626);">*</span>
+              </label>
+              <?php if (!empty($shops)): ?>
+                <select id="user-shop" name="shop_id" required class="client-number-input" style="width: 100%;">
+                  <?php foreach ($shops as $shop): ?>
+                    <option value="<?= $shop['id'] ?>"><?= htmlspecialchars($shop['nom']) ?> (<?= htmlspecialchars($shop['code']) ?>)</option>
+                  <?php endforeach; ?>
+                </select>
+                <div style="font-size: 0.7rem; color: var(--muted); margin-top: 4px;">
+                  Tout utilisateur appartient à une boutique : c'est elle qui porte sa caisse, sa paie et ses ventes.
+                </div>
+              <?php else: ?>
+                <input type="hidden" name="shop_id" value="">
+                <div style="padding: 0.75rem; background: #fef2f2; border: 1px solid #fecaca; border-radius: var(--radius, 8px); color: #991b1b; font-size: 0.8rem;">
+                  <strong>Aucune boutique disponible.</strong><br>
+                  Créez d'abord une boutique depuis l'écran <em>Boutiques</em> : un utilisateur ne peut pas être créé sans boutique de rattachement.
+                </div>
+              <?php endif; ?>
             </div>
             <?php endif; ?>
             <div style="display: flex; gap: 0.75rem; margin-top: 1.5rem;">
