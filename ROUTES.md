@@ -5,6 +5,7 @@
 - [Routes Web (Frontend)](#routes-web-frontend)
 - [Routes API (Backend)](#routes-api-backend)
 - [Authentification](#authentification)
+- [Authentification MOBILE (app Android) — token Bearer](#authentification-mobile-app-android--token-bearer)
 - [Permissions](#permissions)
 
 ---
@@ -82,6 +83,55 @@
 > Élec/Eau : le discriminant `providerService` exclut les recharges du blocage
 > du POS.
 
+### Pages bloquées par UTILISATEUR (`super_admin`)
+
+Le `super_admin` peut retirer l'accès à une page à un utilisateur **précis**,
+sans toucher à son rôle ni à ses droits `acces_*`. Le blocage est stocké dans
+`user_page_access` (migration `2026_11_18_user_page_access.sql`).
+
+| Méthode | Route                              | Contrôleur     | Action                     | Accès           |
+| ------- | ---------------------------------- | -------------- | -------------------------- | --------------- |
+| POST    | `/api/user/page-access/update`     | PageController | apiUserPageAccessUpdate    | `super_admin`   |
+
+| Élément            | Valeur                                                        |
+| ------------------ | ------------------------------------------------------------- |
+| Table              | `user_page_access`                                            |
+| Source de vérité   | `UserPageAccessService`                                       |
+| Qui peut régler   | **`super_admin` uniquement**                                  |
+| Écran              | `/pages-bloquees` (sidebar `super_admin`)                    |
+| Réglage            | `/hotel/roles` → colonne « Pages bloquées »                   |
+| Garde page / API   | `Router::policyAllows()` / `Controller::requirePagePolicy()`  |
+| Masquage sidebar   | `app/views/layout/header.php` (liens conditionnels)            |
+
+- **Absence de blocage = accès conservé** : aucun impact au déploiement.
+- Le **`super_admin` n'est jamais bloqué**.
+- La boutique n'est pas stockée : elle découle de `utilisateurs.shop_id`.
+- La politique est **restrictive** : elle retire un accès, elle n'en accorde
+  jamais un.
+
+> ⚠️ La colonne « Pages bloquées » de `/hotel/roles` est **réservée au
+> `super_admin`** : un manager (vendeur avec `hotel_role='manager'`) gère les
+> rôles hôtel mais ne voit pas cette colonne et ne peut pas la modifier :
+> `POST /api/user/page-access/update` lui répond **403**.
+
+| Méthode | Route                          | Contrôleur     | Action             | Accès         |
+| ------- | ------------------------------ | -------------- | ------------------ | ------------- |
+| GET     | `/pages-bloquees`              | PageController | pagesBloquees      | `super_admin` |
+
+L'écran `/pages-bloquees` (lien dans la sidebar du `super_admin`) liste les
+utilisateurs de la boutique ciblée (`?shop_id=`) et permet de bloquer une
+page pour chacun d'eux. La modale de sélection est partagée avec
+`/hotel/roles` (`app/views/partials/pages-access-modal.php`).
+
+Chaque écran ne propose que **sa famille de pages** : `/pages-bloquees` gère
+les 12 pages POS, `/hotel/roles` les 9 pages Hôtel. Un blocage POS n'est donc
+pas visible ni modifiable depuis `/hotel/roles`, et inversement.
+
+Dans la modale, les pages hors du périmètre de l'utilisateur (droits
+`acces_*`, rôle applicatif, rôle métier hôtel) sont **floutées** et marquées
+« hors périmètre », mais restent **cochables** :
+`UserPageAccessService::isPageAvailableByDefault()`.
+
 ### Module Hôtel (PMS)
 
 | Méthode | Route                             | Contrôleur       | Action                  | Accès                                    |
@@ -144,6 +194,8 @@ Base URL: `http://localhost:8000/api`
 | GET     | `/api/produit/import/template` | ProductImportController | template | Modèle Excel à remplir | Admin |
 | GET     | `/api/produit/import/categories` | ProductImportController | categories | Catégories d'une boutique | Admin |
 | GET     | `/api/produit/export` | ProductExportController | export | Exporte le catalogue vers Excel | Admin |
+| GET     | `/api/produit/repair-barcodes` | ProductRepairController | index | Rapport des codes-barres corrompus (dry-run) | Super admin |
+| POST    | `/api/produit/repair-barcodes` | ProductRepairController | repair | Répare les codes-barres corrompus (`confirm=1`) | Super admin |
 
 #### GET `/api/produits`
 
@@ -379,6 +431,84 @@ GET /api/produit/export?category=Boissons&search=Coca
 → produits_boissons_coca_2026-11-12.xlsx
 ```
 
+#### GET `/api/produit/repair-barcodes`
+
+**Description:** Rapport des codes-barres corrompus par l'import Excel — **dry-run,
+aucune écriture en base**.
+
+> **Contexte.** L'import de produits lisait la valeur *affichée* de la cellule
+> « code_barres » au lieu de sa valeur *réelle*. Or Excel formate
+> automatiquement en date (`m/d/yyyy`) les codes-barres numériques à 13 chiffres :
+> `8426423308202` s'affichait `5/17/23070765319`, et c'était cette chaîne qui
+> était enregistrée. Le produit devenait invisible au scanner.
+>
+> La reconversion est **exacte** (et non une approximation) : la valeur affichée
+> est le sérial Excel du code-barres. L'aller-retour (sérial → affichage →
+> sérial) est vérifié avant toute écriture.
+
+**Authentification requise:** Oui (**super_admin** uniquement — la route écrit en base).
+
+**Paramètres (tous optionnels) :**
+| Param | Type | Description |
+|-------|------|-------------|
+| shop_id | int | Boutique cible — absent = toutes les boutiques |
+
+**Réponse :**
+```json
+{
+  "success": true,
+  "applied": false,
+  "dry_run": true,
+  "shop_id": 1,
+  "summary": { "detected": 9, "repaired": 0, "duplicates_deleted": 0, "skipped": 1 },
+  "repairs": [
+    { "id": 334, "old": "5/17/23070765319", "new": "8426423308202", "nom": "MOLTEX ADVANCED MEDIA PEMPERS 80`S" }
+  ],
+  "duplicates": [],
+  "skipped": [
+    { "id": 343, "code_barres": "4/10/24370754394", "nom": "KENWOOD CENTRIF JUICER JE356",
+      "reason": "Collision avec le produit #294 (Fromage Emmental).",
+      "collision_id": 294, "collision_nom": "Fromage Emmental" }
+  ],
+  "message": "Rapport uniquement. Ajoutez confirm=1 pour appliquer."
+}
+```
+
+#### POST `/api/produit/repair-barcodes`
+
+**Description:** Applique la réparation des codes-barres corrompus.
+
+**Authentification requise:** Oui (**super_admin** uniquement).
+
+> ⚠️ **Dry-run par défaut.** Sans `confirm=1`, la route ne fait QUE le rapport.
+> Il faut envoyer explicitement `confirm=1` pour déclencher l'écriture — un
+> double-clic ou un appel accidentel ne peut donc pas modifier le catalogue.
+
+**Paramètres :**
+| Param | Type | Description |
+|-------|------|-------------|
+| shop_id | int | Boutique cible — absent = toutes les boutiques |
+| confirm | 1 | **Requis pour écrire.** Absent ou `0` → simple rapport |
+| resolve | 1 | Autorise la résolution des collisions |
+| delete_ids | CSV | Ids de produits à supprimer pour libérer un code-barres (nécessite `resolve=1`) |
+
+**Résolution des collisions.** Un code-barres « en forme de date » peut
+reconstituer un code-barres déjà utilisé par un autre produit (cas réel :
+`8901234567891` était occupé par une donnée de démonstration). La ligne est
+alors **ignorée** et signalée dans `skipped`, jamais écrasée. Pour forcer la
+correction, il faut supprimer le produit occupant via `delete_ids` :
+
+```
+POST /api/produit/repair-barcodes?confirm=1&resolve=1&delete_ids=294
+```
+
+**Réponse :** identique au rapport GET, avec `applied: true` et le compteur
+`summary.repaired` renseigné. L'opération est **transactionnelle** : en cas
+d'erreur, rien n'est conservé.
+
+**Équivalent CLI :** `php scripts/repair_barcodes_importes.php --yes`
+(utile quand on a un accès SSH ; la route le remplace sur mutualisé).
+
 #### GET `/api/produit/import/categories`
 
 **Description:** Renvoie les catégories disponibles pour une boutique donnée.
@@ -496,23 +626,60 @@ doivent être celles de la boutique de destination.
 
 **Description:** Crée un nouvel utilisateur.
 
-**Authentification requise:** Oui (rôle admin)
+**Authentification requise:** Oui (rôle `admin` ou `super_admin`)
 
-**Paramètres POST:**
+**Paramètres POST** (formulaire `multipart/form-data` **ou** corps JSON) :
 | Param | Type | Requis | Description |
 |-------|------|--------|-------------|
 | username | string | Oui | Nom d'utilisateur unique |
-| password | string | Oui | Mot de passe |
+| password | string | Oui | Mot de passe (6 caractères minimum) |
 | fullname | string | Oui | Nom complet |
-| role | string | Non | Rôle (défaut: "vendeur") |
-| actif | int | Non | Statut actif (défaut: 1) |
+| role | string | Non | `admin` ou `vendeur` (défaut : `vendeur`) |
+| actif | int | Non | Statut actif (défaut : 1) |
+| agent_code | string | Non | Code agent `AFxxxx` (généré par le serveur si absent ou déjà pris) |
+| email | string | Non | Adresse e-mail |
+| telephone | string | Non | Numéro de téléphone |
+| two_factor_enabled | int | Non | 1 = 2FA activée (exige `telephone`), 0 = désactivée |
+| shop_id | int | **Oui** | Boutique de rattachement — `super_admin` uniquement |
 
-**Réponse:**
+**Résolution de la boutique (`shop_id`) :**
+- `super_admin` : la boutique **explicitement choisie** dans le formulaire.
+  Aucune boutique n'est devinée : sans sélection, la création est **refusée**.
+- `admin` : **toujours sa propre boutique** — le `shop_id` reçu est ignoré
+  (anti-évasion multi-tenant).
+
+⚠️ **Un utilisateur appartient TOUJOURS à une boutique** : c'est elle qui
+porte sa caisse, sa paie et ses ventes. Un compte sans boutique est
+inutilisable, donc la création est refusée plutôt que d'enregistrer un
+compte orphelin.
+
+**Réponses d'erreur** (JSON, `success: false`) :
+
+| Code | Cas |
+|------|-----|
+| 400 | Champ obligatoire manquant, rôle invalide, mot de passe < 6 caractères, 2FA sans téléphone, **boutique non sélectionnée** (`code: shop_required`) |
+| 403 | Création d'un `admin` par un non-`super_admin`, ou création d'un `super_admin` |
+| 404 | Boutique inexistante |
+| 409 | Nom d'utilisateur déjà attribué |
+
+**Exemple — aucune boutique sélectionnée :**
+
+```json
+{
+  "success": false,
+  "error": "Boutique non sélectionnée",
+  "code": "shop_required",
+  "message": "Sélectionnez la boutique de rattachement du compte avant de l'enregistrer. Un utilisateur appartient toujours à une boutique."
+}
+```
+
+**Réponse (succès):**
 
 ```json
 {
   "success": true,
-  "message": "user create !"
+  "message": "Utilisateur créé !",
+  "id": 240
 }
 ```
 
@@ -639,6 +806,59 @@ doivent être celles de la boutique de destination.
   "message": "Vente supprimée avec succès"
 }
 ```
+
+---
+
+### Brouillons de panier (caisse)
+
+> Référence : `docs/PLAN_BROUILLONS_CAISSE.md`
+> Le caissier peut sauvegarder son panier en cours puis le reprendre plus tard
+> pour relancer la facture. ⚠️ Un brouillon ne déduit **jamais** le stock et ne
+> consomme **jamais** un numéro de facture : la facturation passe exclusivement
+> par `POST /api/vente`.
+
+| Méthode | Route                                    | Contrôleur                 | Action   | Description                              |
+| ------- | ---------------------------------------- | -------------------------- | -------- | ---------------------------------------- |
+| GET     | `/api/caisse/brouillons`                  | CaisseBrouillonController  | index    | Liste les brouillons de la boutique      |
+| GET     | `/api/caisse/brouillons/compteur`         | CaisseBrouillonController  | compteur | Nb de brouillons `ouvert` (badge)        |
+| GET     | `/api/caisse/brouillons/{id}`             | CaisseBrouillonController  | show     | Détail d'un brouillon + payload          |
+| POST    | `/api/caisse/brouillons`                  | CaisseBrouillonController  | store    | Crée / met à jour un brouillon           |
+| POST    | `/api/caisse/brouillons/{id}/restore`     | CaisseBrouillonController  | restore  | Reprend le brouillon dans le panier      |
+| POST    | `/api/caisse/brouillons/{id}/delete`      | CaisseBrouillonController  | destroy  | Supprime le brouillon                    |
+
+**Authentification requise:** Oui (session PHP + boutique active).
+
+**Contrôle d'accès :** les écritures (`store`, `restore`, `destroy`) exigent
+en plus le droit `utilisateurs.acces_caisse` (`requireCaisseAccess()`), comme
+`POST /api/vente`.
+
+**Scoping boutique (fail-closed) :** un brouillon appartenant à une autre
+boutique est considéré comme **inexistant** (HTTP 404), pas comme interdit
+(403). La suppression est réservée à l'**auteur** du brouillon ou à un
+**admin** de la boutique (HTTP 403 sinon).
+
+**Body de `POST /api/caisse/brouillons` :**
+
+```json
+{
+  "id": 12,
+  "libelle": "Coca x3 + Pain",
+  "invoice_type": "FV",
+  "articles": [
+    { "produit_id": 1, "nom": "Coca-Cola", "prix": 10.99, "quantite": 3 }
+  ],
+  "client": { "id": 5 },
+  "sejour": { "id": 9 },
+  "payments": [{ "type": "ESPECES", "amount": 32.97 }]
+}
+```
+
+`libelle` est facultatif : s'il est vide, un libellé est généré à partir des
+articles (« Coca-Cola ×3 »). Un panier **vide** est refusé (HTTP 422).
+
+**Note :** le payload ne contient que des articles et des identifiants —
+ni NIF, ni adresse client. La fiche client complète est relue via
+`GET /api/client/{id}` au moment de la reprise.
 
 ---
 
@@ -1049,6 +1269,69 @@ Après une connexion réussie via `POST /login`, les variables de session suivan
   "message": "Identifiants incorrects"
 }
 ```
+
+---
+
+## Authentification MOBILE (app Android) — token Bearer
+
+> L'application mobile (qui rend `/caisse`) ne manipule pas le cookie de
+> session PHP : elle s'authentifie avec un **token Bearer**.
+> Le token est résolu et la session PHP hydratée **avant le routeur**
+> (`public/index.php`) : toutes les routes métier ci-dessus restent
+> utilisables telles quelles par l'app mobile, avec les guards existants.
+>
+> **Documentation complète** : `docs/API_MOBILE.md`
+
+| Méthode | Route | Auth | Description |
+|---------|-------|------|-------------|
+| `POST` | `/api/mobile/auth/login` | – | Connexion (`username` + `password` + `device`) → token Bearer |
+| `POST` | `/api/mobile/auth/verify-otp` | – | Validation du code OTP (2FA) → token Bearer |
+| `POST` | `/api/mobile/auth/resend-otp` | – | Renvoi du code OTP (défi en cours) |
+| `POST` | `/api/mobile/auth/logout` | Bearer | Révocation du token courant |
+| `GET` | `/api/mobile/auth/me` | Bearer | Contexte complet : utilisateur + boutique + ISF |
+| `GET` | `/api/mobile/auth/devices` | Bearer | Appareils connectés de l'utilisateur |
+| `POST` | `/api/mobile/auth/revoke-all` | Bearer | Déconnecte tous les appareils |
+
+**En-tête pour les routes métier** :
+
+```
+Authorization: Bearer <token>
+```
+
+**Réponse de `login`** (extrait) :
+
+```json
+{
+  "success": true,
+  "token": "…64 caractères hex…",
+  "token_type": "Bearer",
+  "expires_at": "2026-12-22 14:30:00",
+  "user": { "id": 12, "role": "vendeur", "agent_code": "AF0042", "…": "…" },
+  "shop": {
+    "id": 3,
+    "nom": "SuperMarché Express",
+    "adresse": "…",
+    "telephone": "…",
+    "ice": "001234567890123",
+    "rccm": "…",
+    "isf": "A900001T",
+    "nid": "…",
+    "pdv": "PDV-01",
+    "logo": "media/logo/shop_3.jpg",
+    "homologation": true
+  },
+  "context": {
+    "permissions": { "caisse": true, "produits": true, "historique": true },
+    "receipt": { "paper_type": "80mm", "receipt_padding_80mm": { "h": 0, "v": 1 } }
+  }
+}
+```
+
+> Le bloc `shop` contient exactement les champs attendus par l'en-tête de la
+> facture finale (nom, adresse, téléphone, ICE, RCCM, ISF, NID, PDV, logo).
+>
+> **Migration** : `migrations/2026_11_22_mobile_auth.sql` (table `mobile_tokens`)
+> — le token en clair n'est **jamais** stocké (seule son empreinte SHA-256 l'est).
 
 ---
 

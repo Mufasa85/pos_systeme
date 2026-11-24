@@ -155,6 +155,107 @@ hôtel du rôle effectif (`/hotel/etages` pour la gouvernante,
 de travail, pas sur une page d'erreur. Les autres modules redirigent vers
 `/dashboard`.
 
+### Pages bloquées par UTILISATEUR — `user_page_access`
+
+Couche **supplémentaire** : le `super_admin` peut retirer l'accès à une page à
+un utilisateur **précis**, sans toucher à son rôle ni à ses droits `acces_*`.
+
+| Élément              | Valeur                                                        |
+| -------------------- | ------------------------------------------------------------- |
+| Table                | `user_page_access` (migration `2026_11_18_user_page_access.sql`) |
+| Clé unique           | `(user_id, page_key)`                                         |
+| Source de vérité     | `UserPageAccessService`                                      |
+| Modèle               | `app/models/UserPageAccess.php`                               |
+| Catalogue            | `UserPageAccessService::CATALOG` (21 pages : 12 POS + 9 Hôtel) |
+| Qui peut les régler  | **`super_admin` uniquement**                                  |
+| Écran                | `/pages-bloquees` (sidebar `super_admin`)                    |
+| Réglage              | `/hotel/roles` → colonne « Pages bloquées »                   |
+| API de réglage       | `POST /api/user/page-access/update`                           |
+| Garde page           | `Router::policyAllows()` / `Controller::requirePagePolicy()`  |
+| Masquage sidebar     | `app/views/layout/header.php` (liens conditionnels)            |
+
+Règles :
+- **Absence de blocage = accès conservé** : la table ne stocke que les
+  blocages. Un déploiement ne modifie donc aucun accès existant, et les
+  nouvelles pages restent accessibles par défaut.
+- **Le `super_admin` n'est jamais bloqué** (il doit administrer tous les
+  blocages, sur toutes les boutiques).
+- La **boutique n'est pas stockée** : elle découle de `utilisateurs.shop_id`.
+  Une restriction suit donc l'utilisateur s'il change de boutique.
+- La politique est **restrictive** : elle retire un accès normalement accordé,
+  elle n'en accorde jamais un (rôle, `acces_*`, feature flags OSAT).
+- **Fail-closed** : page inconnue, utilisateur introuvable ou erreur SQL ⇒
+  accès refusé.
+
+⚠️ La colonne « Pages bloquées » est **réservée au `super_admin`** : un
+manager (vendeur avec `hotel_role='manager'`) gère les rôles hôtel de son
+équipe mais ne bloque **PAS** les pages de ses collaborateurs — l'API répond
+**403** à un manager, comme pour la colonne « Accès modules POS ».
+
+### Écran « Pages bloquées » — `/pages-bloquees`
+
+Lien dans la **sidebar du `super_admin`** (à côté de « Boutiques »). Il
+permet de bloquer n'importe quelle page pour n'importe quel utilisateur,
+toutes boutiques confondues (sélecteur de boutique en haut).
+
+| Élément          | Valeur                                                        |
+| ---------------- | ------------------------------------------------------------- |
+| Route            | `GET /pages-bloquees` (hors politique : c'est l'outil)         |
+| Contrôleur       | `PageController::pagesBloquees()`                             |
+| Vue              | `app/views/pages-bloquees.php`                                |
+| Modale partagée  | `app/views/partials/pages-access-modal.php`                   |
+| Boutique ciblée  | `?shop_id=` (le `super_admin` agit sur toutes les boutiques)   |
+| Accès            | **`super_admin` uniquement** (403 sinon)                       |
+
+La modale de sélection des pages est **partagée** avec `/hotel/roles` : le
+partial `partials/pages-access-modal.php` porte le catalogue, le CSS et le
+JS. Il ne doit donc pas être dupliqué.
+
+**Chaque écran ne propose que SA famille de pages** :
+
+| Écran              | Famille      | Pages proposées          |
+| ------------------ | ------------ | ------------------------ |
+| `/pages-bloquees`  | `general`    | 12 pages POS             |
+| `/hotel/roles`     | `hotel`      | 9 pages Hôtel            |
+
+Le catalogue est filtré côté PHP (`UserPageAccessService::getCatalogForFamily()`)
+et une sécurité côté client (`PAGE_FAMILY`) filtre encore la liste affichée.
+Les badges affichés sont eux aussi limités à la famille : un blocage POS
+n'apparaît donc pas dans `/hotel/roles`, et inversement.
+
+⚠️ Un blocage d'une famille **n'est pas modifiable** depuis l'écran de
+l'autre famille : la modale n'en propose que sa famille.
+
+### Floutage des pages hors périmètre (`isPageAvailableByDefault()`)
+
+Dans la modale, les pages que l'utilisateur **n'a pas par défaut** sont
+**floutées** (`opacity` + `blur` + bordure en pointillés) et portent une
+pastille « hors périmètre » — mais elles restent **cochables** : le
+super_admin peut vouloir retirer une page dont l'utilisateur n'a pas
+l'accès de toute façon.
+
+`UserPageAccessService::isPageAvailableByDefault($pageKey, $user)` répond à
+la question « cette page fait-elle partie de son outil de travail ? ». Elle
+repose sur les **mêmes règles** que la sidebar et les gardes backend :
+
+| Situation                                    | Règle                                        |
+| -------------------------------------------- | -------------------------------------------- |
+| `super_admin`                                | toutes les pages                             |
+| `admin`                                      | toutes les pages                             |
+| `utilisateurs`, `parametres`, `categories`, `taxes` | rôle `admin` obligatoire            |
+| `analytics`                                  | rôle `admin` obligatoire (redirection)        |
+| `rapports`                                   | rôle `admin` obligatoire (ses APIs l'exigent) |
+| `caisse`, `produits`, `historique`, `pressing`, `analytics`, `paie` | droit `acces_<module>`          |
+| pages `hotel_*`                              | rôle métier hôtel (`hotel_role`)             |
+| `recharges`                                  | accessible (abonnement OSAT traité ailleurs) |
+
+⚠️ Cette méthode sert **UNIQUEMENT à l'affichage**. Elle n'accorde aucun
+droit : la politique reste RESTRICTIVE et un blocage retire toujours l'accès.
+
+Les données de l'écran sont préparées par
+`PageController::buildPagesBloqueesData()` (isolée du rendu pour rester
+testable : `render()` inclut le layout avec `require_once`).
+
 ---
 
 ## 4. État du module Hôtel (PMS)
@@ -352,6 +453,46 @@ tel quel déformerait toute l'interface du POS.
 
 ---
 
+## 5bis. Brouillons de panier (caisse)
+
+> Référence : `docs/PLAN_BROUILLONS_CAISSE.md` — ajouté le 2026-11-17
+
+Le caissier peut **sauvegarder son panier** en cours (bouton « Brouillon » dans
+le header du panier) puis le **reprendre** plus tard, sur n'importe quel poste
+de la même boutique, et **relancer la facture**.
+
+### Règles invariantes (à ne pas casser)
+
+- Un brouillon **ne déduit JAMAIS le stock** : la déduction se fait à la
+  facturation, dans `SaleController::create`. Un panier « gelé » ne doit pas
+  bloquer le stock d'un article pendant des heures.
+- Un brouillon **ne consomme JAMAIS de numéro de facture** et **n'est pas une
+  vente** : il vit dans `caisse_brouillons`, pas dans `ventes`.
+  ❌ Ne pas ajouter de statut « brouillon » à `ventes` : `ventes` est la table
+  fiscale, et tous les rapports DGI (A/X/Z), la clôture et les exports
+  comptent les ventes.
+- La facturation passe **exclusivement** par `SaleController::create` :
+  ❌ ne pas dupliquer la logique de TVA, de DGI ou de stock dans le module
+  brouillons.
+- Le payload ne contient **que** des articles et des identifiants (ni NIF,
+  ni adresse) : la fiche client est relue via `GET /api/client/{id}`.
+
+### Points techniques
+
+- Table : `caisse_brouillons` (1 seule table, snapshot en colonne `JSON`).
+- `ventes.brouillon_id` = traçabilité inverse (colonne `NULL` par défaut).
+- Scoping boutique **fail-closed** : un brouillon d'une autre boutique est
+  *inexistant* (404), pas *interdit* (403).
+- Statuts : `ouvert` (jamais facturé) / `converti` (facturé, lié à `ventes`).
+- Purge (Q3) : `scripts/purge_brouillons_caisse.php` supprime les brouillons
+  `ouvert` de plus de 30 jours. Un brouillon `converti` **n'est jamais purgé**.
+  ⚠️ `Database::fetch()` renvoie `false` (et non `null`) quand aucune ligne
+  ne correspond : le tester avec `=== null` casse le scoping.
+- Front : `public/assets/js/caisse-brouillons.js` (module dédié, chargé après
+  `app.js` dans `footer.php` car il utilise `posCart` et `APP_URL`).
+
+---
+
 ## 6. Commandes utiles
 
 ```bash
@@ -385,6 +526,56 @@ php -S localhost:8000 -t public/
 - ❌ Importer le CSS de l'appli `pressing/` tel quel — préfixer tout en `pr-`
 - ❌ Supprimer `pressing_paiements` « parce que `ventes.payments` existe » —
   ce sont deux flux d'encaissement différents (cf. §5)
+- ❌ Revenir à `sanitaze(string $input)` — la signature stricte faisait
+  planter toute l'API dès qu'un champ OPTIONNEL était absent
+  (`sanitaze(): Argument #1 ($input) must be of type string, null given`)
+- ❌ Passer un mot de passe dans `sanitaze()` — l'assainissement HTML le
+  corrompt (`&` → `&amp;`, `<b` → supprimé) et le désynchronise de la
+  saisie de connexion. Utiliser `sanitizePassword()`
+
+### Assainissement des entrées (`Controller`)
+
+| Méthode | Usage | Comportement |
+| ------- | ----- | ------------ |
+| `sanitaze($input)` | Texte d'affichage (noms, libellés, codes) | `strip_tags(htmlspecialchars())`. **Ne lève jamais** : `null` → `''`, tableau → `''` |
+| `sanitizePassword($password)` | Mots de passe | `trim()` seul — **jamais** d'assainissement HTML |
+| `requestInput()` | Source des données de requête | `$_POST` (formulaire) **ou** corps JSON |
+
+⚠️ Règle : toute valeur d'entrée passe par `sanitaze()` **avec un défaut**
+(`$_POST['x'] ?? ''`) — un champ optionnel non envoyé ne doit JAMAIS
+provoquer de TypeError ni d'insert SQL invalide.
+
+### ⚠️ Un utilisateur appartient TOUJOURS à une boutique
+
+`utilisateurs.shop_id` est `NULL`-able en base, mais **l'application refuse
+de créer un utilisateur sans boutique** :
+
+| Contexte | Boutique retenue |
+| -------- | ---------------- |
+| `super_admin` | la boutique **explicitement choisie** dans le formulaire — **aucun repli automatique** |
+| `admin` | toujours sa propre boutique (le `shop_id` reçu est ignoré) |
+
+Pourquoi : une boutique porte la caisse, la paie et les ventes de ses
+utilisateurs. Un compte sans boutique ne peut rien faire (ni se connecter à
+la caisse, ni figurer dans un périmètre de paie) — c'est un compte mort.
+
+Sur une **base fraîche** (dump sans données), aucune boutique n'existe :
+le `super_admin` ne peut donc pas encore créer d'utilisateur. La page
+`/utilisateurs` affiche un bandeau rouge qui l'invite à créer d'abord une
+boutique (`/shops`), et l'API répond :
+
+```json
+{
+  "success": false,
+  "error": "Boutique non sélectionnée",
+  "code": "shop_required",
+  "message": "Sélectionnez la boutique de rattachement du compte avant de l'enregistrer. Un utilisateur appartient toujours à une boutique."
+}
+```
+
+⚠️ Ne JAMAIS réintroduire un repli automatique (« 1re boutique ayant des
+utilisateurs », « boutique de session »…) : cela recréerait le bug
+silencieux d'un compte créé dans la mauvaise boutique.
 
 ---
 

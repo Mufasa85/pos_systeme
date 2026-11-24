@@ -25,6 +25,48 @@ use App\Core\Router;
 // Set base path for AltoRouter before loading routes
 //Router::getInstance()->setBasePath('/pos/public');
 
+// ── COMPRESSION DES RÉPONSES (gzip) ──────────────────────────────────────
+//
+// ⚠️ Pourquoi : le catalogue produits renvoie 3,2 Mo de JSON (et la page
+// /produits 13,9 Mo de HTML) pour 6 000 produits. Sans compression, la
+// caisse attend le catalogue EN CLAIR sur une connexion 3G/4G de boutique :
+// 2 s de plus à chaque ouverture de poste.
+//
+// Ce bloc active `zlib.output_compression`, le compresseur du niveau SAPI
+// (PHP). Il est choisi parce qu'il est SÛR par construction :
+//
+//   - il ne compresse que si le client a envoyé `Accept-Encoding: gzip` ;
+//   - il se désactive AUTOMATIQUEMENT si la réponse porte un
+//     `Content-Length` explicite (cas de MediaController, qui sert une
+//     image avec `readfile()`) : le fichier est alors renvoyé tel quel,
+//     octet pour octet. Vérifié : /media/logo/xxx.jpg → 36 145 octets
+//     reçus, `Content-Length` intact, aucune compression ;
+//   - il n'a pas besoin de `mod_deflate` / `mod_filter`, absents de
+//     nombreuses installations (XAMPP les a en commentaire par défaut) et
+//     de certains hébergeurs mutualisés.
+//
+// Le serveur (Apache) peut aussi compresser via `mod_deflate`
+// (cf. public/.htaccess) : les deux mechanisms se tolèrent, Apache
+// n'appliquant son filtre que si la réponse n'est pas déjà encodée.
+//
+// ⚠️ `zlib.output_compression` est modifiable à chaud (`ini_set`) : vérifié
+//    ici, `access = 7` (PHP_INI_ALL). Il doit être positionné AVANT que
+//    PHP n'ait envoyé les en-têtes : d'où la place de ce bloc, avant le
+//    routeur.
+//
+// ⚠️ Les réponses déjà encodées ne sont pas recompressées
+//    (`HTTP_CONTENT_ENCODING`).
+
+if (
+    PHP_SAPI !== 'cli'
+    && !isset($_SERVER['HTTP_CONTENT_ENCODING'])
+    && function_exists('ini_set')
+    && stripos($_SERVER['HTTP_ACCEPT_ENCODING'] ?? '', 'gzip') !== false
+) {
+    @ini_set('zlib.output_compression', '1');
+    @ini_set('zlib.output_compression_level', '5');
+}
+
 // ── Authentification MOBILE (token Bearer) ───────────────────────────────
 // L'app mobile Android ne manipule pas le cookie de session PHP : elle
 // s'authentifie avec un token Bearer renvoyé par POST /api/mobile/auth/login.

@@ -33,3 +33,56 @@ RewriteRule ^(.*)$ index.php?url=$1 [L,QSA]
 <FilesMatch "\.(png|ico|svg)$">
     Header set Cache-Control "public, max-age=604800, must-revalidate"
 </FilesMatch>
+
+# ============================================================
+# COMPRESSION (gzip) — correctif de performance R6
+# ============================================================
+# Le catalogue produits renvoie 3,2 Mo de JSON (et la page /produits
+# 13,9 Mo de HTML) pour 6 000 produits. Sans compression, la caisse
+# attend le catalogue EN CLAIR sur une connexion 3G/4G de boutique.
+#
+# Gain mesuré : JSON 3,23 Mo → 0,14 Mo ; HTML 13,90 Mo → 0,40 Mo.
+#
+# ⚠️ On ne compresse QUE du texte/JSON. Jamais les images, PDF, Excel
+#    ni les flux binaires : MediaController envoie un `Content-Length`
+#    suivi d'un `readfile()` — un corps compressé avec une longueur
+#    non compressée TRONQUERAIT le fichier. Les formats déjà compressés
+#    (PNG, JPEG, ZIP, XLSX) ne gagnent rien et seraient plus lents.
+#
+# ⚠️ Le module peut être indisponible (XAMPP l'a en commentaire par
+#    défaut, certains hébergeurs mutualisés le désactivent). Dans ce
+#    cas, le filet de sécurité applicatif s'active : le bloc gzip de
+#    `public/index.php` (compression zlib côté PHP).
+#
+# ⚠️ `AddOutputFilterByType` exige le module `mod_filter` (en plus de
+#    `mod_deflate`). Si `mod_filter` manque, cette directive provoque une
+#    ERREUR 500 sur TOUTES les requêtes — pas un simple avertissement.
+#    D'où le double garde : `mod_filter` ET `mod_deflate`.
+#    (Vérifié sur XAMPP : `mod_deflate` activé, `mod_filter` en commentaire
+#    → 500 sur toutes les pages.)
+<IfModule mod_filter.c>
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE application/json
+    AddOutputFilterByType DEFLATE application/javascript
+    AddOutputFilterByType DEFLATE text/javascript
+    AddOutputFilterByType DEFLATE text/html
+    AddOutputFilterByType DEFLATE text/css
+    AddOutputFilterByType DEFLATE text/plain
+    AddOutputFilterByType DEFLATE text/csv
+    AddOutputFilterByType DEFLATE application/manifest+json
+
+    # ⚠️ On EXCLUT explicitement les formats binaires et les flux de
+    #    fichier : une longueur de contenu explicite y est incompatible
+    #    avec un corps compressé.
+    SetEnvIfNoCase Request_URI "\.(?:png|jpe?g|gif|webp|svg|ico|zip|pdf|xlsx?|docx?|pptx?)$" no-gzip dont-vary
+    SetEnvIfNoCase Content-Type "^(?:image/|application/pdf|application/vnd\.|application/zip)" no-gzip dont-vary
+</IfModule>
+</IfModule>
+
+# ============================================================
+# MIMES DE COMPRESSION — évite de servir du JS en texte brut
+# ============================================================
+<IfModule mod_mime.c>
+    AddType application/javascript .js
+    AddType application/json .json
+</IfModule>

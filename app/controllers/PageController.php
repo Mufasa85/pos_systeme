@@ -179,7 +179,15 @@ class PageController extends Controller
         $productModel = new Product();
         $shopId = $this->isSuperAdmin() ? null : $this->getShopId();
         $ventes = $saleModel->getAllSales($shopId);
-        $produits = $productModel->getAll($shopId);
+
+        // ⚠️ Le tableau de bord n'a besoin que d'un NOMBRE de produits et de
+        // la liste des stocks faibles. Il NE charge plus tout le catalogue :
+        // `getAll()` + `count()` chargeait 6 000 lignes pour afficher un
+        // simple compteur (400 ms mesurés). `countFiltered()` fait le même
+        // travail en 2,6 ms, et `getLowStock()` remplace le `array_filter()`
+        // qui parcourait le catalogue entier en PHP.
+        $produitsCompte = $productModel->countFiltered($shopId);
+        $stockFaible = $productModel->getLowStock($shopId);
 
         // ⚠️ Aucune borne de période locale n'est calculée ici : les
         // indicateurs de ventes sont fournis par la DGI (cf.
@@ -249,16 +257,13 @@ class PageController extends Controller
 
         $this->render('dashboard', [
             'ventes' => $ventes,
-            'produits_compte' => count($produits),
+            'produits_compte' => $produitsCompte,
             // ⚠️ Pas de `ventes_jour` / `ventes_semaine` / `ventes_mois` :
             // ces indicateurs proviennent de la DGI et sont injectés par le
             // frontend (cf. `public/assets/js/dashboard.js`).
             'chart_labels' => json_encode($chart_labels),
             'chart_values' => json_encode($chart_values),
-            'stock_faible' => array_filter($produits, function ($p) {
-                $totalStock = $p['total_stock'] ?? $p['stock'];
-                return $totalStock <= $p['stock_minimum'];
-            }),
+            'stock_faible' => $stockFaible,
             'expiration_alerts' => $expirationAlerts,
             'expired_alerts' => $expiredAlerts,
             'shopStats' => $shopStats,

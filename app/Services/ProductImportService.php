@@ -141,6 +141,21 @@ class ProductImportService
         $categories = $this->loadCategories($shopId);
         $taxes = $this->loadTaxes();
 
+        // ⚠️ RECHERCHE BATCHÉE des produits existants (correctif de charge).
+        //
+        // Avant : `findByBarcode()` était appelé POUR CHAQUE LIGNE du
+        // fichier. Chaque appel déclenchait 5 requêtes (1 SELECT + les 4
+        // d'`enrichWithBatchInfo`, inutiles ici) → 25 000 requêtes pour un
+        // import de 5 000 produits, soit 7,5 s.
+        //
+        // Maintenant : 1 requête par lot de 500 code-barres (~50 ms pour
+        // 5 000 produits). La sémantique est INCHANGÉE : c'est toujours MySQL
+        // qui compare les code-barres (collation insensible à la casse et
+        // aux accents), et un produit de boutique inactive reste introuvable.
+        $existingIds = $this->productModel->findIdsByBarcodes(
+            $this->collectBarcodes($rows)
+        );
+
         $summary = $this->emptySummary();
         $report = [];
         $seenBarcodes = [];
@@ -180,9 +195,13 @@ class ProductImportService
             }
             $seenBarcodes[$barcodeKey] = $line;
 
-            $existing = $this->productModel->findByBarcode($barcodeKey);
+            // Produit déjà connu ? Lookup dans le map batché (1 requête pour
+            // 500 code-barres) au lieu d'un `findByBarcode()` par ligne.
+            // Le map est indexé par le code-barres TEL QUE SAISI dans le
+            // fichier : la comparaison avec la base a été faite par MySQL.
+            $existingId = $existingIds[$barcodeKey] ?? null;
 
-            if ($existing && $mode === 'create') {
+            if ($existingId !== null && $mode === 'create') {
                 $summary['skipped']++;
                 $this->addReport($report, [
                     'line' => $line,
@@ -194,8 +213,8 @@ class ProductImportService
             }
 
             try {
-                if ($existing) {
-                    $this->updateProduct((int)$existing['id'], $product);
+                if ($existingId !== null) {
+                    $this->updateProduct((int)$existingId, $product);
                     $summary['updated']++;
                     $status = 'updated';
                     $message = 'Produit mis à jour';
@@ -727,6 +746,39 @@ class ProductImportService
         }
     }
 
+    /**
+     * Collecte les code-barres présents dans le fichier, SANS toucher à la
+     * base de données.
+     *
+     * ⚠️ Sert à la recherche batchée des produits existants (cf.
+     * `importFile()`) : on prépare la liste des code-barres à interroger en
+     * une seule passe sur les lignes, au lieu d'interroger la base ligne par
+     * ligne pendant l'écriture.
+     *
+     * La lecture est IDENTIQUE à celle de `buildProduct()` (`readBarcode()`,
+     * valeur brute et non valeur affichée). Les lignes dont le code-barres
+     * est VIDE sont ignorées : `buildProduct()` leur en génère un, et ce
+     * code-barres généré est par construction absent du catalogue.
+     *
+     * @param array $rows Lignes lues par `readRows()`
+     * @return array<int,string> Liste des code-barres (doublons possibles)
+     */
+    private function collectBarcodes(array $rows): array
+    {
+        $barcodes = [];
+        foreach ($rows as $row) {
+            $cells = $row['cells'] ?? [];
+            if (!is_array($cells)) {
+                continue;
+            }
+            $barcode = $this->readBarcode($cells, 'code_barres');
+            if ($barcode !== '') {
+                $barcodes[] = $barcode;
+            }
+        }
+        return $barcodes;
+    }
+
     // MARK: Résolution des référentiels
 
     /** Charge les catégories visibles de la boutique (indexées par nom normalisé). */
@@ -1106,8 +1158,11 @@ class ProductImportService
     {
         do {
             $barcode = (string)random_int(100000000000, 999999999999);
-            $existing = $this->productModel->findByBarcode($barcode);
-        } while ($existing);
+            // ⚠️ `findIdByBarcode()` et non `findByBarcode()` : ce dernier
+            // ajoute 4 requêtes d'enrichissement (stock, lots…) qui ne
+            // servent qu'à savoir SI le code-barres existe déjà.
+            $existing = $this->productModel->findIdByBarcode($barcode);
+        } while ($existing !== null);
 
         return $barcode;
     }
