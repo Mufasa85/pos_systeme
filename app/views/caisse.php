@@ -32,6 +32,49 @@ $showHotelExtras = !empty($shopHasExtrasAccess);
     font-size: 0.85rem;
     color: var(--muted, #64748b);
   }
+  /* ── Loader du catalogue ────────────────────────────────────────────
+     Affiché À CÔTÉ du compteur de produits pendant les requêtes
+     `/api/produits/page` : chargement initial, complétion en arrière-plan
+     et recherche serveur. La progression en arrière-plan est déjà donnée
+     par le suffixe « (X / Y chargés) » du compteur.
+     Les classes sont préfixées `products-`/`loader-` pour ne pas entrer
+     en collision avec les autres vues (cf. .scanner-spinner, etc.). */
+  .products-toolbar-info {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+  }
+  .products-loader {
+    display: none;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--primary, #0B5E88);
+    white-space: nowrap;
+  }
+  .products-loader.active {
+    display: inline-flex;
+  }
+  .products-loader .loader-spinner {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+    border: 2px solid var(--border, #e2e8f0);
+    border-top-color: var(--primary, #0B5E88);
+    border-radius: 50%;
+    animation: products-loader-spin 0.8s linear infinite;
+  }
+  /* Progression (X / Y) : purement visuelle, elle n'est pas annoncée
+     par les lecteurs d'écran (aria-hidden) pour ne pas les saturer. */
+  .products-loader-progress {
+    color: var(--muted, #64748b);
+    font-weight: 500;
+  }
+  @keyframes products-loader-spin {
+    to { transform: rotate(360deg); }
+  }
   .products-pagination {
     display: flex;
     align-items: center;
@@ -338,13 +381,25 @@ $showHotelExtras = !empty($shopHasExtrasAccess);
           </div>
         </div>
       </div>
-      <!-- Loader pour le chargement des produits -->
-
     </div>
     <div class="products-toolbar">
-      <div class="products-count" id="products-count"></div>
+      <div class="products-toolbar-info">
+        <div class="products-count" id="products-count"></div>
+        <!-- Loader du chargement du catalogue : visible À CÔTÉ du compteur
+             pendant les requêtes /api/produits/page (chargement initial,
+             complétion en arrière-plan, recherche serveur).
+             Piloté par posCart.showCatalogueLoader()/hideCatalogueLoader()
+             (cf. public/assets/js/app.js). -->
+        <span id="products-loader" class="products-loader" role="status" aria-live="polite" aria-hidden="true">
+          <span class="loader-spinner" aria-hidden="true"></span>
+          <span class="products-loader-text">Chargement des produits...</span>
+          <span class="products-loader-progress" aria-hidden="true"></span>
+        </span>
+      </div>
     </div>
-    <div id="products-grid" class="products-grid"></div>
+    <div id="products-grid" class="products-grid">
+      <div class="empty-state">Chargement des produits...</div>
+    </div>
     <div class="products-pagination" id="products-pagination"></div>
   </div>
 

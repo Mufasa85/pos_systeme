@@ -356,6 +356,18 @@ const posCart = {
     catalogueLoading: false,
     catalogueSearchTerm: '',
 
+    // Nombre de requêtes `/api/produits/page` EN COURS. Le loader du
+    // catalogue (à côté du compteur) reste visible tant qu'une requête est
+    // en cours OU que le catalogue se complète en arrière-plan : plusieurs
+    // requêtes peuvent se chevaucher (chargement initial, complétion en
+    // arrière-plan, recherche serveur).
+    cataloguePending: 0,
+
+    // Vrai tant que le catalogue n'est pas entièrement chargé (1er bloc +
+    // complétion en arrière-plan). Évite un clignotement du loader entre
+    // le premier bloc et la suite.
+    catalogueBackgroundActive: false,
+
     init() {
         if ($('#category-filter')) {
             $('#category-filter').addEventListener('change', (e) => {
@@ -419,6 +431,72 @@ const posCart = {
         }
     },
 
+    /**
+     * Affiche le loader du catalogue (à côté du compteur de produits).
+     *
+     * @param {string} [text] Libellé affiché à côté du spinner
+     * @param {boolean} [resetProgress] Vide la progression (X / Y) : la
+     *        progression ne concerne que le téléchargement du catalogue,
+     *        pas une recherche serveur.
+     */
+    showCatalogueLoader(text, resetProgress = false) {
+        this.cataloguePending++;
+        const el = $('#products-loader');
+        if (!el) return;
+        const label = el.querySelector('.products-loader-text');
+        if (label && text) label.textContent = text;
+        if (resetProgress) {
+            const progress = el.querySelector('.products-loader-progress');
+            if (progress) progress.textContent = '';
+        }
+        el.classList.add('active');
+        el.setAttribute('aria-hidden', 'false');
+    },
+
+    /**
+     * Met à jour le libellé du loader du catalogue (sans le masquer).
+     *
+     * @param {string} text
+     */
+    updateCatalogueLoaderText(text) {
+        const el = $('#products-loader');
+        if (!el) return;
+        const label = el.querySelector('.products-loader-text');
+        if (label) label.textContent = text;
+    },
+
+    /**
+     * Met à jour la progression (X / Y) affichée à côté du spinner.
+     * Purement visuelle : elle n'est pas annoncée aux lecteurs d'écran.
+     *
+     * @param {number} loaded
+     * @param {number} total
+     */
+    updateCatalogueLoaderProgress(loaded, total) {
+        const el = $('#products-loader');
+        if (!el) return;
+        const progress = el.querySelector('.products-loader-progress');
+        if (progress) progress.textContent = total ? ` ${loaded}/${total}` : '';
+    },
+
+    /**
+     * Masque le loader du catalogue — UNIQUEMENT quand la dernière
+     * requête en cours est terminée.
+     */
+    hideCatalogueLoader() {
+        this.cataloguePending = Math.max(0, this.cataloguePending - 1);
+        // La complétion en arrière-plan garde le loader visible : on ne le
+        // masque que si PLUS AUCUNE requête n'est en cours ET que le
+        // catalogue est complet.
+        if (this.cataloguePending > 0 || this.catalogueBackgroundActive) return;
+        const el = $('#products-loader');
+        if (!el) return;
+        el.classList.remove('active');
+        el.setAttribute('aria-hidden', 'true');
+        const progress = el.querySelector('.products-loader-progress');
+        if (progress) progress.textContent = '';
+    },
+
     async loadProducts() {
         try {
             // ⚠️ On charge le catalogue PAR BLOCS (pagination serveur).
@@ -429,6 +507,10 @@ const posCart = {
             this.catalogueTotal = 0;
             this.catalogueComplete = false;
             this.allProducts = [];
+            // Le loader reste affiché du 1er bloc jusqu'à la fin de la
+            // complétion en arrière-plan : il ne doit pas clignoter entre
+            // les deux phases.
+            this.catalogueBackgroundActive = true;
 
             await this.loadCatalogueChunk();
 
@@ -441,6 +523,8 @@ const posCart = {
             this.loadCatalogueInBackground();
         } catch (e) {
             console.error('Failed fetching products:', e);
+            this.catalogueBackgroundActive = false;
+            this.hideCatalogueLoader();
             if ($('#products-grid')) $('#products-grid').innerHTML = '<div class="empty-state">Erreur de chargement</div>';
         }
     },
@@ -456,6 +540,9 @@ const posCart = {
             return [];
         }
         this.catalogueLoading = true;
+        this.showCatalogueLoader(
+            this.allProducts.length ? 'Chargement...' : 'Chargement des produits...'
+        );
 
         try {
             const params = new URLSearchParams({
@@ -483,12 +570,25 @@ const posCart = {
                 countEl.textContent = `${this.catalogueTotal} produit${this.catalogueTotal > 1 ? 's' : ''}${suffix}`;
             }
 
+            // Le loader affiche la progression du téléchargement quand
+            // le catalogue n'est pas encore complet.
+            if (!this.catalogueComplete) {
+                this.updateCatalogueLoaderText('Chargement...');
+                this.updateCatalogueLoaderProgress(
+                    this.allProducts.length,
+                    this.catalogueTotal
+                );
+            } else {
+                this.updateCatalogueLoaderProgress(0, 0);
+            }
+
             return rows;
         } catch (e) {
             console.error('Failed fetching catalogue chunk:', e);
             return [];
         } finally {
             this.catalogueLoading = false;
+            this.hideCatalogueLoader();
         }
     },
 
@@ -501,20 +601,30 @@ const posCart = {
      * produit situé sur une page jamais chargée.
      */
     async loadCatalogueInBackground() {
-        while (!this.catalogueComplete) {
-            const rows = await this.loadCatalogueChunk(this.catalogueSearchTerm);
-            if (rows.length === 0) {
-                // Plus rien à charger : on évite une boucle infinie si le
-                // total annoncé ne correspond pas à ce qui est renvoyé.
-                this.catalogueComplete = true;
-                break;
+        // Le loader reste visible PENDANT toute la complétion en
+        // arrière-plan : il ne doit pas clignoter entre deux blocs.
+        // (`catalogueBackgroundActive` est déjà à `true` depuis
+        // `loadProducts()` : le loader ne disparaît pas entre les blocs.)
+        this.updateCatalogueLoaderText('Chargement...');
+        try {
+            while (!this.catalogueComplete) {
+                const rows = await this.loadCatalogueChunk(this.catalogueSearchTerm);
+                if (rows.length === 0) {
+                    // Plus rien à charger : on évite une boucle infinie si le
+                    // total annoncé ne correspond pas à ce qui est renvoyé.
+                    this.catalogueComplete = true;
+                    break;
+                }
+                // On ne ré-affiche que si l'utilisateur n'a pas saisi de filtre
+                // (sinon on écraserait sa recherche en cours).
+                if (!this.catalogueSearchTerm) {
+                    this.filteredProducts = this.allProducts;
+                    this.renderProducts(this.allProducts);
+                }
             }
-            // On ne ré-affiche que si l'utilisateur n'a pas saisi de filtre
-            // (sinon on écraserait sa recherche en cours).
-            if (!this.catalogueSearchTerm) {
-                this.filteredProducts = this.allProducts;
-                this.renderProducts(this.allProducts);
-            }
+        } finally {
+            this.catalogueBackgroundActive = false;
+            this.hideCatalogueLoader();
         }
     },
 
@@ -547,6 +657,7 @@ const posCart = {
      */
     async searchProductsOnServer(search) {
         this.catalogueSearchTerm = search;
+        this.showCatalogueLoader('Recherche...', true);
         try {
             const params = new URLSearchParams({
                 limit: '50',
@@ -564,6 +675,8 @@ const posCart = {
             }
         } catch (e) {
             console.error('Server search failed:', e);
+        } finally {
+            this.hideCatalogueLoader();
         }
     },
 
@@ -574,7 +687,21 @@ const posCart = {
 
         this.filteredProducts = list;
         const total = list.length;
-        if (countEl) countEl.textContent = `${total} produit${total > 1 ? 's' : ''}`;
+        if (countEl) {
+            // ⚠️ Quand la grille affiche TOUT le catalogue, le compteur
+            // principal annonce le TOTAL du catalogue (pas le nombre de
+            // produits déjà chargé) : le suffixe précise l'avancement.
+            // Avec une recherche filtrée, le compte reste celui du filtre.
+            const isFullCatalogue = list === this.allProducts;
+            if (isFullCatalogue) {
+                const suffix = !this.catalogueComplete
+                    ? ` (${this.allProducts.length} / ${this.catalogueTotal} chargés)`
+                    : '';
+                countEl.textContent = `${this.catalogueTotal} produit${this.catalogueTotal > 1 ? 's' : ''}${suffix}`;
+            } else {
+                countEl.textContent = `${total} produit${total > 1 ? 's' : ''}`;
+            }
+        }
 
         const start = (this.currentPage - 1) * this.itemsPerPage;
         const pageItems = list.slice(start, start + this.itemsPerPage);
@@ -3444,7 +3571,7 @@ function renderProductBatches(batches) {
 
     batches.forEach(batch => {
         let expColor = '';
-        let expText = 'â€”';
+        let expText = '—';
         if (batch.date_expiration) {
             const expDate = new Date(batch.date_expiration);
             const diffDays = Math.floor((expDate - today) / (1000 * 60 * 60 * 24));
@@ -3452,7 +3579,7 @@ function renderProductBatches(batches) {
             expText = new Date(batch.date_expiration).toLocaleDateString('fr-FR') + (diffDays < 0 ? ' (p&eacute;rim&eacute;)' : ' (' + diffDays + 'j)');
         }
         html += '<tr>';
-        html += '<td style="padding:0.5rem; border-bottom:1px solid #eee;">' + (batch.batch_number || '— ”') + '</td>';
+        html += '<td style="padding:0.5rem; border-bottom:1px solid #eee;">' + (batch.batch_number || '—') + '</td>';
         html += '<td style="text-align:center; padding:0.5rem; border-bottom:1px solid #eee;">' + parseFloat(batch.stock).toFixed(2) + '</td>';
         html += '<td style="padding:0.5rem; border-bottom:1px solid #eee; color:' + expColor + '">' + expText + '</td>';
         html += '<td style="text-align:center; padding:0.5rem; border-bottom:1px solid #eee;">';
