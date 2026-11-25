@@ -453,8 +453,20 @@ $showHotelExtras = !empty($shopHasExtrasAccess);
       </div>
     </div>
     <div class="btn-group-valider">
-            <label id="calculator-toggle" class="calculator-radio" title="Mode calculatrice">
-              <input type="checkbox" id="calc-mode-checkbox" onchange="toggleCalcMode(this.checked)">
+            <!-- Bouton CALCULATRICE : aide à l'encaissement.
+                 Ouvre la modale « Calculatrice » (conversion du montant donné
+                 par le client au taux DGI du jour, par rapport au total du
+                 panier). cf. app/views/partials/caisse-calculatrice.php
+                 → docs/CALCULATRICE_CAISSE.md
+
+                 ⚠️ Ce contrôle était une CASE À COCHER : cochée, elle
+                 détournait « Valider la vente » vers l'ancien modal de
+                 paiement (monnaie à rendre à taux FIGE de 2 300 Fc —
+                 cf. docs/CALCUL_TTC_TS.md, constat n°10). C'est désormais un
+                 simple BOUTON : le taux de change est celui de l'API DGI du
+                 jour, et le total de la facture n'est pas modifié par la
+                 calculatrice (elle ne fait que l'informer). -->
+            <button type="button" id="calculator-toggle" class="calculator-radio" onclick="openCaisseCalculatrice()" title="Calculatrice : convertir le montant donné par le client (taux DGI du jour)">
               <span class="calc-label">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <rect x="4" y="2" width="16" height="20" rx="2"></rect>
@@ -465,7 +477,7 @@ $showHotelExtras = !empty($shopHasExtrasAccess);
                 </svg>
                 Calculatrice
               </span>
-            </label>
+            </button>
             <!-- L'indicateur visuel du séjour sélectionné a été retiré du panier.
                  À la place, un toast en haut de la page (#caisse-toast) est affiché
                  via posCart.setCurrentSejour() → showCaisseToast(). -->
@@ -939,3 +951,15 @@ $showHotelExtras = !empty($shopHasExtrasAccess);
     </div>
   </div>
   </div>
+
+  <!-- MODAL CALCULATRICE (aide à l'encaissement : conversion au taux DGI
+       du jour par rapport au total du panier).
+       Partial autonome — chargé UNIQUEMENT sur la page /caisse.
+       cf. docs/CALCULATRICE_CAISSE.md -->
+  <?php require_once __DIR__ . '/partials/caisse-calculatrice.php'; ?>
+
+  <!-- Scripts de la calculatrice (chargés ici, sur /caisse uniquement).
+       ⚠️ Le NOYAU doit précéder l'INTERFACE : celle-ci lit
+       `window.CaisseCalculatriceCore` au chargement. -->
+  <script src="/assets/js/caisse-calculatrice-core.js?v=1.0.0"></script>
+  <script src="/assets/js/caisse-calculatrice.js?v=1.0.0"></script>
