@@ -163,6 +163,13 @@ Router::post('/api/user/upload-profile-image', [UserController::class, 'uploadPr
 // est accessible (sinon la caisse tomberait en panne).
 Router::get('/api/produits', [ProductController::class, 'index'], 'caisse|produits', 'shared_read');
 Router::get('/api/produit', [ProductController::class, 'find'], 'caisse|produits', 'shared_read');
+// PAGE de produits (pagination serveur) : évite de charger le catalogue
+// entier (3,2 Mo de JSON à 50 000 produits). `/api/produits` reste
+// inchangée pour le client mobile Android et la caisse.
+Router::get('/api/produits/page', [ProductController::class, 'page'], 'caisse|produits', 'shared_read');
+// Un produit par id : la caisse l'utilise quand l'article n'est pas encore
+// dans le bloc de catalogue chargé (catalogue paginé).
+Router::get('/api/produit/[i:id]', [ProductController::class, 'show'], 'caisse|produits', 'shared_read');
 // ÉCRITURES : gestion du catalogue = page Produits.
 Router::post('/api/produit', [ProductController::class, 'create'], 'produits');
 Router::post('/api/produit/update', [ProductController::class, 'update'], 'produits');
@@ -190,6 +197,8 @@ Router::post('/api/product-batches', [ProductBatchController::class, 'create'], 
 Router::post('/api/product-batches/update', [ProductBatchController::class, 'update'], 'produits');
 Router::post('/api/product-batches/delete', [ProductBatchController::class, 'delete'], 'produits');
 Router::get('/api/product-batches/alerts', [ProductBatchController::class, 'alerts'], 'produits');
+// Page des lots (pagination keyset) — cf. R3/R4.
+Router::get('/api/product-batches/page', [ProductBatchController::class, 'page'], 'produits');
 
 // LECTURE PARTAGÉE : les catégories alimentent le catalogue ET la caisse.
 Router::get('/api/categories', [CategoryController::class, 'index'], 'caisse|produits|categories', 'shared_read');

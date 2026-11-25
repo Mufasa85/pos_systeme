@@ -26,6 +26,11 @@ Router::get('/dashboard', [PageController::class, 'dashboard']);
 Router::get('/caisse', [PageController::class, 'caisse'], 'caisse');
 Router::get('/recharges', [PageController::class, 'recharges'], 'recharges');
 Router::get('/produits', [PageController::class, 'produits'], 'produits');
+// Alertes de péremption — liste complète paginée (le dashboard n'affiche
+// que les 20 plus urgentes). Reprend le droit d'accès de « produits ».
+Router::get('/alertes-lots', [PageController::class, 'alertesLots'], 'produits');
+// Page des lots — liste paginée (keyset) de tous les lots de la boutique.
+Router::get('/produits/lots', [PageController::class, 'produitsLots'], 'produits');
 Router::get('/utilisateurs', [PageController::class, 'utilisateurs'], 'utilisateurs');
 Router::get('/otp-codes', [PageController::class, 'otpCodes']);
 Router::get('/mon-profil', [PageController::class, 'monProfil']);
@@ -165,6 +170,7 @@ $router->get('/logout', 'AuthController@logout');
 $router->get('/dashboard', 'PageController@dashboard');
 $router->get('/caisse', 'PageController@caisse');
 $router->get('/produits', 'PageController@produits');
+$router->get('/alertes-lots', 'PageController@alertesLots');
 $router->get('/utilisateurs', 'PageController@utilisateurs');
 $router->get('/historique', 'PageController@historique');
 $router->get('/parametres', 'PageController@parametres');
