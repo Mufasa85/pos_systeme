@@ -647,6 +647,33 @@ body {
   border-left-color: var(--danger);
 }
 
+/*
+ * Ligne « N autre(s) alerte(s) non affichée(s) ».
+ *
+ * ⚠️ Elle n'apparaît QUE si le nombre total d'alertes dépasse la limite
+ * d'affichage (20). Sans elle, l'utilisateur croirait qu'il n'y a que 20
+ * alertes alors qu'il y en a 1 703.
+ */
+.alert-item.alert-more {
+  border-left-color: var(--muted);
+  background: transparent;
+  border: 1px dashed var(--border);
+  justify-content: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.alert-item.alert-more a {
+  color: var(--primary);
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.alert-item.alert-more a:hover {
+  text-decoration: underline;
+}
+
 .empty-state {
   text-align: center;
   padding: 2rem;
@@ -1307,6 +1334,52 @@ body {
 .filters-bar select:focus {
   outline: none;
   border-color: var(--accent);
+}
+
+/* ── Pagination de la page /produits ────────────────────────────────
+   La pagination est côté SERVEUR : à 50 000 produits, le catalogue
+   entier ne doit jamais être rendu (116 Mo de HTML). */
+.products-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-secondary, #f8fafc);
+}
+
+.pagination-info {
+  font-size: 0.85rem;
+  color: var(--text-secondary, #475569);
+}
+
+.pagination-buttons {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.pagination-page {
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 0 0.5rem;
+  white-space: nowrap;
+}
+
+@media (max-width: 600px) {
+  .products-pagination {
+    flex-direction: column;
+    align-items: stretch;
+    text-align: center;
+  }
+  .pagination-buttons {
+    justify-content: center;
+  }
 }
 
 .table-container {

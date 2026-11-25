@@ -344,6 +344,18 @@ const posCart = {
     itemsPerPage: 20,
     filteredProducts: [],
 
+    // ⚠️ PAGINATION CÔTÉ SERVEUR (correctif P5).
+    // Le catalogue n'est PLUS chargé en entier : à 50 000 produits, cela
+    // faisait 3,2 Mo de JSON et 50 000 objets JS en mémoire (≈ 200 Mo de
+    // RAM dans le V8). On charge par blocs de `catalogueChunkSize`, et on
+    // complète en arrière-plan pendant que le caissier travaille.
+    catalogueChunkSize: 1000,
+    catalogueOffset: 0,
+    catalogueTotal: 0,
+    catalogueComplete: false,
+    catalogueLoading: false,
+    catalogueSearchTerm: '',
+
     init() {
         if ($('#category-filter')) {
             $('#category-filter').addEventListener('change', (e) => {
@@ -374,16 +386,21 @@ const posCart = {
                 if (e.key !== 'Enter') return;
                 const barcode = e.target.value.trim();
                 if (!barcode) return;
-                const product = this.allProducts.find(p => p.code_barres === barcode);
-                if (product) {
+                // ⚠️ Le produit peut être sur une page du catalogue qui n'a
+                // pas encore été chargée : on interroge alors le serveur
+                // (le code-barres est indexé en UNIQUE → 0,2 ms).
+                const known = this.allProducts.find(p => p.code_barres === barcode);
+                if (known) {
                     e.preventDefault();
-                    this.addToCart(product.id);
+                    this.addToCart(known.id);
                     e.target.value = '';
                     const category = $('#category-filter') ? $('#category-filter').value : 'all';
                     this.filterProducts('', category);
                     // Feedback sonore
                     if (typeof playScanBeep === 'function') playScanBeep();
                     if ('vibrate' in navigator) navigator.vibrate(80);
+                } else {
+                    this.addToCartByBarcode(barcode);
                 }
             });
         }
@@ -404,15 +421,100 @@ const posCart = {
 
     async loadProducts() {
         try {
-            const res = await fetch(APP_URL + '/api/produits');
-            const data = await res.json();
-            this.allProducts = Array.isArray(data) ? data : (data.products || []);
+            // ⚠️ On charge le catalogue PAR BLOCS (pagination serveur).
+            // L'ancien code faisait `fetch('/api/produits')` et chargeait
+            // TOUT le catalogue en mémoire : à 50 000 produits, 3,2 Mo de
+            // JSON et ≈ 200 Mo de RAM dans le V8.
+            this.catalogueOffset = 0;
+            this.catalogueTotal = 0;
+            this.catalogueComplete = false;
+            this.allProducts = [];
+
+            await this.loadCatalogueChunk();
+
             this.currentPage = 1;
             this.filteredProducts = this.allProducts;
             this.renderProducts(this.allProducts);
+
+            // La suite est chargée en arrière-plan : le caissier peut
+            // travailler pendant que les pages arrivent.
+            this.loadCatalogueInBackground();
         } catch (e) {
             console.error('Failed fetching products:', e);
             if ($('#products-grid')) $('#products-grid').innerHTML = '<div class="empty-state">Erreur de chargement</div>';
+        }
+    },
+
+    /**
+     * Charge UN bloc du catalogue (pagination serveur).
+     *
+     * @param {string} search Terme de recherche ('' = tout le catalogue)
+     * @returns {Promise<Array>} Les produits chargés
+     */
+    async loadCatalogueChunk(search = '') {
+        if (this.catalogueLoading) {
+            return [];
+        }
+        this.catalogueLoading = true;
+
+        try {
+            const params = new URLSearchParams({
+                limit: String(this.catalogueChunkSize),
+                offset: String(this.catalogueOffset),
+            });
+            if (search) {
+                params.set('search', search);
+            }
+
+            const res = await fetch(APP_URL + '/api/produits/page?' + params.toString());
+            const data = await res.json();
+            const rows = Array.isArray(data.rows) ? data.rows : [];
+
+            this.catalogueTotal = Number(data.total) || 0;
+            this.allProducts = this.allProducts.concat(rows);
+            this.catalogueOffset += rows.length;
+            this.catalogueComplete = this.catalogueOffset >= this.catalogueTotal;
+
+            const countEl = $('#products-count');
+            if (countEl) {
+                const suffix = this.catalogueComplete
+                    ? ''
+                    : ` (${this.allProducts.length} / ${this.catalogueTotal} chargés)`;
+                countEl.textContent = `${this.catalogueTotal} produit${this.catalogueTotal > 1 ? 's' : ''}${suffix}`;
+            }
+
+            return rows;
+        } catch (e) {
+            console.error('Failed fetching catalogue chunk:', e);
+            return [];
+        } finally {
+            this.catalogueLoading = false;
+        }
+    },
+
+    /**
+     * Charge le reste du catalogue en arrière-plan, bloc par bloc.
+     *
+     * ⚠️ La recherche du caissier ne filtre QUE les produits déjà
+     * chargés : si le terme ne donne rien en mémoire, `filterProducts()`
+     * interroge le serveur (repli). C'est ce qui permet de trouver un
+     * produit situé sur une page jamais chargée.
+     */
+    async loadCatalogueInBackground() {
+        while (!this.catalogueComplete) {
+            const rows = await this.loadCatalogueChunk(this.catalogueSearchTerm);
+            if (rows.length === 0) {
+                // Plus rien à charger : on évite une boucle infinie si le
+                // total annoncé ne correspond pas à ce qui est renvoyé.
+                this.catalogueComplete = true;
+                break;
+            }
+            // On ne ré-affiche que si l'utilisateur n'a pas saisi de filtre
+            // (sinon on écraserait sa recherche en cours).
+            if (!this.catalogueSearchTerm) {
+                this.filteredProducts = this.allProducts;
+                this.renderProducts(this.allProducts);
+            }
         }
     },
 
@@ -427,6 +529,42 @@ const posCart = {
         this.currentPage = 1;
         this.filteredProducts = filtered;
         this.renderProducts(filtered);
+
+        // ⚠️ REPLI SERVEUR : si la recherche ne donne rien en mémoire, le
+        // produit est peut-être sur une page du catalogue qui n'a pas
+        // encore été chargée (à 50 000 produits, c'est le cas le plus
+        // fréquent). On interroge alors le serveur.
+        if (search && search.length >= 2 && filtered.length === 0 && !this.catalogueLoading) {
+            this.searchProductsOnServer(search);
+        }
+    },
+
+    /**
+     * Recherche un produit sur le serveur (repli de `filterProducts()`).
+     *
+     * ⚠️ N'affiche QUE les résultats de la recherche : le caissier doit
+     *    voir le produit qu'il cherche, pas la liste filtrée en mémoire.
+     */
+    async searchProductsOnServer(search) {
+        this.catalogueSearchTerm = search;
+        try {
+            const params = new URLSearchParams({
+                limit: '50',
+                offset: '0',
+                search: search,
+            });
+            const res = await fetch(APP_URL + '/api/produits/page?' + params.toString());
+            const data = await res.json();
+            const rows = Array.isArray(data.rows) ? data.rows : [];
+
+            if (rows.length > 0) {
+                this.currentPage = 1;
+                this.filteredProducts = rows;
+                this.renderProducts(rows);
+            }
+        } catch (e) {
+            console.error('Server search failed:', e);
+        }
     },
 
     renderProducts(list) {
@@ -626,10 +764,83 @@ const posCart = {
     // Variable pour suivre le produit en attente de poids
     pendingPoidsProduct: null,
 
+    /**
+     * Récupère un produit par son id (repli quand il n'est pas en mémoire).
+     *
+     * @param {number} id
+     * @returns {Promise<object|null>}
+     */
+    async fetchProductById(id) {
+        try {
+            const res = await fetch(APP_URL + '/api/produit/' + encodeURIComponent(id));
+            if (!res.ok) {
+                return null;
+            }
+            const product = await res.json();
+            if (product && product.id) {
+                this.allProducts.push(product);
+                return product;
+            }
+            return null;
+        } catch (e) {
+            console.error('fetchProductById failed:', e);
+            return null;
+        }
+    },
+
+    /**
+     * Ajoute au panier un produit identifié par son code-barres.
+     *
+     * ⚠️ Utilisé quand le produit n'est pas encore en mémoire : le
+     * catalogue est chargé par blocs, donc un article scanné peut
+     * appartenir à une page pas encore téléchargée.
+     *
+     * Le code-barres est indexé en UNIQUE : la recherche est instantanée
+     * (0,2 ms mesuré), quel que soit le nombre de produits.
+     */
+    async addToCartByBarcode(barcode) {
+        try {
+            const res = await fetch(APP_URL + '/api/produit?code_barres=' + encodeURIComponent(barcode));
+            if (!res.ok) {
+                return;
+            }
+            const product = await res.json();
+            if (!product || !product.id) {
+                return;
+            }
+
+            // On le mémorise : les recherches suivantes le trouveront
+            // sans repasser par le serveur.
+            this.allProducts.push(product);
+
+            const input = $('#product-search');
+            if (input) {
+                input.value = '';
+            }
+            this.addToCart(product.id);
+            const category = $('#category-filter') ? $('#category-filter').value : 'all';
+            this.filterProducts('', category);
+            if (typeof playScanBeep === 'function') playScanBeep();
+            if ('vibrate' in navigator) navigator.vibrate(80);
+        } catch (e) {
+            console.error('addToCartByBarcode failed:', e);
+        }
+    },
+
     // Ajouter un produit au panier (gère le cas des produits au poids)
     addToCart(id) {
         const product = this.allProducts.find(p => p.id == id);
-        if (!product) return;
+        if (!product) {
+            // ⚠️ Le produit n'est pas en mémoire : le catalogue est chargé
+            // par blocs, il peut être sur une page pas encore téléchargée.
+            // On le récupère au lieu d'échouer en silence.
+            this.fetchProductById(id).then((p) => {
+                if (p) {
+                    this.addToCart(p.id);
+                }
+            });
+            return;
+        }
 
         // Vérifier le stock avant d'ajouter
         const currentStock = parseInt(product.stock) || 0;
@@ -3895,6 +4106,15 @@ function onInlineProductFound(product, barcode) {
     }
 
     // Ajouter au panier (le réarmement du scanner est géré par rearmScanner via finally)
+    //
+    // ⚠️ Le produit vient du serveur : il n'est peut-être pas encore dans
+    // `posCart.allProducts` (le catalogue est chargé par blocs). On le
+    // mémorise pour que `addToCart()` le retrouve — sinon l'ajout au
+    // panier échouerait en silence.
+    const known = posCart.allProducts.find(p => p.id == product.id);
+    if (!known) {
+        posCart.allProducts.push(product);
+    }
     posCart.addToCart(product.id);
 
     const resultEl = document.getElementById('scanner-result');
@@ -4285,64 +4505,48 @@ function initProductsTabs() {
     const categoryFilter = $('#category-filter');
     const shopFilter = $('#shop-filter');
     const refreshBtn = $('#refresh-products');
+    const filtersForm = $('#products-filters');
 
-    function filterProductsTable(search = '', category = 'all', shop = 'all') {
-        const rows = $$('#products-table tr[data-category]');
-        let visibleCount = 0;
-
-        rows.forEach(row => {
-            const rowCategory = row.dataset.category ? row.dataset.category.toLowerCase() : '';
-            const rowShop = row.dataset.shop ? row.dataset.shop : '';
-            const nom = row.querySelector('td:nth-child(2)')?.textContent.toLowerCase() || '';
-            const code = row.querySelector('td:nth-child(3)')?.textContent.toLowerCase() || '';
-
-            const matchesSearch = !search || nom.includes(search.toLowerCase()) || code.includes(search.toLowerCase());
-            const matchesCategory = category === 'all' || rowCategory === category.toLowerCase();
-            const matchesShop = shop === 'all' || rowShop === shop;
-
-            if (matchesSearch && matchesCategory && matchesShop) {
-                row.style.display = '';
-                visibleCount++;
-            } else {
-                row.style.display = 'none';
-            }
-        });
-
-        let emptyMsg = $('#products-empty-message');
-        if (!emptyMsg && visibleCount === 0 && rows.length > 0) {
-            const table = $('#products-table');
-            const tr = document.createElement('tr');
-            tr.id = 'products-empty-message';
-            tr.innerHTML = '<td colspan="8" style="text-align:center; padding:2rem; color:#888;">Aucun produit trouvé</td>';
-            table.appendChild(tr);
-        } else if (emptyMsg && visibleCount > 0) {
-            emptyMsg.remove();
-        }
+    // ⚠️ PAGINATION SERVEUR : le filtre n'est PLUS appliqué en JS sur le
+    // DOM. L'ancien code parcourait chaque <tr> (3 querySelector par
+    // ligne) à CHAQUE frappe : à 50 000 produits, cela signifie 150 000
+    // parcours du DOM par caractère tapé, et le navigateur gelait.
+    //
+    // Le formulaire (#products-filters) est en GET : on le soumet au
+    // serveur, qui recharge la page avec le filtre appliqué et la page
+    // courante remise à 0.
+    if (!filtersForm) {
+        return;
     }
 
+    // Soumission automatique avec anti-rebond sur la saisie texte.
+    let searchTimer = null;
     if (filterInput) {
-        filterInput.addEventListener('input', (e) => {
-            const category = categoryFilter ? categoryFilter.value : 'all';
-            const shop = shopFilter ? shopFilter.value : 'all';
-            filterProductsTable(e.target.value, category, shop);
+        filterInput.addEventListener('input', () => {
+            clearTimeout(searchTimer);
+            searchTimer = setTimeout(() => {
+                // Un changement de filtre ramène toujours à la page 1 :
+                // l'offset courant n'aurait aucun sens avec un autre filtre.
+                const offsetInput = filtersForm.querySelector('input[name="offset"]');
+                if (offsetInput) {
+                    offsetInput.value = '0';
+                }
+                filtersForm.submit();
+            }, 450);
         });
     }
 
-    if (categoryFilter) {
-        categoryFilter.addEventListener('change', (e) => {
-            const search = filterInput ? filterInput.value : '';
-            const shop = shopFilter ? shopFilter.value : 'all';
-            filterProductsTable(search, e.target.value, shop);
+    // Les <select> se soumettent immédiatement.
+    [categoryFilter, shopFilter].forEach((select) => {
+        if (!select) return;
+        select.addEventListener('change', () => {
+            const offsetInput = filtersForm.querySelector('input[name="offset"]');
+            if (offsetInput) {
+                offsetInput.value = '0';
+            }
+            filtersForm.submit();
         });
-    }
-
-    if (shopFilter) {
-        shopFilter.addEventListener('change', (e) => {
-            const search = filterInput ? filterInput.value : '';
-            const category = categoryFilter ? categoryFilter.value : 'all';
-            filterProductsTable(search, category, e.target.value);
-        });
-    }
+    });
 
     // Toggle "Inclure boutiques inactives" : recharge la page en transmettant
     // le flag au contrôleur qui rechargera les produits via le bon filtre SQL.
@@ -4364,8 +4568,6 @@ function initProductsTabs() {
             window.location.reload();
         });
     }
-
-    filterProductsTable();
 }
 
 // ==================== HISTORY FILTERS ====================
