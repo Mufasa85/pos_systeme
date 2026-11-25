@@ -30,27 +30,65 @@
             </div>
           <?php endif; ?>
         </div>
-<div class="filters-bar">
-          <input type="text" id="products-filter" placeholder="Rechercher un produit...">
-          <select id="category-filter">
+<?php
+        // ⚠️ Le filtre est désormais appliqué CÔTÉ SERVEUR (pagination
+        // serveur). Le former filtre DOM parcourait 50 000 <tr> à chaque
+        // frappe (3 querySelector par ligne) et gelait le navigateur.
+        //
+        // Le <form> est en GET : la requête se fait dans l'URL, ce qui
+        // rend la page partageable et le bouton « Précédent » du
+        // navigateur cohérent.
+        $qsBase = function (array $overrides = []) use ($limit, $search, $category, $shopFilter, $includeInactive) {
+            $params = array_merge([
+                'limit'   => $limit,
+                'offset'  => 0,
+                'search'  => $search,
+                'category'=> $category,
+            ], $overrides);
+            if (!empty($params['search'])) {
+                $params['search'] = $params['search'];
+            } else {
+                unset($params['search']);
+            }
+            if (empty($params['category']) || $params['category'] === 'all') {
+                unset($params['category']);
+            }
+            if (!empty($shopFilter)) {
+                $params['shop_id'] = $shopFilter;
+            }
+            if (!empty($includeInactive)) {
+                $params['include_inactive'] = 1;
+            }
+            return '/produits?' . http_build_query($params);
+        };
+        ?>
+        <form class="filters-bar" method="GET" action="/produits" id="products-filters">
+          <input type="hidden" name="limit" value="<?= (int)$limit ?>">
+          <!-- Remis à 0 par le JS quand un filtre change : l'offset
+               courant n'aurait aucun sens avec un autre filtre. -->
+          <input type="hidden" name="offset" value="0">
+          <input type="text" name="search" id="products-filter" placeholder="Rechercher un produit..."
+                 value="<?= htmlspecialchars($search) ?>">
+          <select name="category" id="category-filter">
             <option value="all">Toutes les catégories</option>
             <?php foreach ($categories as $cat): ?>
-              <option value="<?= htmlspecialchars($cat['category']) ?>"><?= htmlspecialchars($cat['category']) ?></option>
+              <option value="<?= htmlspecialchars($cat['category']) ?>" <?= ($category === $cat['category']) ? 'selected' : '' ?>><?= htmlspecialchars($cat['category']) ?></option>
             <?php endforeach; ?>
           </select>
           <?php if (($_SESSION['role'] ?? '') === 'super_admin'): ?>
-            <select id="shop-filter">
+            <select name="shop_id" id="shop-filter">
               <option value="all">Toutes les boutiques</option>
               <?php foreach ($shops ?? [] as $shop): ?>
-                <option value="<?= htmlspecialchars($shop['id']) ?>"><?= htmlspecialchars($shop['nom']) ?></option>
+                <option value="<?= htmlspecialchars($shop['id']) ?>" <?= ((string)$shopFilter === (string)$shop['id']) ? 'selected' : '' ?>><?= htmlspecialchars($shop['nom']) ?></option>
               <?php endforeach; ?>
             </select>
             <label style="display:inline-flex;align-items:center;gap:.4rem;font-size:.85rem;color:var(--text-secondary,#475569);cursor:pointer">
-              <input type="checkbox" id="include-inactive-shops" <?= !empty($includeInactive) ? 'checked' : '' ?>>
+              <input type="checkbox" name="include_inactive" value="1" id="include-inactive-shops" <?= !empty($includeInactive) ? 'checked' : '' ?>>
               Inclure boutiques inactives
             </label>
           <?php endif; ?>
-        </div>
+          <button type="submit" class="btn btn-secondary btn-small">Filtrer</button>
+        </form>
         <div class="table-container">
           <table class="data-table" style="width:100%; border-collapse:collapse;">
             <thead>
@@ -126,6 +164,48 @@
               <?php endforeach; ?>
             </tbody>
           </table>
+        </div>
+
+        <!-- ══ PAGINATION ══════════════════════════════════════════════
+             ⚠️ Serveur-side : la page ne contient qu'une page de produits.
+             À 50 000 produits, le rendu de TOUTES les lignes produisait
+             116 Mo de HTML et un DOM de 50 000 <tr>. -->
+        <?php
+            $total       = (int)($total ?? 0);
+            $limit       = max(1, (int)($limit ?? 50));
+            $offset      = max(0, (int)($offset ?? 0));
+            $nbLignes    = count($produits);
+            $pageCourante = (int) floor($offset / $limit) + 1;
+            $nbPages     = max(1, (int) ceil($total / $limit));
+            $debut       = $nbLignes > 0 ? $offset + 1 : 0;
+            $fin         = $offset + $nbLignes;
+        ?>
+        <div class="products-pagination">
+          <div class="pagination-info">
+            <?php if ($total > 0): ?>
+              <?= number_format($debut) ?>–<?= number_format($fin) ?>
+              sur <?= number_format($total) ?> produit<?= $total > 1 ? 's' : '' ?>
+            <?php else: ?>
+              Aucun produit
+            <?php endif; ?>
+          </div>
+          <?php if ($nbPages > 1): ?>
+            <div class="pagination-buttons">
+              <a class="btn btn-ghost btn-small"
+                 href="<?= htmlspecialchars($qsBase(['offset' => 0])) ?>"
+                 title="Première page">&laquo; Première</a>
+              <a class="btn btn-ghost btn-small"
+                 href="<?= htmlspecialchars($qsBase(['offset' => max(0, $offset - $limit)])) ?>"
+                 <?= $offset <= 0 ? 'style="opacity:.4;pointer-events:none"' : '' ?>>&lsaquo; Précédent</a>
+              <span class="pagination-page">Page <?= $pageCourante ?> / <?= number_format($nbPages) ?></span>
+              <a class="btn btn-ghost btn-small"
+                 href="<?= htmlspecialchars($qsBase(['offset' => $offset + $limit])) ?>"
+                 <?= $offset + $limit >= $total ? 'style="opacity:.4;pointer-events:none"' : '' ?>>Suivant &rsaquo;</a>
+              <a class="btn btn-ghost btn-small"
+                 href="<?= htmlspecialchars($qsBase(['offset' => ($nbPages - 1) * $limit])) ?>"
+                 title="Dernière page">Dernière &raquo;</a>
+            </div>
+          <?php endif; ?>
         </div>
       </div>
 

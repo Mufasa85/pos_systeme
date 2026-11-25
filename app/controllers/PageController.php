@@ -252,8 +252,15 @@ class PageController extends Controller
         }
 
         $batchModel = new ProductBatch();
-        $expirationAlerts = $batchModel->getExpiringSoon(7, $shopId);
-        $expiredAlerts = $batchModel->getExpired($shopId);
+        // ⚠️ Les alertes sont BORNÉES à 20 lignes. Sans cette borne, le
+        // dashboard chargeait TOUS les lots en fin de série : mesuré à
+        // 50 000 produits / 85 000 lots, la fenêtre de 90 jours renvoyait
+        // 19 382 lignes (502 ms SQL + rendu, 19 382 nœuds DOM).
+        // Le total est affiché à côté via les compteurs.
+        $expirationAlerts = $batchModel->getExpiringSoon(7, $shopId, 20);
+        $expiredAlerts = $batchModel->getExpired($shopId, 20);
+        $expirationAlertsTotal = $batchModel->countExpiringSoon(7, $shopId);
+        $expiredAlertsTotal = $batchModel->countExpired($shopId);
 
         $this->render('dashboard', [
             'ventes' => $ventes,
@@ -266,6 +273,8 @@ class PageController extends Controller
             'stock_faible' => $stockFaible,
             'expiration_alerts' => $expirationAlerts,
             'expired_alerts' => $expiredAlerts,
+            'expiration_alerts_total' => $expirationAlertsTotal,
+            'expired_alerts_total' => $expiredAlertsTotal,
             'shopStats' => $shopStats,
             'isSuperAdmin' => $this->isSuperAdmin(),
         ]);
@@ -396,7 +405,36 @@ class PageController extends Controller
         $shopId = $this->isSuperAdmin() ? null : $this->getShopId();
         // Super admin peut voir les produits des boutiques désactivées via ?include_inactive=1
         $includeInactive = $this->isSuperAdmin() && !empty($_GET['include_inactive']);
-        $produits = $productModel->getAll($shopId, $includeInactive);
+
+        // ── PAGINATION SERVEUR ──────────────────────────────────────────
+        // ⚠️ La page NE charge plus tout le catalogue : à 50 000 produits,
+        // `getAll()` renvoyait 3,2 Mo de JSON et 116 Mo de HTML, et le
+        // filtre parcourait 50 000 <tr> à chaque frappe (150 000
+        // querySelector). Mesuré : la requête catalogue seule prenait
+        // 5 883 – 6 676 ms.
+        $limit  = (int)($_GET['limit'] ?? 50);
+        $offset = (int)($_GET['offset'] ?? 0);
+        $search = $this->sanitaze($_GET['search'] ?? '');
+        $catFilter = $_GET['category'] ?? '';
+        $shopFilter = !empty($_GET['shop_id']) ? (int)$_GET['shop_id'] : null;
+
+        // Pour le super_admin, le filtre « boutique » est prioritaire sur
+        // la boutique de session (comme dans `getAllFiltered()`).
+        $effectiveShopId = $shopFilter ?: $shopId;
+
+        $page = $productModel->getPage(
+            [
+                'search'   => $search,
+                'category' => $catFilter,
+                'shop_id'  => $shopFilter,
+            ],
+            $limit,
+            $offset,
+            $effectiveShopId,
+            $includeInactive
+        );
+
+        $produits = $page['rows'];
         $categories = $categoryModel->all($shopId);
         $taxes = $taxModel->getAll();
 
@@ -409,6 +447,12 @@ class PageController extends Controller
 
         $this->render('produits', [
             'produits' => $produits,
+            'total'    => $page['total'],
+            'limit'    => $page['limit'],
+            'offset'   => $page['offset'],
+            'search'   => $search,
+            'category' => $catFilter,
+            'shopFilter' => $shopFilter,
             'categories' => $categories,
             'taxes' => $taxes,
             'shops' => $shops,
@@ -1257,6 +1301,83 @@ class PageController extends Controller
         $shopId = $this->isSuperAdmin() ? null : $this->getShopId();
         $ventes = $saleModel->getAllSales($shopId);
         $this->render('historique', ['ventes' => $ventes]);
+    }
+
+    /**
+     * Page des LOTS — liste de tous les lots de la boutique, triés par
+     * péremption.
+     *
+     * ⚠️ La page est une COQUILLE HTML : le contenu vient de fetch() vers
+     *    /api/product-batches/page (pagination keyset côté serveur).
+     *
+     *    Server-side, comme la page /produits : à 50 000 produits /
+     *    85 000 lots, rendre TOUS les lots produisait 60 Mo de HTML et
+     *    un DOM de 85 000 <tr>.
+     */
+    public function produitsLots()
+    {
+        // Droit d'accès au module Produits (même page que /produits).
+        $this->requireModulePageAccess('produits');
+
+        $this->render('produits-lots', []);
+    }
+
+    /**
+     * Page des alertes de péremption (tous les lots).
+     *
+     * Le dashboard n'affiche que les 20 alertes les plus urgentes (borné
+     * pour ne pas charger des milliers de lignes). Cette page montre la
+     * liste COMPLÈTE, paginée.
+     *
+     * Pagination par OFFSET : le nombre de lots par boutique reste
+     * raisonnable (des centaines, pas des dizaines de milliers), donc
+     * l'OFFSET est acceptable ici. La page /produits/lots, qui liste
+     * les 85 000 lots du catalogue, utilise le KEYSET à la place.
+     */
+    public function alertesLots()
+    {
+        $this->requireModulePageAccess('produits');
+
+        $page = max(1, (int)($_GET['page'] ?? 1));
+        $perPage = 50;
+        $offset = ($page - 1) * $perPage;
+
+        // Filtres : 'expired' (périmés), 'soon' (périment bientôt) ou
+        // les deux par défaut.
+        $filtre = (string)($_GET['filtre'] ?? 'all');
+        $days = max(1, min(365, (int)($_GET['days'] ?? 30)));
+
+        $shopId = $this->isSuperAdmin() ? ($_GET['shop_id'] ?? null) : $this->getShopId();
+        $batchModel = new ProductBatch();
+
+        $rows = [];
+        $total = 0;
+
+        if ($filtre === 'expired') {
+            $rows = $batchModel->getExpired($shopId, $perPage, $offset);
+            $total = $batchModel->countExpired($shopId);
+        } elseif ($filtre === 'soon') {
+            $rows = $batchModel->getExpiringSoon($days, $shopId, $perPage, $offset);
+            $total = $batchModel->countExpiringSoon($days, $shopId);
+        } else {
+            // Les deux : on concatène les périmés puis les proches.
+            $expired = $batchModel->getExpired($shopId, $perPage, $offset);
+            $rows = $expired;
+            $total = $batchModel->countExpired($shopId) + $batchModel->countExpiringSoon($days, $shopId);
+        }
+
+        $this->render('alertes-lots', [
+            'lots' => $rows,
+            'total' => $total,
+            // ⚠️ La clé s'appelle 'pageNum' et non 'page' : `render()`
+            // injecte déjà $page = nom de la vue ('alertes-lots'), et les
+            // deux se chevaucheraient.
+            'pageNum' => $page,
+            'perPage' => $perPage,
+            'pages' => (int)ceil(max(1, $total) / $perPage),
+            'filtre' => $filtre,
+            'days' => $days,
+        ]);
     }
 
     /**

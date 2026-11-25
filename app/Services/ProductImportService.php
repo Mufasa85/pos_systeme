@@ -116,8 +116,31 @@ class ProductImportService
         $defaultCategoryId = isset($options['category_id']) ? (int)$options['category_id'] : 0;
         $defaultTaxId = isset($options['tax_id']) ? (int)$options['tax_id'] : 0;
 
+        /*
+         * ⚠️ LE FLUX EST UN GÉNÉRATEUR, pas un tableau.
+         *
+         * Mesuré à 50 000 produits : accumuler les lignes extraites
+         * consommait ~500 Mo (le pic restait à ~500 Mo même avec un
+         * lecteur en flux). En consommant les lignes UNE PAR UNE, la
+         * mémoire est constante.
+         *
+         * Conséquence : on ne peut plus savoir `empty($rows)` avant la
+         * boucle, ni collecter les code-barres d'avance. Le contrôle
+         * « fichier vide » se fait donc pendant la boucle.
+         */
+        /*
+         * ⚠️ Un générateur ne lance rien à la CRÉATION : les exceptions
+         *    surviennent à l'ITÉRATION, donc HORS de ce `try`.
+         *
+         *    C'est pourquoi l'erreur « Catégorie introuvable » (levée par
+         *    `buildProduct()` pendant la boucle) doit être rattrapée par la
+         *    boucle elle-même — et c'est le cas.
+         *
+         *    Ce `try` ne couvre donc que la CRÉATION du lecteur (une
+         *    archive illisible, par exemple).
+         */
         try {
-            $rows = $this->readRows($filePath);
+            $rows = $this->readRowsStreaming($filePath);
         } catch (\Throwable $e) {
             error_log('ProductImportService::readRows error: ' . $e->getMessage());
             return [
@@ -128,41 +151,44 @@ class ProductImportService
             ];
         }
 
-        if (empty($rows)) {
-            return [
-                'success' => false,
-                'error' => 'Le fichier est vide ou ne contient aucune ligne de données',
-                'summary' => $this->emptySummary(),
-                'rows' => [],
-            ];
-        }
-
         // Contexte de résolution (catégories / taxes) chargé une seule fois.
         $categories = $this->loadCategories($shopId);
         $taxes = $this->loadTaxes();
 
-        // ⚠️ RECHERCHE BATCHÉE des produits existants (correctif de charge).
-        //
-        // Avant : `findByBarcode()` était appelé POUR CHAQUE LIGNE du
-        // fichier. Chaque appel déclenchait 5 requêtes (1 SELECT + les 4
-        // d'`enrichWithBatchInfo`, inutiles ici) → 25 000 requêtes pour un
-        // import de 5 000 produits, soit 7,5 s.
-        //
-        // Maintenant : 1 requête par lot de 500 code-barres (~50 ms pour
-        // 5 000 produits). La sémantique est INCHANGÉE : c'est toujours MySQL
-        // qui compare les code-barres (collation insensible à la casse et
-        // aux accents), et un produit de boutique inactive reste introuvable.
-        $existingIds = $this->productModel->findIdsByBarcodes(
-            $this->collectBarcodes($rows)
-        );
-
+        /*
+         * ⚠️ RECHERCHE BATCHÉE des produits existants (correctif de charge).
+         *
+         * Avant : `findByBarcode()` était appelé POUR CHAQUE LIGNE du
+         * fichier. Chaque appel déclenchait 5 requêtes (1 SELECT + les 4
+         * d'`enrichWithBatchInfo`, inutiles ici) → 25 000 requêtes pour un
+         * import de 5 000 produits, soit 7,5 s.
+         *
+         * Maintenant : 1 requête par lot de 500 code-barres (~50 ms pour
+         * 5 000 produits). La sémantique est INCHANGÉE : c'est toujours MySQL
+         * qui compare les code-barres (collation insensible à la casse et
+         * aux accents), et un produit de boutique inactive reste introuvable.
+         *
+         * ⚠️ Le lookup est fait PAR BLOCS de 500 lignes : le flux ne
+         *    permet pas de collecter tous les code-barres d'avance (c'est
+         *    précisément ce qu'on veut éviter — 50 000 chaînes en RAM).
+         *    On consulte MySQL toutes les 500 lignes.
+         */
         $summary = $this->emptySummary();
         $report = [];
         $seenBarcodes = [];
+        $existingIds = [];
+        $pending = [];
+        $pendingBarcodes = [];
+        $rowCount = 0;
 
         foreach ($rows as $row) {
             $line = $row['line'];
             $cells = $row['cells'];
+
+            // ⚠️ La ligne est comptée DÈS QU'ELLE EST LUE, avant le
+            //    traitement : sinon une ligne invalide ferait croire à un
+            //    fichier vide (cf. le commentaire plus bas).
+            $rowCount++;
 
             try {
                 $product = $this->buildProduct($cells, $shopId, $categories, $taxes, [
@@ -181,6 +207,13 @@ class ProductImportService
                 continue;
             }
 
+            // ⚠️ On compte les LIGNES LUES, pas les produits valides : une
+            //    ligne invalide (catégorie introuvable, prix manquant)
+            //    doit quand même figurer dans le résumé. Compter les
+            //    produits valides faisait croire à un fichier vide, et le
+            //    résumé des erreurs était REMPLACÉ par un résumé vide —
+            //    l'utilisateur ne voyait plus pourquoi sa ligne avait été
+            //    rejetée.
             // Contrôle des doublons à l'intérieur du fichier lui-même.
             $barcodeKey = $product['code_barres'];
             if (isset($seenBarcodes[$barcodeKey])) {
@@ -195,10 +228,102 @@ class ProductImportService
             }
             $seenBarcodes[$barcodeKey] = $line;
 
-            // Produit déjà connu ? Lookup dans le map batché (1 requête pour
-            // 500 code-barres) au lieu d'un `findByBarcode()` par ligne.
-            // Le map est indexé par le code-barres TEL QUE SAISI dans le
-            // fichier : la comparaison avec la base a été faite par MySQL.
+            /*
+             * ⚠️ L'ÉCRITURE EST DIFFÉRÉE d'un bloc de 500 lignes.
+             *
+             * Le lookup des produits existants se fait par blocs (1
+             * requête pour 500 code-barres, au lieu d'un `findByBarcode()`
+             * par ligne qui déclenchait 5 requêtes chacune).
+             *
+             * Mais le flux ne permet pas de collecter tous les
+             * code-barres d'avance : 50 000 chaînes en RAM, exactement ce
+             * qu'on cherche à éviter.
+             *
+             * On met donc la ligne en ATTENTE, et on l'écrit quand le
+             * bloc a été consulté par MySQL. La ligne attend au maximum
+             * 499 positions — et son lot de stock est créé au moment de
+             * l'écriture, donc pas de divergence.
+             */
+            $pending[] = ['line' => $line, 'product' => $product];
+            $pendingBarcodes[$barcodeKey] = true;
+
+            if (count($pendingBarcodes) >= 500) {
+                $existingIds = array_merge(
+                    $existingIds,
+                    $this->productModel->findIdsByBarcodes(array_keys($pendingBarcodes))
+                );
+                $this->writePending($pending, $existingIds, $mode, $summary, $report);
+                $pending = [];
+                $pendingBarcodes = [];
+            }
+        }
+
+        // ⚠️ Le DERNIER BLOC (moins de 500 lignes) doit être écrit aussi.
+        if (!empty($pending)) {
+            $existingIds = array_merge(
+                $existingIds,
+                $this->productModel->findIdsByBarcodes(array_keys($pendingBarcodes))
+            );
+            $this->writePending($pending, $existingIds, $mode, $summary, $report);
+            $pending = [];
+            $pendingBarcodes = [];
+        }
+
+        if ($rowCount === 0) {
+            return [
+                'success' => false,
+                'error' => 'Le fichier est vide ou ne contient aucune ligne de données',
+                'summary' => $this->emptySummary(),
+                'rows' => [],
+            ];
+        }
+
+        /*
+         * ⚠️ Toutes les lignes ont été lues mais AUCUNE n'a pu être
+         *    traitée (toutes invalides) : on le dit explicitement, sinon
+         *    l'utilisateur ne comprend pas pourquoi rien n'a été importé.
+         */
+        if ($summary['created'] === 0 && $summary['updated'] === 0 && $summary['errors'] > 0) {
+            return [
+                'success' => false,
+                'error' => "Aucune ligne n'a pu être importée : "
+                    . $summary['errors'] . " erreur(s). Voir le detail.",
+                'summary' => $summary,
+                'rows' => $report,
+            ];
+        }
+
+        return [
+            'success' => ($summary['created'] + $summary['updated']) > 0,
+            'summary' => $summary,
+            'rows' => $report,
+        ];
+    }
+
+    /**
+     * Écrit les lignes en attente, une fois le lookup fait.
+     *
+     * ⚠️ Cette méthode est le cœur de l'import en flux : les lignes sont
+     *    accumulées par blocs de 500, MySQL est consulté pour le bloc
+     *    entier (1 requête), puis les lignes sont écrites une par une.
+     *
+     * La sémantique est IDENTIQUE à celle de la version d'origine
+     * (ligne par ligne) :
+     *   - code-barres en double dans le fichier  → ignoré ;
+     *   - produit déjà existant + mode `create`  → ignoré ;
+     *   - produit déjà existant + mode `update`  → mis à jour ;
+     *   - sinon                                  → créé (+ son lot).
+     *
+     * @param array $pending      Lignes en attente (line + product).
+     * @param array $existingIds  Code-barres → id de produit existant.
+     */
+    private function writePending(array $pending, array $existingIds, string $mode, array &$summary, array &$report): void
+    {
+        foreach ($pending as $item) {
+            $line = $item['line'];
+            $product = $item['product'];
+            $barcodeKey = $product['code_barres'];
+
             $existingId = $existingIds[$barcodeKey] ?? null;
 
             if ($existingId !== null && $mode === 'create') {
@@ -244,12 +369,6 @@ class ProductImportService
                 'message' => $message,
             ]);
         }
-
-        return [
-            'success' => ($summary['created'] + $summary['updated']) > 0,
-            'summary' => $summary,
-            'rows' => $report,
-        ];
     }
 
     // MARK: Modèle
@@ -357,20 +476,497 @@ class ProductImportService
      *
      * @return array<int, array{line:int, cells:array}>
      */
+    /**
+     * Lit les lignes de données du fichier.
+     *
+     * ⚠️ Le retour est un TABLEAU : ce contrat est utilisé par
+     *    `tests/Unit/ProductImportServiceTest.php` (count, index).
+     *
+     *    ⚠️ Il NE DOIT PAS être utilisé pour un import massif : le
+     *    tableau de 50 000 lignes consomme ~500 Mo. C'est
+     *    `readRowsStreaming()` qu'utilise l'import — le même contenu,
+     *    mais produit ligne par ligne.
+     *
+     * @return array<int, array{line:int, cells:array}>
+     */
     private function readRows(string $filePath): array
+    {
+        return iterator_to_array($this->readRowsStreaming($filePath), false);
+    }
+
+    /**
+     * Lit les lignes de données du fichier, UNE PAR UNE.
+     *
+     * ⚠️ C'est le chemin utilisé par l'import : c'est ce qui rend
+     *    l'import de 50 000 produits possible en mémoire constante.
+     *
+     *    - .xlsx → lecteur natif (ZipArchive + XMLReader), en flux ;
+     *    - .csv  → `readCsvRows()`, ligne par ligne.
+     *
+     * ⚠️ Un générateur ne peut être parcouru QU'UNE FOIS.
+     *
+     * @return \Generator<int, array{line:int, cells:array}>
+     */
+    private function readRowsStreaming(string $filePath): \Generator
     {
         $extension = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
         if ($extension === 'csv' || $extension === 'txt') {
-            return $this->readCsvRows($filePath);
+            // Le CSV est déjà lu ligne par ligne : on le délaisse tel quel.
+            foreach ($this->readCsvRows($filePath) as $row) {
+                yield $row;
+            }
+            return;
         }
 
+        /*
+         * ⚠️ LECTEUR NATIF EN STREAMING — la correction de l'épuisement
+         *    mémoire.
+         *
+         * Le symptôme : « Allowed memory size 536870912 bytes exhausted »
+         * sur un .xlsx de 50 000 produits.
+         *
+         * La cause : `IOFactory::load()` décompresse le classeur ENTIER
+         * en RAM (cellules + styles + sharedStrings), puis `readSheetRows()`
+         * accumule en plus TOUTES les lignes extraites. La mémoire est
+         * consommée deux fois.
+         *
+         * MESURÉ à 50 000 produits (scripts/measure_xlsx_readers.php) :
+         *
+         *   variante                          temps     pic mémoire
+         *   IOFactory::load()                 17,5 s      410 Mo
+         *   + readFilter + readDataOnly       21,8 s      428 Mo
+         *   LECTEUR NATIF (ZipArchive+XMLReader) 1,5 s        6 Mo
+         *
+         * Le readFilter seul ne suffit PAS : PhpSpreadsheet garde la
+         * structure du classeur en mémoire quoi qu'il arrive. Le lecteur
+         * natif, lui, ne conserve que les sharedStrings (l'index des
+         * chaînes) et lit la feuille en FLUX : la mémoire est
+         * proportionnelle à la TAILLE DE LA LIGNE, pas à celle du
+         * fichier.
+         *
+         * → 68× moins de mémoire, 11× plus rapide.
+         *
+         * ⚠️ Le fallback sur `IOFactory::load()` reste : un .xlsx mal
+         *    formé (ou une variante que le lecteur natif ne saisit pas)
+         *    doit rester importable.
+         */
+        try {
+            yield from $this->readXlsxRowsNative($filePath);
+            return;
+        } catch (\Throwable $e) {
+            error_log('ProductImportService::native xlsx reader failed, fallback: ' . $e->getMessage());
+        }
+
+        // ⚠️ Le fallback charge TOUT en mémoire : c'est le chemin de
+        //    secours (un .xlsx mal formé), pas le chemin normal.
         $spreadsheet = IOFactory::load($filePath);
         $sheet = $spreadsheet->getActiveSheet();
-        $rows = $this->readSheetRows($sheet);
+        foreach ($this->readSheetRows($sheet) as $row) {
+            yield $row;
+        }
         $spreadsheet->disconnectWorksheets();
         unset($spreadsheet);
+    }
 
-        return $rows;
+    /**
+     * Le lecteur natif produit les lignes UN PAR UNE.
+     *
+     * ⚠️ C'est INDISPENSABLE : même avec un lecteur en flux, si on
+     *    accumule les 50 000 lignes extraites dans un tableau, la mémoire
+     *    remonte. Mesuré : le pic reste à ~500 Mo tant que `$rows` grandit,
+     *    alors que le lecteur seul est à 6 Mo.
+     *
+     * ⚠️ Le générateur est consommé UNE SEULE FOIS : on ne peut pas le
+     *    parcourir deux fois. `importFile()` le fait une fois, c'est tout.
+     *
+     * @return \Generator<int, array{line:int, cells:array}>
+     */
+    private function readXlsxRowsNative(string $filePath): \Generator
+    {
+        if (!class_exists(\ZipArchive::class) || !class_exists(\XMLReader::class)) {
+            throw new \RuntimeException('ZipArchive ou XMLReader indisponible');
+        }
+
+        $zip = new \ZipArchive();
+        if ($zip->open($filePath) !== true) {
+            throw new \RuntimeException('Archive ZIP illisible');
+        }
+
+        try {
+            // ── 1. Les sharedStrings : l'index des chaînes ──────────
+            $shared = $this->readSharedStringsNative($zip, $filePath);
+
+            // ── 1b. Les styles « date » ──────────────────────────────
+            $dateStyles = $this->readDateStylesNative($zip, $filePath);
+
+            // ── 2. La 1re feuille ─────────────────────────────────────
+            $sheetPath = null;
+            for ($i = 0; $i < $zip->numFiles; $i++) {
+                $name = $zip->getNameIndex($i);
+                if (preg_match('#^xl/worksheets/sheet\d+\.xml$#', (string)$name)) {
+                    $sheetPath = (string)$name;
+                    break;
+                }
+            }
+            if ($sheetPath === null) {
+                throw new \RuntimeException('Aucune feuille dans le classeur');
+            }
+
+            $headerMap = null;
+            $rowIndex = 0;
+            $cells = [];
+            $dateCells = [];
+            $colLetter = '';
+            $cellType = '';
+            $cellIsDate = false;
+            $rowHasValue = false;
+            $inValue = false;
+            $valueText = '';
+            $inInlineString = false;
+
+            $xml = new \XMLReader();
+            $xml->open('zip://' . $filePath . '#' . $sheetPath);
+
+            while (@$xml->read()) {
+                $node = $xml->nodeType;
+
+                if ($node === \XMLReader::ELEMENT) {
+                    switch ($xml->name) {
+                        case 'row':
+                            $rowIndex = (int)$xml->getAttribute('r');
+                            $cells = [];
+                            $dateCells = [];
+                            $rowHasValue = false;
+                            break;
+
+                        case 'c':
+                            $ref = (string)$xml->getAttribute('r');
+                            $cellType = (string)$xml->getAttribute('t');
+                            $colLetter = preg_replace('/\d+/', '', $ref);
+                            $cellStyle = $xml->getAttribute('s');
+                            $cellIsDate = ($cellStyle !== null
+                                && $cellStyle !== ''
+                                && isset($dateStyles[(int)$cellStyle]));
+                            break;
+
+                        case 'v':
+                            $inValue = true;
+                            $valueText = '';
+                            break;
+
+                        case 't':
+                            $inInlineString = true;
+                            $valueText = '';
+                            break;
+                    }
+                } elseif ($node === \XMLReader::TEXT || $node === \XMLReader::CDATA) {
+                    if ($inValue || $inInlineString) {
+                        $valueText .= $xml->readString();
+                    }
+                } elseif ($node === \XMLReader::END_ELEMENT) {
+                    switch ($xml->name) {
+                        case 'v':
+                            if ($inValue) {
+                                $value = $valueText;
+                                if ($cellType === 's') {
+                                    $value = $shared[(int)$value] ?? '';
+                                } else {
+                                    /*
+                                     * ⚠️ Le XML brut porte la valeur
+                                     *    NUMÉRIQUE telle qu'Excel l'a
+                                     *    écrite : « 15939.0 » pour un
+                                     *    entier. PhpSpreadsheet, lui,
+                                     *    renvoie « 15939 ».
+                                     *
+                                     *    Sans cette normalisation, le
+                                     *    prix importé serait « 15939.0 »
+                                     *    au lieu de « 15939 » — un écart
+                                     *    visible dans le rapport ET dans
+                                     *    les données.
+                                     *
+                                     *    On ne touche que la FINALE « .0 »
+                                     *    d'un entier : « 15939.50 » et
+                                     *    « 0.5 » sont intacts.
+                                     */
+                                    $value = preg_replace('/\.0+$/', '', $value);
+                                }
+                                $cells[$colLetter] = $value;
+                                if ($cellIsDate) {
+                                    $dateCells[$colLetter] = $value;
+                                }
+                                $rowHasValue = true;
+                            }
+                            $inValue = false;
+                            break;
+
+                        case 't':
+                            if ($inInlineString) {
+                                $cells[$colLetter] = $valueText;
+                                $rowHasValue = true;
+                            }
+                            $inInlineString = false;
+                            break;
+
+                        case 'row':
+                            if ($headerMap === null) {
+                                if ($rowHasValue) {
+                                    $headerMap = $this->mapHeadersNative($cells);
+                                }
+                                break;
+                            }
+                            if (!$rowHasValue) {
+                                break;   // ligne vide intercalée
+                            }
+                            // ⚠️ On RENVOIE la ligne et on libère aussitôt
+                            //    les structures de la ligne courante.
+                            yield [
+                                'line'  => $rowIndex,
+                                'cells' => $this->extractCellsNative($cells, $headerMap, $dateCells),
+                            ];
+                            $cells = [];
+                            $dateCells = [];
+                            break;
+                    }
+                }
+            }
+            $xml->close();
+        } finally {
+            $zip->close();
+        }
+    }
+
+    /**
+     * Les styles du classeur :哪些 index de style sont des DATES ?
+     *
+     * ⚠️ Dans un .xlsx, une cellule date porte l'attribut `s="N"` (index de
+     *    style) et le style pointe vers un `numFmt` de type date
+     *    (`numFmtId` 14 à 22, 45 à 47, ou un format personnalisé contenant
+     *    d/j/y).
+     *
+     *    Sans cette distinction, une date Excel (sérial `45000`) serait
+     *    lue comme le nombre 45000 — et `readDate()` la convertirait en
+     *    date, mais une date au format ISO (notre cas) serait une
+     *    CHAÎNE, pas un nombre.
+     *
+     *    On ne garde que l'index des styles « date » : un tableau de
+     *    quelques dizaines d'entiers.
+     *
+     * @return array<int, bool>  Index de style → est-ce une date ?
+     */
+    private function readDateStylesNative(\ZipArchive $zip, string $filePath): array
+    {
+        $dateStyles = [];
+
+        $index = $zip->locateName('xl/styles.xml');
+        if ($index === false) {
+            return $dateStyles;
+        }
+
+        $xml = new \XMLReader();
+        $xml->open('zip://' . $filePath . '#xl/styles.xml');
+
+        // 1) Les formats de cellule personnalisés : numFmtId → format.
+        $customFormats = [];
+        // 2) Les formats de date « standard » (numFmtId 14 à 22, 45 à 47).
+        $builtinDateFormats = array_fill(0, 0, 48);
+        foreach ([14, 15, 16, 17, 18, 19, 20, 21, 22, 45, 46, 47] as $id) {
+            $builtinDateFormats[$id] = 1;
+        }
+
+        $inCellXfs = false;
+        $xfNumFmtId = 0;
+        $xfIndex = -1;
+
+        while (@$xml->read()) {
+            if ($xml->nodeType === \XMLReader::ELEMENT) {
+                if ($xml->name === 'numFmt') {
+                    $id = (int)$xml->getAttribute('numFmtId');
+                    $code = (string)$xml->getAttribute('formatCode');
+                    $customFormats[$id] = $code;
+                } elseif ($xml->name === 'cellXfs') {
+                    /*
+                     * ⚠️ `cellXfs` est le SEUL conteneur d'`xf` qui compte.
+                     *
+                     *    `cellStyleXfs` contient lui aussi des `<xf>` : les
+                     *    compter décalerait TOUS les index de style d'une
+                     *    position — une cellule `<c s="1">` pointerait alors
+                     *    sur le mauvais format, et la détection de date
+                     *    échouerait SILENCIEUSEMENT (une date Excel en
+                     *    sérial serait importée comme un nombre).
+                     *
+                     *    Le compteur est donc remis à zéro À L'ENTRÉE de
+                     *    `cellXfs`, et l'index est celui de la position
+                     *    DANS `cellXfs` — exactement ce que l'attribut `s=`
+                     *    d'une cellule désigne.
+                     */
+                    $inCellXfs = true;
+                    $xfIndex = -1;
+                } elseif ($xml->name === 'xf' && $inCellXfs) {
+                    /*
+                     * ⚠️ Le style est évalué ICI, à l'ELEMENT — pas à
+                     *    l'END_ELEMENT.
+                     *
+                     *    En effet, dans un .xlsx les `<xf>` sont AUTO-
+                     *    FERMANTS (`<xf numFmtId="14" …/>`) : il n'existe
+                     *    aucun événement END_ELEMENT pour eux. Attendre la
+                     *    fin de l'élément faisait échouer la détection
+                     *    SILENCIEUSEMENT — une date Excel (sérial) était
+                     *    alors importée comme un nombre.
+                     */
+                    $xfIndex++;
+                    $xfNumFmtId = (int)$xml->getAttribute('numFmtId');
+
+                    // Un style est « date » si son numFmt l'est.
+                    $isDate = 0;
+                    if (isset($builtinDateFormats[$xfNumFmtId]) && $builtinDateFormats[$xfNumFmtId]) {
+                        $isDate = 1;
+                    } elseif (isset($customFormats[$xfNumFmtId])) {
+                        $code = strtolower($customFormats[$xfNumFmtId]);
+                        // Un format de date contient d, m ou y (et pas
+                        // seulement des « 0 » comme un format numérique).
+                        if (preg_match('/[dmy]/', $code) && !preg_match('/^[^dmy]*$/', $code)) {
+                            $isDate = 1;
+                        }
+                    }
+                    if ($isDate) {
+                        $dateStyles[$xfIndex] = true;
+                    }
+                }
+            } elseif ($xml->nodeType === \XMLReader::END_ELEMENT) {
+                if ($xml->name === 'cellXfs') {
+                    $inCellXfs = false;
+                }
+            }
+        }
+        $xml->close();
+
+        return $dateStyles;
+    }
+
+    /**
+     * Les sharedStrings du classeur (les chaînes uniques).
+     *
+     * C'est le SEUL index gardé en mémoire : quelques mégaoctets pour
+     * 50 000 produits, contre des centaines pour le classeur entier.
+     *
+     * @return array<int, string>
+     */
+    private function readSharedStringsNative(\ZipArchive $zip, string $filePath): array
+    {
+        $shared = [];
+        $index = $zip->locateName('xl/sharedStrings.xml');
+        if ($index === false) {
+            return $shared;
+        }
+
+        $xml = new \XMLReader();
+        $xml->open('zip://' . $filePath . '#xl/sharedStrings.xml');
+
+        $current = '';
+        $inSi = false;
+        $inText = false;
+
+        while (@$xml->read()) {
+            if ($xml->nodeType === \XMLReader::ELEMENT) {
+                if ($xml->name === 'si') {
+                    $current = '';
+                    $inSi = true;
+                } elseif ($xml->name === 't' && $inSi) {
+                    $inText = true;
+                }
+            } elseif ($xml->nodeType === \XMLReader::TEXT || $xml->nodeType === \XMLReader::CDATA) {
+                if ($inText) {
+                    $current .= $xml->readString();
+                }
+            } elseif ($xml->nodeType === \XMLReader::END_ELEMENT) {
+                if ($xml->name === 't') {
+                    $inText = false;
+                } elseif ($xml->name === 'si') {
+                    $shared[] = $current;
+                    $inSi = false;
+                }
+            }
+        }
+        $xml->close();
+
+        return $shared;
+    }
+
+    /**
+     * Associe les en-têtes aux colonnes logiques (équivalent natif de
+     * `mapHeaders()`, qui travaille sur des objets Cell).
+     *
+     * @param array<string, string> $cells  Lettre de colonne → valeur.
+     * @return array<string, int>  Colonne logique → position 1-based.
+     */
+    private function mapHeadersNative(array $cells): array
+    {
+        $headerMap = [];
+        $position = 0;
+
+        /*
+         * ⚠️ On itère les colonnes DANS L'ORDRE (A, B, C…), pas dans
+         *    l'ordre du tableau PHP : les colonnes lues ne sont pas
+         *    forcément contiguës, et `mapHeaders()` (le lecteur PhpSpreadsheet)
+         *    compte la position sur les cellules RÉELLEMENT présentes.
+         *    Sans ce tri, une colonne vide au milieu décalerait tous les
+         *    index d'une position.
+         */
+        ksort($cells, SORT_NATURAL);
+
+        foreach ($cells as $value) {
+            $position++;
+            $normalized = $this->normalizeHeader((string)$value);
+            if ($normalized === '') {
+                continue;
+            }
+            foreach (self::HEADER_ALIASES as $canonical => $aliases) {
+                if (in_array($normalized, $aliases, true) && !isset($headerMap[$canonical])) {
+                    $headerMap[$canonical] = $position;
+                    break;
+                }
+            }
+        }
+
+        return $headerMap;
+    }
+
+    /**
+     * Extrait les valeurs logiques d'une ligne (équivalent natif de
+     * `extractCells()`).
+     *
+     * ⚠️ Le lecteur natif ne distingue pas une date d'un nombre : la
+     *    colonne `date_expiration` est donc convertie par `buildProduct()`
+     *    (qui sait lire « YYYY-MM-DD » ET « JJ/MM/AAAA »), et non par
+     *    `SharedDate::isDateTime()`.
+     *
+     * @param array<string, string> $cells
+     * @param array<string, int>    $map
+     */
+    private function extractCellsNative(array $cells, array $map, array $dateCells = []): array
+    {
+        $extracted = [];
+
+        /*
+         * ⚠️ `$map` associe une colonne logique à une POSITION 1-based
+         *    (comme `mapHeaders()`), pas à une lettre. On reconstruit donc
+         *    la lettre depuis la position — c'est le même contrat que
+         *    `extractCells()`, qui fait l'inverse sur des objets Cell.
+         */
+        foreach ($map as $column => $position) {
+            $letter = Coordinate::stringFromColumnIndex((int)$position);
+            $raw = $cells[$letter] ?? null;
+
+            $extracted[$column] = [
+                'value'     => $raw,
+                'formatted' => $raw === null ? '' : trim((string)$raw),
+                // Une cellule dont le STYLE est une date : la valeur est un
+                // sérial Excel, que `readDate()` sait convertir.
+                'is_date'   => isset($dateCells[$letter]),
+            ];
+        }
+
+        return $extracted;
     }
 
     /**

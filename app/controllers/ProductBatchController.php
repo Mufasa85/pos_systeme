@@ -121,6 +121,75 @@ class ProductBatchController extends Controller
         $this->json(['success' => true]);
     }
 
+    /**
+     * PAGE DES LOTS : liste paginée des lots de la boutique, triés par
+     * péremption.
+     *
+     * Pagination KEYSET par défaut : le coût reste constant quelle que
+     * soit la page. Le client passe la borne vue (`exp` + `id`) pour
+     * obtenir la suivante.
+     *
+     * Le mode `offset` reste disponible (paramètre `mode=offset`) pour
+     * un accès direct à une page — utile pour un lien « aller à la page
+     * N », au prix d'un tri complet.
+     */
+    public function page()
+    {
+        if (!$this->requireAuth()) {
+            return;
+        }
+
+        $limit  = (int)($_GET['limit'] ?? 50);
+        $offset = (int)($_GET['offset'] ?? 0);
+        $mode   = ($_GET['mode'] ?? 'keyset') === 'offset' ? 'offset' : 'keyset';
+
+        $shopId = $this->isSuperAdmin() ? ($_GET['shop_id'] ?? null) : $this->getShopId();
+        if ($shopId !== null) {
+            $shopId = (int)$shopId;
+        }
+
+        $lastExpiration = !empty($_GET['exp']) ? $this->sanitaze($_GET['exp']) : null;
+        $lastId         = isset($_GET['id']) && $_GET['id'] !== '' ? (int)$_GET['id'] : null;
+
+        // Un lot n'est listé que s'il a du stock : un lot vidé (vendu)
+        // ne pollue pas la liste des lots à surveiller.
+        $onlyWithStock = ($_GET['with_stock'] ?? '1') !== '0';
+
+        $batchModel = new ProductBatch();
+        $result = $batchModel->getPage(
+            $shopId,
+            $limit,
+            $offset,
+            $mode,
+            $lastExpiration,
+            $lastId,
+            $onlyWithStock
+        );
+
+        // La borne de la page suivante : le dernier couple (date, id)
+        // affiché. C'est ce que le client renvoie pour la page suivante.
+        $rows = $result['rows'];
+        $next = null;
+        if (!empty($rows)) {
+            $last = end($rows);
+            $next = [
+                'exp' => $last['date_expiration'],
+                'id'  => (int)$last['id'],
+            ];
+        }
+
+        $this->json([
+            'success' => true,
+            'rows'    => $rows,
+            'total'   => $result['total'],
+            'limit'   => $result['limit'],
+            'offset'  => $result['offset'],
+            'mode'    => $mode,
+            'next'    => $next,
+            'has_more'=> count($rows) >= $result['limit'],
+        ]);
+    }
+
     public function alerts()
     {
         if (!$this->requireAuth()) {
@@ -130,14 +199,23 @@ class ProductBatchController extends Controller
         $days = (int)($_GET['days'] ?? 7);
         $shopId = $this->isSuperAdmin() ? ($_GET['shop_id'] ?? null) : $this->getShopId();
 
+        // ⚠️ La limite est EXPOSÉE mais bornée à 200 lignes. Sans borne,
+        // cet endpoint retournait TOUS les lots en fin de série : mesuré
+        // à 50 000 produits / 85 000 lots, 19 382 lignes pour une fenêtre
+        // de 90 jours. Les compteurs donnent le total exact.
+        $limit = (int)($_GET['limit'] ?? 50);
+        $limit = max(1, min(200, $limit));
+
         $batchModel = new ProductBatch();
-        $expiringSoon = $batchModel->getExpiringSoon($days, $shopId);
-        $expired = $batchModel->getExpired($shopId);
+        $expiringSoon = $batchModel->getExpiringSoon($days, $shopId, $limit);
+        $expired = $batchModel->getExpired($shopId, $limit);
 
         $this->json([
             'success' => true,
             'expiring_soon' => $expiringSoon,
             'expired' => $expired,
+            'expiring_soon_total' => $batchModel->countExpiringSoon($days, $shopId),
+            'expired_total' => $batchModel->countExpired($shopId),
         ]);
     }
 }

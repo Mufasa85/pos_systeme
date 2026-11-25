@@ -595,6 +595,15 @@
             </svg>
             <span>Produits</span>
           </a>
+          <?php /* Page des lots — même droit d'accès que « Produits ». */ ?>
+          <a href="/produits/lots" class="nav-item <?= $currentPage == 'produits-lots' ? 'active' : '' ?>">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="7" width="18" height="13" rx="2"></rect>
+              <path d="M3 11h18"></path>
+              <path d="M7 7V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v2"></path>
+            </svg>
+            <span>Lots</span>
+          </a>
         <?php endif; ?>
 
         <?php if (($moduleAccess['analytics'] ?? false) && ($pageVisibility['analytics'] ?? false)): ?>

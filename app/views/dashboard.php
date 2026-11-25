@@ -127,6 +127,26 @@
                 <?php else: ?>
                   <div class="empty-state">Aucune alerte de péremption</div>
                 <?php endif; ?>
+
+                <?php
+                /*
+                 * Les alertes sont bornées à 20 lignes (voir PageController).
+                 * Si le total dépasse ce qui est affiché, on le dit
+                 * explicitement — sinon l'utilisateur croit qu'il n'y a
+                 * que 20 alertes alors qu'il y en a 1 703.
+                 */
+                $expiredShown = count($expired_alerts);
+                $expiringShown = count($expiration_alerts);
+                $expiredTotal = $expired_alerts_total ?? $expiredShown;
+                $expiringTotal = $expiration_alerts_total ?? $expiringShown;
+                $hiddenTotal = max(0, $expiredTotal - $expiredShown) + max(0, $expiringTotal - $expiringShown);
+                ?>
+                <?php if ($hiddenTotal > 0): ?>
+                  <div class="alert-item alert-more">
+                    <span><strong><?= (int)$hiddenTotal ?></strong> autre(s) alerte(s) non affichée(s)</span>
+                    <a href="<?= htmlspecialchars(rtrim(APP_URL, '/') . '/alertes-lots') ?>">Voir tout</a>
+                  </div>
+                <?php endif; ?>
               </div>
             </div>
           </div>

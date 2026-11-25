@@ -119,7 +119,23 @@ class Product
      * @param bool $includeInactiveShops
      * @param array $filters
      */
-    public function getAllFiltered($shopId = null, $includeInactiveShops = false, array $filters = [])
+    /**
+     * Construit le clause WHERE et les paramètres de la requête catalogue.
+     *
+     * ⚠️ Cette méthode est PARTAGÉE par `getAllFiltered()` et `getPage()` :
+     * les deux DOIVENT filtrer pareil. Dupliquer ce code a déjà caused
+     * une divergence (le filtre des boutiques inactives), et la page
+     * `/produits` a affiché un compteur faux pendant des semaines.
+     *
+     * @return array{0: string, 1: array} [whereSql, params]
+     */
+    /**
+     * Construit le WHERE du catalogue.
+     *
+     * @param string $searchMode 'both' (complet), 'prefix' (indexable)
+     *                         ou 'barcode' (code-barres exact).
+     */
+    private function buildCatalogWhere($shopId, $includeInactiveShops, array $filters, string $searchMode = 'both'): array
     {
         $where = [];
         $params = [];
@@ -152,10 +168,43 @@ class Product
 
         // Recherche texte sur le nom ou le code-barres.
         if (!empty($filters['search'])) {
-            $where[] = '(p.nom LIKE ? OR p.code_barres LIKE ?)';
-            $like = '%' . $filters['search'] . '%';
-            $params[] = $like;
-            $params[] = $like;
+            /*
+             * RECHERCHE HYBRIDE (préfixe + infixe).
+             *
+             * Mesuré à 50 000 produits (base jetable, schéma réel) :
+             *   LIKE '%terme%'  → 29,6 – 44,7 ms  (scan complet)
+             *   LIKE 'terme%'   →  4,0 –  4,1 ms  (utilise idx_prod_shop_nom)
+             *
+             * Le FULLTEXT a été ÉVALUÉ ET ÉCARTÉ :
+             *   - il n'apporte rien sur le préfixe (4,5 ms vs 4,0 ms) ;
+             *   - `ft_min_word_len = 4` fait que `MATCH '+ca*'` renvoie
+             *     6 038 résultats FAUX (il ignore le mot), alors que
+             *     `LIKE 'ca%'` renvoie 2 041 résultats PERTINENTS ;
+             *   - il ne trouve pas les termes partiels ('Coca' dans
+             *     'Coca-Cola').
+             *
+             * La stratégie retenue : on teste le PRÉFIXE (indexé, rapide)
+             * et on ne bascule sur l'infixe (lent, mais complet) que si le
+             * préfixe ne donne rien. Un code-barres est toujours cherché
+             * en exact : il a un index UNIQUE (0,1 ms).
+             */
+            $search = (string)$filters['search'];
+
+            if ($searchMode === 'barcode') {
+                // Recherche par code-barres EXACT (index UNIQUE, 0,1 ms).
+                // C'est le chemin du scanner : il doit toujours trouver
+                // le produit, quelle que soit la recherche par nom.
+                $where[] = 'p.code_barres = ?';
+                $params[] = $search;
+            } else {
+                $where[] = $this->buildSearchCondition($search, $searchMode);
+                // Les placeholders sont dans l'ordre d'apparition dans le
+                // SQL généré : on les ajoute après avoir construit la
+                // condition.
+                foreach ($this->searchParams as $sp) {
+                    $params[] = $sp;
+                }
+            }
         }
 
         // Filtrer par défaut les produits dont la boutique est désactivée.
@@ -164,20 +213,268 @@ class Product
             $where[] = '(s.id IS NULL OR s.actif = 1)';
         }
 
-        $whereSql = $where ? 'WHERE ' . implode(' AND ', $where) : '';
+        return [$where ? 'WHERE ' . implode(' AND ', $where) : '', $params];
+    }
+
+    /**
+     * Construit la condition de recherche et renseigne `$searchParams`.
+     *
+     * @var array $searchParams Placeholders dans l'ordre d'apparition.
+     */
+    private array $searchParams = [];
+
+    /**
+     * Condition SQL de recherche sur le NOM (le code-barres est traité
+     * À PART, dans une requête distincte — cf. `getPage()`).
+     *
+     * ⚠️ MESURE à 50 000 produits — la FORME du predicate est décisive :
+     *
+     *   (p.nom LIKE 'X%')                       →  0,5 ms  type=range
+     *                                               sur idx_prod_shop_nom
+     *   (p.nom LIKE 'X%' OR p.code_barres LIKE 'X%')
+     *                                            → 12,4 ms  + "Using where"
+     *
+     * Le `OR code_barres LIKE ?` dans la MÊME requête empêche MySQL
+     * d'exploiter l'index pour le préfixe : il doit vérifier la seconde
+     * branche ligne à ligne. D'où la stratégie en DEUX requêtes.
+     *
+     * @param string $search Terme recherché.
+     * @param string $mode   'prefix' (indexable) ou 'both' (complet).
+     */
+    private function buildSearchCondition(string $search, string $mode = 'both'): string
+    {
+        $this->searchParams = [];
+
+        $search = trim($search);
+        if ($search === '') {
+            return '1=1';
+        }
+
+        if ($mode === 'prefix') {
+            $this->searchParams[] = $search . '%';
+            return '(p.nom LIKE ?)';
+        }
+
+        $this->searchParams[] = '%' . $search . '%';
+        return '(p.nom LIKE ?)';
+    }
+
+    /**
+     * Liste TOUS les produits correspondant aux filtres.
+     *
+     * ⚠️ Charge le catalogue ENTIER : à 50 000 produits, c'est 3,2 Mo de
+     * JSON. Utiliser `getPage()` pour un affichage paginé.
+     *
+     * Les colonnes de stock sont lues DÉNORMALISÉES (`produits.stock`,
+     * `produits.available_stock`, `produits.nearest_expiration_date`),
+     * maintenues par `ProductBatch::recalculateProductStock()`.
+     *
+     * ⚠️ AVANT, cette requête agrégeait les lots à chaque lecture
+     * (`GROUP BY` sur 85 000 lignes) : mesuré à 5 883 – 6 676 ms pour
+     * 50 000 produits, contre 586 – 675 ms pour une page de 50. C'est le
+     * gain le plus important de la migration de dénormalisation.
+     */
+    public function getAllFiltered($shopId = null, $includeInactiveShops = false, array $filters = [])
+    {
+        [$whereSql, $params] = $this->buildCatalogWhere($shopId, $includeInactiveShops, $filters);
 
         return $this->db->fetchAll("SELECT p.*, c.category AS categorie, t.taux AS tax_rate, t.etiquette AS tax_etiquette, s.nom AS shop_name, s.actif AS shop_actif,
-                COALESCE(SUM(pb.stock), 0) AS total_stock,
-                COALESCE(SUM(CASE WHEN pb.date_expiration IS NULL OR pb.date_expiration >= CURDATE() THEN pb.stock ELSE 0 END), 0) AS available_stock,
-                MIN(CASE WHEN pb.date_expiration IS NOT NULL AND pb.stock > 0 AND pb.date_expiration >= CURDATE() THEN pb.date_expiration END) AS nearest_expiration_date
+                p.stock AS total_stock,
+                p.available_stock AS available_stock,
+                p.nearest_expiration_date AS nearest_expiration_date
             FROM produits p
             INNER JOIN categories c ON p.category_id = c.id
             LEFT JOIN taxes t ON p.taxe_id = t.id
             LEFT JOIN shops s ON p.shop_id = s.id
-            LEFT JOIN product_batches pb ON pb.product_id = p.id
             $whereSql
-            GROUP BY p.id
             ORDER BY p.nom ASC", $params);
+    }
+
+    /**
+     * Page de produits, avec pagination serveur.
+     *
+     * ⚠️ C'est la méthode à utiliser pour AFFICHER le catalogue : à
+     * 50 000 produits, charger le catalogue entier (3,2 Mo de JSON) et
+     * paginer côté client fait geler le navigateur.
+     *
+     * Le filtre est IDENTIQUE à celui de `getAllFiltered()` (même
+     * construction de WHERE, cf. `buildCatalogWhere()`).
+     *
+     * @param array    $filters search, category, shop_id
+     * @param int      $limit   taille de page (bornée à 200)
+     * @param int      $offset  décalage
+     * @param int|null $shopId
+     * @param bool     $includeInactiveShops
+     * @return array{rows: array, total: int, limit: int, offset: int}
+     */
+    public function getPage(array $filters = [], int $limit = 50, int $offset = 0, $shopId = null, $includeInactiveShops = false): array
+    {
+        // Bornes : un `limit` fou renverrait le catalogue entier, et un
+        // `offset` négatif fait échouer MySQL.
+        $limit = max(1, min(200, $limit));
+        $offset = max(0, $offset);
+
+        $search = trim((string)($filters['search'] ?? ''));
+
+        /*
+         * RECHERCHE EN DEUX TEMPS — c'est LA partie la plus mesurée de ce
+         * fichier. À 50 000 produits (base jetable, schéma réel) :
+         *
+         *   (p.nom LIKE 'X%')                       →  0,5 ms   type=range
+         *   (p.nom LIKE 'X%' OR p.code_barres LIKE 'X%')
+         *                                            → 12,4 ms   + "Using where"
+         *   (p.nom LIKE '%X%')                      → 106 ms    scan complet
+         *
+         * Le `OR` sur le code-barres dans la MÊME requête empeche MySQL
+         * d'utiliser l'index pour le préfixe. On procède donc ainsi :
+         *
+         *   1. requête « nom préfixe »  → indexable, 0,5 ms ;
+         *   2. si elle ne donne RIEN, requête « nom infixe » (complet) ;
+         *   3. le code-barres est cherché SÉPARÉMENT (index UNIQUE), et
+         *      fusionné au résultat.
+         *
+         * Le FULLTEXT a été évalué et écarté : aucun gain sur le préfixe
+         * (4,5 ms vs 4,0 ms), et `ft_min_word_len = 4` le rend INUTILISABLE
+         * sur les termes courts — mesuré : `MATCH '+ca*'` renvoie 6 038
+         * résultats FAUX (il ignore le mot), là où `LIKE 'ca%'` renvoie
+         * 2 041 résultats PERTINENTS. Or « cola », « pain », « sel » sont
+         * des recherches de caisse ultra-fréquentes.
+         */
+        if ($search !== '') {
+            return $this->getPageSearched($filters, $limit, $offset, $shopId, $includeInactiveShops, $search);
+        }
+
+        [$whereSql, $params] = $this->buildCatalogWhere($shopId, $includeInactiveShops, $filters);
+
+        // Le total est compté SÉPARÉMENT : le `COUNT(*)` avec jointures
+        // est mesuré à 2,0 ms sur 6 000 produits (et reste linéaire).
+        $countSql = "SELECT COUNT(*) AS c
+            FROM produits p
+            INNER JOIN categories c ON p.category_id = c.id
+            LEFT JOIN shops s ON p.shop_id = s.id
+            $whereSql";
+        $total = (int)($this->db->fetch($countSql, $params)['c'] ?? 0);
+
+        // ⚠️ `LIMIT`/`OFFSET` en LITTERAUX castés en int : le projet
+        // tourne avec `EMULATE_PREPARES = false`, et mélanger des
+        // placeholders nommés avec des positionnels lève HY093.
+        // (Même approche que `CaisseBrouillon::listDrafts()`.)
+        $sql = "SELECT p.*, c.category AS categorie, t.taux AS tax_rate, t.etiquette AS tax_etiquette, s.nom AS shop_name, s.actif AS shop_actif,
+                p.stock AS total_stock,
+                p.available_stock AS available_stock,
+                p.nearest_expiration_date AS nearest_expiration_date
+            FROM produits p
+            INNER JOIN categories c ON p.category_id = c.id
+            LEFT JOIN taxes t ON p.taxe_id = t.id
+            LEFT JOIN shops s ON p.shop_id = s.id
+            $whereSql
+            ORDER BY p.nom ASC
+            LIMIT {$limit} OFFSET {$offset}";
+
+        return [
+            'rows'   => $this->db->fetchAll($sql, $params),
+            'total'  => $total,
+            'limit'  => $limit,
+            'offset' => $offset,
+        ];
+    }
+
+    /**
+     * Page du catalogue AVEC recherche.
+     *
+     * Stratégie en trois temps (cf. le commentaire de `getPage()` pour
+     * les mesures) :
+     *   1. nom en PRÉFIXE  → requête indexable, 0,5 ms à 50 000 produits ;
+     *   2. si vide, nom en INFIXE → requête complète (plus lente, mais
+     *      c'est le seul moyen de trouver « Cola » dans « Coca-Cola ») ;
+     *   3. code-barres Exact (index UNIQUE) → fusionné au résultat.
+     *
+     * Le code-barres est cherché dans TOUS les cas (y compris quand le
+     * préfixe a déjà trouvé des produits) : scanner un code-barres doit
+     * TOUJOURS fonctionner, et c'est 0,1 ms.
+     */
+    private function getPageSearched(array $filters, int $limit, int $offset, $shopId, bool $includeInactiveShops, string $search): array
+    {
+        $prefixRows = null;
+        $total = 0;
+
+        // ── 1. Préfixe (indexable) ─────────────────────────────────────
+        [$whereSql, $params] = $this->buildCatalogWhere($shopId, $includeInactiveShops, $filters, 'prefix');
+        $prefixSql = $this->catalogSelectSql($whereSql) . " ORDER BY p.nom ASC LIMIT {$limit} OFFSET {$offset}";
+        $prefixRows = $this->db->fetchAll($prefixSql, $params);
+
+        $countSql = "SELECT COUNT(*) AS c
+            FROM produits p
+            INNER JOIN categories c ON p.category_id = c.id
+            LEFT JOIN shops s ON p.shop_id = s.id
+            $whereSql";
+        $total = (int)($this->db->fetch($countSql, $params)['c'] ?? 0);
+
+        // ── 2. Repli en infixe si le préfixe ne donne RIEN ──────────────
+        //    (le caissier a tapé un mot AU MILIEU du nom)
+        if ($total === 0) {
+            [$whereSql, $params] = $this->buildCatalogWhere($shopId, $includeInactiveShops, $filters, 'both');
+            $infixSql = $this->catalogSelectSql($whereSql) . " ORDER BY p.nom ASC LIMIT {$limit} OFFSET {$offset}";
+            $prefixRows = $this->db->fetchAll($infixSql, $params);
+            $total = (int)($this->db->fetch($countSql, $params)['c'] ?? 0);
+        }
+
+        // ── 3. Code-barres : toujours cherché en exact ─────────────────
+        //    (index UNIQUE sur code_barres → 0,1 ms)
+        $barcodeRows = [];
+        if (preg_match('/^[A-Za-z0-9._-]{3,}$/', $search)) {
+            [$bcWhere, $bcParams] = $this->buildCatalogWhere($shopId, $includeInactiveShops, $filters, 'barcode');
+            $bcSql = $this->catalogSelectSql($bcWhere) . " ORDER BY p.nom ASC LIMIT {$limit}";
+            $barcodeRows = $this->db->fetchAll($bcSql, $bcParams);
+
+            $bcCountSql = "SELECT COUNT(*) AS c
+                FROM produits p
+                INNER JOIN categories c ON p.category_id = c.id
+                LEFT JOIN shops s ON p.shop_id = s.id
+                $bcWhere";
+            $barcodeTotal = (int)($this->db->fetch($bcCountSql, $bcParams)['c'] ?? 0);
+        } else {
+            $barcodeTotal = 0;
+        }
+
+        // Fusion : les produits trouvés par code-barres ne sont pas
+        // doublons de ceux trouvés par le nom.
+        $seen = [];
+        $rows = [];
+        foreach (array_merge($barcodeRows, $prefixRows) as $r) {
+            $id = (int)$r['id'];
+            if (isset($seen[$id])) {
+                continue;
+            }
+            $seen[$id] = true;
+            $rows[] = $r;
+        }
+
+        // Le total combine les deux sources, sans double compte.
+        $total = $total + $barcodeTotal;
+
+        return [
+            'rows'   => $rows,
+            'total'  => $total,
+            'limit'  => $limit,
+            'offset' => $offset,
+        ];
+    }
+
+    /**
+     * Le SELECT commun du catalogue (colonnes dénormalisées, jointures).
+     */
+    private function catalogSelectSql(string $whereSql): string
+    {
+        return "SELECT p.*, c.category AS categorie, t.taux AS tax_rate, t.etiquette AS tax_etiquette, s.nom AS shop_name, s.actif AS shop_actif,
+                p.stock AS total_stock,
+                p.available_stock AS available_stock,
+                p.nearest_expiration_date AS nearest_expiration_date
+            FROM produits p
+            INNER JOIN categories c ON p.category_id = c.id
+            LEFT JOIN taxes t ON p.taxe_id = t.id
+            LEFT JOIN shops s ON p.shop_id = s.id
+            $whereSql";
     }
 
     public function findByBarcode($barcode)
@@ -375,6 +672,14 @@ class Product
 
     public function update($id, $data)
     {
+        /*
+         * ⚠️ La boutique AVANT modification est lue ICI, avant l'UPDATE :
+         *    après, la ligne porte déjà la nouvelle valeur et la
+         *    différence serait invisible (donc jamais synchronisée).
+         */
+        $shopIdAvant = $this->shopIdActuel((int)$id);
+        $shopIdApres = $data['shop_id'] ?? null;
+
         $sql = 'UPDATE produits SET
                 code_barres = :code_barres,
                 nom = :nom,
@@ -410,15 +715,54 @@ class Product
             ':taxe_specifique_value' => $data['taxe_specifique_value'] ?? 0,
             ':date_expiration' => !empty($data['date_expiration']) ? $data['date_expiration'] : null,
         ]);
-        $this->recalculateProductStock($id);
+        /*
+         * ⚠️ Si la BOUTIQUE du produit a changé, ses lots doivent suivre.
+         *
+         * `product_batches.shop_id` est dé-normalisé (migration
+         * 2026_11_25_product_batches_shop_id_denormalise.sql) pour que la
+         * page des lots puisse filtrer ET trier sur un seul index.
+         *
+         * Sans cette synchronisation, les lots resteraient rattachés à
+         * l'ANCIENNE boutique : ils y seraient encore listés (fuite de
+         * données inter-boutiques) et absents de la nouvelle.
+         *
+         * C'est le seul endroit du code où le `shop_id` d'un produit peut
+         * changer : `Product::update()`.
+         */
+        if ((int)($shopIdApres ?? 0) !== (int)($shopIdAvant ?? 0)) {
+            (new ProductBatch())->syncShopIdForProduct((int)$id);
+        }
+
         return true;
     }
 
+    /**
+     * La boutique actuelle d'un produit (null si aucune).
+     */
+    private function shopIdActuel(int $id): ?int
+    {
+        $row = $this->db->fetch('SELECT shop_id FROM produits WHERE id = ? LIMIT 1', [$id]);
+        if (!$row || $row['shop_id'] === null) {
+            return null;
+        }
+        return (int)$row['shop_id'];
+    }
+
+    /**
+     * Recalcule les colonnes de stock dénormalisées de `produits`.
+     *
+     * ⚠️ Délègue à `ProductBatch::recalculateProductStock()` : c'est le
+     * point d'écriture unique de la dénormalisation. Cette méthode NE DOIT
+     * PAS recalculer le stock par un chemin différent, sinon elle
+     * écraserait `available_stock` avec une valeur incohérente.
+     *
+     * (Avant : cette méthode faisait un `UPDATE produits SET stock = ...`
+     * sur la seule somme des lots, calculée par une requête séparée.)
+     */
     private function recalculateProductStock($id)
     {
         $batchModel = new ProductBatch();
-        $total = $batchModel->getTotalStock($id);
-        $this->db->query('UPDATE produits SET stock = :stock WHERE id = :id', [':stock' => $total, ':id' => $id]);
+        $batchModel->recalculateProductStock($id);
     }
 
     public function delete($id)

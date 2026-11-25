@@ -18,6 +18,80 @@ class ProductController extends Controller
         $this->json($productModel->getAll($shopId, $includeInactive));
     }
 
+    /**
+     * Page de produits (pagination serveur).
+     *
+     * ⚠️ `GET /api/produits` (au-dessus) renvoie le catalogue ENTIER :
+     * à 50 000 produits, c'est 3,2 Mo de JSON, et la caisse qui le charge
+     * en mémoire gèle. Cette route renvoie une PAGE.
+     *
+     * On ne modifie PAS `/api/produits` : le client mobile Android
+     * (docs/API_MOBILE.md) attend un tableau JSON, et la caisse a besoin
+     * du catalogue complet pour la recherche et le scanner.
+     *
+     * Paramètres : limit, offset, search, category, shop_id,
+     * include_inactive.
+     */
+    public function page()
+    {
+        $productModel = new Product();
+        $shopId = $this->isSuperAdmin() ? null : $this->getShopId();
+        // Super admin peut inclure les produits des boutiques désactivées via ?include_inactive=1
+        $includeInactive = $this->isSuperAdmin() && !empty($_GET['include_inactive']);
+
+        $filters = [
+            'search'   => $this->sanitaze($_GET['search'] ?? ''),
+            'category' => $_GET['category'] ?? '',
+            'shop_id'  => !empty($_GET['shop_id']) ? (int)$_GET['shop_id'] : null,
+        ];
+
+        // ⚠️ Les bornes (limit 1..200, offset >= 0) sont appliquées dans
+        // `Product::getPage()` : un `limit` fou ne doit jamais pouvoir
+        // ramener le catalogue entier.
+        $result = $productModel->getPage(
+            $filters,
+            (int)($_GET['limit'] ?? 50),
+            (int)($_GET['offset'] ?? 0),
+            $shopId,
+            $includeInactive
+        );
+
+        $this->json([
+            'rows'   => $result['rows'],
+            'total'  => $result['total'],
+            'limit'  => $result['limit'],
+            'offset' => $result['offset'],
+        ]);
+    }
+
+    /**
+     * Récupère un produit par son id.
+     *
+     * ⚠️ Utilisé par la caisse quand le catalogue est chargé par blocs :
+     * un produit peut être sur une page pas encore téléchargée, et le
+     * caisseur peut vouloir l'ajouter au panier quand même.
+     *
+     * Le produit est renvoyé avec les mêmes champs que `findByBarcode()`
+     * (stock, lots, taxes), pour que le panier ait toutes les
+     * informations dont il a besoin.
+     */
+    public function show($id)
+    {
+        $id = is_array($id) ? (int)($id['id'] ?? 0) : (int)$id;
+        if ($id <= 0) {
+            $this->status(400)->json(['error' => 'ID manquant']);
+            return;
+        }
+
+        $product = (new Product())->findById($id);
+        if (!$product) {
+            $this->status(404)->json(['error' => 'Produit introuvable']);
+            return;
+        }
+
+        $this->json($product);
+    }
+
     public function find()
     {
         $barcode = $this->sanitaze(trim($_GET['code_barres'] ?? ''));
