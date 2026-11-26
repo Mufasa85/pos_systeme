@@ -34,11 +34,17 @@ try {
 
     if ($count > 0) {
         // 2. Copier les ventes vers ventes_archive
+        // Les colonnes DGI (dgi_invoice_number, dgi_status, dgi_synced_at,
+        // dgi_attempts, dgi_last_error, dgi_response) sont copiées avec le
+        // reste : sans cela, l'information de synchronisation DGI serait
+        // perdue au bout de 3 mois (cf. migration 2026_10_27).
         $sql = 'INSERT INTO ventes_archive 
-                    (id, numero_facture, client_id, sous_total_ht, tva, total, payments, 
-                     vendeur_id, shop_id, date, dateDGI, qrCode, codeDEFDGI, counters, nim, comment, service)
-                SELECT id, numero_facture, client_id, sous_total_ht, tva, total, payments,
-                       vendeur_id, shop_id, date, dateDGI, qrCode, codeDEFDGI, counters, nim, comment, service
+                    (id, numero_facture, invoice_type, est_hotel, client_id, sous_total_ht, tva, total, payments, 
+                     vendeur_id, shop_id, date, dateDGI, qrCode, codeDEFDGI, counters, nim, comment, service,
+                     dgi_invoice_number, dgi_status, dgi_synced_at, dgi_attempts, dgi_last_error, dgi_response)
+                SELECT id, numero_facture, invoice_type, est_hotel, client_id, sous_total_ht, tva, total, payments,
+                       vendeur_id, shop_id, date, dateDGI, qrCode, codeDEFDGI, counters, nim, comment, service,
+                       dgi_invoice_number, dgi_status, dgi_synced_at, dgi_attempts, dgi_last_error, dgi_response
                 FROM ventes WHERE date < ?';
         $stmt = $db->prepare($sql);
         $stmt->execute([$cutoffDate]);
@@ -46,11 +52,21 @@ try {
         echo "  ✓ {$archivedSales} ventes archivées\n";
 
         // 3. Copier les détails de vente vers details_vente_archive
+        // Les colonnes de traçabilité hôtel (`sejour_id`, `chambre_id`,
+        // `ligne_type`, `libelle`) sont copiées : sans elles, la facture
+        // imprimée d'une facture hôtel archivée perdrait ses libellés de
+        // nuitées (« Nuit 05/11 - Chambre 12 »).
+        // Le snapshot de taxe (`tax_rate`, `tax_etiquette`, `tax_groupe`) est
+        // copié aussi : sans lui, les nuitées archivées disparaissent du
+        // rapport « Par groupe de taxation ».
         $sql = 'INSERT INTO details_vente_archive 
                     (id, vente_id, produit_id, quantite, prix, remise_type, remise_value, 
-                     taxe_specifique_type, taxe_specifique_value)
+                     taxe_specifique_type, taxe_specifique_value, sejour_id, chambre_id, ligne_type, libelle,
+                     tax_rate, tax_etiquette, tax_groupe)
                 SELECT dv.id, dv.vente_id, dv.produit_id, dv.quantite, dv.prix, 
-                       dv.remise_type, dv.remise_value, dv.taxe_specifique_type, dv.taxe_specifique_value
+                       dv.remise_type, dv.remise_value, dv.taxe_specifique_type, dv.taxe_specifique_value,
+                       dv.sejour_id, dv.chambre_id, dv.ligne_type, dv.libelle,
+                       dv.tax_rate, dv.tax_etiquette, dv.tax_groupe
                 FROM details_vente dv
                 INNER JOIN ventes v ON dv.vente_id = v.id
                 WHERE v.date < ?';

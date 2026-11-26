@@ -127,11 +127,125 @@ class DgiReportControllerTest extends TestCase
         $this->assertStringNotContainsString('nif=ISF_B', $requestedUrl);
     }
 
-    public function testLeSuperAdminDoitSelectionnerUneBoutique(): void
+    /**
+     * Super_admin SANS boutique selectionnee : le rapport porte sur TOUTES les
+     * boutiques. Le provider est alors interroge avec `super_admin=true` et
+     * `rapport=x`, et l'ISF de l'ENTREPRISE sert de `nif`.
+     */
+    public function testLeSuperAdminPEutDemanderToutesLesBoutiques(): void
+    {
+        $previousRow = self::$pdo
+            ->query('SELECT * FROM company_info WHERE id = 1')
+            ->fetch(PDO::FETCH_ASSOC);
+        $existed = is_array($previousRow);
+
+        if ($existed) {
+            self::$pdo
+                ->prepare('UPDATE company_info SET isf = ? WHERE id = 1')
+                ->execute(['ISF_COMPANY']);
+        } else {
+            self::$pdo->exec(
+                "INSERT INTO company_info (id, name, isf, token) VALUES (1, 'Test', 'ISF_COMPANY', 'TOKEN')"
+            );
+        }
+
+        try {
+            $_SESSION = [
+                'user_id' => 102,
+                'role' => 'super_admin',
+            ];
+            $_GET = [
+                'from' => '2026-10-07',
+                'to' => '2026-11-07',
+            ];
+
+            $requestedUrl = '';
+            $result = $this->appeler(
+                $this->controllerAvecTransport($requestedUrl),
+                'generateDgiXReport'
+            );
+
+            $this->assertSame(200, $result['status']);
+            $this->assertTrue($result['payload']['success']);
+            $this->assertSame('ISF_COMPANY', $result['payload']['data']['header']['isf']);
+            $this->assertTrue(
+                $result['payload']['data']['header']['aggregate'] ?? false,
+                'Le rapport doit etre marque comme agrege.'
+            );
+            $this->assertStringContainsString('nif=ISF_COMPANY', $requestedUrl);
+            $this->assertStringContainsString('super_admin=true', $requestedUrl);
+            $this->assertStringContainsString('rapport=x', $requestedUrl);
+        } finally {
+            if ($existed) {
+                self::$pdo
+                    ->prepare('UPDATE company_info SET isf = ? WHERE id = 1')
+                    ->execute([$previousRow['isf']]);
+            } else {
+                self::$pdo->exec('DELETE FROM company_info WHERE id = 1');
+            }
+        }
+    }
+
+    /**
+     * Le rapport Z porte `rapport=z` ET `super_admin=true` quand le
+     * super_admin demande le perimetre « Toutes les boutiques ».
+     */
+    public function testLeRapportZSuperAdminInterrogeLeProviderEnAgregat(): void
+    {
+        $previousRow = self::$pdo
+            ->query('SELECT * FROM company_info WHERE id = 1')
+            ->fetch(PDO::FETCH_ASSOC);
+        $existed = is_array($previousRow);
+
+        if ($existed) {
+            self::$pdo
+                ->prepare('UPDATE company_info SET isf = ? WHERE id = 1')
+                ->execute(['ISF_COMPANY']);
+        } else {
+            self::$pdo->exec(
+                "INSERT INTO company_info (id, name, isf, token) VALUES (1, 'Test', 'ISF_COMPANY', 'TOKEN')"
+            );
+        }
+
+        try {
+            $_SESSION = [
+                'user_id' => 116,
+                'role' => 'super_admin',
+            ];
+            $_GET = [];
+
+            $requestedUrl = '';
+            $result = $this->appeler(
+                $this->controllerAvecTransport($requestedUrl),
+                'generateDgiZReport'
+            );
+
+            $this->assertSame(200, $result['status']);
+            $this->assertTrue($result['payload']['success']);
+            $this->assertStringContainsString('nif=ISF_COMPANY', $requestedUrl);
+            $this->assertStringContainsString('rapport=z', $requestedUrl);
+            $this->assertStringContainsString('super_admin=true', $requestedUrl);
+        } finally {
+            if ($existed) {
+                self::$pdo
+                    ->prepare('UPDATE company_info SET isf = ? WHERE id = 1')
+                    ->execute([$previousRow['isf']]);
+            } else {
+                self::$pdo->exec('DELETE FROM company_info WHERE id = 1');
+            }
+        }
+    }
+
+    /**
+     * Un rapport DGI porte toujours le bon type de rapport provider
+     * (`rapport=x` pour le X, `rapport=z` pour le Z), boutique par boutique.
+     */
+    public function testLeTypeDeRapportProviderEstTransmis(): void
     {
         $_SESSION = [
-            'user_id' => 102,
-            'role' => 'super_admin',
+            'user_id' => 117,
+            'role' => 'admin',
+            'shop_id' => $this->shopIds['a'],
         ];
         $_GET = [
             'from' => '2026-10-07',
@@ -144,10 +258,9 @@ class DgiReportControllerTest extends TestCase
             'generateDgiXReport'
         );
 
-        $this->assertSame(400, $result['status']);
-        $this->assertFalse($result['payload']['success']);
-        $this->assertSame('dgi_report_shop_required', $result['payload']['code']);
-        $this->assertSame('', $requestedUrl);
+        $this->assertSame(200, $result['status']);
+        $this->assertStringContainsString('rapport=x', $requestedUrl);
+        $this->assertStringNotContainsString('super_admin=true', $requestedUrl);
     }
 
     public function testLeSuperAdminUtiliseLaBoutiqueSelectionnee(): void
