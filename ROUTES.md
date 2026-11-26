@@ -193,6 +193,8 @@ Base URL: `http://localhost:8000/api`
 | POST    | `/api/produit/import` | ProductImportController | import | Importe des produits (Excel/CSV) | Admin |
 | GET     | `/api/produit/import/template` | ProductImportController | template | Modèle Excel à remplir | Admin |
 | GET     | `/api/produit/import/categories` | ProductImportController | categories | Catégories d'une boutique | Admin |
+| POST    | `/api/produit/import/chunk` | ProductImportController | chunk | Bloc suivant d'un import par blocs | Admin |
+| POST    | `/api/produit/import/abort` | ProductImportController | abort | Abandonne l'import et purge le fichier | Admin |
 | GET     | `/api/produit/export` | ProductExportController | export | Exporte le catalogue vers Excel | Admin |
 | GET     | `/api/produit/repair-barcodes` | ProductRepairController | index | Rapport des codes-barres corrompus (dry-run) | Super admin |
 | POST    | `/api/produit/repair-barcodes` | ProductRepairController | repair | Répare les codes-barres corrompus (`confirm=1`) | Super admin |
@@ -326,6 +328,8 @@ Base URL: `http://localhost:8000/api`
 | ------- | ---------------------------------- | ------------------------ | -------- | ---------------------------------- | ----- |
 | POST    | `/api/produit/import`              | ProductImportController  | import   | Importe des produits depuis un fichier | Admin |
 | GET     | `/api/produit/import/template`     | ProductImportController  | template | Télécharge le modèle `.xlsx`       | Admin |
+| POST    | `/api/produit/import/chunk`        | ProductImportController  | chunk    | Bloc suivant d'un import par blocs | Admin |
+| POST    | `/api/produit/import/abort`        | ProductImportController  | abort    | Abandonne l'import et purge le fichier | Admin |
 
 #### POST `/api/produit/import`
 
