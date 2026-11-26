@@ -191,17 +191,19 @@
           </div>
           <?php if ($nbPages > 1): ?>
             <div class="pagination-buttons">
-              <a class="btn btn-ghost btn-small"
+              <a class="btn btn-small"
                  href="<?= htmlspecialchars($qsBase(['offset' => 0])) ?>"
                  title="Première page">&laquo; Première</a>
-              <a class="btn btn-ghost btn-small"
+              <a class="btn btn-small<?= $offset <= 0 ? ' is-disabled' : '' ?>"
                  href="<?= htmlspecialchars($qsBase(['offset' => max(0, $offset - $limit)])) ?>"
-                 <?= $offset <= 0 ? 'style="opacity:.4;pointer-events:none"' : '' ?>>&lsaquo; Précédent</a>
-              <span class="pagination-page">Page <?= $pageCourante ?> / <?= number_format($nbPages) ?></span>
-              <a class="btn btn-ghost btn-small"
+                 title="Page précédente"
+                 <?= $offset <= 0 ? 'aria-disabled="true" tabindex="-1"' : '' ?>>&lsaquo; Précédent</a>
+              <span class="pagination-page">Page <?= number_format($pageCourante) ?> / <?= number_format($nbPages) ?></span>
+              <a class="btn btn-small<?= ($offset + $limit) >= $total ? ' is-disabled' : '' ?>"
                  href="<?= htmlspecialchars($qsBase(['offset' => $offset + $limit])) ?>"
-                 <?= $offset + $limit >= $total ? 'style="opacity:.4;pointer-events:none"' : '' ?>>Suivant &rsaquo;</a>
-              <a class="btn btn-ghost btn-small"
+                 title="Page suivante"
+                 <?= ($offset + $limit) >= $total ? 'aria-disabled="true" tabindex="-1"' : '' ?>>Suivant &rsaquo;</a>
+              <a class="btn btn-small"
                  href="<?= htmlspecialchars($qsBase(['offset' => ($nbPages - 1) * $limit])) ?>"
                  title="Dernière page">Dernière &raquo;</a>
             </div>
@@ -317,7 +319,36 @@
               </button>
             </div>
 
-            <!-- Étape 2 : résultat -->
+            <!-- Étape 2 : avancement (mode « par blocs ») -->
+            <div id="product-import-step-progress" style="display:none;">
+              <div class="pi-progress">
+                <div class="pi-progress-head">
+                  <span id="pi-progress-percent" class="pi-progress-percent">0 %</span>
+                  <span id="pi-progress-count" class="pi-progress-count">0 / 0</span>
+                </div>
+
+                <div class="pi-progress-track">
+                  <div id="pi-progress-bar" class="pi-progress-bar" style="width:0%"></div>
+                </div>
+
+                <div class="pi-progress-meta">
+                  <span id="pi-progress-eta">Préparation…</span>
+                  <span id="pi-progress-elapsed"></span>
+                </div>
+
+                <div class="pi-progress-latest">
+                  <strong>Derniers produits traités</strong>
+                  <ul id="pi-progress-names" class="pi-progress-names"></ul>
+                </div>
+
+                <p id="pi-progress-note" class="pi-hint">
+                  L'import est découpé en blocs : chaque bloc est enregistré puis
+                  le suivant est traité. Vous pouvez laisser cette fenêtre ouverte.
+                </p>
+              </div>
+            </div>
+
+            <!-- Étape 3 : résultat -->
             <div id="product-import-step-result" style="display:none;">
               <div id="product-import-summary" class="pi-summary"></div>
               <div class="pi-report">
@@ -337,6 +368,9 @@
 
             <div class="modal-actions pi-actions">
               <button type="button" class="btn btn-secondary" id="product-import-cancel-btn" onclick="closeProductImportModal()">Fermer</button>
+              <button type="button" class="btn btn-ghost btn-small" id="product-import-abort-btn" onclick="abortProductImport()" style="display:none;">
+                Abandonner
+              </button>
               <button type="button" class="btn btn-primary" id="product-import-submit-btn" onclick="submitProductImport()">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
