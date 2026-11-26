@@ -52,10 +52,10 @@
         <div class="products-pagination">
           <div class="pagination-info" id="lots-range"></div>
           <div class="pagination-buttons">
-            <button class="btn btn-ghost btn-small" id="lots-first" type="button">&laquo; Première</button>
-            <button class="btn btn-ghost btn-small" id="lots-prev" type="button">&lsaquo; Précédent</button>
+            <button class="btn btn-small" id="lots-first" type="button" title="Première page">&laquo; Première</button>
+            <button class="btn btn-small" id="lots-prev" type="button" title="Page précédente">&lsaquo; Précédent</button>
             <span class="pagination-page" id="lots-page">Page 1</span>
-            <button class="btn btn-ghost btn-small" id="lots-next" type="button">Suivant &rsaquo;</button>
+            <button class="btn btn-small" id="lots-next" type="button" title="Page suivante">Suivant &rsaquo;</button>
           </div>
         </div>
       </div>

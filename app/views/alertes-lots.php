@@ -98,19 +98,19 @@
           </div>
           <?php if ($pages > 1): ?>
             <div class="pagination-buttons">
-              <a class="btn btn-ghost btn-small"
+              <a class="btn btn-small"
                  href="<?= htmlspecialchars($qsAlertes(['page' => 1])) ?>"
                  title="Première page">&laquo; Première</a>
-              <?php if ($pageNum > 1): ?>
-                <a class="btn btn-ghost btn-small"
-                   href="<?= htmlspecialchars($qsAlertes(['page' => $pageNum - 1])) ?>">Précédent</a>
-              <?php endif; ?>
+              <a class="btn btn-small<?= $pageNum <= 1 ? ' is-disabled' : '' ?>"
+                 href="<?= htmlspecialchars($qsAlertes(['page' => max(1, $pageNum - 1)])) ?>"
+                 title="Page précédente"
+                 <?= $pageNum <= 1 ? 'aria-disabled="true" tabindex="-1"' : '' ?>>&lsaquo; Précédent</a>
               <span class="pagination-page">Page <?= (int)$pageNum ?> / <?= (int)$pages ?></span>
-              <?php if ($pageNum < $pages): ?>
-                <a class="btn btn-ghost btn-small"
-                   href="<?= htmlspecialchars($qsAlertes(['page' => $pageNum + 1])) ?>">Suivant</a>
-              <?php endif; ?>
-              <a class="btn btn-ghost btn-small"
+              <a class="btn btn-small<?= $pageNum >= $pages ? ' is-disabled' : '' ?>"
+                 href="<?= htmlspecialchars($qsAlertes(['page' => min($pages, $pageNum + 1)])) ?>"
+                 title="Page suivante"
+                 <?= $pageNum >= $pages ? 'aria-disabled="true" tabindex="-1"' : '' ?>>Suivant &rsaquo;</a>
+              <a class="btn btn-small"
                  href="<?= htmlspecialchars($qsAlertes(['page' => $pages])) ?>"
                  title="Dernière page">Dernière &raquo;</a>
             </div>
