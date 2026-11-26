@@ -3,6 +3,24 @@
 // Gestion du modal d'import de produits (page /produits).
 // Le traitement réel est fait côté serveur par ProductImportService.
 
+/**
+ * La taille d'un BLOC d'import (lignes de données).
+ *
+ * ⚠️ Doit correspondre à `ProductImportService::DEFAULT_CHUNK_SIZE`
+ *    (côté serveur) : 5 000 lignes ≈ 2 s de traitement, ce qui laisse
+ *    une marge énorme sous `max_execution_time` (120 s).
+ */
+const PI_CHUNK_SIZE = 5000;
+
+/**
+ * Le seuil (en lignes) au-delà duquel l'import passe en mode « par blocs ».
+ *
+ * ⚠️ MESURÉ : 20 000 lignes = 94,9 s (211 lignes/s). La limite PHP
+ *    est à 120 s : on ne reste donc jamais au-delà de ~15 000 lignes
+ *    dans une seule requête.
+ */
+const PI_CHUNK_THRESHOLD = 12000;
+
 function openProductImportModal() {
     const modal = document.getElementById('product-import-modal');
     if (!modal) return;
@@ -32,6 +50,17 @@ function openProductImportModal() {
     const resultStep = document.getElementById('product-import-step-result');
     if (formStep) formStep.style.display = '';
     if (resultStep) resultStep.style.display = 'none';
+
+    // ⚠️ Un import précédent peut avoir laissé un jeton : il faut le
+    //    purger, sinon le bouton « Abandonner » viserait un import
+    //    déjà terminé.
+    window.__productImportToken = null;
+
+    // L'étape « avancement » est masquée, et le bouton « Abandonner »
+    // aussi (l'import n'a pas commencé).
+    productImportBasculerEtape('form');
+    const abortBtn = document.getElementById('product-import-abort-btn');
+    if (abortBtn) abortBtn.style.display = 'none';
 
     const submitBtn = document.getElementById('product-import-submit-btn');
     if (submitBtn) submitBtn.style.display = '';
@@ -98,6 +127,23 @@ async function onProductImportShopChanged() {
 function closeProductImportModal() {
     const modal = document.getElementById('product-import-modal');
     if (modal) modal.classList.remove('active');
+
+    // ⚠️ Fermer le modal pendant un import abandonne celui-ci : le
+    //    fichier déposé sur le serveur doit être supprimé, sinon il
+    //    traîne sur le disque (il est purgé après 2 h, mais autant ne
+    //    pas l'attendre).
+    if (window.__productImportToken) {
+        const token = window.__productImportToken;
+        window.__productImportToken = null;
+
+        try {
+            const fd = new FormData();
+            fd.append('token', token);
+            fetch(APP_URL + '/api/produit/import/abort', { method: 'POST', body: fd });
+        } catch (e) {
+            console.error('Erreur abandon import:', e);
+        }
+    }
 }
 
 /**
@@ -143,6 +189,21 @@ function exportProductsToExcel() {
 
 /**
  * Envoie le fichier sélectionné au serveur et affiche le rapport.
+ *
+ * ⚠️ DEUX MODES, choisis selon la TAILLE du fichier :
+ *
+ *   - PETIT fichier (≤ PI_CHUNK_THRESHOLD lignes) : une seule requête.
+ *     Le comportement d'avant, inchangé.
+ *
+ *   - GROS fichier : le mode « par blocs ». C'est la réponse au crash :
+ *     `max_execution_time` vaut 120 s dans le php.ini par défaut, et
+ *     l'import de 50 000 produits prenait 237 s MESURÉS → la requête
+ *     était TUÉE vers le 26 000e produit.
+ *
+ *     Le fichier est déposé une fois (POST /api/produit/import avec
+ *     `chunked=1`), puis le client enchaîne les blocs
+ *     (POST /api/produit/import/chunk). Chaque bloc dure ~2 s : il
+ *     passe TOUJOURS, et l'interface affiche l'avancement.
  */
 async function submitProductImport() {
     const fileInput = document.getElementById('product-import-file');
@@ -182,26 +243,45 @@ async function submitProductImport() {
     }
 
     try {
-        const res = await fetch(APP_URL + '/api/produit/import', {
+        // ── Étape 1 : le fichier est-il assez gros pour le mode par blocs ? ──
+        const estGros = await productImportEstGros(fileInput.files[0]);
+
+        if (!estGros) {
+            const res = await fetch(APP_URL + '/api/produit/import', {
+                method: 'POST',
+                body: fd
+            });
+
+            const data = await productImportReadJson(res);
+            if (!data) {
+                alert('Réponse invalide du serveur (HTTP ' + res.status + ').');
+                return;
+            }
+
+            if (!data.success) {
+                alert(data.error || 'Import impossible');
+                if (data.summary) renderProductImportSummary(data.summary, data.rows || []);
+                return;
+            }
+
+            renderProductImportSummary(data.summary, data.rows || []);
+            return;
+        }
+
+        // ── Étape 2 : dépôt du fichier + boucle sur les blocs ──
+        fd.append('chunked', '1');
+        const resDepot = await fetch(APP_URL + '/api/produit/import', {
             method: 'POST',
             body: fd
         });
 
-        let data;
-        try {
-            data = await res.json();
-        } catch (e) {
-            alert('Réponse invalide du serveur (HTTP ' + res.status + ').');
+        const depot = await productImportReadJson(resDepot);
+        if (!depot || !depot.success) {
+            alert((depot && depot.error) || 'Le fichier n\'a pas pu être déposé pour l\'import.');
             return;
         }
 
-        if (!data.success) {
-            alert(data.error || 'Import impossible');
-            if (data.summary) renderProductImportSummary(data.summary, data.rows || []);
-            return;
-        }
-
-        renderProductImportSummary(data.summary, data.rows || []);
+        await productImportRunChunks(depot);
     } catch (e) {
         console.error('Erreur import produits:', e);
         alert('Erreur réseau pendant l\'import.');
@@ -214,16 +294,337 @@ async function submitProductImport() {
 }
 
 /**
+ * Le fichier est-il assez gros pour le mode « par blocs » ?
+ *
+ * ⚠️ On ne peut PAS compter les lignes d'un .xlsx dans le navigateur
+ *    (c'est un ZIP) : on se base donc sur la TAILLE du fichier, qui est
+ *    un bon proxy — mesuré : le .csv de 50 000 lignes fait 4,45 Mo,
+ *    soit ~93 octets par ligne ; le .xlsx de 50 000 lignes fait 2,96 Mo,
+ *    soit ~59 octets par ligne.
+ *
+ * @returns {Promise<boolean>}
+ */
+async function productImportEstGros(file) {
+    // Au-delà de 512 Ko, on bascule en mode par blocs SANS compter :
+    // un fichier de cette taille dépasse déjà ~10 000 lignes, et
+    // 10 000 lignes = ~47 s de traitement — trop près de la limite
+    // de 120 s pour être laissé en un seul passage.
+    const SEUIL_OCTETS = 512 * 1024;
+
+    if (file.size >= SEUIL_OCTETS) {
+        return true;
+    }
+
+    // En dessous : on peut compter les lignes EXACTEMENT (le fichier
+    // tient en RAM : < 512 Ko). C'est plus sûr que la taille — un CSV
+    // de 3 000 lignes à noms courts peut dépasser le seuil.
+    const extension = (file.name.split('.').pop() || '').toLowerCase();
+    if (extension === 'csv' || extension === 'txt') {
+        try {
+            const lignes = await productImportCompterLignesCsv(file);
+            return lignes > PI_CHUNK_THRESHOLD;
+        } catch (e) {
+            // Impossible de compter : on s'en tient à la taille.
+            return file.size >= SEUIL_OCTETS;
+        }
+    }
+
+    return false;
+}
+
+/**
+ * Compte les lignes d'un CSV dans le navigateur.
+ *
+ * ⚠️ Le fichier fait moins de 512 Ko (c'est la condition d'appel) :
+ *    le lire en entier ne pose aucun problème de mémoire.
+ *
+ * @returns {Promise<number>}
+ */
+function productImportCompterLignesCsv(file) {
+    return file.text().then(texte => {
+        let compteur = 0;
+        for (let i = 0; i < texte.length; i++) {
+            if (texte.charCodeAt(i) === 10) {   // '\n'
+                compteur++;
+            }
+        }
+        return compteur;
+    });
+}
+
+/**
+ * Enchaîne les blocs d'import et met à jour l'interface.
+ *
+ * @param {object} depot  La réponse du POST de dépôt (token, total_rows).
+ */
+async function productImportRunChunks(depot) {
+    const token = depot.token;
+    const total = depot.total_rows || 0;
+
+    // ⚠️ Le jeton est gardé pour pouvoir ANNULER l'import (le bouton
+    //    « Abandonner » supprime le fichier déposé sur le serveur).
+    window.__productImportToken = token;
+
+    productImportAfficherProgression({
+        percent: 0,
+        count: 0,
+        total: total,
+        elapsed: 0,
+        eta: 'Préparation…',
+        names: []
+    });
+
+    productImportBasculerEtape('progress');
+
+    const abortBtn = document.getElementById('product-import-abort-btn');
+    if (abortBtn) abortBtn.style.display = '';
+
+    const debut = Date.now();
+    let offset = 0;
+    let traite = 0;
+    let noms = [];
+    let resume = null;
+    let lignes = [];
+
+    while (true) {
+        const fd = new FormData();
+        fd.append('token', token);
+        fd.append('offset', String(offset));
+        fd.append('chunk_size', String(PI_CHUNK_SIZE));
+
+        const res = await fetch(APP_URL + '/api/produit/import/chunk', {
+            method: 'POST',
+            body: fd
+        });
+
+        const data = await productImportReadJson(res);
+        if (!data) {
+            throw new Error('Réponse invalide du serveur (HTTP ' + res.status + ').');
+        }
+
+        /*
+         * ⚠️ Un bloc peut ÉCHOUER sans que le fichier soit terminé.
+         *
+         *    `done` ne dépend que de la FIN DU FICHIER : un bloc dont
+         *    toutes les lignes sont invalides n'arrête donc pas
+         *    l'import. C'est le serveur qui décide ; le client ne
+         *    s'arrête que sur `done`.
+         *
+         *    Mais une erreur réseau, elle, doit arrêter la boucle :
+         *    on la distingue par l'absence de `next_offset`.
+         */
+        if (!data.error && typeof data.next_offset === 'undefined') {
+            throw new Error('Réponse invalide du serveur (HTTP ' + res.status + ').');
+        }
+
+        offset = data.next_offset || (offset + (data.processed || 0));
+        traite = offset;
+        noms = data.last_names || [];
+        resume = data.summary || resume;
+        lignes = data.rows || [];
+
+        const elapsed = (Date.now() - debut) / 1000;
+        const percent = total > 0 ? Math.min(100, Math.round((traite / total) * 100)) : 0;
+
+        productImportAfficherProgression({
+            percent: percent,
+            count: traite,
+            total: total,
+            elapsed: elapsed,
+            eta: productImportEta(traite, total, elapsed),
+            names: noms
+        });
+
+        if (data.done) {
+            /*
+             * ⚠️ Le dernier bloc peut être VIDE : c'est normal.
+             *
+             *    Le client demande un bloc de plus pour savoir que le
+             *    fichier est épuisé. Le serveur répond alors « fichier
+             *    vide », ce qui n'est PAS une erreur : tout a été
+             *    importé.
+             *
+             *    On ne signale donc une erreur que si le serveur a
+             *    produit quelque chose ET déclaré une erreur.
+             */
+            if (data.error && (data.processed || 0) > 0) {
+                throw new Error(data.error);
+            }
+            break;
+        }
+
+        // ⚠️ Filet de sécurité : si le serveur ne progresse plus, on
+        //    arrête plutôt que de boucler à l'infini.
+        if (data.processed === 0 && !data.done) {
+            throw new Error("L'import ne progresse plus : arrêt pour éviter une boucle infinie.");
+        }
+    }
+
+    if (abortBtn) abortBtn.style.display = '';
+
+    renderProductImportSummary(resume || {}, lignes);
+}
+
+/**
+ * L'estimation du temps restant.
+ *
+ * ⚠️ L'estimation est calculée sur le TEMPS ÉCOULÉ et non sur la durée
+ *    moyenne par bloc : le débit s'améliore au fil de l'import (les
+ *    premiers blocs paient le coût de la lecture du fichier), donc la
+ *    moyenne cumulée est plus honnête qu'une moyenne par bloc.
+ *
+ * @param {number} traite   Lignes déjà traitées.
+ * @param {number} total    Lignes totales (0 = inconnu).
+ * @param {number} elapsed  Secondes écoulées.
+ * @returns {string}
+ */
+function productImportEta(traite, total, elapsed) {
+    if (!total || traite <= 0 || elapsed <= 0) {
+        return 'Estimation…';
+    }
+
+    const debit = traite / elapsed;              // lignes / seconde
+    const restant = Math.max(0, total - traite);
+    const secondes = restant / debit;
+
+    if (!isFinite(secondes)) {
+        return 'Estimation…';
+    }
+
+    if (secondes < 60) {
+        return 'Temps restant : ~' + Math.ceil(secondes) + ' s';
+    }
+
+    const minutes = Math.ceil(secondes / 60);
+    if (minutes < 60) {
+        return 'Temps restant : ~' + minutes + ' min';
+    }
+
+    const heures = Math.floor(minutes / 60);
+    return 'Temps restant : ~' + heures + ' h ' + (minutes % 60) + ' min';
+}
+
+/**
+ * Met à jour le bloc d'avancement du modal.
+ */
+function productImportAfficherProgression(etat) {
+    const percentEl = document.getElementById('pi-progress-percent');
+    const countEl = document.getElementById('pi-progress-count');
+    const barEl = document.getElementById('pi-progress-bar');
+    const etaEl = document.getElementById('pi-progress-eta');
+    const elapsedEl = document.getElementById('pi-progress-elapsed');
+    const namesEl = document.getElementById('pi-progress-names');
+
+    if (percentEl) percentEl.textContent = etat.percent + ' %';
+
+    if (countEl) {
+        countEl.textContent = etat.total > 0
+            ? etat.count.toLocaleString('fr-FR') + ' / ' + etat.total.toLocaleString('fr-FR') + ' produits'
+            : etat.count.toLocaleString('fr-FR') + ' produits';
+    }
+
+    if (barEl) barEl.style.width = etat.percent + '%';
+
+    if (etaEl) etaEl.textContent = etat.eta;
+
+    if (elapsedEl) {
+        elapsedEl.textContent = etat.elapsed > 0
+            ? 'Écoulé : ' + productImportFormaterDuree(etat.elapsed)
+            : '';
+    }
+
+    if (namesEl) {
+        namesEl.innerHTML = '';
+        (etat.names || []).forEach(nom => {
+            const li = document.createElement('li');
+            li.textContent = nom;
+            namesEl.appendChild(li);
+        });
+    }
+}
+
+/**
+ * Formate une durée en secondes (1 min 30, 2 h 05…).
+ */
+function productImportFormaterDuree(secondes) {
+    const s = Math.floor(secondes);
+    if (s < 60) {
+        return s + ' s';
+    }
+
+    const minutes = Math.floor(s / 60);
+    const reste = s % 60;
+
+    if (minutes < 60) {
+        return minutes + ' min ' + String(reste).padStart(2, '0');
+    }
+
+    const heures = Math.floor(minutes / 60);
+    return heures + ' h ' + String(minutes % 60).padStart(2, '0');
+}
+
+/**
+ * Bascule le modal entre les étapes (formulaire / progression / résultat).
+ */
+function productImportBasculerEtape(etape) {
+    const formStep = document.getElementById('product-import-step-form');
+    const progressStep = document.getElementById('product-import-step-progress');
+    const resultStep = document.getElementById('product-import-step-result');
+    const submitBtn = document.getElementById('product-import-submit-btn');
+
+    if (formStep) formStep.style.display = etape === 'form' ? '' : 'none';
+    if (progressStep) progressStep.style.display = etape === 'progress' ? '' : 'none';
+    if (resultStep) resultStep.style.display = etape === 'result' ? '' : 'none';
+
+    if (submitBtn) {
+        submitBtn.style.display = (etape === 'form') ? '' : 'none';
+    }
+}
+
+/**
+ * Abandonne l'import en cours et supprime le fichier déposé.
+ */
+async function abortProductImport() {
+    const token = window.__productImportToken;
+    if (!token) {
+        closeProductImportModal();
+        return;
+    }
+
+    try {
+        const fd = new FormData();
+        fd.append('token', token);
+        await fetch(APP_URL + '/api/produit/import/abort', { method: 'POST', body: fd });
+    } catch (e) {
+        console.error('Erreur abandon import:', e);
+    }
+
+    window.__productImportToken = null;
+    closeProductImportModal();
+}
+
+/**
+ * Lit une réponse JSON sans planter sur une réponse non-JSON.
+ */
+async function productImportReadJson(res) {
+    try {
+        return await res.json();
+    } catch (e) {
+        return null;
+    }
+}
+
+/**
  * Affiche le résumé chiffré + le détail ligne par ligne.
  */
 function renderProductImportSummary(summary, rows) {
-    const formStep = document.getElementById('product-import-step-form');
-    const resultStep = document.getElementById('product-import-step-result');
-    if (formStep) formStep.style.display = 'none';
-    if (resultStep) resultStep.style.display = '';
+    // ⚠️ Le passage à l'étape « résultat » passe par la même fonction que
+    //    le mode par blocs : les deux affichent le même résumé.
+    productImportBasculerEtape('result');
 
-    const submitBtn = document.getElementById('product-import-submit-btn');
-    if (submitBtn) submitBtn.style.display = 'none';
+    const abortBtn = document.getElementById('product-import-abort-btn');
+    if (abortBtn) abortBtn.style.display = 'none';
+    window.__productImportToken = null;
 
     // ── Cartes de résumé ──
     const summaryEl = document.getElementById('product-import-summary');
