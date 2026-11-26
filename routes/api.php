@@ -179,6 +179,12 @@ Router::post('/api/produit/delete', [ProductController::class, 'delete'], 'produ
 Router::post('/api/produit/import', [ProductImportController::class, 'import'], 'produits');
 Router::get('/api/produit/import/template', [ProductImportController::class, 'template'], 'produits');
 Router::get('/api/produit/import/categories', [ProductImportController::class, 'categories'], 'produits');
+// Mode « par blocs » : l'import d'un gros fichier est découpé en blocs
+// de 5 000 lignes, chaque bloc étant une requête HTTP distincte.
+// ⚠️ Sans ça, l'import de 50 000 produits se fait TUER par
+// `max_execution_time` (120 s) vers le 26 000e produit.
+Router::post('/api/produit/import/chunk', [ProductImportController::class, 'chunk'], 'produits');
+Router::post('/api/produit/import/abort', [ProductImportController::class, 'abort'], 'produits');
 
 // Export du catalogue produits vers Excel
 Router::get('/api/produit/export', [ProductExportController::class, 'export'], 'produits');
