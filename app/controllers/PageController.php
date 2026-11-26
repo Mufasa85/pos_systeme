@@ -431,7 +431,12 @@ class PageController extends Controller
             $limit,
             $offset,
             $effectiveShopId,
-            $includeInactive
+            $includeInactive,
+            // ⚠️ La page `/produits` garde le plafond de 200 : elle
+            //    affiche 50 lignes à l'écran, une page de 2 000 ne
+            //    servirait qu'à ralentir le premier affichage. C'est
+            //    l'API de la CAISSE qui a besoin de 2 000.
+            200
         );
 
         $produits = $page['rows'];

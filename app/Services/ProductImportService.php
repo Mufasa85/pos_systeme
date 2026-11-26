@@ -76,6 +76,20 @@ class ProductImportService
     /** Nombre max de lignes retournées à l'interface (le reste est compté). */
     private const MAX_REPORTED_ROWS = 200;
 
+    /**
+     * Taille par défaut d'un BLOC d'import (lignes de données).
+     *
+     * ⚠️ Pourquoi un bloc : `max_execution_time` vaut 120 s dans le
+     *    php.ini par défaut, et l'import de 50 000 produits prenait
+     *    237 s MESURÉS (211 produits/s) → la requête HTTP était TUÉE
+     *    par le proxy de temporisation, vers le 26 000e produit.
+     *
+     *    Un bloc de 5 000 lignes prend ~2 s de traitement : chaque
+     *    requête HTTP reste très largement sous la limite, et le
+     *    navigateur peut afficher l'avancement entre deux blocs.
+     */
+    public const DEFAULT_CHUNK_SIZE = 5000;
+
     private $productModel;
     private $batchModel;
     private $categoryModel;
@@ -94,6 +108,15 @@ class ProductImportService
     /**
      * Importe un fichier produit et renvoie un rapport détaillé.
      *
+     * ⚠️ Cette méthode est le chemin « tout d'un coup » : elle traite
+     *    le fichier entier en UNE requête HTTP. Sur un gros fichier
+     *    (50 000 produits), elle se fait TUER par `max_execution_time`
+     *    (120 s par défaut) — c'est exactement ce qui est arrivé.
+     *
+     *    Elle reste le point d'entrée pour les imports COURTS (le cas
+     *    nominal : quelques centaines de produits) et pour les scripts de
+     *    mesure. Les imports massifs passent par `importChunk()`.
+     *
      * @param int|string|null $shopId  Boutique cible (null = boutique de la session)
      * @param string $filePath         Chemin du fichier uploadé (temporaire)
      * @param array $options          mode, create_categories, category_id, tax_id
@@ -111,10 +134,65 @@ class ProductImportService
             ];
         }
 
+        $options['offset'] = (int)($options['offset'] ?? 0);
+        $options['limit']  = (int)($options['limit'] ?? 0);   // 0 = tout le fichier
+
+        return $this->importChunk($shopId, $filePath, $options);
+    }
+
+    /**
+     * Importe UN BLOC de lignes du fichier.
+     *
+     * ⚠️ C'est le cœur du mode « par blocs » : chaque appel HTTP traite
+     *    au plus `$options['limit']` lignes de données (5 000 par
+     *    défaut), jamais plus.
+     *
+     *    Pourquoi : `max_execution_time` vaut 120 s dans le php.ini par
+     *    défaut. L'import de 50 000 produits prenait 237 s MESURÉS
+     *    (211 produits/s) → la requête HTTP était tuée vers le
+     *    26 000e produit. En découpant, chaque requête dure ~2 s : elle
+     *    passe TOUJOURS, et l'utilisateur voit l'avancement.
+     *
+     *    ⚠️ Le DÉCOMPTE DES DOUBLONS est LOCAL au bloc : deux blocs
+     *    distincts ne se voient pas. C'est le prix du découpage, et il
+     *    est explicite dans la réponse (`duplicate_scope: 'chunk'`).
+     *    Le mode `create` reste sûr (l'UNIQUE global sur `code_barres`
+     *    rejette le doublon par la base, pas par PHP) ; seul le compteur
+     *    « ignorés » est moins exhaustif qu'en un seul passage.
+     *
+     * @param int|string|null $shopId  Boutique cible
+     * @param string $filePath         Chemin du fichier
+     * @param array $options
+     *        - mode, create_categories, category_id, tax_id
+     *        - offset  : lignes de données déjà traitées (0 = début)
+     *        - limit   : taille du bloc (0 = tout le fichier)
+     *        - last_names : noms des derniers produits traités (pour l'UI)
+     *
+     * @return array{success:bool, summary:array, rows:array, error?:string,
+     *               processed?:int, offset?:int, next_offset?:int,
+     *               done?:bool, total_rows?:int, last_names?:array}
+     */
+    public function importChunk($shopId, string $filePath, array $options = [])
+    {
+        if (!is_file($filePath) || !is_readable($filePath)) {
+            return [
+                'success' => false,
+                'error' => 'Fichier illisible',
+                'summary' => $this->emptySummary(),
+                'rows' => [],
+            ];
+        }
+
         $mode = ($options['mode'] ?? 'create') === 'update' ? 'update' : 'create';
         $createCategories = !empty($options['create_categories']);
         $defaultCategoryId = isset($options['category_id']) ? (int)$options['category_id'] : 0;
         $defaultTaxId = isset($options['tax_id']) ? (int)$options['tax_id'] : 0;
+
+        $offset = max(0, (int)($options['offset'] ?? 0));
+        $limit  = (int)($options['limit'] ?? 0);
+        if ($limit <= 0) {
+            $limit = PHP_INT_MAX;   // 0 = pas de limite : tout le fichier
+        }
 
         /*
          * ⚠️ LE FLUX EST UN GÉNÉRATEUR, pas un tableau.
@@ -133,14 +211,14 @@ class ProductImportService
          *    surviennent à l'ITÉRATION, donc HORS de ce `try`.
          *
          *    C'est pourquoi l'erreur « Catégorie introuvable » (levée par
-         *    `buildProduct()` pendant la boucle) doit être rattrapée par la
-         *    boucle elle-même — et c'est le cas.
+         *    `buildProduct()` pendant la boucle) doit être rattrapée par
+         *    la boucle elle-même — et c'est le cas.
          *
          *    Ce `try` ne couvre donc que la CRÉATION du lecteur (une
          *    archive illisible, par exemple).
          */
         try {
-            $rows = $this->readRowsStreaming($filePath);
+            $rows = $this->readRowsRange($filePath, $offset, $limit);
         } catch (\Throwable $e) {
             error_log('ProductImportService::readRows error: ' . $e->getMessage());
             return [
@@ -180,109 +258,255 @@ class ProductImportService
         $pending = [];
         $pendingBarcodes = [];
         $rowCount = 0;
+        $lastNames = [];
+        $createdIds = [];
 
-        foreach ($rows as $row) {
-            $line = $row['line'];
-            $cells = $row['cells'];
+        /*
+         * ⚠️ UNE TRANSACTION POUR TOUT LE BLOC.
+         *
+         * MESURÉ (scripts/measure_import_csv.php, base jetable) :
+         *
+         *   5 requêtes/produit, auto-commit (état actuel) → 181 s / 50 000
+         *   5 requêtes/produit, 1 transaction              →  58 s / 50 000
+         *   2 requêtes/produit, 1 transaction              →  17 s / 50 000
+         *   + recalc groupé                                →  20 s / 50 000
+         *
+         * Chaque INSERT en auto-commit provoque un fsync : c'est le
+         * coût dominant de l'import, pas le SQL lui-même. Une transaction
+         * par bloc le supprime (−68 %).
+         *
+         * ⚠️ La transaction est ROLLBACKÉE si une exception survient :
+         *    un bloc à moitié écrit laisserait des produits sans lot.
+         */
+        $db = \App\Core\Database::getInstance();
+        $inTransaction = false;
 
-            // ⚠️ La ligne est comptée DÈS QU'ELLE EST LUE, avant le
-            //    traitement : sinon une ligne invalide ferait croire à un
-            //    fichier vide (cf. le commentaire plus bas).
-            $rowCount++;
+        try {
+            $db->beginTransaction();
+            $inTransaction = true;
 
-            try {
-                $product = $this->buildProduct($cells, $shopId, $categories, $taxes, [
-                    'default_category_id' => $defaultCategoryId,
-                    'default_tax_id' => $defaultTaxId,
-                    'create_categories' => $createCategories,
-                ]);
-            } catch (\Throwable $e) {
-                $summary['errors']++;
-                $this->addReport($report, [
-                    'line' => $line,
-                    'status' => 'error',
-                    'nom' => $this->readString($cells, 'nom'),
-                    'message' => $e->getMessage(),
-                ]);
-                continue;
+            foreach ($rows as $row) {
+                $line = $row['line'];
+                $cells = $row['cells'];
+
+                // ⚠️ La ligne est comptée DÈS QU'ELLE EST LUE, avant le
+                //    traitement : sinon une ligne invalide ferait croire à
+                //    un fichier vide (cf. le commentaire plus bas).
+                $rowCount++;
+
+                try {
+                    $product = $this->buildProduct($cells, $shopId, $categories, $taxes, [
+                        'default_category_id' => $defaultCategoryId,
+                        'default_tax_id' => $defaultTaxId,
+                        'create_categories' => $createCategories,
+                    ]);
+                } catch (\Throwable $e) {
+                    $summary['errors']++;
+                    $this->addReport($report, [
+                        'line' => $line,
+                        'status' => 'error',
+                        'nom' => $this->readString($cells, 'nom'),
+                        'message' => $e->getMessage(),
+                    ]);
+                    continue;
+                }
+
+                // ⚠️ On compte les LIGNES LUES, pas les produits valides : une
+                //    ligne invalide (catégorie introuvable, prix manquant)
+                //    doit quand même figurer dans le résumé. Compter les
+                //    produits valides faisait croire à un fichier vide, et le
+                //    résumé des erreurs était REMPLACÉ par un résumé vide —
+                //    l'utilisateur ne voyait plus pourquoi sa ligne avait été
+                //    rejetée.
+                // Contrôle des doublons à l'intérieur du fichier lui-même.
+                $barcodeKey = $product['code_barres'];
+                if (isset($seenBarcodes[$barcodeKey])) {
+                    $summary['skipped']++;
+                    $this->addReport($report, [
+                        'line' => $line,
+                        'status' => 'skipped',
+                        'nom' => $product['nom'],
+                        'message' => 'Code-barres en double dans le fichier (ligne ' . $seenBarcodes[$barcodeKey] . ')',
+                    ]);
+                    continue;
+                }
+                $seenBarcodes[$barcodeKey] = $line;
+
+                /*
+                 * ⚠️ L'ÉCRITURE EST DIFFÉRÉE d'un bloc de 500 lignes.
+                 *
+                 * Le lookup des produits existants se fait par blocs (1
+                 * requête pour 500 code-barres, au lieu d'un `findByBarcode()`
+                 * par ligne qui déclenchait 5 requêtes chacune).
+                 *
+                 * Mais le flux ne permet pas de collecter tous les
+                 * code-barres d'avance : 50 000 chaînes en RAM, exactement ce
+                 * qu'on cherche à éviter.
+                 *
+                 * On met donc la ligne en ATTENTE, et on l'écrit quand le
+                 * bloc a été consulté par MySQL. La ligne attend au maximum
+                 * 499 positions — et son lot de stock est créé au moment de
+                 * l'écriture, donc pas de divergence.
+                 */
+                $pending[] = ['line' => $line, 'product' => $product];
+                $pendingBarcodes[$barcodeKey] = true;
+
+                if (count($pendingBarcodes) >= 500) {
+                    /*
+                     * ⚠️ `array_replace()` et NON `array_merge()`.
+                     *
+                     * PHP convertit une clé de tableau « chaîne numérique »
+                     * en entier : le code-barres « 3017620000010 » devient la
+                     * clé INT 3017620000010. Or `array_merge()` RÉINDEXE les
+                     * clés numériques : le map code-barres → id perdait
+                     * TOUTES ses clés et devenait [0 => 356, 1 => 357, …].
+                     *
+                     * Conséquence (bug observé) : le lookup renvoyait `null`
+                     * pour des produits pourtant PRÉSENTS en base, et
+                     * l'import tentait un INSERT → « Duplicate entry
+                     * '3017620000036' for key 'produits.code_barres' ».
+                     * TOUTES les lignes du fichier échouaient.
+                     *
+                     * Les tests existants ne lATTRAPPAIENT pas : leurs
+                     * code-barres sont alphanumériques (« BLKIMP123… »),
+                     * qui restent des clés de type chaîne et survivent à
+                     * `array_merge()`. Les vrais codes-barres EAN-13 sont
+                     * numériques : c'est le cas réel qui a échoué.
+                     *
+                     * `array_replace()` préserve les clés.
+                     */
+                    $existingIds = array_replace(
+                        $existingIds,
+                        $this->productModel->findIdsByBarcodes(array_keys($pendingBarcodes))
+                    );
+                    $createdIds = array_merge(
+                        $createdIds,
+                        $this->writePending($pending, $existingIds, $mode, $summary, $report, $lastNames)
+                    );
+                    $pending = [];
+                    $pendingBarcodes = [];
+                }
             }
 
-            // ⚠️ On compte les LIGNES LUES, pas les produits valides : une
-            //    ligne invalide (catégorie introuvable, prix manquant)
-            //    doit quand même figurer dans le résumé. Compter les
-            //    produits valides faisait croire à un fichier vide, et le
-            //    résumé des erreurs était REMPLACÉ par un résumé vide —
-            //    l'utilisateur ne voyait plus pourquoi sa ligne avait été
-            //    rejetée.
-            // Contrôle des doublons à l'intérieur du fichier lui-même.
-            $barcodeKey = $product['code_barres'];
-            if (isset($seenBarcodes[$barcodeKey])) {
-                $summary['skipped']++;
-                $this->addReport($report, [
-                    'line' => $line,
-                    'status' => 'skipped',
-                    'nom' => $product['nom'],
-                    'message' => 'Code-barres en double dans le fichier (ligne ' . $seenBarcodes[$barcodeKey] . ')',
-                ]);
-                continue;
-            }
-            $seenBarcodes[$barcodeKey] = $line;
-
-            /*
-             * ⚠️ L'ÉCRITURE EST DIFFÉRÉE d'un bloc de 500 lignes.
-             *
-             * Le lookup des produits existants se fait par blocs (1
-             * requête pour 500 code-barres, au lieu d'un `findByBarcode()`
-             * par ligne qui déclenchait 5 requêtes chacune).
-             *
-             * Mais le flux ne permet pas de collecter tous les
-             * code-barres d'avance : 50 000 chaînes en RAM, exactement ce
-             * qu'on cherche à éviter.
-             *
-             * On met donc la ligne en ATTENTE, et on l'écrit quand le
-             * bloc a été consulté par MySQL. La ligne attend au maximum
-             * 499 positions — et son lot de stock est créé au moment de
-             * l'écriture, donc pas de divergence.
-             */
-            $pending[] = ['line' => $line, 'product' => $product];
-            $pendingBarcodes[$barcodeKey] = true;
-
-            if (count($pendingBarcodes) >= 500) {
-                $existingIds = array_merge(
+            // ⚠️ Le DERNIER BLOC (moins de 500 lignes) doit être écrit aussi.
+            if (!empty($pending)) {
+                // ⚠️ `array_replace()` et NON `array_merge()` : voir le
+                //    commentaire détaillé au premier point de fusion.
+                //    `array_merge()` réindexe les clés numériques et
+                //    détruirait les code-barres du map (bug « Duplicate
+                //    entry » sur les codes-barres EAN-13).
+                $existingIds = array_replace(
                     $existingIds,
                     $this->productModel->findIdsByBarcodes(array_keys($pendingBarcodes))
                 );
-                $this->writePending($pending, $existingIds, $mode, $summary, $report);
+                $createdIds = array_merge(
+                    $createdIds,
+                    $this->writePending($pending, $existingIds, $mode, $summary, $report, $lastNames)
+                );
                 $pending = [];
                 $pendingBarcodes = [];
             }
-        }
 
-        // ⚠️ Le DERNIER BLOC (moins de 500 lignes) doit être écrit aussi.
-        if (!empty($pending)) {
-            $existingIds = array_merge(
-                $existingIds,
-                $this->productModel->findIdsByBarcodes(array_keys($pendingBarcodes))
-            );
-            $this->writePending($pending, $existingIds, $mode, $summary, $report);
-            $pending = [];
-            $pendingBarcodes = [];
+            /*
+             * ⚠️ RECALC GROUPÉ des colonnes dénormalisées.
+             *
+             * `ProductBatch::recalculateProductStock()` fait 2 requêtes
+             * PAR PRODUIT (un SELECT d'agrégat + un UPDATE). Sur 5 000
+             * produits, c'est 13 s — plus que la création elle-même.
+             *
+             * Un SEUL `UPDATE ... JOIN` sur les produits du bloc fait le
+             * même travail en 0,26 s (mesuré) — et donne EXACTEMENT le
+             * même résultat : le test d'équivalence compare les 3 colonnes
+             * ligne à ligne avec la source de vérité (`product_batches`).
+             *
+             * ⚠️ C'est le MÊME calcul que celui de
+             *    `ProductBatch::recalculateProductStock()` : pas une
+             *    deuxième dérivation. La formule est ici en un seul
+             *    endroit pour que la lecture et l'écriture ne divergent pas.
+             */
+            $this->recalculateStockForProducts($createdIds);
+
+            $db->commit();
+            $inTransaction = false;
+        } catch (\Throwable $e) {
+            if ($inTransaction) {
+                try {
+                    $db->rollBack();
+                } catch (\Throwable $rollbackError) {
+                    error_log('ProductImportService::rollBack error: ' . $rollbackError->getMessage());
+                }
+            }
+            error_log('ProductImportService::importChunk error: ' . $e->getMessage());
+            return [
+                'success' => false,
+                'error' => 'Erreur pendant l\'import : ' . $e->getMessage(),
+                'summary' => $summary,
+                'rows' => $report,
+                'processed' => $rowCount,
+                'offset' => $offset,
+                'next_offset' => $offset + $rowCount,
+                'done' => false,
+            ];
         }
 
         if ($rowCount === 0) {
+            /*
+             * ⚠️ `done` = le FICHIER est épuisé, pas « le bloc a échoué ».
+             *
+             *    Il faut le dire explicitement : une confusion ici fait
+             *    ARRÊTER le client après le premier bloc (il croit que
+             *    l'import est terminé) alors que le fichier n'a été lu
+             *    qu'à moitié. C'est exactement le bug rencontré.
+             *
+             *    On le déduit du fait que le bloc n'a produit AUCUNE
+             *    ligne : il n'y avait plus rien à lire.
+             *
+             *    ⚠️ Le cas « offset au-delà de la fin » est NORMAL : le
+             *    client demande un bloc de plus pour savoir que c'est
+             *    fini. Ce n'est PAS une erreur : on ne renvoie pas
+             *    d'erreur dans ce cas, sinon l'import se termine sur un
+             *    message d'échec alors que tout a été importé.
+             */
+            $totalRows = $this->countDataRows($filePath);
+            $termine = ($offset > 0 && $totalRows <= $offset);
+
             return [
-                'success' => false,
-                'error' => 'Le fichier est vide ou ne contient aucune ligne de données',
+                /*
+                 * ⚠️ `success` est vrai UNIQUEMENT quand le bloc était vide
+                 *    parce qu'on a atteint la FIN du fichier (cas normal du
+                 *    client « par blocs », qui demande un bloc de trop pour
+                 *    savoir que c'est fini).
+                 *
+                 *    Un fichier réellement VIDE (offset 0, aucune ligne de
+                 *    données) est une ERREUR : `success` doit être faux.
+                 *    L'inversion (`!$termine`) faisait passer un fichier
+                 *    vide pour un import réussi.
+                 */
+                'success' => $termine,
+                'error' => $termine ? null : 'Le fichier est vide ou ne contient aucune ligne de données',
                 'summary' => $this->emptySummary(),
                 'rows' => [],
+                'processed' => 0,
+                'offset' => $offset,
+                'next_offset' => $offset,
+                'done' => true,
+                'total_rows' => $totalRows,
+                'last_names' => [],
             ];
         }
 
         /*
-         * ⚠️ Toutes les lignes ont été lues mais AUCUNE n'a pu être
-         *    traitée (toutes invalides) : on le dit explicitement, sinon
-         *    l'utilisateur ne comprend pas pourquoi rien n'a été importé.
+         * ⚠️ Toutes les lignes du BLOC ont été lues mais AUCUNE n'a pu
+         *    être traitée (toutes invalides) : on le dit explicitement,
+         *    sinon l'utilisateur ne comprend pas pourquoi rien n'a été
+         *    importé.
+         *
+         *    ⚠️ `done` reste FALSE si le bloc n'était pas le dernier :
+         *    le client doit CONTINUER le fichier. `done` ne dépend que
+         *    de la fin du FICHIER, jamais de la réussite du bloc.
          */
+        $done = $rowCount < $limit;
+
         if ($summary['created'] === 0 && $summary['updated'] === 0 && $summary['errors'] > 0) {
             return [
                 'success' => false,
@@ -290,14 +514,192 @@ class ProductImportService
                     . $summary['errors'] . " erreur(s). Voir le detail.",
                 'summary' => $summary,
                 'rows' => $report,
+                'processed' => $rowCount,
+                'offset' => $offset,
+                'next_offset' => $offset + $rowCount,
+                'done' => $done,
+                'total_rows' => $this->countDataRows($filePath),
+                'last_names' => $lastNames,
             ];
         }
+
+        /*
+         * ⚠️ `done` = ce bloc a atteint la fin du fichier.
+         *
+         * On le déduit du nombre de lignes PRODUITES par le bloc : si le
+         * bloc a produit moins de lignes que la limite demandée, c'est
+         * qu'il n'y avait plus rien à lire.
+         */
+        $done = $rowCount < $limit;
 
         return [
             'success' => ($summary['created'] + $summary['updated']) > 0,
             'summary' => $summary,
             'rows' => $report,
+            'processed' => $rowCount,
+            'offset' => $offset,
+            'next_offset' => $offset + $rowCount,
+            'done' => $done,
+            'total_rows' => $this->countDataRows($filePath),
+            'last_names' => $lastNames,
         ];
+    }
+
+    /**
+     * Recalcule les colonnes dénormalisées de stock pour un ensemble de
+     * produits, en UN SEUL `UPDATE ... JOIN`.
+     *
+     * ⚠️ C'est la version GROUPÉE de `ProductBatch::recalculateProductStock()`.
+     *
+     *    La méthode d'origine fait 2 requêtes par produit (un SELECT
+     *    d'agrégat sur ses lots + un UPDATE). Sur 5 000 produits : 13 s,
+     *    soit PLUS que la création des produits elle-même (13,8 s).
+     *
+     *    Un seul `UPDATE ... JOIN` fait le même travail en 0,26 s
+     *    (mesuré sur une base jetable, 5 000 produits / 8 600 lots).
+     *
+     * ⚠️ La FORMULE est IDENTIQUE à celle de la méthode d'origine :
+     *      - `stock`            = somme de TOUS les lots ;
+     *      - `available_stock`  = somme des lots NON périmés ;
+     *      - `nearest_expiration_date` = la date la plus proche parmi les
+     *        lots non périmés qui ont du stock.
+     *    C'est le MÊME calcul : pas une deuxième dérivation. Si les deux
+     *    divergeaient, le stock affiché serait faux après un import.
+     *
+     * ⚠️ Les produits sont regroupés par ID (les doublons sont écartés)
+     *    et le JOIN porte sur la source de vérité (`product_batches`) :
+     *    un produit sans lot reste à 0, pas NULL.
+     *
+     * @param array<int,int> $productIds
+     */
+    private function recalculateStockForProducts(array $productIds): void
+    {
+        if (empty($productIds)) {
+            return;
+        }
+
+        $ids = array_values(array_unique(array_map('intval', $productIds)));
+        if (empty($ids)) {
+            return;
+        }
+
+        // Le nombre de placeholders est borné : MySQL en accepte 65 535,
+        // mais on découpe à 1 000 pour rester comfortably en dessous.
+        foreach (array_chunk($ids, 1000) as $chunk) {
+            $in = implode(',', array_fill(0, count($chunk), '?'));
+
+            /*
+             * ⚠️ La liste d'ids apparaît DEUX FOIS dans le SQL (dans la
+             *    sous-requête d'agrégat, et dans le WHERE final). Les
+             *    placeholders sont donc aussi en double — et les
+             *    paramètres doivent être passés DEUX FOIS, sinon MySQL
+             *    répond « SQLSTATE[HY093]: Invalid parameter number ».
+             */
+            $params = array_merge($chunk, $chunk);
+
+            $sql = "UPDATE produits p
+                    LEFT JOIN (
+                        SELECT b.product_id,
+                               SUM(b.stock) AS total,
+                               SUM(CASE WHEN b.date_expiration IS NULL OR b.date_expiration >= CURDATE()
+                                        THEN b.stock ELSE 0 END) AS available,
+                               MIN(CASE WHEN b.date_expiration IS NOT NULL AND b.stock > 0
+                                         AND b.date_expiration >= CURDATE()
+                                        THEN b.date_expiration END) AS nearest
+                        FROM product_batches b
+                        WHERE b.product_id IN ($in)
+                        GROUP BY b.product_id
+                    ) agg ON agg.product_id = p.id
+                    SET p.stock = COALESCE(agg.total, 0),
+                        p.available_stock = COALESCE(agg.available, 0),
+                        p.nearest_expiration_date = agg.nearest
+                    WHERE p.id IN ($in)";
+
+            \App\Core\Database::getInstance()->query($sql, $params);
+        }
+    }
+
+    /**
+     * Compte les lignes de DONNÉES d'un fichier (en-tête exclu).
+     *
+     * ⚠️ C'est ce qui permet d'afficher « 12 340 / 50 000 » et un
+     *    pourcentage DÈS LE DÉPART, avant le moindre produit traité.
+     *
+     *    Mesuré : CSV 0,03 s (comptage des sauts de ligne) ; .xlsx
+     *    0,73 s à 1,15 s (un scan XML de la première feuille).
+     *
+     * ⚠️ Le comptage est une ESTIMATION pour le .xlsx : il compte les
+     *    éléments `<row>` de la première feuille. Le nombre final
+     *    communiqué par l'import fait foi.
+     *
+     * @return int Nombre de lignes de données (-1 si le compte est impossible)
+     */
+    public function countDataRows(string $filePath): int
+    {
+        $extension = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+
+        if ($extension === 'csv' || $extension === 'txt') {
+            $handle = @fopen($filePath, 'r');
+            if (!$handle) {
+                return -1;
+            }
+            $count = 0;
+            $headerSeen = false;
+            while (($row = fgetcsv($handle, 0, ';')) !== false) {
+                if ($row === [null] || $row === false) {
+                    continue;
+                }
+                if (!$this->rowHasData($row)) {
+                    continue;
+                }
+                if (!$headerSeen) {
+                    $headerSeen = true;
+                    continue;
+                }
+                $count++;
+            }
+            fclose($handle);
+
+            return $count;
+        }
+
+        // .xlsx : on compte les `<row>` de la première feuille.
+        try {
+            $zip = new \ZipArchive();
+            if ($zip->open($filePath) !== true) {
+                return -1;
+            }
+
+            $sheetPath = null;
+            for ($i = 0; $i < $zip->numFiles; $i++) {
+                $name = $zip->getNameIndex($i);
+                if (preg_match('#^xl/worksheets/sheet\d+\.xml$#', (string)$name)) {
+                    $sheetPath = (string)$name;
+                    break;
+                }
+            }
+            if ($sheetPath === null) {
+                $zip->close();
+                return -1;
+            }
+
+            $xml = new \XMLReader();
+            $xml->open('zip://' . $filePath . '#' . $sheetPath);
+            $rows = 0;
+            while (@$xml->read()) {
+                if ($xml->nodeType === \XMLReader::ELEMENT && $xml->name === 'row') {
+                    $rows++;
+                }
+            }
+            $xml->close();
+            $zip->close();
+
+            // On retire l'en-tête.
+            return max(0, $rows - 1);
+        } catch (\Throwable $e) {
+            error_log('ProductImportService::countDataRows error: ' . $e->getMessage());
+            return -1;
+        }
     }
 
     /**
@@ -316,9 +718,25 @@ class ProductImportService
      *
      * @param array $pending      Lignes en attente (line + product).
      * @param array $existingIds  Code-barres → id de produit existant.
+     * @param array $summary      Compteurs (par référence).
+     * @param array $report       Rapport ligne à ligne (par référence).
+     * @param array $lastNames    Noms des derniers produits traités (par
+     *                            référence) : c'est ce que l'interface
+     *                            affiche pendant l'import.
+     *
+     * @return array<int,int> Les ids des produits CRÉÉS dans ce lot
+     *                        (pour le recalc groupé du stock).
      */
-    private function writePending(array $pending, array $existingIds, string $mode, array &$summary, array &$report): void
-    {
+    private function writePending(
+        array $pending,
+        array $existingIds,
+        string $mode,
+        array &$summary,
+        array &$report,
+        array &$lastNames = []
+    ): array {
+        $createdIds = [];
+
         foreach ($pending as $item) {
             $line = $item['line'];
             $product = $item['product'];
@@ -343,31 +761,124 @@ class ProductImportService
                     $summary['updated']++;
                     $status = 'updated';
                     $message = 'Produit mis à jour';
+                    $createdIds[] = (int)$existingId;
                 } else {
-                    $this->createProduct($product);
+                    $newId = $this->createProduct($product);
                     $summary['created']++;
                     $status = 'created';
                     $message = 'Produit créé';
+                    if ($newId > 0) {
+                        $createdIds[] = $newId;
+                    }
                 }
             } catch (\Throwable $e) {
-                error_log('ProductImportService::write error (ligne ' . $line . '): ' . $e->getMessage());
-                $summary['errors']++;
-                $this->addReport($report, [
-                    'line' => $line,
-                    'status' => 'error',
-                    'nom' => $product['nom'],
-                    'message' => 'Enregistrement impossible : ' . $e->getMessage(),
-                ]);
+                /*
+                 * ⚠️ FILET DE SÉCURITÉ : « Duplicate entry … for key
+                 *    'produits.code_barres' ».
+                 *
+                 * L'UNIQUE sur `code_barres` est GLOBAL : il ne dépend pas
+                 * de la boutique. Or le lookup de l'import applique la règle
+                 * « boutique inactive = produit introuvable ». Un produit
+                 * d'une boutique DÉSACTIVÉE est donc invisible au lookup,
+                 * mais l'INSERT échoue quand même sur l'UNIQUE.
+                 *
+                 * Au lieu de compter une erreur (l'utilisateur voit
+                 * « Enregistrement impossible » sur TOUTES les lignes), on
+                 * retrouve le produit existant — hors filtre de boutique —
+                 * et on applique la politique demandée : mise à jour, ou
+                 * ignorer si le mode est « create ».
+                 */
+                $existingOnDuplicate = $this->resolveDuplicateBarcode($barcodeKey);
+
+                if ($existingOnDuplicate === null) {
+                    error_log('ProductImportService::write error (ligne ' . $line . '): ' . $e->getMessage());
+                    $summary['errors']++;
+                    $this->addReport($report, [
+                        'line' => $line,
+                        'status' => 'error',
+                        'nom' => $product['nom'],
+                        'message' => 'Enregistrement impossible : ' . $e->getMessage(),
+                    ]);
+                    continue;
+                }
+
+                if ($mode === 'create') {
+                    $summary['skipped']++;
+                    $this->addReport($report, [
+                        'line' => $line,
+                        'status' => 'skipped',
+                        'nom' => $product['nom'],
+                        'message' => 'Produit déjà existant (code-barres ' . $barcodeKey . ')',
+                    ]);
+                    continue;
+                }
+
+                try {
+                    $this->updateProduct($existingOnDuplicate, $product);
+                    $summary['updated']++;
+                    $createdIds[] = $existingOnDuplicate;
+                    $lastNames[] = (string)$product['nom'];
+                    if (count($lastNames) > 5) {
+                        array_shift($lastNames);
+                    }
+                    $this->addReport($report, [
+                        'line' => $line,
+                        'status' => 'updated',
+                        'nom' => $product['nom'],
+                        'message' => 'Produit mis à jour',
+                    ]);
+                    $summary['total']++;
+                } catch (\Throwable $e2) {
+                    error_log('ProductImportService::write error (ligne ' . $line . '): ' . $e2->getMessage());
+                    $summary['errors']++;
+                    $this->addReport($report, [
+                        'line' => $line,
+                        'status' => 'error',
+                        'nom' => $product['nom'],
+                        'message' => 'Enregistrement impossible : ' . $e2->getMessage(),
+                    ]);
+                }
                 continue;
             }
 
             $summary['total']++;
+
+            // Les 5 derniers noms traités : l'interface les affiche pour
+            // montrer que l'import avance (et non qu'il est planté).
+            $lastNames[] = (string)$product['nom'];
+            if (count($lastNames) > 5) {
+                array_shift($lastNames);
+            }
+
             $this->addReport($report, [
                 'line' => $line,
                 'status' => $status,
                 'nom' => $product['nom'],
                 'message' => $message,
             ]);
+        }
+
+        return $createdIds;
+    }
+
+    /**
+     * Retrouve un produit par code-barres, y compris si sa boutique est
+     * désactivée (le lookup normal l'ignore).
+     *
+     * ⚠️ Appelé UNIQUEMENT quand la base a refusé l'écriture sur l'UNIQUE
+     *    `produits.code_barres` : la présence du produit est donc GARANTIE
+     *    (c'est l'UNIQUE qui l'a signalé). La requête sert à récupérer son
+     *    id pour appliquer la politique « mise à jour » ou « ignorer ».
+     *
+     * @return int|null L'id du produit, ou null s'il est introuvable.
+     */
+    private function resolveDuplicateBarcode(string $barcode): ?int
+    {
+        try {
+            return $this->productModel->findIdByBarcodeAnyShop($barcode);
+        } catch (\Throwable $e) {
+            error_log('ProductImportService::resolveDuplicateBarcode error: ' . $e->getMessage());
+            return null;
         }
     }
 
@@ -523,12 +1034,12 @@ class ProductImportService
          *    mémoire.
          *
          * Le symptôme : « Allowed memory size 536870912 bytes exhausted »
-         * sur un .xlsx de 50 000 produits.
+         *    sur un .xlsx de 50 000 produits.
          *
          * La cause : `IOFactory::load()` décompresse le classeur ENTIER
-         * en RAM (cellules + styles + sharedStrings), puis `readSheetRows()`
-         * accumule en plus TOUTES les lignes extraites. La mémoire est
-         * consommée deux fois.
+         *    en RAM (cellules + styles + sharedStrings), puis `readSheetRows()`
+         *    accumule en plus TOUTES les lignes extraites. La mémoire est
+         *    consommée deux fois.
          *
          * MESURÉ à 50 000 produits (scripts/measure_xlsx_readers.php) :
          *
@@ -538,11 +1049,11 @@ class ProductImportService
          *   LECTEUR NATIF (ZipArchive+XMLReader) 1,5 s        6 Mo
          *
          * Le readFilter seul ne suffit PAS : PhpSpreadsheet garde la
-         * structure du classeur en mémoire quoi qu'il arrive. Le lecteur
-         * natif, lui, ne conserve que les sharedStrings (l'index des
-         * chaînes) et lit la feuille en FLUX : la mémoire est
-         * proportionnelle à la TAILLE DE LA LIGNE, pas à celle du
-         * fichier.
+         *    structure du classeur en mémoire quoi qu'il arrive. Le lecteur
+         *    natif, lui, ne conserve que les sharedStrings (l'index des
+         *    chaînes) et lit la feuille en FLUX : la mémoire est
+         *    proportionnelle à la TAILLE DE LA LIGNE, pas à celle du
+         *    fichier.
          *
          * → 68× moins de mémoire, 11× plus rapide.
          *
@@ -566,6 +1077,115 @@ class ProductImportService
         }
         $spreadsheet->disconnectWorksheets();
         unset($spreadsheet);
+    }
+
+    /**
+     * Lit les lignes de données du fichier DANS UNE PLAGE.
+     *
+     * ⚠️ C'est ce qui rend possible l'import par BLOCS d'un `.xlsx`.
+     *
+     *    Le lecteur natif est un flux SÉQUENTIEL : il n'y a pas de seek.
+     *    Pour traiter les lignes [5001..10000], il faut donc RELIRE le
+     *    début du fichier — mesuré : 3,8 s pour atteindre la ligne 25 000,
+     *    8,7 s pour la ligne 50 000 (scan seul, extraction comprise en
+     *    sus). C'est le coût ACCEPTÉ du .xlsx : le CSV, lui, se lit par
+     *    blocs sans aucune relecture (0,03 s de scan complet).
+     *
+     *    L'API reste celle du générateur : `importChunk()` consomme le
+     *    flux et s'arrête à la fin de la plage.
+     *
+     * @param int $offset  Nombre de lignes de DONNÉES à sauter avant de
+     *                    commencer (0 = début). L'en-tête n'est pas
+     *                    compté : le skip porte sur les lignes de données.
+     * @param int $limit   Nombre maximal de lignes de données à produire.
+     *
+     * @return \Generator<int, array{line:int, cells:array}>
+     */
+    private function readRowsRange(string $filePath, int $offset, int $limit): \Generator
+    {
+        $extension = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+
+        if ($extension === 'csv' || $extension === 'txt') {
+            // ⚠️ Le CSV est un flux SIMPLE : on saute les lignes par
+            //    lecture, sans rechargement du fichier. C'est ce qui rend
+            //    l'import par blocs du CSV gratuit (0,03 s de scan complet).
+            $produced = 0;
+            $dataIndex = 0;
+            foreach ($this->readCsvRowsStreaming($filePath) as $row) {
+                if ($dataIndex++ < $offset) {
+                    continue;
+                }
+                yield $row;
+                if (++$produced >= $limit) {
+                    return;
+                }
+            }
+            return;
+        }
+
+        // ⚠️ .xlsx : le flux natif ne sait PAS sauter. Il faut le
+        //    parcourir depuis le début et ignorer les lignes de données
+        //    situées avant la plage demandée.
+        $produced = 0;
+        $dataIndex = 0;
+        foreach ($this->readRowsStreaming($filePath) as $row) {
+            if ($dataIndex++ < $offset) {
+                continue;
+            }
+            yield $row;
+            if (++$produced >= $limit) {
+                return;
+            }
+        }
+    }
+
+    /**
+     * Lit les lignes d'un CSV, ligne par ligne (sans accumuler).
+     *
+     * ⚠️ `readCsvRows()` (le tableau) est gardé pour les tests et pour
+     *    le fallback ; le chemin de l'import par blocs utilise celui-ci,
+     *    en flux, pour ne pas tenir 50 000 lignes en RAM.
+     *
+     * @return \Generator<int, array{line:int, cells:array}>
+     */
+    private function readCsvRowsStreaming(string $filePath): \Generator
+    {
+        $handle = fopen($filePath, 'r');
+        if (!$handle) {
+            throw new \RuntimeException("Impossible d'ouvrir le fichier");
+        }
+
+        $headerMap = null;
+        $lineNumber = 0;
+
+        try {
+            while (($row = fgetcsv($handle, 0, ';')) !== false) {
+                $lineNumber++;
+
+                if ($row === [null] || $row === false) {
+                    continue;
+                }
+
+                if ($headerMap === null) {
+                    if (!$this->rowHasData($row)) {
+                        continue;
+                    }
+                    $headerMap = $this->mapHeaders($row);
+                    continue;
+                }
+
+                if (!$this->rowHasData($row)) {
+                    continue;
+                }
+
+                yield [
+                    'line' => $lineNumber,
+                    'cells' => $this->extractCells($row, $headerMap),
+                ];
+            }
+        } finally {
+            fclose($handle);
+        }
     }
 
     /**
@@ -1307,38 +1927,85 @@ class ProductImportService
 
     // MARK: Écriture
 
-    /** Écrit un nouveau produit + son lot de stock initial. */
-    private function createProduct(array $data): void
+    /**
+     * Écrit un nouveau produit + son lot de stock initial.
+     *
+     * ⚠️ Le lot est inséré par un `INSERT ... SELECT` qui prend le
+     *    `shop_id` DU PRODUIT : pas de SELECT intermédiaire.
+     *
+     *    Avant : `ProductBatch::create()` faisait 3 requêtes (un SELECT
+     *    du shop_id, un INSERT, puis 2 requêtes de recalc de stock).
+     *    Sur 50 000 produits, c'était le poste de coût principal.
+     *
+     *    Le `INSERT ... SELECT` préserve EXACTEMENT la garantie : le lot
+     *    porte la boutique de son produit, même si l'appelant ne la
+     *    connaît pas. Vérifié : `lastInsertId()` renvoie bien l'id du
+     *    lot inséré, et le `shop_id` du lot est identique à celui du
+     *    produit.
+     *
+     * ⚠️ Le recalc du stock dénormalisé n'est PAS fait ici : il est fait
+     *    en une fois pour tout le bloc (`recalculateStockForProducts()`).
+     *
+     * @return int L'id du produit créé (0 en cas d'échec).
+     */
+    private function createProduct(array $data): int
     {
-        $id = $this->productModel->create($data);
+        $id = (int)$this->productModel->create($data);
         if (!$id) {
             throw new \RuntimeException('Échec de la création du produit');
         }
 
         if ((float)$data['stock'] > 0) {
-            $this->batchModel->create([
-                'product_id' => $id,
-                'batch_number' => null,
-                'stock' => (float)$data['stock'],
-                'date_expiration' => $data['date_expiration'],
-                'date_reception' => date('Y-m-d'),
-            ]);
+            $this->createBatchForProduct($id, (float)$data['stock'], $data['date_expiration']);
         }
+
+        return $id;
     }
 
-    /** Met à jour un produit existant (stock réinjecté via un nouveau lot). */
+    /**
+     * Insère le lot de stock initial d'un produit.
+     *
+     * ⚠️ `INSERT ... SELECT` : le `shop_id` du lot est celui du PRODUIT,
+     *    lu par MySQL lui-même. C'est la garantie de
+     *    `ProductBatch::create()` (le lot porte toujours la boutique de
+     *    son produit), sans la requête SELECT par produit.
+     *
+     *    Le `SELECT ... WHERE id = :id` ne trouve qu'une ligne (clé
+     *    primaire) : l'INSERT insère donc EXACTEMENT un lot.
+     *
+     * @param int   $productId
+     * @param float $stock
+     * @param string|null $dateExpiration
+     */
+    private function createBatchForProduct(int $productId, float $stock, ?string $dateExpiration): void
+    {
+        $sql = 'INSERT INTO product_batches
+                    (product_id, shop_id, batch_number, stock, date_expiration, date_reception)
+                SELECT :product_id, shop_id, :batch_number, :stock, :date_expiration, :date_reception
+                FROM produits
+                WHERE id = :product_id2';
+
+        \App\Core\Database::getInstance()->query($sql, [
+            ':product_id'   => $productId,
+            ':batch_number' => null,
+            ':stock'        => $stock,
+            ':date_expiration' => !empty($dateExpiration) ? $dateExpiration : null,
+            ':date_reception' => date('Y-m-d'),
+            // Deuxième placeholder pour le même id : `EMULATE_PREPARES = false`
+            // interdit la réutilisation d'un placeholder nommé.
+            ':product_id2' => $productId,
+        ]);
+    }
+
+    /**
+     * Met à jour un produit existant (stock réinjecté via un nouveau lot).
+     */
     private function updateProduct(int $id, array $data): void
     {
         $this->productModel->update($id, $data);
 
         if ((float)$data['stock'] > 0) {
-            $this->batchModel->create([
-                'product_id' => $id,
-                'batch_number' => null,
-                'stock' => (float)$data['stock'],
-                'date_expiration' => $data['date_expiration'],
-                'date_reception' => date('Y-m-d'),
-            ]);
+            $this->createBatchForProduct($id, (float)$data['stock'], $data['date_expiration']);
         }
     }
 

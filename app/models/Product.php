@@ -291,6 +291,36 @@ class Product
     }
 
     /**
+     * La taille maximale d'une page de catalogue.
+     *
+     * ⚠️ MESURÉ à 50 000 produits dans UN magasin (base jetable, MySQL
+     *    9.1.0) — le coût de charger TOUT le catalogue :
+     *
+     *      limit   requêtes   SQL total   avec réseau (~80 ms/req.)
+     *        200       250     77,8 s       97,8 s
+     *      1 000        50     15,9 s       19,9 s
+     *      2 000        25      8,2 s       10,2 s
+     *      5 000        10      4,3 s        5,1 s
+     *
+     *    Le coût dominant est le NOMBRE de requêtes HTTP (la latence
+     *    réseau), pas le SQL. Le plafond de 200 imposait 250 requêtes
+     *    pour 50 000 produits : le caissier attendait plus d'une
+     *    minute avant d'avoir le catalogue complet.
+     *
+     *    ⚠️ 2 000 est un bon compromis :
+     *      - 25 requêtes au lieu de 250 (×10) ;
+     *      - 0,73 Mo de JSON et ~1,6 Mo de RAM PHP par réponse
+     *        (mesuré : 381 octets par produit) — sans danger avec le
+     *        `memory_limit` de 512 Mo ;
+     *      - le bloc le plus lent reste à ~170 ms.
+     *
+     *    Au-delà (5 000), on gagne 5 s mais on quadruple le poids de
+     *    chaque réponse : le pic mémoire du navigateur devient le
+     *    nouveau facteur limitant.
+     */
+    public const MAX_PAGE_SIZE = 2000;
+
+    /**
      * Page de produits, avec pagination serveur.
      *
      * ⚠️ C'est la méthode à utiliser pour AFFICHER le catalogue : à
@@ -301,17 +331,31 @@ class Product
      * construction de WHERE, cf. `buildCatalogWhere()`).
      *
      * @param array    $filters search, category, shop_id
-     * @param int      $limit   taille de page (bornée à 200)
+     * @param int      $limit   taille de page (bornée à MAX_PAGE_SIZE)
      * @param int      $offset  décalage
      * @param int|null $shopId
      * @param bool     $includeInactiveShops
      * @return array{rows: array, total: int, limit: int, offset: int}
      */
-    public function getPage(array $filters = [], int $limit = 50, int $offset = 0, $shopId = null, $includeInactiveShops = false): array
+    public function getPage(array $filters = [], int $limit = 50, int $offset = 0, $shopId = null, $includeInactiveShops = false, ?int $maxLimit = null): array
     {
         // Bornes : un `limit` fou renverrait le catalogue entier, et un
         // `offset` négatif fait échouer MySQL.
-        $limit = max(1, min(200, $limit));
+        //
+        // ⚠️ Le plafond est PARAMÉTRABLE parce que les deux appelants
+        //    n'ont pas le même besoin :
+        //
+        //    - la page `/produits` affiche 50 lignes à l'écran : elle
+        //      garde un plafond de 200 (une page de 2 000 ne servirait
+        //      qu'à ralentir le premier affichage) ;
+        //    - la CAISSE charge le catalogue ENTIER par blocs : elle a
+        //      besoin de 2 000 (cf. MAX_PAGE_SIZE et la mesure de
+        //      `loadCatalogueChunk()`).
+        //
+        //    Sans cette distinction, le plafond de 200 imposait 250
+        //    requêtes HTTP au caissier pour 50 000 produits.
+        $plafond = $maxLimit !== null ? (int)$maxLimit : self::MAX_PAGE_SIZE;
+        $limit = max(1, min($plafond, $limit));
         $offset = max(0, $offset);
 
         $search = trim((string)($filters['search'] ?? ''));
@@ -512,6 +556,29 @@ class Product
             LEFT JOIN shops s ON p.shop_id = s.id
             WHERE p.code_barres = :code_barres
               AND (s.id IS NULL OR s.actif = 1)', [':code_barres' => $barcode]);
+        return $row ? (int)$row['id'] : null;
+    }
+
+    /**
+     * Recherche un produit par code-barres SANS filtrer sur l'activité de
+     * sa boutique (donc y compris un produit d'une boutique désactivée).
+     *
+     * ⚠️ Usage RESTREINT : le chemin NORMAL de l'import utilise
+     *    `findIdsByBarcodes()`, qui applique la règle « boutique inactive
+     *    = produit introuvable ».
+     *
+     *    Cette méthode sert de filet de sécurité : quand la base refuse
+     *    l'INSERT (« Duplicate entry … for key 'produits.code_barres' »),
+     *    c'est que le code-barres EXISTE déjà — et l'UNIQUE est GLOBAL, sans
+     *    rapport avec la boutique. Il faut donc pouvoir le retrouver malgré
+     *    une boutique désactivée, sinon l'import échouerait en boucle.
+     */
+    public function findIdByBarcodeAnyShop($barcode)
+    {
+        $row = $this->db->fetch(
+            'SELECT id FROM produits WHERE code_barres = :code_barres LIMIT 1',
+            [':code_barres' => $barcode]
+        );
         return $row ? (int)$row['id'] : null;
     }
 

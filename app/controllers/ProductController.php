@@ -45,9 +45,20 @@ class ProductController extends Controller
             'shop_id'  => !empty($_GET['shop_id']) ? (int)$_GET['shop_id'] : null,
         ];
 
-        // ⚠️ Les bornes (limit 1..200, offset >= 0) sont appliquées dans
-        // `Product::getPage()` : un `limit` fou ne doit jamais pouvoir
-        // ramener le catalogue entier.
+        // ⚠️ Les bornes (limit 1..MAX_PAGE_SIZE, offset >= 0) sont
+        // appliquées dans `Product::getPage()` : un `limit` fou ne doit
+        // jamais pouvoir ramener le catalogue entier.
+        //
+        // ⚠️ Le plafond est 2 000 (et non 200) parce que c'est la CAISSE
+        //    qui consomme cette route : elle charge le catalogue ENTIER
+        //    par blocs, en arrière-plan. Avec un plafond de 200, il
+        //    lui fallait 250 requêtes HTTP pour 50 000 produits — soit
+        //    ~98 s d'attente (mesuré, base jetable, un seul magasin) :
+        //    le coût dominant est la latence réseau, pas le SQL.
+        //
+        //    À 2 000 : 25 requêtes, ~10 s. Le poids d'une réponse
+        //    (0,73 Mo de JSON, ~1,6 Mo de RAM PHP) reste sans danger
+        //    avec le `memory_limit` de 512 Mo.
         $result = $productModel->getPage(
             $filters,
             (int)($_GET['limit'] ?? 50),
