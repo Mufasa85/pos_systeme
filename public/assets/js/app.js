@@ -349,7 +349,26 @@ const posCart = {
     // faisait 3,2 Mo de JSON et 50 000 objets JS en mémoire (≈ 200 Mo de
     // RAM dans le V8). On charge par blocs de `catalogueChunkSize`, et on
     // complète en arrière-plan pendant que le caissier travaille.
-    catalogueChunkSize: 1000,
+    /**
+     * Le nombre de produits par bloc dans le catalogue de la caisse.
+     *
+     * ⚠️ MESURÉ à 50 000 produits dans un magasin (base jetable) :
+     * le coût dominant est le NOMBRE de requêtes HTTP, pas le SQL.
+     *
+     *      limit   requêtes   SQL total   avec réseau (~80 ms/req.)
+     *        200       250     77,8 s       97,8 s
+     *      1 000        50     15,9 s       19,9 s
+     *      2 000        25      8,2 s       10,2 s
+     *
+     *    2 000 correspond au plafond serveur (`Product::MAX_PAGE_SIZE`).
+     *    Au-delà, le serveur plafonnerait et renverrait moins de lignes
+     *    que demandé : le client tournerait alors en rond sans
+     *    avancer.
+     *
+     *    Le poids d'une réponse (0,73 Mo de JSON, ~1,6 Mo de RAM PHP)
+     *    reste sans danger avec le `memory_limit` de 512 Mo.
+     */
+    catalogueChunkSize: 2000,
     catalogueOffset: 0,
     catalogueTotal: 0,
     catalogueComplete: false,
