@@ -215,6 +215,9 @@ body {
   cursor: pointer;
   transition: all 0.2s;
   white-space: nowrap;
+  /* .btn est aussi utilisé sur des <a> : sans cela, le navigateur
+     les souligne et les colore comme du texte. */
+  text-decoration: none;
 }
 
 .btn:disabled {
@@ -1349,14 +1352,18 @@ body {
   padding: 0.75rem 1rem;
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: var(--bg-secondary, #f8fafc);
+  background: var(--background);
 }
 
 .pagination-info {
   font-size: 0.85rem;
-  color: var(--text-secondary, #475569);
+  color: var(--muted);
 }
 
+/* Les boutons de pagination sont des <a> : sans ces règles, le
+   navigateur les affiche soulignés et colorés comme du texte.
+   On leur impose un vrai look « bouton », aligné sur le reste de
+   l'application. */
 .pagination-buttons {
   display: flex;
   align-items: center;
@@ -1364,10 +1371,54 @@ body {
   flex-wrap: wrap;
 }
 
+.pagination-buttons .btn {
+  background: var(--card);
+  color: var(--foreground);
+  border: 1px solid var(--border);
+  font-weight: 500;
+  text-decoration: none;
+  box-shadow: var(--shadow);
+  transition: background 0.2s, border-color 0.2s, color 0.2s, transform 0.1s;
+}
+
+.pagination-buttons .btn:hover:not(:disabled):not(.is-disabled) {
+  background: var(--background);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.pagination-buttons .btn:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.pagination-buttons .btn:active:not(:disabled):not(.is-disabled) {
+  transform: translateY(1px);
+}
+
+/* État indisponible : « Précédent » (1re page) et « Suivant »
+   (dernière page) restent visibles mais grisés et non cliquables. */
+.pagination-buttons .btn.is-disabled,
+.pagination-buttons .btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+  box-shadow: none;
+  border-color: transparent;
+  background: transparent;
+}
+
+/* Indicateur de page courante. */
 .pagination-page {
-  font-size: 0.85rem;
-  font-weight: 600;
-  padding: 0 0.5rem;
+  display: inline-flex;
+  align-items: center;
+  padding: 0.45rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--primary);
+  font-size: 0.8rem;
+  font-weight: 700;
   white-space: nowrap;
 }
 
@@ -2704,7 +2755,92 @@ body {
   align-self: flex-start;
 }
 
-/* ── Étape 2 : rapport ── */
+/* ── Étape 2 : avancement de l'import par blocs ──
+   Les classes sont préfixées `pi-` : elles ne doivent pas entrer en
+   collision avec les noms génériques du POS (`.progress`, `.bar`…). */
+.pi-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.pi-progress-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.pi-progress-percent {
+  font-size: 1.6rem;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--primary, #0B5E88);
+}
+
+.pi-progress-count {
+  font-size: 0.85rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.pi-progress-track {
+  height: 10px;
+  border-radius: 999px;
+  background: var(--border);
+  overflow: hidden;
+}
+
+.pi-progress-bar {
+  height: 100%;
+  width: 0%;
+  border-radius: 999px;
+  background: var(--primary, #0B5E88);
+  transition: width 0.25s ease;
+}
+
+.pi-progress-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: 0.82rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.pi-progress-latest {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.6rem 0.75rem;
+  background: var(--background);
+}
+
+.pi-progress-latest strong {
+  display: block;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  margin-bottom: 0.35rem;
+}
+
+.pi-progress-names {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 0.85rem;
+}
+
+.pi-progress-names li {
+  padding: 0.15rem 0;
+  border-bottom: 1px dashed var(--border);
+}
+
+.pi-progress-names li:last-child {
+  border-bottom: none;
+}
+
+/* ── Étape 3 : rapport ── */
 .pi-summary {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
